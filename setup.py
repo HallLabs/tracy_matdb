@@ -36,7 +36,7 @@ setup(name='matdb',
           "phonopy"
       ],
       packages=['matdb', 'matdb.database'],
-      scripts=['matdb/scripts/matdb.py'],
+      scripts=['matdb/scripts/matdb_build.py'],
       package_data={'matdb': []},
       include_package_data=True,
       classifiers=[

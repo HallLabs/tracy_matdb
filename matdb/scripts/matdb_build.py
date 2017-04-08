@@ -1,8 +1,8 @@
  #!/usr/bin/python
-from matdb import msg
 def examples():
     """Prints examples of using the script to the console using colored output.
     """
+    from matdb import msg
     script = "MATDB Automated Materials Database Constructor"
     explain = ("In order to apply machine learning to produce potentials "
                "we first need a collection of atomic configurations from "
@@ -39,6 +39,7 @@ def _parser_options():
     """Parses the options and arguments from the command line."""
     #We have two options: get some of the details from the config file,
     import argparse
+    import sys
     from matdb import base
     pdescr = "MATDB Database Constructor"
     parser = argparse.ArgumentParser(parents=[base.bparser], description=pdescr)
