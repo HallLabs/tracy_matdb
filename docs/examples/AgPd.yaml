@@ -1,0 +1,96 @@
+title: 'AgPd Alloy Database'
+# Ordered list of species; this is the same order as should be in the
+# POTCAR file for VASP calculations.
+species:
+  - 'Pd'
+  - 'Ag'
+# If the POTCAR names are non-standard, include the *suffix* after the
+# element name here.
+potcars:
+  directory: '/fslhome/glh43/src'
+  pseudo: 'paw_PBE'
+  version: '04Jan2005'
+  pd: '_pv'
+# Directory in which the database folder system will be created.
+root: '~/compute/AgPd'
+# List the names of files in the root directory that serve as seed
+# configurations for sub-sampling to create additional configs. The
+# name keyword decides what the folder name will be called in which
+# all sub-sampled configurations are created.
+configs:
+  # - name: 'Pd'
+  #   poscar: 'POSCAR-Pd'
+  - name: 'PdAg25'
+    poscar: 'POSCAR-25'
+  - name: 'PdAg50'
+    poscar: 'POSCAR-50'
+  - name: 'PdAg75'
+    poscar: 'POSCAR-75'
+  # - name: 'Ag'
+  #   poscar: 'POSCAR-Ag'
+# These are global settings for INCAR that will be applied to *all*
+# the VASP calculations in all databases. They can be overridden in
+# each database.
+incar:
+  prec: 'a'
+  encut: 400
+  isym: 0
+  lwave: False
+  lreal: 'auto'
+  ediff: '1e-5'
+  ismear: 1
+  sigma: 0.1
+# We use Mueller k-points exclusively. These kpoint settings apply to
+# all database calculations.
+kpoints:
+  includegamma: True
+  mindistance: 20
+# Parameters for the job arrays that will be submitted for each
+# database. These can be overridden in each database below as well.
+execution:
+  template: 'run_array_ml.sh'
+  time: 48
+  ntasks: 1
+  nodes: 1
+  mem_per_cpu: 8
+  job_name: 'AgPd DB'
+  partition: 'physics'
+  array_limit: 150
+  exec_path: 'vasp46s'
+# Next, we include a list of all the databases we want to create. A
+# database following this pattern is created *for each* of the seed
+# configurations listed above.
+databases:
+  #The PhononBase class generates the dynamical matrix that is needed
+  #by PhononDatabase.
+  - type: 'phonon.PhononBase'
+    kpoints:
+      mindistance: 30
+    phonons:
+      dim: [2, 2, 2]
+      mp: [20, 20, 20]
+  - type: 'phonon.PhononDatabase'
+    nconfigs: 100
+    sampling: 'uniform'
+    calibrate: 6
+    phonons:
+      dim: [2, 2, 2]
+      mesh: [13, 13, 13]
+    amplitude:
+      PdAg25: 12
+      PdAg50: 15
+      PdAg75: 18
+  # - type: 'liquid.LiquidDatabase'
+  #   nconfigs: 1000
+  #   samplerate: 100
+  #   tstart:
+  #     PdAg25: 2766
+  #     PdAg50: 3063
+  #     PdAg75: 3360
+  #   tend:
+  #     PdAg25: 2766
+  #     PdAg50: 3063
+  #     PdAg75: 3360
+  #   incar:
+  #     smass: 3
+  #     potim: 1.

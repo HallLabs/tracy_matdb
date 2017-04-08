@@ -1,0 +1,5 @@
+    with open(target, 'w') as outfile:
+        for fname in files:
+            with open(fname) as infile:
+                for line in infile:
+                    outfile.write(line)
