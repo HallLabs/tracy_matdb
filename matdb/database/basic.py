@@ -1,6 +1,47 @@
 """Abstract base class for creating and interacting with a database of
 configurations for machine learning materials.
 """
+from os import path
+def can_execute(folder):
+    """Returns True if the specified folder is ready to execute VASP
+    in.
+    """
+    if not path.isdir(folder):
+        return False
+    
+    from os import stat
+    required = ["INCAR", "POSCAR", "KPOINTS", "POTCAR"]
+    present = {}
+    for rfile in required:
+        target = path.join(folder, rfile)
+        sizeok = stat(target).st_size > 25
+        present[rfile] = path.isfile(target) and sizeok
+
+    if not all(present.values()):
+        from matdb.msg import info
+        for f, ok in present.items():
+            if not ok:
+                info("{} not present for VASP execution.".format(f), 2)
+    return all(present.values())
+
+def can_cleanup(folder):
+    """Returns True if the specified VASP folder has completed
+    executing and the results are available for use.
+    """
+    if not path.isdir(folder):
+        return False
+    
+    #If we can extract a final total energy from the OUTCAR file, we
+    #consider the calculation to be finished.
+    from matdb.utility import execute
+    cargs = ["grep", '"free  energy"', "OUTCAR"]
+    xres = execute(cargs, folder)
+
+    if len(xres["output"]) > 0 and "TOTEN" in xres["output"][0]:
+        return True
+    else:
+        return False
+        
 class Database(object):
     """Represents a collection of material configurations (varying in
     structure and composition) from which a machine learning model can
@@ -86,6 +127,40 @@ class Database(object):
                     pass
         finally:
             chdir(current)
+
+    def execute(self, dryrun=False):
+        """Submits the job script for each of the folders in this
+        database if they are ready to run.
+
+        Returns:
+            bool: True if the submission generated a job id
+            (considered successful).
+        """
+        if not path.isfile(path.join(self.root, "jobfile.sh")):
+            return False
+
+        executors = {f: can_execute(f) for f in self.configs.values()}
+        if not all(executors.values()):
+            return False
+
+        #We also need to check that we haven't already submitted this job. If
+        #the OUTCAR file exists, then we don't want to resubmit.
+        for f in self.configs.values():
+            outcar = path.join(f, "OUTCAR")
+            if path.isfile(outcar):
+                return False
+        
+        # We must have what we need to execute. Compile the command
+        # and submit.
+        from matdb.utility import execute
+        cargs = ["sbatch", "jobfile.sh"]
+        xres = execute(cargs, self.root)
+
+        if len(xres["output"]) > 0 and "Submitted" in xres["output"][0]:
+            print("{}: {}".format(self.root, xres["output"].strip()))
+            return True
+        else:
+            return False
             
     def PRECALC(self, rewrite=False):
         """Creates the INCAR file using the default settings plus any extras
@@ -230,16 +305,12 @@ class Database(object):
             return False
 
     def cleanup(self):
-        """Runs post-DFT execution routines to clean-up the database.
-
-        .. note:: This method should be overloaded by a sub-class.
-
-        Raises:
-            NotImplementedError: this method is intended to be overloaded by a
-            sub-class.
+        """Runs post-DFT execution routines to clean-up the database. This super class
+        implementation only checks that each of the sub-config directories has
+        the necessary files needed for cleanup.
         """
-        raise NotImplementedError("Method `cleanup` must be overloaded by a "
-                                  "sub-class.")
+        cleanups = [can_cleanup(f) for f in self.configs.values()]
+        return all(cleanups)
     
     def xyz(self, filename="output.xyz",
             properties=["species", "pos", "z", "force"],

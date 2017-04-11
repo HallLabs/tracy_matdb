@@ -29,7 +29,13 @@ def examples():
 script_options = {
     "dbspec": {"help": "File containing the database specifications."},
     "-s": {"action": "store_true",
-           "help": "Run the setup method for each database."}
+           "help": "Run the setup method for each database."},
+    "-x": {"action": "store_true",
+           "help": ("Submit the job array file for each database that has "
+                    "folders ready to run.")},
+    "-c": {"action": "store_true",
+           "help": ("Cleanup the databases that have completed execution "
+                    "so that results can be extracted.")}
     }
 """dict: default command-line arguments and their
     :meth:`argparse.ArgumentParser.add_argument` keyword arguments.
@@ -64,6 +70,10 @@ def run(args):
     cdb = Controller(args["dbspec"])
     if args["s"]:
         cdb.setup()
+    if args["x"]:
+        cdb.execute()
+    if args["c"]:
+        cdb.cleanup()    
     
 if __name__ == '__main__': # pragma: no cover
     run(_parser_options())

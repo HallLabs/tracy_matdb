@@ -187,6 +187,9 @@ class PhononBase(Database):
            bool: True if the database is ready; this means that any other
            databases that rely on its outputs can be run.
         """
+        if not super(PhononBase, self).cleanup():
+            return
+        
         self.calc_forcesets(recalc)
         self.calc_DOS(recalc)
         return self.ready()
@@ -383,6 +386,9 @@ class PhononCalibration(Database):
         Returns:
            bool: True if the amplitude calibration is ready.
         """
+        if not super(PhononCalibration, self).cleanup():
+            return
+        
         success = self.xyz()
         if not success:
             return False
@@ -548,6 +554,9 @@ class PhononDatabase(Database):
            bool: True if the database is ready; this means that any other
            databases that rely on its outputs can be run.
         """
+        if not super(PhononDatabase, self).cleanup():
+            return
+        
         return self.xyz()
     
     def setup(self):

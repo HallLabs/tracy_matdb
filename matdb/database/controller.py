@@ -80,6 +80,22 @@ class DatabaseCollection(object):
             instance = cls(**cpspec)
             self.databases[instance.name] = instance
 
+    def execute(self):
+        """Submits job array files for any of the databases that are ready to
+        execute, but which haven't been submitted yet.
+        """
+        ready = True
+        for dbname in self.order:
+            if dbname not in self.databases:
+                continue
+            if ready:
+                ready = (self.databases[dbname].cleanup() or
+                         self.databases[dbname].execute())
+            else:
+                imsg = "Database {} is not ready to execute yet. Done."
+                msg.info(imsg.format(dbname))
+                break        
+            
     def cleanup(self):
         """Runs the cleanup methods of each database in the collection, in the
         correct order.
