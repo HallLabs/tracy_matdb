@@ -150,6 +150,10 @@ class PhononBase(Database):
         """
         if super(PhononBase, self).setup():
             return
+
+        #We also don't want to setup again if we have the results already.
+        if self.ready():
+            return
         
         from ase.io import write
         from matdb.utility import execute
@@ -243,10 +247,10 @@ def sample_dos(meshfile, sampling="uniform", nfreqs=100):
         elif sampling == "sample":
             freqs.extend(fs*w)
 
-        for f in fs:
+        for bandi, f in enumerate(fs):
             rf = np.round(f, 6)
             if rf not in lookup:
-                lookup[rf] = q
+                lookup[rf] = (bandi, q)
 
     #Now we can do the actual sampling.
     if sampling == "uniform":
@@ -290,12 +294,13 @@ def modulate_atoms(db):
     conffile = path.join(db.base.phonodir, db.confname)
 
     modstr = [' '.join(map(str, db.phonons["dim"]))]
-    for iq, qvec in enumerate(qvecs):
+    for iq, (bandi, qvec) in enumerate(qvecs):
         mstr = "{0:.7f} {1:.7f} {2:.7f} {3:d} {4:.7f} {5:.7f}"
-        if hasattr(db, "_amplitude"):
-            A = np.random.normal(1, 0.25)*db._amplitude[iq]
+        if hasattr(db, "_amplitudes"):
+            A = db._amplitudes[iq]
         else:
             A = np.random.normal(1, 0.25)*db.amplitude
+            
         phi = np.random.uniform(0, 180)
         args = qvec + [bandi, A, phi]
         modstr.append(mstr.format(*args))
@@ -305,7 +310,11 @@ def modulate_atoms(db):
     phondict["modulation"] = ', '.join(modstr)
     with open(conffile, 'w') as f:
         for k, v in phondict.items():
-            f.write("{} = {}\n".format(k.upper(), v))
+            if isinstance(v, (list, tuple, set)):
+                value = ' '.join(map(str, v))
+                f.write("{} = {}\n".format(k.upper(), value))
+            else:
+                f.write("{} = {}\n".format(k.upper(), v))
 
     from matdb.utility import execute
     sargs = ["phonopy", db.confname]
@@ -352,10 +361,13 @@ class PhononCalibration(Database):
           :attr:`configs`.
         outfile (str): path to the `calibration.dat` file that contains the list
           of amplitudes and displacements from the calibration run.
+        sampling (str): specifies how the DOS is sampled for this database to
+          produce modulated sub-configurations.
     """
     name = "phoncalib"
     confname = "calibrate.conf"
-
+    sampling = "uniform"
+    
     def __init__(self, atoms=None, root=None, parent=None,
                  kpoints={}, incar={}, phonons={}, execution={}, nconfigs=10):
         super(PhononCalibration, self).__init__(atoms, incar, kpoints, execution,
@@ -368,7 +380,7 @@ class PhononCalibration(Database):
 
         #Calculate which amplitudes to use for the calibration based on the
         #number of desired configurations (calibration points).
-        self._amplitudes = np.logspace(1, 500, nconfigs)
+        self._amplitudes = np.logspace(0, 2.7, nconfigs)
         self.amplitudes = {}
         self.outfile = path.join(self.root, "calibration.dat")
         
@@ -387,7 +399,7 @@ class PhononCalibration(Database):
            bool: True if the amplitude calibration is ready.
         """
         if not super(PhononCalibration, self).cleanup():
-            return
+            return False
         
         success = self.xyz()
         if not success:
@@ -429,6 +441,11 @@ class PhononCalibration(Database):
         #We can't module atoms unless the phonon base is ready.
         if not self.base.ready():
             return
+
+        #Don't reproduce the folders if they already exist or we have already
+        #computed.
+        if self.ready():
+            return
         
         modulate_atoms(self)
         
@@ -440,6 +457,10 @@ class PhononCalibration(Database):
 
         try:
             for mi, mposcar in enumerate(sorted(list(glob("MPOSCAR-*")))):
+                if mposcar == "MPOSCAR-orig":
+                    remove(mposcar)
+                    continue
+                
                 cid = int(mposcar.split('-')[1])
                 matoms = Atoms(mposcar, format="POSCAR")
                 self.create(matoms, cid)

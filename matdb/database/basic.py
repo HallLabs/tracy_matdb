@@ -33,6 +33,10 @@ def can_cleanup(folder):
     
     #If we can extract a final total energy from the OUTCAR file, we
     #consider the calculation to be finished.
+    outcar = path.join(folder, "OUTCAR")
+    if not path.isfile(outcar):
+        return False
+    
     from matdb.utility import execute
     cargs = ["grep", '"free  energy"', "OUTCAR"]
     xres = execute(cargs, folder)
@@ -128,6 +132,19 @@ class Database(object):
         finally:
             chdir(current)
 
+    def is_executing(self):
+        """Returns True if the database DFT calculations are in process of being
+        executed.
+        """
+        outcars = False
+        for f in self.configs.values():
+            outcar = path.join(f, "OUTCAR")
+            if path.isfile(outcar):
+                outcars = outcars or True
+
+        busy = not all([can_cleanup(f) for f in self.configs.values()])
+        return outcars and busy
+            
     def execute(self, dryrun=False):
         """Submits the job script for each of the folders in this
         database if they are ready to run.
@@ -157,7 +174,8 @@ class Database(object):
         xres = execute(cargs, self.root)
 
         if len(xres["output"]) > 0 and "Submitted" in xres["output"][0]:
-            print("{}: {}".format(self.root, xres["output"].strip()))
+            from matdb.msg import okay
+            okay("{}: {}".format(self.root, xres["output"][0].strip()))
             return True
         else:
             return False
@@ -298,17 +316,41 @@ class Database(object):
           calls this method.
         """
         #Test to see if we have already set the database up.
+        confok = False
         if len(self.configs) == self.nconfigs:
             msg.info("The phonon-base database has already been setup.", 2)
-            return True
-        else:
-            return False
+            confok = True
 
+        #Don't run setup if the program is currently executing.
+        xok = False
+        if self.is_executing():
+            xok = True
+            
+        return confok or xok
+            
+    def status(self):
+        """Returns a status message for statistics of sub-configuration execution
+        with VASP.
+        """
+        from numpy import count_nonzero as cnz
+        ready = [can_execute(f) for f in self.configs.values()]
+        done = [can_cleanup(f) for f in self.configs.values()]
+        rdata, ddata, N = cnz(ready), cnz(done), len(self.configs)
+        rmsg = "ready to execute {}/{};".format(rdata, N)
+        dmsg = "finished executing {}/{};".format(ddata, N)
+        busy = " busy executing..." if self.is_executing() else ""
+        return "{} {}{}".format(rmsg, dmsg, busy)
+        
     def cleanup(self):
         """Runs post-DFT execution routines to clean-up the database. This super class
         implementation only checks that each of the sub-config directories has
         the necessary files needed for cleanup.
         """
+        if len(self.configs) != self.nconfigs:
+            #We need to have at least one folder for each config;
+            #otherwise we aren't ready to go.
+            return False
+        
         cleanups = [can_cleanup(f) for f in self.configs.values()]
         return all(cleanups)
     
@@ -338,12 +380,13 @@ class Database(object):
                  "OUTCAR", "-o", filename]
 
         from matdb.utility import execute
+        from os import stat
         created = []
         for i, folder in self.configs.items():
             relpath = path.join(self.root, folder)
             execute(sargs, relpath)
             outpath = path.join(relpath, filename)
-            if path.isfile(outpath):
+            if path.isfile(outpath) and stat(outpath).st_size > 100:
                 created.append(outpath)            
 
         #Finally, combine all of them together into a single

@@ -80,6 +80,19 @@ class DatabaseCollection(object):
             instance = cls(**cpspec)
             self.databases[instance.name] = instance
 
+    def status(self):
+        """Prints a status message for each of the databases relative
+        to VASP execution status.
+        """
+        for dbname in self.order:
+            if dbname not in self.databases:
+                continue
+
+            db = self.databases[dbname]
+            imsg = "{}:{} => {}".format(self.name, dbname, db.status())
+            msg.info(imsg)
+        msg.blank(level=1)
+            
     def execute(self):
         """Submits job array files for any of the databases that are ready to
         execute, but which haven't been submitted yet.
@@ -89,12 +102,14 @@ class DatabaseCollection(object):
             if dbname not in self.databases:
                 continue
             if ready:
-                ready = (self.databases[dbname].cleanup() or
+                ready = (self.databases[dbname].ready() or
                          self.databases[dbname].execute())
             else:
-                imsg = "Database {} is not ready to execute yet. Done."
-                msg.info(imsg.format(dbname))
-                break        
+                imsg = ("Database {}:{} is not ready to execute yet, or is "
+                        "already executing. Done.")
+                msg.info(imsg.format(self.name, dbname))
+                break
+        msg.blank()
             
     def cleanup(self):
         """Runs the cleanup methods of each database in the collection, in the
@@ -107,8 +122,10 @@ class DatabaseCollection(object):
             if ready:
                 ready = self.databases[dbname].cleanup()
             else:
-                msg.info("Database {} is not ready yet. Done.".format(dbname))
+                imsg = "Database {}:{} is not ready yet. Done."
+                msg.info(imsg.format(self.name, dbname))
                 break
+        msg.blank()
             
     def setup(self):
         """Sets up the database collection by generating the POTCAR file and
@@ -119,9 +136,13 @@ class DatabaseCollection(object):
            method can, therefore, be safely called repeatedly between different
            terminal sessions.
         """
-        for dbname, db in self.databases.items():
-            msg.info("Setting up database {}".format(dbname))
+        for dbname in self.order:
+            if dbname not in self.databases:
+                continue
+            db = self.databases[dbname]
+            msg.info("Setting up database {}:{}".format(self.name, dbname))
             db.setup()
+        msg.blank()
         
 class Controller(object):
     """Implements methods for tying a configuration dictionary (in
@@ -173,7 +194,19 @@ class Controller(object):
         """
         for name, coll in self.collections.items():
             coll.cleanup()
-        
+
+    def execute(self):
+        """Submits job array scripts for each database collection.
+        """
+        for name, coll in self.collections.items():
+            coll.execute()
+
+    def status(self):
+        """Prints status messages for each of the configuration's databases.
+        """
+        for name, coll in self.collections.items():
+            coll.status()   
+            
     def POTCAR(self):
         """Creates the POTCAR file using the pseudopotential and version
         specified in the file.

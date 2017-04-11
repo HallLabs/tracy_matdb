@@ -35,7 +35,11 @@ script_options = {
                     "folders ready to run.")},
     "-c": {"action": "store_true",
            "help": ("Cleanup the databases that have completed execution "
-                    "so that results can be extracted.")}
+                    "so that results can be extracted.")},
+    "--status": {"action": "store_true",
+                "help": ("Determines status of the databases "
+                         "based on presence of completed VASP "
+                         "directories. Sanity check before `-x`.")}
     }
 """dict: default command-line arguments and their
     :meth:`argparse.ArgumentParser.add_argument` keyword arguments.
@@ -74,6 +78,9 @@ def run(args):
         cdb.execute()
     if args["c"]:
         cdb.cleanup()    
-    
+
+    if args["status"]:
+        cdb.status()
+        
 if __name__ == '__main__': # pragma: no cover
     run(_parser_options())
