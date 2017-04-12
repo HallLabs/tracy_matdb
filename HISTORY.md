@@ -1,5 +1,10 @@
 # Revision History for `matdb`
 
+## Revision 0.0.4
+
+- Debugged modulation of phonon database (using specified amplitudes).
+- The inferance of amplitudes is still not coded (is present in a prototyping notebook).
+
 ## Revision 0.0.3
 
 - Debugged the modulation sub-config generation.

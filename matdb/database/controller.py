@@ -77,6 +77,13 @@ class DatabaseCollection(object):
             cpspec["atoms"] = self.atoms
             cpspec["root"] = self.root
             cpspec["parent"] = self
+
+            #Handle the special cases where settings are specified uniquely for
+            #each of the configurations separately.
+            for k in list(cpspec.keys()):
+                if isinstance(cpspec[k], dict) and self.name in cpspec[k]:
+                    cpspec[k] = cpspec[k][self.name]
+            
             instance = cls(**cpspec)
             self.databases[instance.name] = instance
 
@@ -119,9 +126,11 @@ class DatabaseCollection(object):
         for dbname in self.order:
             if dbname not in self.databases:
                 continue
+            
             if ready:
                 ready = self.databases[dbname].cleanup()
-            else:
+                
+            if not ready:
                 imsg = "Database {}:{} is not ready yet. Done."
                 msg.info(imsg.format(self.name, dbname))
                 break

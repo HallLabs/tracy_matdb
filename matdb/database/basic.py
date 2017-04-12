@@ -2,6 +2,8 @@
 configurations for machine learning materials.
 """
 from os import path
+from matdb import msg
+
 def can_execute(folder):
     """Returns True if the specified folder is ready to execute VASP
     in.
@@ -44,7 +46,15 @@ def can_cleanup(folder):
     if len(xres["output"]) > 0 and "TOTEN" in xres["output"][0]:
         return True
     else:
-        return False
+        #For some of the calibration tests, it is possible that an error was
+        #raised because the ions are too close together. That still counts as
+        #finishing, we just don't have output.
+        dargs = ["grep", '"Error"', "OUTCAR"]
+        dres = execute(dargs, folder)
+        if len(dres["output"]) > 0 and "Error" in dres["output"][0]:
+            return True
+        else:
+            return False
         
 class Database(object):
     """Represents a collection of material configurations (varying in
@@ -317,8 +327,10 @@ class Database(object):
         """
         #Test to see if we have already set the database up.
         confok = False
-        if len(self.configs) == self.nconfigs:
-            msg.info("The phonon-base database has already been setup.", 2)
+        if (len(self.configs) == self.nconfigs or
+            len(self.configs) > 0 and self.nconfigs is None):
+            imsg = "The {} database has already been setup."
+            msg.info(imsg.format(self.name), 2)
             confok = True
 
         #Don't run setup if the program is currently executing.
@@ -328,25 +340,47 @@ class Database(object):
             
         return confok or xok
             
-    def status(self):
+    def status(self, print_msg=True):
         """Returns a status message for statistics of sub-configuration execution
         with VASP.
+
+        Args:
+            print_msg (bool): when True, return a text message with aggregate status
+              information; otherwise, return a dict of the numbers involved
         """
         from numpy import count_nonzero as cnz
-        ready = [can_execute(f) for f in self.configs.values()]
-        done = [can_cleanup(f) for f in self.configs.values()]
-        rdata, ddata, N = cnz(ready), cnz(done), len(self.configs)
+        ready = {f: can_execute(f) for f in self.configs.values()}
+        done = {f: can_cleanup(f) for f in self.configs.values()}
+        
+        rdata, ddata = cnz(ready.values()), cnz(done.values())
+        N = len(self.configs)        
+        is_busy = self.is_executing()
+
         rmsg = "ready to execute {}/{};".format(rdata, N)
         dmsg = "finished executing {}/{};".format(ddata, N)
-        busy = " busy executing..." if self.is_executing() else ""
-        return "{} {}{}".format(rmsg, dmsg, busy)
+        busy = " busy executing..." if is_busy else ""
+
+        if print_msg:
+            return "{} {}{}".format(rmsg, dmsg, busy)
+        else:
+            return {
+                "ready": ready,
+                "done": done,
+                "stats": {
+                    "ready": rdata,
+                    "done": ddata,
+                    "N": N
+                },
+                "busy": is_busy
+            }
         
     def cleanup(self):
         """Runs post-DFT execution routines to clean-up the database. This super class
         implementation only checks that each of the sub-config directories has
         the necessary files needed for cleanup.
         """
-        if len(self.configs) != self.nconfigs:
+        if (len(self.configs) != self.nconfigs and
+            self.nconfigs is not None):
             #We need to have at least one folder for each config;
             #otherwise we aren't ready to go.
             return False
@@ -356,7 +390,8 @@ class Database(object):
     
     def xyz(self, filename="output.xyz",
             properties=["species", "pos", "z", "force"],
-            parameters=["energy", "stress"]):
+            parameters=["energy", "stress"],
+            recalc=False):
         """Creates an XYZ file for all the sub-sampled configurations in this
         database.
 
@@ -367,31 +402,45 @@ class Database(object):
               force, Z, etc.) to include in the XYZ file.
             parameters (list): of `str` *configuration* paramater names (such as
               energy, stress, etc.).
+            recalc (bool): when True, re-create the XYZ file, even if it already
+              exists. 
 
         Returns:
             bool: True if the number of xyz files created equals the number of
             configurations in the database, which means that the database is
             fully calculated in a usable way.
         """
-        from os import path
+        from os import path, stat
+        dboutpath = path.join(self.root, filename)
+        if (path.isfile(dboutpath)
+            and stat(dboutpath).st_size > 100
+            and not recalc):
+            return True
+        
         p = ','.join(properties)
         P = ','.join(parameters)
         sargs = ["convert.py", "-I", "OUTCAR", "-p", p, "-P", P, "-f", "xyz",
                  "OUTCAR", "-o", filename]
 
         from matdb.utility import execute
-        from os import stat
         created = []
         for i, folder in self.configs.items():
             relpath = path.join(self.root, folder)
-            execute(sargs, relpath)
             outpath = path.join(relpath, filename)
+
+            #Don't recompute un-necessarily.
+            if (path.isfile(outpath) and stat(outpath).st_size > 100
+                and not recalc):
+                created.append(outpath)
+                continue
+            
+            execute(sargs, relpath)
             if path.isfile(outpath) and stat(outpath).st_size > 100:
                 created.append(outpath)            
 
         #Finally, combine all of them together into a single
         from matdb.utility import cat
-        cat(created, path.join(self.root, filename))
+        cat(created, dboutpath)
         self._nsuccess = len(created)
         
         return len(created) == len(self.configs)
