@@ -126,12 +126,11 @@ class Database(object):
         #Try and load existing folders that match the prefix into the configs
         #list.
         from glob import glob
-        from os import path, getcwd, chdir
+        from os import path
+        from matdb.utility import chdir
         self.configs = {}
-        current = getcwd()
-        chdir(self.root)
-        
-        try:
+
+        with chdir(self.root):
             for folder in glob("{}.*".format(prefix)):
                 try:
                     cid = int(folder.split('.')[1])
@@ -139,8 +138,6 @@ class Database(object):
                 except:
                     #The folder name doesn't follow our convention.
                     pass
-        finally:
-            chdir(current)
 
     def is_executing(self):
         """Returns True if the database DFT calculations are in process of being
@@ -152,12 +149,21 @@ class Database(object):
             if path.isfile(outcar):
                 outcars = outcars or True
 
-        busy = not all([can_cleanup(f) for f in self.configs.values()])
+        busy = False
+        for f in self.configs.values():
+            if not can_cleanup(f):
+                busy = True
+                break
+            
         return outcars and busy
             
     def execute(self, dryrun=False):
         """Submits the job script for each of the folders in this
         database if they are ready to run.
+
+        Args:
+            dryrun (bool): when True, simulate the submission without
+              actually submitting.
 
         Returns:
             bool: True if the submission generated a job id
@@ -181,7 +187,12 @@ class Database(object):
         # and submit.
         from matdb.utility import execute
         cargs = ["sbatch", "jobfile.sh"]
-        xres = execute(cargs, self.root)
+        if dryrun:
+            from matdb.msg import okay
+            okay("Executed {} in {}".format(' '.join(cargs), self.root))
+            return True
+        else:
+            xres = execute(cargs, self.root)
 
         if len(xres["output"]) > 0 and "Submitted" in xres["output"][0]:
             from matdb.msg import okay
@@ -349,8 +360,12 @@ class Database(object):
               information; otherwise, return a dict of the numbers involved
         """
         from numpy import count_nonzero as cnz
-        ready = {f: can_execute(f) for f in self.configs.values()}
-        done = {f: can_cleanup(f) for f in self.configs.values()}
+        from tqdm import tqdm
+        ready = {}
+        done = {}
+        for f in tqdm(self.configs.values()):
+            ready[f] = can_execute(f)
+            done[f] = can_cleanup(f)
         
         rdata, ddata = cnz(ready.values()), cnz(done.values())
         N = len(self.configs)        
@@ -389,10 +404,10 @@ class Database(object):
         return all(cleanups)
     
     def xyz(self, filename="output.xyz",
-            properties=["species", "pos", "z", "force"],
-            parameters=["energy", "stress"],
-            recalc=False):
-        """Creates an XYZ file for all the sub-sampled configurations in this
+            properties=["species", "pos", "z", "dft_force"],
+            parameters=["dft_energy", "dft_virial"],
+            recalc=False, combine=False):
+        """Creates an XYZ file for each of the sub-sampled configurations in this
         database.
 
         Args:
@@ -402,46 +417,30 @@ class Database(object):
               force, Z, etc.) to include in the XYZ file.
             parameters (list): of `str` *configuration* paramater names (such as
               energy, stress, etc.).
-            recalc (bool): when True, re-create the XYZ file, even if it already
-              exists. 
+            recalc (bool): when True, re-create the XYZ files, even if they already
+              exist. 
+            combine (bool): when True, combine all the sub-configuration XYZ
+              files into a single, giant XYZ file.
 
         Returns:
             bool: True if the number of xyz files created equals the number of
             configurations in the database, which means that the database is
             fully calculated in a usable way.
         """
-        from os import path, stat
-        dboutpath = path.join(self.root, filename)
-        if (path.isfile(dboutpath)
-            and stat(dboutpath).st_size > 100
-            and not recalc):
-            return True
-        
-        p = ','.join(properties)
-        P = ','.join(parameters)
-        sargs = ["convert.py", "-I", "OUTCAR", "-p", p, "-P", P, "-f", "xyz",
-                 "OUTCAR", "-o", filename]
-
-        from matdb.utility import execute
+        from matdb.io import vasp_to_xyz
+        from tqdm import tqdm
         created = []
-        for i, folder in self.configs.items():
-            relpath = path.join(self.root, folder)
-            outpath = path.join(relpath, filename)
-
-            #Don't recompute un-necessarily.
-            if (path.isfile(outpath) and stat(outpath).st_size > 100
-                and not recalc):
+        for i, folder in tqdm(self.configs.items()):
+            outpath = path.join(folder, filename)
+            if vasp_to_xyz(folder, filename, recalc, properties, parameters):
                 created.append(outpath)
-                continue
-            
-            execute(sargs, relpath)
-            if path.isfile(outpath) and stat(outpath).st_size > 100:
-                created.append(outpath)            
-
-        #Finally, combine all of them together into a single
-        from matdb.utility import cat
-        cat(created, dboutpath)
         self._nsuccess = len(created)
+        
+        #Finally, combine all of them together into a single
+        if combine:
+            from matdb.utility import cat
+            dboutpath = path.join(self.root, filename)
+            cat(created, dboutpath)
         
         return len(created) == len(self.configs)
 

@@ -3,6 +3,8 @@ folders via a simple configuration file.
 """
 from os import path
 from matdb import msg
+import numpy as np
+
 class DatabaseCollection(object):
     """Represents a collection of databases (all inheriting from
     :class:`Database`) that are all related be the atomic species that they
@@ -29,6 +31,8 @@ class DatabaseCollection(object):
           for the various pseudo-potentials that ship with VASP.
         root (str): root directory in which all other database directories will
           be stored. Defaults to the current directory.
+        plotdir (str): path to the directory to store plots in for this
+          database. Defaults to the parent controller's plot directory.
         incar (dict): keys are valid settings in the INCAR file that should be
           used as defaults for *all* database calculations (with their
           corresponding values).
@@ -39,25 +43,53 @@ class DatabaseCollection(object):
         order (list): of string database names (attribute `name` of each
           database class) in the order in which they should be processed.
         parent (Controller): instance controlling multiple configurations.
+        configdbs (list): of `str` name attributes from databases that can
+          actually be used for potential training. Several support databases
+          (like PhononBase and PhononCalibration) don't provide configurations
+          for training and testing.
     """
     order = ["phonbase", "phoncalib", "phonons"]
+    configdbs = ["phonons"]
     
     def __init__(self, name, poscar, root, parent, database):
         from quippy.atoms import Atoms
         self.name = name
         self.atoms = Atoms(path.join(root, poscar), format="POSCAR")
         self.root = path.join(root, name)
-
+        
         if not path.isdir(self.root):
             from os import mkdir
             mkdir(self.root)
 
-        parrefs = ["species", "potcars", "incar", "kpoints", "execution"]
+        parrefs = ["species", "potcars", "incar", "kpoints", "execution",
+                   "plotdir"]
         for ref in parrefs:
             setattr(self, ref, getattr(parent, ref))
         self.parent = parent
+
+        self._trainfile = None
+        """str: name of the file that stores the XYZ *training* database.
+        """
+        self._holdoutfile = None
+        """str: name of the file that stores the XYZ *validation* database.
+        """        
+
+        #See if we have a training and holdout file specified already.
+        from glob import glob
+        from matdb.utility import chdir
+        with chdir(self.root):
+            for xyzname in glob("*.xyz"):
+                if "train" in xyzname:
+                    self._trainfile = xyzname
+                if "hold" in xyzname:
+                    self._holdoutfile = xyzname
         
         from importlib import import_module
+        self._dbsettings = database
+        """dict: with keys and values describing the kinds of sub-configuration
+        databases to setup.
+        """
+
         self.databases = {}
         for dbspec in database:
             modname, clsname = dbspec["type"].split('.')
@@ -117,7 +149,72 @@ class DatabaseCollection(object):
                 msg.info(imsg.format(self.name, dbname))
                 break
         msg.blank()
-            
+
+    @property
+    def train_file(self):
+        """Returns the full path to the XYZ database file that can be
+        used for training.
+        """
+        return path.join(self.root, self._trainfile)
+
+    @property
+    def holdout_file(self):
+        """Returns the full path to the XYZ database file that can be
+        used to validate the potential fit.
+        """
+        return path.join(self.root, self._holdoutfile)
+
+    def split(self, train_perc, trainfile="train.xyz", holdfile="holdout.xyz",
+              recalc=False):
+        """Splits the total available data in all databases into a
+        training and holdout set.
+
+        Args:
+            train_perc (float): percentage of the data to use for training.
+            trainfile (str): name of the training XYZ file to create.
+            holdfile (str): name of the holdout/validation XYZ file to create.
+            recalc (bool): when True, re-split the data and overwrite any
+              existing *.xyz files.
+        """
+        if self._trainfile is None:
+            self._trainfile = trainfile
+        if self._holdoutfile is None:
+            self._holdoutfile = holdfile
+
+        if (path.isfile(self.train_file) and path.isfile(self.holdout_file)
+            and not recalc):
+            return
+        
+        #Compile a list of all the sub-configurations we can include in the
+        #training.
+        Ntot = 0
+        subconfs = {}
+        for dbname in self.configdbs:
+            for fi, f in enumerate(self.databases[dbname].configs.values()):
+                subconfs[fi + Ntot] = f
+            Ntot += len(subconfs)
+
+        Ntrain = int(np.ceil(Ntot*train_perc))
+        ids = np.arange(len(subconfs))
+        tids = np.random.choice(ids, size=Ntrain)
+        hids = np.setdiff1d(ids, tids)
+
+        from matdb.io import vasp_to_xyz
+        from tqdm import tqdm
+        trainfiles = []
+        for tid in tqdm(tids):
+            if vasp_to_xyz(subconfs[tid]):
+                trainfiles.append(path.join(subconfs[tid], "output.xyz"))
+                
+        holdfiles = []
+        for hid in tqdm(hids):
+            if vasp_to_xyz(subconfs[hid]):
+                holdfiles.append(path.join(subconfs[hid], "output.xyz"))
+
+        from matdb.utility import cat
+        cat(trainfiles, self.train_file)
+        cat(holdfiles, self.holdout_file)
+        
     def cleanup(self):
         """Runs the cleanup methods of each database in the collection, in the
         correct order.
@@ -166,32 +263,60 @@ class Controller(object):
         collections (dict): keys are configuration names listed in attribute
           `configs` of the YAML file. Values are the :class:`DatabaseCollection`
           instances.
+        plotdir (str): path to the directory to store plots in for all
+          databases.
     """
     def __init__(self, config):
         import yaml
         with open(config, 'r') as stream:
             self.specs = yaml.load(stream)
 
-        self.root = path.abspath(path.expanduser(self.specs["root"]))
+        #We allow the user to specify paths relative the matdb repo; this is
+        #mainly to allow unit testing to run smoothly.
+        from matdb.utility import chdir, reporoot
+        with chdir(reporoot):
+            self.root = path.abspath(path.expanduser(self.specs["root"]))
+            
+        self.plotdir = path.join(self.root, "plots")
         self.title = self.specs["title"]
         self.collections = {}
-        self.species = [s.lower() for s in self.specs["species"]]
+        self.species = [s for s in self.specs["species"]]
         self.potcars = self.specs["potcars"]
         self.incar = self.specs.get("incar", {})
         self.kpoints = self.specs.get("kpoints", {})
         self.execution = self.specs["execution"]
-        
+
         for cspec in self.specs["configs"]:
             name, poscar = cspec["name"], cspec["poscar"]
             instance = DatabaseCollection(name, poscar, self.root, self,
                                           self.specs.get("databases", []))
             self.collections[name] = instance
 
+        from os import mkdir
+        if not path.isdir(self.plotdir):
+            mkdir(self.plotdir)
+            
         #Extract the POTCAR that all the databases are going to use. TODO: pure
         #elements can't use this POTCAR, so we have to copy the single POTCAR
         #directly for those databases; update the create().
         self.POTCAR()
 
+        #If the controller is going to train any potentials, we also need to 
+        self.trainer = None
+        if "training" in self.specs:
+            from matdb.fitting.gap import GAPTrainer
+            gpdict = self.specs["training"].copy()
+            gpdict["root"] = self.root
+            gpdict["db"] = self
+            self.trainer = GAPTrainer(**gpdict)
+
+        self._trainfile = None
+        """str: name of the file that stores the XYZ *training* database.
+        """
+        self._holdoutfile = None
+        """str: name of the file that stores the XYZ *validation* database.
+        """
+            
     def setup(self):
         """Sets up each of configuration's databases.
         """
@@ -247,3 +372,49 @@ class Controller(object):
                 cat(potcars, target)
             else:
                 msg.err("Couldn't create POTCAR for system.")
+
+    @property
+    def train_file(self):
+        """Returns the full path to the XYZ database file that can be
+        used for training.
+        """
+        return path.join(self.root, self._trainfile)
+
+    @property
+    def holdout_file(self):
+        """Returns the full path to the XYZ database file that can be
+        used to validate the potential fit.
+        """
+        return path.join(self.root, self._holdoutfile)
+
+    def split(self, train_perc, trainfile="train.xyz", holdfile="holdout.xyz",
+              recalc=False):
+        """Splits the total available data in all databases into a
+        training and holdout set.
+
+        Args:
+            train_perc (float): percentage of the data to use for training.
+            trainfile (str): name of the training XYZ file to create.
+            holdfile (str): name of the holdout/validation XYZ file to create.
+            recalc (bool): when True, re-split the data and overwrite any
+              existing *.xyz files.
+        """
+        if self._trainfile is None:
+            self._trainfile = trainfile
+        if self._holdoutfile is None:
+            self._holdoutfile = holdfile
+
+        if (path.isfile(self.train_file) and path.isfile(self.holdout_file)
+            and not recalc):
+            return
+        
+        trainfiles = []
+        holdfiles = []
+        for name, db in self.collections.items():
+            db.split(train_perc, trainfile, holdfile, recalc)
+            trainfiles.append(db.train_file)
+            holdfiles.append(db.holdout_file)
+
+        from matdb.utility import cat
+        cat(trainfiles, self.train_file)
+        cat(holdfiles, self.holdout_file)

@@ -108,7 +108,8 @@ def will_print(level=1):
         return quiet is None or quiet == False
     else:
         return ((isinstance(verbosity, int) and level <= verbosity) or
-                (isinstance(verbosity, bool) and verbosity == True))
+                (isinstance(verbosity, bool) and verbosity == True) or
+                (verbosity is None and level <= 0))
     
 def warn(msg, level=0, prefix=True):
     """Prints the specified message as a warning; prepends "WARNING" to
@@ -121,7 +122,7 @@ def err(msg, level=-1, prefix=True):
     """Prints the specified message as an error; prepends "ERROR" to
     the message, so that can be left off.
     """
-    if will_print(level) or verbosity is None:
+    if will_print(level):
         printer(("ERROR: " if prefix else "") + msg, "red")
 
 def info(msg, level=1):

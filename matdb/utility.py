@@ -3,6 +3,34 @@
 from os import path
 from six import string_types
 from matdb import msg
+
+import sys
+from contextlib import contextmanager
+@contextmanager
+def redirect_stdout(new_target):
+    old_target, sys.stdout = sys.stdout, new_target # replace sys.stdout
+    try:
+        yield new_target # run some code with the replaced stdout
+    finally:
+        sys.stdout = old_target # restore to the previous value
+
+@contextmanager
+def chdir(target):
+    """Context manager for executing some code within a different
+    directory after which the current working directory will be set
+    back to what it was before.
+
+    Args:
+        target (str): path to the directory to change into.
+    """
+    from os import getcwd, chdir
+    current = getcwd()
+    try:
+        chdir(target)
+        yield target
+    finally:
+        chdir(current)
+        
 def execute(args, folder, wait=True, nlines=100, venv=None,
             printerr=True, **kwargs):
     """Executes the specified tuple that should include the command as

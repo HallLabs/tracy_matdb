@@ -33,10 +33,14 @@ setup(name='matdb',
           "termcolor",
           "six",
           "numpy",
-          "phonopy"
+          "phonopy",
+          "requests",
+          "beautifulsoup4"
       ],
-      packages=['matdb', 'matdb.database'],
-      scripts=['matdb/scripts/matdb_build.py'],
+      packages=['matdb', 'matdb.database', 'matdb.fitting'],
+      scripts=['matdb/scripts/matdb_build.py',
+               'matdb/scripts/matdb_plot.py',
+               'matdb/scripts/matdb_train.py'],
       package_data={'matdb': []},
       include_package_data=True,
       classifiers=[

@@ -6,6 +6,42 @@ from matdb import msg
 from os import path
 import numpy as np
 
+def _parsed_kpath(poscar):
+    """Gets the special path in the BZ for the structure with the specified
+    POSCAR and then parses the results into the format required by the package
+    machinery.
+
+    Args:
+        poscar (str): path to the structure to get special path for.
+
+    Returns:
+        tuple: result of querying the materialscloud.org special path
+        service. First term is a list of special point labels; second is the
+        list of points corresponding to those labels.
+    """
+    from matdb.kpoints import kpath
+    ktup = kpath(poscar)
+    band = []
+    labels = []
+    names, points = ktup
+
+    def fix_gamma(s):
+        return r"\Gamma" if s == "GAMMA" else s
+    
+    for name in names:
+        #Unfortunately, the web service that returns the path names returns
+        #GAMMA for \Gamma, so that the labels need to be fixed.
+        if isinstance(name, tuple):
+            key = name[0]
+            labels.append("{}|{}".format(*map(fix_gamma, name)))
+        else:
+            key = name
+            labels.append(fix_gamma(name))
+
+        band.append(points[key].tolist())
+
+    return (labels, band)
+
 class PhononBase(Database):
     """Sets up the displacement calculations needed to construct the dynamical
     matrix. The dynamical matrix is required by :class:`PhononDatabase` to
@@ -49,10 +85,32 @@ class PhononBase(Database):
         self.supercell = list(phonons.get("dim", [2, 2, 2]))
         self.grid = list(phonons.get("mp", [20, 20, 20]))
         self.phonodir = path.join(self.root, "phonopy")
+        self.phonocache = path.join(self.root, "phoncache")
+        
+        self._bands = None
+        """dict: keys are ['q', 'w', 'path', 'Q'], values are the distance along
+        the special path (scalar), phonon frequencies at that distance (vector,
+        one component for each frequency), q-positions of the special points
+        along the paths, and their corresponding distances.
+        """
+
+        self._kpath = None
+        """tuple: result of querying the materialscloud.org special path
+        service. First term is a list of special point labels; second is the
+        list of points corresponding to those labels.
+        """
+
+        self._dmatrix = None
+        """dict: with keys ['dynmat', 'eigvals', 'eigvecs'] representing the dynamical
+        matrix for the gamma point in the seed configuration along with its
+        eigenvalues and eigenvectors.
+        """
         
         from os import mkdir
         if not path.isdir(self.phonodir):
             mkdir(self.phonodir)
+        if not path.isdir(self.phonocache):
+            mkdir(self.phonocache)
 
         self._update_incar()
 
@@ -82,6 +140,148 @@ class PhononBase(Database):
         dosfile = path.join(self.phonodir, "mesh.yaml")
         return path.isfile(dosfile)
 
+    @property
+    def dmatrix(self):
+        """Returns the dynamical matrix extracted from the frozen
+        phonon calculations at the gamma point in the BZ.
+        """
+        if self._dmatrix is not None:
+            return self._dmatrix
+        
+        #Otherwise, we need to calculate it from scratch.
+        qpoints = path.join(self.phonodir, "qpoints.yaml")
+        if not path.isfile(qpoints):
+            from matdb.utility import execute
+            DIM = ' '.join(map(str, self.supercell))
+            sargs = ["phonopy", '--dim="{}"'.format(DIM),
+                     '--qpoints="0 0 0"', "--writedm"]
+            xres = execute(sargs, self.phonodir, venv=True)
+            if not path.isfile(qpoints):
+                msg.err("could not calculate phonon bands; see errors.")
+
+            if len(xres["error"]) > 0:
+                msg.std(''.join(xres["error"]))
+
+        if path.isfile(qpoints):
+            import yaml
+            data = yaml.load(open(qpoints))
+            result = {}
+            for i in range(len(data["phonon"])):
+                dynmat = []
+                dynmat_data = data['phonon'][i]['dynamical_matrix']
+                for row in dynmat_data:
+                    vals = np.reshape(row, (-1, 2))
+                    dynmat.append(vals[:, 0] + vals[:, 1] * 1j)
+                dynmat = np.array(dynmat)
+
+                eigvals, eigvecs, = np.linalg.eigh(dynmat)
+                q = data["phonon"][i]["q-position"]
+
+                #This should technically always be true since we only
+                #ran it at a single q-point.
+                if np.allclose(q, [0., 0., 0.]):
+                    result["dynmat"] = dynmat
+                    result["eigvals"] = eigvals
+                    result["eigvecs"] = eigvecs
+                    break
+
+            if len(result) < 3:
+                msg.err("Could not extract dynamical matrix from qpoints.yaml "
+                        "file...")
+                return
+            
+            self._dmatrix = result
+        return self._dmatrix
+    
+    @property
+    def bands(self):
+        """Returns the DFT-accurate phonon bands in a format that can be
+        consumed by the `matdb` interfaces.
+
+        Returns:
+            dict: keys are ['q', 'w', 'path', 'Q'], values are the distance along
+            the special path (scalar), phonon frequencies at that distance (vector,
+            one component for each frequency), q-positions of the special points
+            along the paths, and their corresponding distances.
+        """
+        if self._bands is None:
+            from matdb.phonons import from_yaml
+            byaml = path.join(self.phonodir, "band.yaml")
+            return from_yaml(byaml)
+        return self._bands
+
+    @property
+    def kpath(self):
+        """Returns the materialscloud.org special path in k-space for the seed
+        configuration of this database.
+
+        Returns:
+            tuple: result of querying the materialscloud.org special path
+            service. First term is a list of special point labels; second is the
+            list of points corresponding to those labels.
+        """
+        if self._kpath is None:
+            import json
+            poscar = path.join(self.phonodir, "POSCAR")
+            kcache = path.join(self.phonodir, "kpath.json")
+            #We use some caching here so that we don't have to keep querying the
+            #server and waiting for an identical response.
+            if path.isfile(kcache):
+                with open(kcache) as f:
+                    kdict = json.load(f)
+            else:
+                labels, band = _parsed_kpath(poscar)
+                kdict = {"labels": labels, "band": band}
+                with open(kcache, 'w') as f:
+                    json.dump(kdict, f)
+            
+            self._kpath = (kdict["labels"], kdict["band"])
+            
+        return self._kpath
+    
+    def calc_bands(self, recalc=False):
+        """Calculates the bands at the special points given by the
+        materialscloud.org service.
+
+        Args:
+            recalc (bool): when True, recalculate the DOS, even if the
+              file already exists.
+        """
+        bandfile = path.join(self.phonodir, "band.yaml")
+        if not recalc and path.isfile(bandfile):
+            return
+
+        #We need to create the band.conf file and write the special
+        #paths in k-space at which the phonons should be calculated.
+        settings = {
+            "ATOM_NAME": ' '.join(self.parent.species),
+            "DIM": ' '.join(map(str, self.supercell)),
+            "MP": ' '.join(map(str, self.grid))
+        }
+
+        labels, bands = self.kpath
+        bandfmt = "{0:.3f} {1:.3f} {2:.3f}"
+        sband = []
+        
+        for Q in bands:
+            sband.append(bandfmt.format(*Q))
+
+        settings["BAND"] = "  ".join(sband)
+        settings["BAND_LABELS"] = ' '.join(labels)
+
+        with open(path.join(self.phonodir, "band.conf"), 'w') as f:
+            for k, v in settings.items():
+                f.write("{} = {}\n".format(k, v))
+
+        from matdb.utility import execute
+        sargs = ["phonopy", "-p", "band.conf"]
+        xres = execute(sargs, self.phonodir, venv=True)
+        if not path.isfile(bandfile):
+            msg.err("could not calculate phonon bands; see errors.")
+
+        if len(xres["error"]) > 0:
+            msg.std(''.join(xres["error"]))
+    
     def calc_DOS(self, recalc=False):
         """Calculates the *total* density of states.
 
@@ -403,16 +603,22 @@ class PhononCalibration(Database):
            bool: True if the amplitude calibration is ready.
         """
         if not super(PhononCalibration, self).cleanup():
+            msg.warn("cannot cleanup calibration; not all configs ready.")
             return False
 
         success = self.xyz()
         if not success:
+            msg.warn("could not extract the calibration XYZ configurations.")
             return False
+        else:
+            imsg = "Extracted calibration configs from {0:d} folders."
+            msg.okay(imsg.format(len(self.configs)))
 
         #Read in the XYZ file and extract the forces on each atom in each
         #configuration.
         import quippy
         forces = {}
+        failed = 0
         for cid, folder in self.configs.items():
             #Find the mean, *absolute* force in each of the directions. There
             #will only be one atom in the atoms list. If the calculation didn't
@@ -420,15 +626,22 @@ class PhononCalibration(Database):
             #calibration runs if the atoms are too close together.
             try:
                 al = quippy.AtomsList(path.join(folder, "output.xyz"))
-                forces[cid] = np.mean(np.abs(np.array(al[0].force)), axis=1)
+                forces[cid] = np.mean(np.abs(np.array(al[0].dft_force)), axis=1)
             except:
+                failed += 1
                 pass
 
-        fmt = "{0:.7f}  {1:.7f}  {2:.7f}  {3:.7f}\n"
-        with open(self.outfile, 'w') as f:
-            for cid in forces:
-                A, F = self.amplitudes[cid], forces[cid]
-                f.write(fmt.format(A, *F))
+        if failed > 0:
+            msg.warn("couldn't extract forces for {0:d} configs.".format(failed))
+
+        if len(forces) > 0:
+            fmt = "{0:.7f}  {1:.7f}  {2:.7f}  {3:.7f}\n"
+            with open(self.outfile, 'w') as f:
+                for cid in forces:
+                    A, F = self.amplitudes[cid], forces[cid]
+                    f.write(fmt.format(A, *F))
+        else:
+            msg.warn("no forces available to write {}.".format(self.outfile))
 
         return len(forces) > 3
     
@@ -560,7 +773,7 @@ class PhononDatabase(Database):
             calibrated = ""
 
         imsg = "Using {} as modulation {}amplitude for {}."
-        msg.info(imsg.format(self.amplitude, calibrated, self.parent.name))
+        msg.info(imsg.format(self.amplitude, calibrated, self.parent.name), 2)
             
         self.base = self.parent.databases[PhononBase.name]
         self.phonons = phonons        
