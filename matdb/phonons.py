@@ -104,27 +104,28 @@ def calc(atoms, potfile, kpath, cachedir, supercell=4, delta=0.01, Npts=100,
     #atomic displacement using pickle. This generates three files for each
     #atomic degree of freedom (one for each cartesian direction). We want to
     #save these in a special directory.
-    cachespecies = ' '.join(set(atoms.get_chemical_symbols()))
-    cachename = potfile[:-4].replace("/","_")
-    dirname = path.join(cachedir, cachespecies, cachename)
+    potname = path.basename(potfile)
+    cachename = potname[:-4].replace("/","_")
+    dirname = path.join(cachedir, cachename)
     if not path.isdir(dirname):
         mkdir(dirname)
-    chdir(dirname)
-    
+    curdir = getcwd()
 
     from ase.optimize.precon import Exp, PreconLBFGS
     from matdb.utility import redirect_stdout
     try:
+        chdir(dirname)
+            
         #Relax the cell before we try and get phonons out.
         atoms.set_calculator(pot)
-        minim = PreconLBFGS(atoms, precon=Exp(A=3.0))
-        minim.run(fmax=1e-7)
+        #minim = PreconLBFGS(atoms, precon=Exp(A=3.0))
+        #minim.run(fmax=1e-7)
 
         #Now run the phonon calculation
         from ase.phonons import Phonons
         if isinstance(supercell, int):
             supercell = [supercell]*3
-        ph = Phonons(atoms, pot, supercell=supercell, delta=delta)
+        ph = Phonons(atoms, pot, supercell=tuple(supercell), delta=delta)
 
         from sys import stdout
         with open("phonons.log", 'w') as f:

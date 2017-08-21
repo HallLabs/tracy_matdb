@@ -41,7 +41,9 @@ script_options = {
                         "special path in k-space.")},
     "--figsize": {"nargs": 2, "type": float, "default": (10, 8),
                   "help": "Specify the size of the figure in inches."},
-    "--save": {"help": "Specify the name of a file to save the plot to." }
+    "--save": {"help": "Specify the name of a file to save the plot to." },
+    "--nbands": {"help": "Number of bands to plot.",
+                 "default": 4}
     }
 """dict: default command-line arguments and their
     :meth:`argparse.ArgumentParser.add_argument` keyword arguments.
@@ -85,10 +87,11 @@ def _band_plot(phondb, args):
     style = {"DFT": {"color": colors[0], "lw": 2}}
     
     if args["pots"]:
-        for poti, potname in enumerate(tqdm(args["pots"])):
+        for poti, potpath in enumerate(tqdm(args["pots"])):
+            potname = path.basename(potpath)
             potkey = potname[:-4]
             pottype = "GAP" if potname[0:2] == "gp" else "MTP"
-            bands[potkey] = phon_calc(phondb.atoms, potname, kpath,
+            bands[potkey] = phon_calc(phondb.atoms, potpath, kpath,
                                       phondb.phonocache, supercell=args["dim"],
                                       Npts=args["npts"], potname=pottype)
             style[potkey] = {"color": colors[1+poti], "lw": 2}
@@ -99,7 +102,7 @@ def _band_plot(phondb, args):
         savefile = path.join(phondb.parent.plotdir, args["save"])
                              
     bandplot(bands, names, title=title, outfile=savefile,
-             figsize=args["figsize"], style=style)
+             figsize=args["figsize"], style=style, nbands=args["nbands"])
 
 def run(args):
     """Runs the matdb setup and cleanup to produce database files.

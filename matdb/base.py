@@ -33,7 +33,7 @@ def exhandler(function, parser):
 
 def _common_parser():
     """Returns a parser with common command-line options for all the scripts
-    in the fortpy suite.
+    in the matdb suite.
     """
     import argparse
     parser = argparse.ArgumentParser(add_help=False)
