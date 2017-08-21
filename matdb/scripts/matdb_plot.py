@@ -85,7 +85,8 @@ def _band_plot(phondb, args):
     style = {"DFT": {"color": colors[0], "lw": 2}}
     
     if args["pots"]:
-        for poti, potname in enumerate(tqdm(args["pots"])):
+        for poti, potpath in enumerate(tqdm(args["pots"])):
+            potname = path.basename(potpath)
             potkey = potname[:-4]
             pottype = "GAP" if potname[0:2] == "gp" else "MTP"
             bands[potkey] = phon_calc(phondb.atoms, potname, kpath,

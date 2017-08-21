@@ -124,7 +124,7 @@ def calc(atoms, potfile, kpath, cachedir, supercell=4, delta=0.01, Npts=100,
         from ase.phonons import Phonons
         if isinstance(supercell, int):
             supercell = [supercell]*3
-        ph = Phonons(atoms, pot, supercell=supercell, delta=delta)
+        ph = Phonons(atoms, pot, supercell=tuple(supercell), delta=delta)
 
         from sys import stdout
         with open("phonons.log", 'w') as f:
