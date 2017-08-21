@@ -1,2 +1,5 @@
-# matdb
-Database generating code for training IPs from DFT data.
+
+
+# Materials Database
+
+Code for generating configuration databases to train interatomic potentials. [API Documentation](https://rosenbrockc.github.io/matdb/)
