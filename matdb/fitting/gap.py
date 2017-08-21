@@ -556,7 +556,7 @@ class GAPTrainer(object):
         eigenvectors to relevant properties on copies of the seed configuration
         atoms objects.
         """
-        from matdb.database.phonon import PhononBase
+        from matdb.database.phonon import PhononDFT
         from fnmatch import fnmatch
         
         hname = "hessian{}"        
@@ -568,7 +568,7 @@ class GAPTrainer(object):
                     continue
             
             self.seeds[name] = dbset.atoms.copy()
-            dmatrix = dbset.databases[PhononBase.name].dmatrix
+            dmatrix = dbset.databases[PhononDFT.name].dmatrix
             eigvecs, eigvals = dmatrix["eigvecs"], dmatrix["eigvals"]
             atc = self.seeds[name]
             

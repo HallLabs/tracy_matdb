@@ -42,7 +42,7 @@ def _parsed_kpath(poscar):
 
     return (labels, band)
 
-class PhononBase(Database):
+class PhononDFT(Database):
     """Sets up the displacement calculations needed to construct the dynamical
     matrix. The dynamical matrix is required by :class:`PhononDatabase` to
     create the individual modulations.
@@ -75,11 +75,11 @@ class PhononBase(Database):
         grid (list): of `int`; number of splits in each reciprocal
           lattice vector according to Monkhorst-Pack scheme.
     """
-    name = "phonbase"
+    name = "phondft"
     
     def __init__(self, atoms=None, root=None, parent=None,
                  kpoints={}, incar={}, phonons={}, execution={}):
-        super(PhononBase, self).__init__(atoms, incar, kpoints, execution,
+        super(PhononDFT, self).__init__(atoms, incar, kpoints, execution,
                                          path.join(root, self.name),
                                          parent, "W", nconfigs=None)
         self.supercell = list(phonons.get("dim", [2, 2, 2]))
@@ -348,7 +348,7 @@ class PhononBase(Database):
         """Displaces the seed configuration preparatory to calculating the force
         sets for phonon spectra.
         """
-        if super(PhononBase, self).setup():
+        if super(PhononDFT, self).setup():
             return
 
         #We also don't want to setup again if we have the results already.
@@ -391,7 +391,7 @@ class PhononBase(Database):
            bool: True if the database is ready; this means that any other
            databases that rely on its outputs can be run.
         """
-        if not super(PhononBase, self).cleanup():
+        if not super(PhononDFT, self).cleanup():
             return
         
         self.calc_forcesets(recalc)
@@ -482,7 +482,7 @@ def update_phonons(basic):
 
 def modulate_atoms(db):
     """Generates modulated configurations using the dynamical matrix of the
-    :class:`PhononBase` instance.
+    :class:`PhononDFT` instance.
 
     Args:
         db (Database): database with parameters needed to module the atoms.
@@ -552,7 +552,7 @@ class PhononCalibration(Database):
         phonons (dict): specifying additional settings for `phonopy`
           configuration files (i.e., differing from, or in addition to those in
           the global set).
-        base (PhononBase): reference database that computed the dynamical matrix
+        base (PhononDFT): reference database that computed the dynamical matrix
           for the seed configuration.
         confname (str): name of the phonopy configuration file used for the
           modulations in this database.
@@ -573,7 +573,7 @@ class PhononCalibration(Database):
         super(PhononCalibration, self).__init__(atoms, incar, kpoints, execution,
                                                 path.join(root, self.name),
                                                 parent, "C", nconfigs)
-        self.base = self.parent.databases[PhononBase.name]
+        self.base = self.parent.databases[PhononDFT.name]
         self.phonons = phonons
         
         update_phonons(self.phonons)
@@ -775,7 +775,7 @@ class PhononDatabase(Database):
         imsg = "Using {} as modulation {}amplitude for {}."
         msg.info(imsg.format(self.amplitude, calibrated, self.parent.name), 2)
             
-        self.base = self.parent.databases[PhononBase.name]
+        self.base = self.parent.databases[PhononDFT.name]
         self.phonons = phonons        
         update_phonons(self.phonons)
 

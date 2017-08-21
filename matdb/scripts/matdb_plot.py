@@ -70,7 +70,7 @@ def _band_plot(phondb, args):
     """Plots the phonon bands for the specified CLI args.
 
     Args:
-        phondb (matdb.database.phonon.PhononBase): `phonopy` calculation
+        phondb (matdb.database.phonon.PhononDFT): `phonopy` calculation
           database instance that has DFT-accurate band information.
     """
     from matdb.phonons import bandplot
@@ -117,8 +117,8 @@ def run(args):
     target = cdb.collections[args["s"]]
     
     if args["bands"]:
-        from matdb.database.phonon import PhononBase
-        phondb = target.databases[PhononBase.name]
+        from matdb.database.phonon import PhononDFT
+        phondb = target.databases[PhononDFT.name]
         phondb.calc_bands()
         _band_plot(phondb, args)        
         

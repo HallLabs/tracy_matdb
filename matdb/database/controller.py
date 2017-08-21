@@ -45,10 +45,10 @@ class DatabaseCollection(object):
         parent (Controller): instance controlling multiple configurations.
         configdbs (list): of `str` name attributes from databases that can
           actually be used for potential training. Several support databases
-          (like PhononBase and PhononCalibration) don't provide configurations
+          (like PhononDFT and PhononCalibration) don't provide configurations
           for training and testing.
     """
-    order = ["phonbase", "phoncalib", "phonons"]
+    order = ["phondft", "phoncalib", "phonons"]
     configdbs = ["phonons"]
     
     def __init__(self, name, poscar, root, parent, database):
