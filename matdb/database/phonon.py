@@ -606,7 +606,7 @@ class PhononCalibration(Database):
             msg.warn("cannot cleanup calibration; not all configs ready.")
             return False
 
-        success = self.xyz()
+        success = self.xyz(config_type="phcalib")
         if not success:
             msg.warn("could not extract the calibration XYZ configurations.")
             return False
@@ -797,7 +797,7 @@ class PhononDatabase(Database):
         if not super(PhononDatabase, self).cleanup():
             return
         
-        return self.xyz()
+        return self.xyz(config_type="ph")
     
     def setup(self):
         """Displaces the seed configuration preparatory to calculating the force

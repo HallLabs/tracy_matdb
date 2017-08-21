@@ -406,7 +406,7 @@ class Database(object):
     def xyz(self, filename="output.xyz",
             properties=["species", "pos", "z", "dft_force"],
             parameters=["dft_energy", "dft_virial"],
-            recalc=False, combine=False):
+            recalc=False, combine=False, config_type=None):
         """Creates an XYZ file for each of the sub-sampled configurations in this
         database.
 
@@ -421,6 +421,8 @@ class Database(object):
               exist. 
             combine (bool): when True, combine all the sub-configuration XYZ
               files into a single, giant XYZ file.
+            config_type(str): name of the configuration type in the
+              database; for example "liquid", "phonon", "crack" etc.
 
         Returns:
             bool: True if the number of xyz files created equals the number of
@@ -431,9 +433,18 @@ class Database(object):
         from tqdm import tqdm
         created = []
         for i, folder in tqdm(self.configs.items()):
-            outpath = path.join(folder, filename)
             if vasp_to_xyz(folder, filename, recalc, properties, parameters):
+                outpath = path.join(folder, filename)
                 created.append(outpath)
+                
+                if config_type is not None:
+                    #We need to load the XYZ file, add the config_type
+                    #parameter and then save it again.
+                    from quippy.atoms import Atoms
+                    a = Atoms(outpath)
+                    a.params["config_type"] = config_type
+                    a.write(outpath)
+                    
         self._nsuccess = len(created)
         
         #Finally, combine all of them together into a single

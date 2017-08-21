@@ -1,2 +1,2 @@
-import base
-import msg
+from matdb import base
+from matdb import msg
