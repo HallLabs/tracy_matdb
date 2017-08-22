@@ -235,7 +235,7 @@ def _rescale_3body(atoms, settings):
 
 class GAPTrainer(object):
     """Implements a simple wrapper around the GAP training functionality that
-    can integrate with the methods of the `database` sub-package.
+    can integrate with the methods of the `matdb.database` sub-package.
 
     .. note:: Creating GAP potentials is a multi-fitting procedure. For a
       `2 + 3 + ...` potential, we first need to fit the 2-body, and then (based
@@ -254,12 +254,15 @@ class GAPTrainer(object):
         gp_file (str): name of the output GAP potential file. Defaults to
           `gp_nbody_soap.xml` where `nbody` is a list of the n-body potentials
           included  and `soap` is included if it was part of the fit.
-        e0 (float): reference "zero" for the potential energy surface.
-        default_sigma (list): of `float` specifies the expected variance in the
-          energy, force, virial, and hessian respectively. It should have length
-          4. Defaults to `[0.001, 0.01, 1.0, 1.0]`.
-        sparse_jitter (float): jitter added to the matrices before inversion to
-          help improve the condition number.
+        e0 (float or dict): reference "zero" for the potential energy
+          surface. If a dict, specify keys as element names and values
+          as `float`.
+        sigma (list or dict): of `float` specifies the
+          expected variance in the energy, force, virial, and hessian
+          respectively. It should have length 4. Defaults to 
+          `[0.001, 0.01, 1.0, 1.0]`. If a `dict`, then include keys
+          for those config types that should be overridden and use
+          "default" for the default sigma values.
         split (float): percentage of the available data to use for
           training (vs. validation).
         root (str): root directory for the entire alloy database
@@ -289,11 +292,8 @@ class GAPTrainer(object):
           extension.
         root (str): root directory that this trainer operates in.
         e0 (float): reference "zero" for the potential energy surface.
-        default_sigma (list): of `float` specifies the expected variance in the
-          energy, force, virial, and hessian respectively. It should have length
-          4. Defaults to `[0.001, 0.01, 0.1, 0.1]`.
-        sparse_jitter (float): jitter added to the matrices before inversion to
-          help improve the condition number.
+        sigma (list or dict): specifies the expected variance in the
+          energy, force, virial, and hessian respectively.
         split (float): percentage of the available data to use for
           training (vs. validation).
         execution (dict): settings needed to configure the jobfile for running
@@ -341,11 +341,11 @@ class GAPTrainer(object):
         #teach_sparse parameters are contained in kwargs and were separated from
         #the regular potential definitions by _extract_pots() above.
         self.e0 = e0
-        if default_sigma is None:
-            self.default_sigma = [0.001, 0.01, 0.1, 0.1]
+        if sigma is None:
+            self.sigma = [0.001, 0.01, 0.1, 0.1]
         else:
-            self.default_sigma = default_sigma
-        self.sparse_jitter = sparse_jitter
+            self.sigma = sigma
+            
         self.split = split
         self.teach_sparse = {k: kwargs[k] for k in others}
         self.execution = execution.copy()
@@ -808,15 +808,42 @@ class GAPTrainer(object):
             
         gapstr = ':'.join(gaplist)
 
+        #e0 needs to be handled correctly for each pure species.
+        if isinstance(self.e0, dict):
+            e0s = ["{0}:{1.6f}".format(*i) for i in self.e0.items()]
+            e0 = '{' + ':'.join(e0s) + '}'
+        else:
+            e0 = "{0:.6f}".format(self.e0)
+
+        #sigmas can be speciifed per config_type or just as a list of
+        #default ones.
+        custom = []
         tsattrs = {
-            "e0": self.e0,
-            "default_sigma": self.default_sigma,
-            "sparse_jitter": self.sparse_jitter,
+            "e0": e0,
             "gp_file": gpfile_name(self.state, hessfit=self.hessfit)
         }
+
+        if isinstance(self.sigma, (list, tuple)):
+            tsattrs["default_sigma"] = self.sigma
+        else:
+            for k, sigs in self.sigma.items():
+                if k == "default":
+                    tsattrs["default_sigma"] = sigs
+                else:
+                    svals = ':'.join(["{0:.3f}".format(s) for s in sigs])
+                    custom.append(k + ':' + svals)
+
+        #Add the teach_sparse keyword arguments passed directly in.
         tsattrs.update(self.teach_sparse)
-        tsstr = dict_to_str(tsattrs)
+        
+        if len(custom) > 0:
+            #If we have custom sigmas, add them in; make sure we have specified
+            #which parameter to use for custom_types.
+            tsattrs["custom_type_sigma"] = '{' + ':'.join(custom) + '}'
+            if "config_type_parameter_name" not in tsattrs:
+                tsattrs["config_type_parameter_name"] = "config_type"
                 
+        tsstr = dict_to_str(tsattrs)                
         fields = {
             "train_file": self.train_file,
             "gap": gapstr,
