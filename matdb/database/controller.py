@@ -233,7 +233,7 @@ class DatabaseCollection(object):
                 break
         msg.blank()
             
-    def setup(self):
+    def setup(self, rerun=False):
         """Sets up the database collection by generating the POTCAR file and
         initializing any databases that haven't already been initialized.
 
@@ -241,13 +241,17 @@ class DatabaseCollection(object):
            only if their dependencies have completed their calculations. This
            method can, therefore, be safely called repeatedly between different
            terminal sessions.
+
+        Args:
+            rerun (bool): when True, recreate the folders even if they
+              already exist. 
         """
         for dbname in self.order:
             if dbname not in self.databases:
                 continue
             db = self.databases[dbname]
             msg.info("Setting up database {}:{}".format(self.name, dbname))
-            db.setup()
+            db.setup(rerun)
         msg.blank()
         
 class Controller(object):
@@ -317,11 +321,15 @@ class Controller(object):
         """str: name of the file that stores the XYZ *validation* database.
         """
             
-    def setup(self):
+    def setup(self, rerun=False):
         """Sets up each of configuration's databases.
+
+        Args:
+            rerun (bool): when True, recreate the folders even if they
+              already exist.
         """
         for name, coll in self.collections.items():
-            coll.setup()
+            coll.setup(rerun)
 
     def cleanup(self):
         """Runs cleanup on each of the configuration's databases.

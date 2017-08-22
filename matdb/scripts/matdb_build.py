@@ -39,7 +39,10 @@ script_options = {
     "--status": {"action": "store_true",
                 "help": ("Determines status of the databases "
                          "based on presence of completed VASP "
-                         "directories. Sanity check before `-x`.")}
+                         "directories. Sanity check before `-x`.")},
+    "--rerun": {"action": "store_true",
+                "help": ("Re-run the specified option, even if it has already "
+                         "been done before.")}
     }
 """dict: default command-line arguments and their
     :meth:`argparse.ArgumentParser.add_argument` keyword arguments.
@@ -73,7 +76,7 @@ def run(args):
     from matdb.database.controller import Controller
     cdb = Controller(args["dbspec"])
     if args["s"]:
-        cdb.setup()
+        cdb.setup(args["rerun"])
     if args["x"]:
         cdb.execute()
     if args["c"]:

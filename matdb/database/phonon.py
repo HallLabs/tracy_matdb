@@ -344,11 +344,15 @@ class PhononDFT(Database):
         if len(xres["error"]) > 0:
             msg.std(''.join(xres["error"]))
             
-    def setup(self):
+    def setup(self, rerun=False):
         """Displaces the seed configuration preparatory to calculating the force
         sets for phonon spectra.
+
+        Args:
+            rerun (bool): when True, recreate the folders even if they
+              already exist. 
         """
-        if super(PhononDFT, self).setup():
+        if super(PhononDFT, self).setup() and not rerun:
             return
 
         #We also don't want to setup again if we have the results already.
@@ -645,9 +649,13 @@ class PhononCalibration(Database):
 
         return len(forces) > 3
     
-    def setup(self):
+    def setup(self, rerun=False):
         """Displaces the seed configuration with varying amplitudes so that the
         resulting forces can be calibrated sensibly.
+
+        Args:
+            rerun (bool): when True, recreate the folders even if they
+              already exist. 
         """
         if super(PhononCalibration, self).setup():
             return
@@ -774,7 +782,7 @@ class PhononDatabase(Database):
 
         imsg = "Using {} as modulation {}amplitude for {}."
         msg.info(imsg.format(self.amplitude, calibrated, self.parent.name), 2)
-            
+
         self.base = self.parent.databases[PhononDFT.name]
         self.phonons = phonons        
         update_phonons(self.phonons)
@@ -799,14 +807,18 @@ class PhononDatabase(Database):
         
         return self.xyz(config_type="ph")
     
-    def setup(self):
+    def setup(self, rerun=False):
         """Displaces the seed configuration preparatory to calculating the force
         sets for phonon spectra.
+
+        Args:
+            rerun (bool): when True, recreate the folders even if they
+              already exist. 
         """
         if super(PhononDatabase, self).setup():
             return
 
-        #We can't module atoms unless the phonon base is ready.
+        #We can't modulate atoms unless the phonon base is ready.
         if not self.base.ready():
             return
 
