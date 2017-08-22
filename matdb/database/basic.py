@@ -38,20 +38,35 @@ def can_cleanup(folder):
     outcar = path.join(folder, "OUTCAR")
     if not path.isfile(outcar):
         return False
-    
-    from matdb.utility import execute
-    cargs = ["grep", '"free  energy"', "OUTCAR"]
-    xres = execute(cargs, folder)
 
-    if len(xres["output"]) > 0 and "TOTEN" in xres["output"][0]:
+    import mmap
+    line = None
+    with open(outcar, 'r') as f:
+        # memory-map the file, size 0 means whole file
+        m = mmap.mmap(f.fileno(), 0, prot=mmap.PROT_READ)  
+        i = m.rfind('free  energy')
+        if i > 0:
+            # seek to the location and get the rest of the line.
+            m.seek(i)
+            line = m.readline()
+
+    if line is not None and "TOTEN" in line:
         return True
     else:
         #For some of the calibration tests, it is possible that an error was
         #raised because the ions are too close together. That still counts as
         #finishing, we just don't have output.
-        dargs = ["grep", '"Error"', "OUTCAR"]
-        dres = execute(dargs, folder)
-        if len(dres["output"]) > 0 and "Error" in dres["output"][0]:
+        line = None
+        with open(outcar, 'r') as f:
+            # memory-map the file, size 0 means whole file
+            m = mmap.mmap(f.fileno(), 0, prot=mmap.PROT_READ)  
+            i = m.rfind('free  energy')
+            if i > 0:
+                # seek to the location and get the rest of the line.
+                m.seek(i)
+                line = m.readline()
+
+        if line is not None and "Error" in line:
             return True
         else:
             return False
