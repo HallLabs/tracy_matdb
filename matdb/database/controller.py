@@ -53,7 +53,8 @@ class DatabaseCollection(object):
           order in which they should be processed.
     """
     clsorder = ["phonon.PhononDFT", "phonon.PhononCalibration",
-             "phonon.PhononDatabase", "md.DynamicDatabase"]
+                "phonon.PhononDatabase", "md.DynamicDatabase",
+                "liquid.LiquidDatabase"]
     configdbs = ["phonon.PhononDatabase"]
     
     def __init__(self, name, poscar, root, parent, database):

@@ -31,10 +31,10 @@ class LiquidDatabase(Database):
     def __init__(self, atoms=None, root=None, parent=None, incar={},
                  kpoints={}, execution={}, nconfigs=None, mdbase="md",
                  name="liquid"):
+        self.name = name
         super(LiquidDatabase, self).__init__(atoms, incar, kpoints, execution,
                                              path.join(root, self.name),
                                              parent, "L", nconfigs=nconfigs)
-        self.name = name
         self.mdbase = self.parent.databases[mdbase]
 
     def ready(self):

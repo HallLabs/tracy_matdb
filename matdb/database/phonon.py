@@ -78,6 +78,7 @@ class PhononDFT(Database):
     def __init__(self, atoms=None, root=None, parent=None,
                  kpoints={}, incar={}, phonons={}, execution={},
                  name="phondft"):
+        self.name = name
         super(PhononDFT, self).__init__(atoms, incar, kpoints, execution,
                                          path.join(root, self.name),
                                          parent, "W", nconfigs=None)
@@ -85,7 +86,6 @@ class PhononDFT(Database):
         self.grid = list(phonons.get("mp", [20, 20, 20]))
         self.phonodir = path.join(self.root, "phonopy")
         self.phonocache = path.join(self.root, "phoncache")
-        self.name = name
         
         self._bands = None
         """dict: keys are ['q', 'w', 'path', 'Q'], values are the distance along
@@ -576,12 +576,12 @@ class PhononCalibration(Database):
     def __init__(self, atoms=None, root=None, parent=None,
                  kpoints={}, incar={}, phonons={}, execution={},
                  nconfigs=10, name="phoncalib", dftbase="phondft"):
+        self.name = name
         super(PhononCalibration, self).__init__(atoms, incar, kpoints, execution,
                                                 path.join(root, self.name),
                                                 parent, "C", nconfigs)
         self.base = self.parent.databases[dftbase]
         self.phonons = phonons
-        self.name = name
         update_phonons(self.phonons)
 
         #Calculate which amplitudes to use for the calibration based on the
@@ -763,13 +763,14 @@ class PhononDatabase(Database):
     def __init__(self, atoms=None, root=None, parent=None,
                  kpoints={}, incar={}, phonons={}, execution={}, nconfigs=100,
                  calibrate=True, amplitude=None, sampling="uniform",
-                 name="phonons", dftbase="phondft", calibrator="phoncalib"):
+                 name="phonons", dftbase="phondft",
+                 calibrator="phoncalib"):
+        self.name = name
         super(PhononDatabase, self).__init__(atoms, incar, kpoints, execution,
                                              path.join(root, self.name),
                                              parent, "M", nconfigs)
         self.sampling = sampling
         self.calibrate = calibrate
-        self.name = name
         
         #Setup a calibrator if automatic calibration was selected.
         if calibrate and amplitude is None:
