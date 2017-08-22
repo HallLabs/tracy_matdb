@@ -817,7 +817,8 @@ class PhononDatabase(Database):
             rerun (bool): when True, recreate the folders even if they
               already exist. 
         """
-        if super(PhononDatabase, self).setup():
+        folders_ok = super(PhononDatabase, self).setup()
+        if folders_ok and not rerun:
             return
 
         #We can't modulate atoms unless the phonon base is ready.
@@ -827,28 +828,29 @@ class PhononDatabase(Database):
         #We can't module in calibrate mode unless the calibrator is also ready.
         if self.amplitude is None:
             return
-        
-        modulate_atoms(self)
 
-        from os import getcwd, chdir, remove
-        from glob import glob
-        from quippy.atoms import Atoms
-        current = getcwd()
-        chdir(self.base.phonodir)
+        if not folders_ok:
+            modulate_atoms(self)
 
-        from tqdm import tqdm
-        try:
-            for mi, mposcar in tqdm(enumerate(sorted(list(glob("MPOSCAR-*"))))):
-                if mposcar == "MPOSCAR-orig":
-                    continue
-                
-                cid = int(mposcar.split('-')[1])
-                matoms = Atoms(mposcar, format="POSCAR")
-                self.create(matoms, cid)
-                #Remove the MPOSCAR file so that the directory isn't polluted.
-                remove(mposcar)
-        finally:
-            chdir(current)
+            from os import getcwd, chdir, remove
+            from glob import glob
+            from quippy.atoms import Atoms
+            current = getcwd()
+            chdir(self.base.phonodir)
+
+            from tqdm import tqdm
+            try:
+                for mi, mposcar in tqdm(enumerate(sorted(list(glob("MPOSCAR-*"))))):
+                    if mposcar == "MPOSCAR-orig":
+                        continue
+                    
+                    cid = int(mposcar.split('-')[1])
+                    matoms = Atoms(mposcar, format="POSCAR")
+                    self.create(matoms, cid)
+                    #Remove the MPOSCAR file so that the directory isn't polluted.
+                    remove(mposcar)
+            finally:
+                chdir(current)
             
         # Last of all, create the job file to execute the job array.
         self.jobfile()
