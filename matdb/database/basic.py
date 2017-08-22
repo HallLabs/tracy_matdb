@@ -250,8 +250,8 @@ class Database(object):
         this database.
 
         Args:
-            rerun (bool): when True, recreate the folders even if they
-              already exist. 
+            rerun (bool): when True, recreate the jobfile even if it
+              already exists. 
         """
         from os import path
         target = path.join(self.root, "jobfile.sh")
@@ -307,15 +307,21 @@ class Database(object):
         #Make sure that the INCAR and PRECALC for this database has been created
         #already.
         self.INCAR(rewrite)
-        self.PRECALC(rewrite)
         INCAR = path.join(target, "INCAR")
-        POTCAR = path.join(target, "POTCAR")
-        PRECALC = path.join(target, "PRECALC")
         symlink(INCAR, path.join(self.root, "INCAR"))
-        symlink(PRECALC, path.join(self.root, "PRECALC"))
+        POTCAR = path.join(target, "POTCAR")
         symlink(POTCAR, path.join(self.parent.parent.root, "POTCAR"))
 
-        execute(["getKPoints"], target)
+        if "matdb" not in self.kpoints:
+            self.PRECALC(rewrite)
+            PRECALC = path.join(target, "PRECALC")
+            symlink(PRECALC, path.join(self.root, "PRECALC"))
+            execute(["getKPoints"], target)
+        else:
+            from matdb.kpoints import custom
+            custom(self.root, self.kpoints["matdb"], self.atoms)
+            KPOINTS = path.join(target, "KPOINTS")
+            symlink(KPOINTS, path.join(self.root, "KPOINTS"))            
         
         #Finally, store the configuration for this folder.
         self.configs[cid] = target

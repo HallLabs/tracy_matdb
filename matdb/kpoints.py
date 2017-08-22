@@ -1,5 +1,6 @@
-"""Functions for converting k-points between different units,
-requesting special paths in the BZ and so on.
+"""To automatically produce the phonon band structure plots, we need to
+have an appropriate special path in the BZ. `matdb` interfaces with
+`materialscloud.org` to extract their recommended path in the BZ.
 """
 from os import path
 import numpy as np
@@ -45,3 +46,39 @@ def kpath(poscar):
     
     pts = {k: np.array(v) for k, v in kdict[u"kpoints"].items()}
     return (names, pts)   
+
+def _gamma_only(target, atoms):
+    """Saves a KPOINTS file with gamma-point only in the specified
+    folder.
+
+    Args:
+        target (str): path to the directory to create the KPOINTS file
+          in.
+    """
+    kpoints = path.join(target, "KPOINTS")
+    with open(kpoints, 'w') as f:
+        f.write("""Gamma-point only
+1 ! one k-point
+rec ! in units of the reciprocal lattice vector
+0 0 0 1 ! 3 coordinates and weight
+""")
+
+def custom(target, key, atoms=None):
+    """Creates the KPOINT file with the specified custom configuration
+    in `target`.
+
+    Args:
+        target (str): path to the directory to create the KPOINTS file
+          in.
+        key (str): one of ['gamma'], specifies which custom KPOINTS
+          file to generate (see note above).
+        atoms (quippy.Atoms): atoms object to generate KPOINTS for.
+    """
+    select = {
+        "gamma": _gamma_only
+    }
+    if key in select:
+        select[key](target, atoms)
+    else:
+        emsg = "'{}' is not a valid key for custom k-points."
+        raise ValueError(emsg.format(key))

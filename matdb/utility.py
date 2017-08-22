@@ -144,6 +144,21 @@ def symlink(target, source):
     
     symlink(source, target)
 
+def linecount(filename):
+    """Counts the number of lines in file.
+
+    Args:
+        filename (str): full path to the file to count lines for.
+    """
+    if not path.isfile(filename):
+        return 0
+    
+    i = 0
+    with open(filename) as f:
+        for i, l in enumerate(f):
+            pass
+    return i + 1
+    
 def _get_reporoot():
     """Returns the absolute path to the repo root directory on the current
     system.

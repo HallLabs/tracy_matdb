@@ -48,7 +48,7 @@ class DatabaseCollection(object):
           (like PhononDFT and PhononCalibration) don't provide configurations
           for training and testing.
     """
-    order = ["phondft", "phoncalib", "phonons"]
+    order = ["phondft", "phoncalib", "phonons", "md"]
     configdbs = ["phonons"]
     
     def __init__(self, name, poscar, root, parent, database):
