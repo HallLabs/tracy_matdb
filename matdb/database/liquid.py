@@ -4,8 +4,7 @@ configurations generated from liquid-temperature molecular dynamics.
 from .basic import Database
 class LiquidDatabase(Database):
     """Represents a sub-sampled molecular dynamics run created at a
-    specific temperature.
-
+    liquid transition temperature.
 
     Args:
         atoms (quippy.atoms.Atoms): seed configuration that will be
@@ -18,6 +17,8 @@ class LiquidDatabase(Database):
           differing from, or in addition to those in the global set).
         kpoints (dict): specify additional settings for the PRECALC file (i.e.,
           differing from, or in addition to those in the global set).
+        execution (dict): specify override parameters for the execution
+          templates in this database.
 
     .. note:: Additional attributes are also exposed by the super class
       :class:`Database`.
@@ -27,44 +28,66 @@ class LiquidDatabase(Database):
           collection. This is also the name of the folder in which all of its
           calculations will be performed.
     """
-    name = "liquid"
-        
     def __init__(self, atoms=None, root=None, parent=None, incar={},
-                 kpoints={}, execution={}, nconfigs=None,
-                 samplerate=100, strain=3.):
+                 kpoints={}, execution={}, nconfigs=None, mdbase="md",
+                 name="liquid"):
         super(LiquidDatabase, self).__init__(atoms, incar, kpoints, execution,
                                              path.join(root, self.name),
                                              parent, "L", nconfigs=nconfigs)
-        self.samplerate = samplerate
-        self.nsteps = nconfigs*samplerate
-        self.mdpdir = path.join(self.root, "p")
-        self.mdmdir = path.join(self.root, "m")
-        
-        from os import mkdir
-        if not path.isdir(self.mdpdir):
-            mkdir(self.mdpdir)
-        if not path.isdir(self.mdmdir):
-            mkdir(self.mdmdir)
+        self.name = name
+        self.mdbase = self.parent.databases[mdbase]
 
-        self._update_incar()
-
-    def _update_incar(self):
-        """Adds the usual settings for the INCAR file when performing
-        MD calculations. They are only added if they weren't already
-        specified in the config file.
+    def ready(self):
+        """Determines if this database is finished calculating by testing the
+        existence of the xyz database file in the root folder.
         """
-        usuals = {
-            "maxmix": 40, # reuse mixer from one MD step to next          
-            "ncore": 4,   # one orbital on 4 cores                        
-            "nelmin": 4,  # minimum 4 steps per time step, avoid breaking after 2 steps
-            "ibrion": 0,
-            "nwrite": 0,
-            "lcharg": False,
-            # canonic (Nose) MD with XDATCAR updated every N steps
-            "nblock": self.samplerate, 
-            "smass": 3,
-            "potim": 1.
-        }
-        for k, v in usuals.items():
-            if k not in self.incar:
-                self.incar[k] = v
+        return (path.isfile(path.join(self.root, "output.xyz")) and
+                len(self.configs) == self._nsuccess)
+
+    def cleanup(self):
+        """Generates the XYZ database file for all the sub-configs in this
+        liquid database.
+
+        Returns:
+           bool: True if the database is ready; this means that any other
+           databases that rely on its outputs can be run.
+        """
+        #First, we need to check that the MD is done; then we can subsample it
+        #and run the individual DFT calculations.
+        if not self.mdbase.ready():
+            return
+        
+        if not super(LiquidDatabase, self).cleanup():
+            return
+        
+        return self.xyz(config_type="liq")
+    
+    def setup(self, rerun=False):
+        """Sets up a DFT folder for each of the subsampled configurations in the
+        base MD database.
+
+        Args:
+            rerun (bool): when True, recreate the job file. If the folders
+              don't exist yet, they will still be created.
+        """
+        folders_ok = super(LiquidDatabase, self).setup()
+        if folders_ok and not rerun:
+            return
+
+        #We also don't want to setup again if we have the results already.
+        if self.ready():
+            return
+
+        if not folders_ok:
+            from quippy.atoms import Atoms
+            from tqdm import tqdm
+            with open(self.mdbase.subsamples) as f:
+                for line in tqdm(f):
+                    config = line.strip()
+                    datoms = Atoms(config, format="POSCAR")
+                    self.create(datoms)
+
+        # Last of all, create the job file to execute the job array.
+        self.jobfile(rerun)
+
+

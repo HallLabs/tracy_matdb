@@ -33,15 +33,14 @@ class DynamicsDatabase(Database):
           calculations will be performed.
 
     """
-    name = "md"
-        
     def __init__(self, atoms=None, root=None, parent=None, incar={},
                  kpoints={}, execution={}, nsteps=None,
                  samplerate=100, strains=None, tstart=None, tend=None,
-                 supercell=None):
+                 supercell=None, name="md"):
         super(DynamicsDatabase, self).__init__(atoms, incar, kpoints, execution,
                                                path.join(root, self.name),
                                                parent, "D", nconfigs=None)
+        self.name = name
         self.samplerate = samplerate
         self.nsteps = nsteps
         self.strains = [0] if strains is None else strains
