@@ -169,10 +169,10 @@ class DynamicsDatabase(Database):
                         #Write the POSCAR for this frame.
                         if current is not None:
                             NC = eval(current[0].split()[-1])
-                            outfile = path.join(target, "POSCAR.{}".format(NC))
+                            outfile = path.join(target, "POSCAR.{}".format(NC/self.samplerate))
                             with open(outfile, 'w') as f:
                                 f.write('\n'.join(current))
-                            writes.append(outfile)
+                            writes.append(outfile + '\n')
                             pbar.update(1)
                             
                             if len(current) != Natoms + 7:
@@ -195,7 +195,7 @@ class DynamicsDatabase(Database):
                 outfile = path.join(target, "POSCAR.{}".format(NC))
                 with open(outfile, 'w') as f:
                     f.write('\n'.join(current))
-                writes.append(outfile)
+                writes.append(outfile + '\n')
                 pbar.update(1)
                 if len(current) != Natoms + 7:
                     emsg = "ERROR: MD {} has {} lines." 
@@ -210,7 +210,7 @@ class DynamicsDatabase(Database):
         ready to be used.
         """
         from matdb.utility import linecount
-        return linecount(self.subsamples) == self.nsteps * (len(self.strains) + 1)
+        return linecount(self.subsamples) == self.nsteps * (len(self.strains))
     
     def cleanup(self):
         """Parses the XDATCAR files to create a list of configurations
