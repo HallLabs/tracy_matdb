@@ -245,13 +245,17 @@ class Database(object):
                 for k, v in self.incar.items():
                     f.write("{}={}\n".format(k.upper(), v))
 
-    def jobfile(self):
+    def jobfile(self, rerun=False):
         """Creates the job array file to run each of the sub-configurations in
         this database.
+
+        Args:
+            rerun (bool): when True, recreate the folders even if they
+              already exist. 
         """
         from os import path
         target = path.join(self.root, "jobfile.sh")
-        if path.isfile(target):
+        if path.isfile(target) and not rerun:
             return
         
         # We use the global execution parameters and then any updates

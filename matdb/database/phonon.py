@@ -383,7 +383,7 @@ class PhononDFT(Database):
                 chdir(current)
 
         # Last of all, create the job file to execute the job array.
-        self.jobfile()
+        self.jobfile(rerun)
 
     def cleanup(self, recalc=False):
         """Runs post-DFT execution routines to calculate the force-sets and the
