@@ -1,5 +1,9 @@
 # Revision History for `matdb`
 
+## Revision 0.0.5
+
+- Added `DynamicDatabase` for generating MD runs.
+
 ## Revision 0.0.4
 
 - Debugged modulation of phonon database (using specified amplitudes).

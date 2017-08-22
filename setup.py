@@ -18,7 +18,7 @@ except ImportError:
 
 from os import path
 setup(name='matdb',
-      version='0.0.4',
+      version='0.0.5',
       description='Database generator for ML materials space.',
       long_description= "" if not path.isfile("README.md") else read_md('README.md'),
       author='Conrad W Rosenbrock',
@@ -35,7 +35,8 @@ setup(name='matdb',
           "numpy",
           "phonopy",
           "requests",
-          "beautifulsoup4"
+          "beautifulsoup4",
+          "tqdm"
       ],
       packages=['matdb', 'matdb.database', 'matdb.fitting'],
       scripts=['matdb/scripts/matdb_build.py',
