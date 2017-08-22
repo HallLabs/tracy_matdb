@@ -42,7 +42,7 @@ class DynamicsDatabase(Database):
                                                parent, "D", nconfigs=None)
         self.samplerate = samplerate
         self.nsteps = nsteps
-        self.strains = [] if strains is None else strains
+        self.strains = [0] if strains is None else strains
         self.tstart = tstart
         self.tend = tend
         self._update_incar()
@@ -225,11 +225,6 @@ class DynamicsDatabase(Database):
             return
 
         if not folders_ok:
-            #At the very least, we do MD for the single seed configuration.
-            self.create(self.atoms)
-            ovol = self.atoms.get_volume()
-            
-            #Then, we create folders for each of the strained variations.
             for strain in self.strains:
                 #Strain the base cell for the MD run. Make sure we copy the
                 #atoms first so that we don't mess up pointer references.
