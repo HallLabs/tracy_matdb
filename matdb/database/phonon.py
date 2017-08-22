@@ -352,33 +352,35 @@ class PhononDFT(Database):
             rerun (bool): when True, recreate the folders even if they
               already exist. 
         """
-        if super(PhononDFT, self).setup() and not rerun:
+        folders_ok = super(PhononDFT, self).setup()
+        if folders_ok and not rerun:
             return
 
         #We also don't want to setup again if we have the results already.
         if self.ready():
             return
-        
-        from ase.io import write
-        from matdb.utility import execute
-        write(path.join(self.phonodir, "POSCAR"), self.atoms, "vasp")        
-        scell = ' '.join(map(str, self.supercell))
-        sargs = ["phonopy", "-d", '--dim="{}"'.format(scell)]
-        pres = execute(sargs, self.phonodir, venv=True)
 
-        from os import getcwd, chdir, mkdir, rename
-        from glob import glob
-        current = getcwd()
-        chdir(self.phonodir)
+        if not folders_ok:
+            from ase.io import write
+            from matdb.utility import execute
+            write(path.join(self.phonodir, "POSCAR"), self.atoms, "vasp")        
+            scell = ' '.join(map(str, self.supercell))
+            sargs = ["phonopy", "-d", '--dim="{}"'.format(scell)]
+            pres = execute(sargs, self.phonodir, venv=True)
 
-        try:
-            from quippy.atoms import Atoms
-            for dposcar in glob("POSCAR-*"):
-                dind = int(dposcar.split('-')[1])
-                datoms = Atoms(dposcar, format="POSCAR")
-                self.create(datoms)
-        finally:
-            chdir(current)
+            from os import getcwd, chdir, mkdir, rename
+            from glob import glob
+            current = getcwd()
+            chdir(self.phonodir)
+
+            try:
+                from quippy.atoms import Atoms
+                for dposcar in glob("POSCAR-*"):
+                    dind = int(dposcar.split('-')[1])
+                    datoms = Atoms(dposcar, format="POSCAR")
+                    self.create(datoms)
+            finally:
+                chdir(current)
 
         # Last of all, create the job file to execute the job array.
         self.jobfile()
