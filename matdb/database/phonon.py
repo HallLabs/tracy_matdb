@@ -75,10 +75,9 @@ class PhononDFT(Database):
         grid (list): of `int`; number of splits in each reciprocal
           lattice vector according to Monkhorst-Pack scheme.
     """
-    name = "phondft"
-    
     def __init__(self, atoms=None, root=None, parent=None,
-                 kpoints={}, incar={}, phonons={}, execution={}):
+                 kpoints={}, incar={}, phonons={}, execution={},
+                 name="phondft"):
         super(PhononDFT, self).__init__(atoms, incar, kpoints, execution,
                                          path.join(root, self.name),
                                          parent, "W", nconfigs=None)
@@ -86,6 +85,7 @@ class PhononDFT(Database):
         self.grid = list(phonons.get("mp", [20, 20, 20]))
         self.phonodir = path.join(self.root, "phonopy")
         self.phonocache = path.join(self.root, "phoncache")
+        self.name = name
         
         self._bands = None
         """dict: keys are ['q', 'w', 'path', 'Q'], values are the distance along
@@ -570,18 +570,18 @@ class PhononCalibration(Database):
         sampling (str): specifies how the DOS is sampled for this database to
           produce modulated sub-configurations.
     """
-    name = "phoncalib"
     confname = "calibrate.conf"
     sampling = "uniform"
     
     def __init__(self, atoms=None, root=None, parent=None,
-                 kpoints={}, incar={}, phonons={}, execution={}, nconfigs=10):
+                 kpoints={}, incar={}, phonons={}, execution={},
+                 nconfigs=10, name="phoncalib", dftbase="phondft"):
         super(PhononCalibration, self).__init__(atoms, incar, kpoints, execution,
                                                 path.join(root, self.name),
                                                 parent, "C", nconfigs)
-        self.base = self.parent.databases[PhononDFT.name]
+        self.base = self.parent.databases[dftbase]
         self.phonons = phonons
-        
+        self.name = name
         update_phonons(self.phonons)
 
         #Calculate which amplitudes to use for the calibration based on the
@@ -758,23 +758,27 @@ class PhononDatabase(Database):
         confname (str): name of the phonopy configuration file used for the
           modulations in this database.
     """
-    name = "phonons"
     confname = "modulate.conf"
 
     def __init__(self, atoms=None, root=None, parent=None,
                  kpoints={}, incar={}, phonons={}, execution={}, nconfigs=100,
-                 calibrate=True, amplitude=None, sampling="uniform"):
+                 calibrate=True, amplitude=None, sampling="uniform",
+                 name="phonons", dftbase="phondft", calibrator="phoncalib"):
         super(PhononDatabase, self).__init__(atoms, incar, kpoints, execution,
                                              path.join(root, self.name),
                                              parent, "M", nconfigs)
         self.sampling = sampling
         self.calibrate = calibrate
-
+        self.name = name
+        
         #Setup a calibrator if automatic calibration was selected.
         if calibrate and amplitude is None:
             self.calibrator = PhononCalibration(atoms, root, parent, kpoints,
-                                                incar, phonons, execution, calibrate)
-            self.parent.databases[PhononCalibration.name] = self.calibrator
+                                                incar, phonons,
+                                                execution, calibrate,
+                                                name=calibrator,
+                                                dftbase=dftbase)            
+            self.parent.databases[calibrator] = self.calibrator
             self.amplitude = self.calibrator.infer_amplitude()
             calibrated = "*calibrated* "
         else:
@@ -785,7 +789,7 @@ class PhononDatabase(Database):
         imsg = "Using {} as modulation {}amplitude for {}."
         msg.info(imsg.format(self.amplitude, calibrated, self.parent.name), 2)
 
-        self.base = self.parent.databases[PhononDFT.name]
+        self.base = self.parent.databases[dftbase]
         self.phonons = phonons        
         update_phonons(self.phonons)
 

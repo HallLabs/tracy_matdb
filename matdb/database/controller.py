@@ -47,9 +47,14 @@ class DatabaseCollection(object):
           actually be used for potential training. Several support databases
           (like PhononDFT and PhononCalibration) don't provide configurations
           for training and testing.
+        byorder (dict): keys are database type qualified names; values
+          are a list of actual database names of that type.
+        clsorder (list): of database type qualified names and the
+          order in which they should be processed.
     """
-    order = ["phondft", "phoncalib", "phonons", "md"]
-    configdbs = ["phonons"]
+    clsorder = ["phonon.PhononDFT", "phonon.PhononCalibration",
+             "phonon.PhononDatabase", "md.DynamicDatabase"]
+    configdbs = ["phonon.PhononDatabase"]
     
     def __init__(self, name, poscar, root, parent, database):
         from quippy.atoms import Atoms
@@ -91,6 +96,7 @@ class DatabaseCollection(object):
         """
 
         self.databases = {}
+        self.bytype = {k: [] for k in self.clsorder}        
         for dbspec in database:
             modname, clsname = dbspec["type"].split('.')
             fqdn = "matdb.database.{}".format(modname)
@@ -118,6 +124,13 @@ class DatabaseCollection(object):
             
             instance = cls(**cpspec)
             self.databases[instance.name] = instance
+            self.bytype[dbspec["type"]].append(instance.name)
+
+        #Finally, set the order that the databases should be processed
+        #in by iterating over names from each database type.
+        self.order = []                
+        for dbtype in self.clsorder:
+            self.order.extend(self.bytype[dbtype])
 
     def status(self):
         """Prints a status message for each of the databases relative
