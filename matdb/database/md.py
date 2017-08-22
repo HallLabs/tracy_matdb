@@ -37,10 +37,10 @@ class DynamicsDatabase(Database):
                  kpoints={}, execution={}, nsteps=None,
                  samplerate=100, strains=None, tstart=None, tend=None,
                  supercell=None, name="md"):
+        self.name = name
         super(DynamicsDatabase, self).__init__(atoms, incar, kpoints, execution,
                                                path.join(root, self.name),
                                                parent, "D", nconfigs=None)
-        self.name = name
         self.samplerate = samplerate
         self.nsteps = nsteps
         self.strains = [0] if strains is None else strains
@@ -147,7 +147,7 @@ class DynamicsDatabase(Database):
                 for line in f:
                     if li <= 6:
                         if li == 0:
-                            header.append("MD: {} ({{}})")
+                            header.append("{} ! MD: {{}}")
                         else:
                             header.append(line.strip())
                         li += 1

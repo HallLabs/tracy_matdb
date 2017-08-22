@@ -2,6 +2,8 @@
 configurations generated from liquid-temperature molecular dynamics.
 """
 from .basic import Database
+from os import path
+
 class LiquidDatabase(Database):
     """Represents a sub-sampled molecular dynamics run created at a
     liquid transition temperature.
