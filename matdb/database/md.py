@@ -2,6 +2,7 @@
 databases of configurations.
 """
 from .basic import Database
+from matdb import msg
 from os import path
 import numpy as np
 
@@ -36,7 +37,8 @@ class DynamicsDatabase(Database):
         
     def __init__(self, atoms=None, root=None, parent=None, incar={},
                  kpoints={}, execution={}, nsteps=None,
-                 samplerate=100, strains=None, tstart=None, tend=None):
+                 samplerate=100, strains=None, tstart=None, tend=None,
+                 supercell=None):
         super(DynamicsDatabase, self).__init__(atoms, incar, kpoints, execution,
                                                path.join(root, self.name),
                                                parent, "D", nconfigs=None)
@@ -45,6 +47,14 @@ class DynamicsDatabase(Database):
         self.strains = [0] if strains is None else strains
         self.tstart = tstart
         self.tend = tend
+        self.supercell = supercell
+        
+        if supercell is None:
+            self.seed = self.atoms.copy()
+        else:
+            from quippy.structures import supercell as scell
+            self.seed = scell(self.atoms, *supercell)
+            
         self._update_incar()
         self._update_kpoints()
         
@@ -91,15 +101,16 @@ class DynamicsDatabase(Database):
         existence of the XDATCAR files with correct number of lines.
         """
         for i, folder in self.configs.items():
-            target = path.join(self.root, "XDATCAR")
+            target = path.join(folder, "XDATCAR")
             if path.isfile(target):
                 #Make sure we have all the steps we need. There should
                 #be at least as many entries as requested configs. We
                 #also have the lattice vectors, label and atom counts,
                 #which adds 5 lines.
                 from matdb.utility import linecount
-                minlines = self.nsteps * (self.atoms.n + 1)
-                if linecount(target) < minlines + 5:
+                minlines = self.nsteps * (self.seed.n + 1)
+                nlines = linecount(target)
+                if nlines < minlines + 5:
                     return False
             else:
                 return False
@@ -128,55 +139,70 @@ class DynamicsDatabase(Database):
         Natoms = 0
         current = None
         writes = []
-        with open(path.join(target, "XDATCAR")) as f:
-            for line in f:
-                if li <= 6:
-                    if li == 0:
-                        header.append("MD: {}-{} ({{}})")
-                    else:
-                        header.append(line.strip())
-                    li += 1
 
-                if li == 7:
-                    header[0] = header[0].format(header[5], i if i is not None else "")
-                    header.remove(header[5])
-                    Natoms = sum(map(int, header[5].split()))
-                    li += 1
+        from tqdm import tqdm
+        pbar = tqdm(total=self.nsteps)
+        
+        try:
+            with open(path.join(target, "XDATCAR")) as f:
+                for line in f:
+                    if li <= 6:
+                        if li == 0:
+                            header.append("MD: {} ({{}})")
+                        else:
+                            header.append(line.strip())
+                        li += 1
 
-                if "configuration" in line:
-                    NL = int(line.split()[2])
-                    #Write the POSCAR for this frame.
-                    if current is not None:
-                        NC = eval(current[0].split()[-1])
-                        outfile = path.join(target, "POSCAR.{}".format(NC))
-                        with open(outfile, 'w') as f:
-                            f.write('\n'.join(current))
-                        writes.append(outfile)
-                        if len(current) != Natoms + 7:
-                            emsg = "ERROR: MD {} has {} lines." 
-                            msg.err(emsg.format(NC, len(current)))
+                    if li == 7:
+                        header[0] = header[0].format(header[5])
+                        header.remove(header[5])
+                        Natoms = sum(map(int, header[5].split()))
+                        li += 1
 
-                    if NL % self.samplerate == 0:
-                        current = list(header)
-                        current[0] = current[0].format(NL)
-                        current.append("Direct")
-                    else:
-                        current = None
-                        
-                elif current is not None:
-                    current.append(line.strip())
+                    if "configuration" in line:
+                        vals = line.split()
+                        if len(vals) == 3:
+                            NL = int(vals[2])
+                        else:
+                            NL = int(vals[1].split('=')[-1])
+                                     
+                        #Write the POSCAR for this frame.
+                        if current is not None:
+                            NC = eval(current[0].split()[-1])
+                            outfile = path.join(target, "POSCAR.{}".format(NC))
+                            with open(outfile, 'w') as f:
+                                f.write('\n'.join(current))
+                            writes.append(outfile)
+                            pbar.update(1)
+                            
+                            if len(current) != Natoms + 7:
+                                emsg = "ERROR: MD {} has {} lines." 
+                                msg.err(emsg.format(NC, len(current)))
 
-        #Handle the last frame in the set.
-        if current is not None:
-            NC = eval(current[0].split()[-1])
-            outfile = path.join(target, "POSCAR.{}".format(NC))
-            with open(outfile, 'w') as f:
-                f.write('\n'.join(current))
-            writes.append(outfile)
-            if len(current) != Natoms + 7:
-                emsg = "ERROR: MD {} has {} lines." 
-                msg.err(emsg.format(NC, len(current)))
-
+                        if NL % self.samplerate == 0:
+                            current = list(header)
+                            current[0] = current[0].format(NL)
+                            current.append("Direct")
+                        else:
+                            current = None
+                            
+                    elif current is not None:
+                        current.append(line.strip())
+                
+            #Handle the last frame in the set.
+            if current is not None:
+                NC = eval(current[0].split()[-1])
+                outfile = path.join(target, "POSCAR.{}".format(NC))
+                with open(outfile, 'w') as f:
+                    f.write('\n'.join(current))
+                writes.append(outfile)
+                pbar.update(1)
+                if len(current) != Natoms + 7:
+                    emsg = "ERROR: MD {} has {} lines." 
+                    msg.err(emsg.format(NC, len(current)))
+        finally:
+            pbar.close()
+            
         return writes
 
     def ready(self):
@@ -197,6 +223,7 @@ class DynamicsDatabase(Database):
         #First, we need to check that the MD is done; then we can subsample it
         #and run the individual DFT calculations.
         if not self._xdatcar_ok():
+            msg.std("XDATCAR incomplete; can't cleanup the MD.", 2)
             return False
 
         subsamples = []
@@ -226,9 +253,12 @@ class DynamicsDatabase(Database):
 
         if not folders_ok:
             for strain in self.strains:
+                if strain == 0:
+                    self.create(self.seed)
+                    
                 #Strain the base cell for the MD run. Make sure we copy the
                 #atoms first so that we don't mess up pointer references.
-                datoms = self.atoms.copy()
+                datoms = self.seed.copy()
                 smat = (1.+strain/100.)**(1./3.)
                 datoms.cell = datoms.cell*smat
                 self.create(datoms)
