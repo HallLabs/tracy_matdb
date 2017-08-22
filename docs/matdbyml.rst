@@ -177,6 +177,14 @@ For each of the configurations specified in the `configs` section,
 `matdb` will generate a database of configurations according to
 settings in this section.
 
+.. note:: The options specified in the configuration file are usually
+   passed directly as keyword arguments to the relevant class
+   constructors. You can look at the class documentation for more
+   details.
+
+.. note:: All databases have a `name` argument that you can
+   specify. If not given, a default will be chosen for you.
+   
 This option takes a list of dictionaries, where each dictionary has
 settings peculiar to the type of database being constructed.
 
@@ -194,13 +202,13 @@ configurations need to be generated using `phonopy`, each of these can
 then be calculated with DFT to high accuracy and the resulting force
 sets are used to approximate the second derivatives.
 
-The :class:`~matdb.databases.phonons.PhonBase` class generates these
+The :class:`~matdb.databases.phonons.PhononDFT` class generates these
 configurations and sets up the VASP folders and execution
 templates. For example:
 
 .. code-block:: yaml
 		
-   - type: 'phonon.PhononBase'
+   - type: 'phonon.PhononDFT'
      kpoints:
        mindistance: 30
      phonons:
@@ -228,6 +236,8 @@ training.
    - type: 'phonon.PhononDatabase'
      nconfigs: 500
      sampling: 'uniform'
+     dftbase: 'phondft'
+     calibrator: 'phoncalib'
      #calibrate: 9
      phonons:
        dim: [2, 2, 2]
@@ -245,12 +255,19 @@ extract an eigenvector that is used to modulate the atomic positions. By
 default, we sample the available frequencies in the BZ uniformly so
 that both high and low freuency phonon modulations are used.
 
+.. warning:: If you don't specify an argument for `dftbase` it
+   defaults to `phondft` (the default name of
+   :class:`~matdb.database.phonon.PhononDFT`). If you have multiple
+   DFT bases with different parameters, make sure you keep the names
+   straight.
+
 The `calibrate` option sets up another database in the background to
-calibrate the amplitudes of the modulations. As shown in this example,
-you can also specify the `amplitude` manually for each
-configuration. If `amplitude` is not specified `matdb` will try to
-find the amplitude automatically using the calibration
-database.
+calibrate the amplitudes of the modulations. The name of this database
+defaults to `phoncalib`, but you can specify a different one by
+specifying a value for `calibrator`. As shown in this example, you can
+also specify the `amplitude` manually for each configuration. If
+`amplitude` is not specified `matdb` will try to find the amplitude
+automatically using the calibration database.
 
 Calibration creates a set of modulated configurations for a random
 frequency and displaces the atoms using a logarithmic space from 1
