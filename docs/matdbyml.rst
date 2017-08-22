@@ -109,6 +109,9 @@ For example:
 sets up 3 seed configurations for the POSCAR files at
 `<root>/POSCAR-25`, `<root>/POSCAR-50` and `<root>/POSCAR-75`.
 
+.. note:: The files you specify *must* be in the root directory in
+   order for `matdb` to work.
+
 `incar` Option
 --------------
 
@@ -139,17 +142,33 @@ template, and the values will be inserted directly.
 Since database generation involves many calculations, the files are
 setup to use job arrays by default.
 
--  **template**: name of the file in the `matdb/templates` directory
-   to use as the execution template.
--  **time**: time in *hours* to run each job in the array for.
--  **ntasks**: number of CPUs to request.
--  **nodes**: number of nodes to spread CPUs over.
--  **mem_per_cpu**: Amount of memory in *GB* for each CPU.
--  **job_name**: job name for the scheduler.
--  **partition**: QOS or special partition/queue to run the calculations on.
--  **array_limit**: what is the maximum number of jobs to run concurrently.
--  **exec_path**: path to the VASP executable to run in each directory
-   that `matdb` sets up.
+- **template**: name of the file in the `matdb/templates` directory
+  to use as the execution template.
+- **time**: time in *hours* to run each job in the array for.
+- **ntasks**: number of CPUs to request.
+- **nodes**: number of nodes to spread CPUs over.
+- **mem_per_cpu**: Amount of memory in *GB* for each CPU.
+- **job_name**: job name for the scheduler.
+- **partition**: QOS or special partition/queue to run the calculations on.
+- **array_limit**: what is the maximum number of jobs to run concurrently.
+- **exec_path**: path to the VASP executable to run in each directory
+  that `matdb` sets up.
+- **module_unload**: a list of modules to unload using `module unload
+  {}`.
+- **module_load**: a list of modules to *load* using `module load
+  {}`.
+- **preamble**: additional lines to insert into the job script
+  *before* the executable.
+
+
+For the preamble, you can use multi-line strings in YAML like:
+
+.. code-block:: yaml
+
+   preamble: >
+     first line
+     second line
+     and so on...
 
 `databases` Option
 ------------------
@@ -222,7 +241,7 @@ The `type` option once again points to a specific sub-class that
 implements the database logic. Next, we specify the number of
 configurations to generate (via random modulations) and how to sample
 the frequency space of the phonons. For a given frequency, we can
-extract an eigenvector that is used to module the atomic positions. By
+extract an eigenvector that is used to modulate the atomic positions. By
 default, we sample the available frequencies in the BZ uniformly so
 that both high and low freuency phonon modulations are used.
 
@@ -281,7 +300,7 @@ work. We don't have to specify all of them because the defaults from
 earlier in the specification will be used if not overridden.
 
 `training` Options
-*****************
+******************
 
 Once a database of configurations is available, `matdb` can automate
 the fits for you using these settings.
@@ -330,3 +349,10 @@ the fits for you using these settings.
 For each of the potential types specified in `gap` you can then add a
 dictionary with parameters specific to that GAP (and which are passed
 into the `teach_sparse` program). These work as documented there.
+
+Full Example File
+-----------------
+
+.. literalinclude:: matdb.yml
+   :language: yaml
+   :linenos:

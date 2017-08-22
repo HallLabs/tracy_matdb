@@ -16,6 +16,7 @@ following links document the internal API and give some examples.
    :maxdepth: 1
    :caption: Sub-packages and Modules:
 
+   workflow.rst
    matdbyml.rst
    scripts.rst
    databases.rst

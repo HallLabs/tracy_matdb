@@ -1,0 +1,142 @@
+title: 'AgPd Alloy Database'
+# Ordered list of species; this is the same order as should be in the
+# POTCAR file for VASP calculations.
+species:
+  - 'Pd'
+  - 'Ag'
+# If the POTCAR names are non-standard, include the *suffix* after the
+# element name here.
+potcars:
+  directory: '/fslhome/glh43/src'
+  pseudo: 'paw_PBE'
+  version: '04Jan2005'
+  pd: '_pv'
+# Directory in which the database folder system will be created.
+root: '~/compute/AgPd'
+# List the names of files in the root directory that serve as seed
+# configurations for sub-sampling to create additional configs. The
+# name keyword decides what the folder name will be called in which
+# all sub-sampled configurations are created.
+configs:
+  # - name: 'Pd'
+  #   poscar: 'POSCAR-Pd'
+  - name: 'PdAg25'
+    poscar: 'POSCAR-25'
+  - name: 'PdAg50'
+    poscar: 'POSCAR-50'
+  - name: 'PdAg75'
+    poscar: 'POSCAR-75'
+  # - name: 'Ag'
+  #   poscar: 'POSCAR-Ag'
+# These are global settings for INCAR that will be applied to *all*
+# the VASP calculations in all databases. They can be overridden in
+# each database.
+incar:
+  prec: 'a'
+  encut: 400
+  isym: 0
+  lwave: False
+  lreal: 'auto'
+  ediff: '1e-5'
+  ismear: 1
+  sigma: 0.1
+# We use Mueller k-points exclusively. These kpoint settings apply to
+# all database calculations.
+kpoints:
+  includegamma: True
+  mindistance: 20
+# Parameters for the job arrays that will be submitted for each
+# database. These can be overridden in each database below as well.
+execution:
+  template: 'run_array_ml.sh'
+  time: 48
+  ntasks: 1
+  nodes: 1
+  mem_per_cpu: 8
+  job_name: 'AgPd DB'
+  partition: 'physics'
+  array_limit: 150
+  modules_load: ["mpi/..", "mkl/.."]
+  preamble: >
+    module load mpi/.....
+  exec_path: 'vasp46s'
+# Next, we include a list of all the databases we want to create. A
+# database following this pattern is created *for each* of the seed
+# configurations listed above.
+databases:
+  #The PhononBase class generates the dynamical matrix that is needed
+  #by PhononDatabase.
+  - type: 'phonon.PhononDFT'
+    kpoints:
+      mindistance: 30
+    phonons:
+      dim: [2, 2, 2]
+      mp: [20, 20, 20]
+  - type: 'phonon.PhononDatabase'
+    nconfigs: 100
+    sampling: 'uniform'
+    calibrate: 6
+    phonons:
+      dim: [2, 2, 2]
+      mesh: [13, 13, 13]
+    amplitude:
+      PdAg25: 12
+      PdAg50: 15
+      PdAg75: 18
+  - type: 'md.DynamicsDatabase'
+    nsteps: 10
+    samplerate: 100
+    strains: [3, -3]
+    tstart:
+      PdAg25: 2766
+      PdAg50: 3063
+      PdAg75: 3360
+    tend:
+      PdAg25: 2766
+      PdAg50: 3063
+      PdAg75: 3360
+    execution:
+      time: 90
+      ntasks: 8
+      mem_per_cpu: 1
+      job_name: 'AgPd MD'
+   #Choose how much of the data to use for training and which potentials
+   #will be generated.
+   training:
+     configs: ['PdAg25', 'PdAg50', 'PdAg75']
+     #Execution for the training is *separate* from the database
+     #execution, which is listed as if it applied to all the
+     #sub-sections.
+     execution:
+       template: 'run_teachsparse_ml.sh'
+       time: 10
+       ntasks: 8
+       mem_per_cpu: 5
+       job_name: 'AgPd GAP'
+     #Amount of data to use for *training*. Only applies to the case
+     #where we use full configuration database for training (i.e., not
+     #the Hessian fitting).
+     split: 0.5
+     #This keyword signals that we want to do the hessian fitting. If it
+     #isn't present, the fitting defaults to using all the available
+     #configurations. If this *and* split are both present, this takes
+     #priority.
+     #hessian_delta: 0.01
+     gap: ['2body', '3body', 'soap']
+     2body:
+       cutoff: 6.0
+       cutoff_transition_width: 1.0
+       n_sparse: 20
+     3body:
+       cutoff: 3.5
+       cutoff_transition_width: 0.5
+       n_sparse: 200
+     soap:
+       l_max: 12
+       n_max: 12
+       cutoff: 5.0
+       n_sparse: 200
+       #For SOAP only, sparse_method=file can be specified in which case
+       #sparse points are manually generated for the fit using randomized
+       #sub-configurations of the seed configurations, equally weighted.
+       sparse_method: 'file'
