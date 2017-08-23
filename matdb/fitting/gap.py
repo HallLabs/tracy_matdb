@@ -184,28 +184,31 @@ def _n_neighbors(atoms, cutoff):
     acopy = atoms.copy()
     acopy.set_cutoff(cutoff)
     acopy.calc_connect()
-    
-    neighs = []
-    for i in acopy.indices:
-        for neighb in acopy.connect[i]:
-            dist = neighb.distance
-            deltain = [abs(dist-s) < 1e-5 for s in neighs]
-            if not any(deltain):
-                neighs.append(dist)
-    shells = sorted(neighs)
-
-    #Determine whether we should use nearest or next-nearest neighbors.
-    if len(shells) > 4:
-        ncut = shells[1]
-    else:
-        ncut = shells[0]
-    ncut += 1e-4
-    
-    acopy.set_cutoff(ncut)
-    acopy.calc_connect()
     neighs = []
     for i in range(acopy.n):
         neighs.append(acopy.n_neighbours(i+1))
+    
+    # neighs = []
+    # for i in acopy.indices:
+    #     for neighb in acopy.connect[i]:
+    #         dist = neighb.distance
+    #         deltain = [abs(dist-s) < 1e-5 for s in neighs]
+    #         if not any(deltain):
+    #             neighs.append(dist)
+    # shells = sorted(neighs)
+
+    # #Determine whether we should use nearest or next-nearest neighbors.
+    # if len(shells) > 4:
+    #     ncut = shells[1]
+    # else:
+    #     ncut = shells[0]
+    # ncut += 1e-4
+    
+    # acopy.set_cutoff(ncut)
+    # acopy.calc_connect()
+    # neighs = []
+    # for i in range(acopy.n):
+    #     neighs.append(acopy.n_neighbours(i+1))
     return np.mean(neighs)
 
 def _rescale_2body(atoms, settings):
