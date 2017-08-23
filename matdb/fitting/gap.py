@@ -835,6 +835,12 @@ class GAPTrainer(object):
 
         #Add the teach_sparse keyword arguments passed directly in.
         tsattrs.update(self.teach_sparse)
+
+        #Add in the names of the energy, force and virial parameters
+        #from dft.
+        tsattrs["energy_parameter_name"] = "dft_energy"
+        tsattrs["force_parameter_name"] = "dft_force"
+        tsattrs["virial_parameter_name"] = "dft_virial"
         
         if len(custom) > 0:
             #If we have custom sigmas, add them in; make sure we have specified
