@@ -722,9 +722,16 @@ class GAPTrainer(object):
         trainfile = path.join(self.root, self.train_file)
             
         if not path.isfile(trainfile):
-            from matdb.msg import std
-            std("*train.xyz missing in {}; can't execute.".format(self.root))
-            return False
+            #First, check to see if the training file is available one
+            #level up.
+            ptrain = path.join(self.db.train_file)
+            if path.isfile(ptrain):
+                from matdb.utility import symlink
+                symlink(ptrain, trainfile)
+            else:
+                from matdb.msg import std
+                std("*train.xyz missing in {}; can't execute.".format(self.root))
+                return False
         
         # We must have what we need to execute. Compile the command
         # and submit.
