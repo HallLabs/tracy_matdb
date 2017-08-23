@@ -799,7 +799,7 @@ class GAPTrainer(object):
             ptrain = path.join(self.db.train_file)
             if path.isfile(ptrain):
                 from matdb.utility import symlink
-                symlink(ptrain, path.join(self.root, self.train_file))
+                symlink(path.join(self.root, self.train_file), ptrain)
         
         template = "teach_sparse at_file={train_file} gap={{{gap}}} {teach_sparse}"
         #Compile the GAP string specifying the potential.
