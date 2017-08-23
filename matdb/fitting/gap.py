@@ -60,7 +60,7 @@ def dict_to_str(settings):
             value = v
 
         result.append("{}={}".format(k, value))
-    return ' '.join(result)
+    return '\n'.join(result)
 
 def gpfile_name(gaps, prefix="gp", hessfit=False):
     """Returns the expected gp file name for the specified set of GAPs.
