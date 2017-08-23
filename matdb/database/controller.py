@@ -55,7 +55,7 @@ class DatabaseCollection(object):
     clsorder = ["phonon.PhononDFT", "phonon.PhononCalibration",
                 "phonon.PhononDatabase", "md.DynamicsDatabase",
                 "liquid.LiquidDatabase"]
-    configdbs = ["phonon.PhononDatabase"]
+    configdbs = ["phonon.PhononDatabase", "liquid.LiquidDatabase"]
     
     def __init__(self, name, poscar, root, parent, database):
         from quippy.atoms import Atoms
@@ -79,6 +79,10 @@ class DatabaseCollection(object):
         self._holdoutfile = None
         """str: name of the file that stores the XYZ *validation* database.
         """        
+        self._superfile = None
+        """str: name of the file that stores the XYZ *super*-validation
+        database.
+        """        
 
         #See if we have a training and holdout file specified already.
         from glob import glob
@@ -89,6 +93,8 @@ class DatabaseCollection(object):
                     self._trainfile = xyzname
                 if "hold" in xyzname:
                     self._holdoutfile = xyzname
+                if "super" in xyzname:
+                    self._superfile = xyzname
         
         from importlib import import_module
         self._dbsettings = database
@@ -204,8 +210,15 @@ class DatabaseCollection(object):
         """
         return path.join(self.root, self._holdoutfile)
 
+    @property
+    def super_file(self):
+        """Returns the full path to the XYZ database file that can be
+        used to *super* validate the potential fit.
+        """
+        return path.join(self.root, self._superfile)
+    
     def split(self, train_perc, trainfile="train.xyz", holdfile="holdout.xyz",
-              recalc=0):
+              recalc=0, superfile="super.xyz"):
         """Splits the total available data in all databases into a
         training and holdout set.
 
@@ -222,40 +235,78 @@ class DatabaseCollection(object):
             self._trainfile = trainfile
         if self._holdoutfile is None:
             self._holdoutfile = holdfile
+        if self._superfile is None:
+            self._superfile = superfile
 
         if (path.isfile(self.train_file) and path.isfile(self.holdout_file)
-            and recalc <= 0):
+            and path.isfile(self.super_file) and recalc <= 0):
             return
         
         #Compile a list of all the sub-configurations we can include in the
         #training.
-        Ntot = 0
-        subconfs = {}
-        for dbname in self.configdbs:
-            for fi, f in enumerate(self.databases[dbname].configs.values()):
-                subconfs[fi + Ntot] = f
-            Ntot += len(subconfs)
+        from cPickle import dump, load
+        idfile = path.join(self.root, "ids.pkl")
+        if path.isfile(idfile):
+            with open(idfile, 'rb') as f:
+                data = load(f)
+            subconfs = data["subconfs"]
+            ids = data["ids"]
+            Ntrain = data["Ntrain"]
+            Nhold = data["Nhold"]
+            Ntot = data["Ntot"]
+            Nsuper = data["Nsuper"]
+        else:
+            Ntot = 0
+            subconfs = {}
+            for dbtype in self.configdbs:
+                relevant = [self.databases[n].configs.values()
+                            for n in self.bytype[dbtype]]
+                for dbconfigs in relevant:
+                    for fi, f in enumerate(dbconfigs):
+                        subconfs[fi + Ntot] = f
+                    Ntot += len(subconfs)
 
-        Ntrain = int(np.ceil(Ntot*train_perc))
-        ids = np.arange(len(subconfs))
-        tids = np.random.choice(ids, size=Ntrain)
-        hids = np.setdiff1d(ids, tids)
+            Ntrain = int(np.ceil(Ntot*train_perc))
+            ids = np.arange(len(subconfs))
+            Nhold = int(np.ceil((Ntot-Ntrain)*train_perc))
+            Nsuper = Ntot-Ntrain-Nhold
+            np.random.shuffle(ids)
 
-        from matdb.io import vasp_to_xyz
-        from tqdm import tqdm
-        trainfiles = []
-        for tid in tqdm(tids):
-            if vasp_to_xyz(subconfs[tid], recalc=recalc-1):
-                trainfiles.append(path.join(subconfs[tid], "output.xyz"))
-                
-        holdfiles = []
-        for hid in tqdm(hids):
-            if vasp_to_xyz(subconfs[hid], recalc=recalc-1):
-                holdfiles.append(path.join(subconfs[hid], "output.xyz"))
+            #We need to save these ids so that we don't mess up the statistics on
+            #the training and validation sets.
+            data = {
+                "subconfs": subconfs,
+                "ids": ids,
+                "Ntrain": Ntrain,
+                "Nhold": Nhold,
+                "Ntot": Ntot,
+                "Nsuper": Nsuper
+            }
+            with open(idfile, 'wb') as f:
+                dump(data, f)
+        
+        tids = ids[0:Ntrain]
+        hids = ids[Ntrain:-Nsuper]
+        sids = ids[-Nsuper:]
+
+        def subset(subconfs, idlist):
+            from matdb.io import vasp_to_xyz
+            from tqdm import tqdm
+            files = []
+            for aid in tqdm(idlist):
+                if vasp_to_xyz(subconfs[aid], recalc=recalc-1):
+                    files.append(path.join(subconfs[aid], "output.xyz"))
+
+            return files
+
+        trainfiles = subset(subconfs, tids)
+        holdfiles = subset(subconfs, hids)
+        superfiles = subset(subconfs, sids)
 
         from matdb.utility import cat
         cat(trainfiles, self.train_file)
         cat(holdfiles, self.holdout_file)
+        cat(superfiles, self.super_file)
         
     def cleanup(self):
         """Runs the cleanup methods of each database in the collection, in the
@@ -362,6 +413,11 @@ class Controller(object):
         self._holdoutfile = None
         """str: name of the file that stores the XYZ *validation* database.
         """
+        self._superfile = None
+        """str: name of the file that stores the XYZ *super*-validation
+        database.
+        """        
+
             
     def setup(self, rerun=False):
         """Sets up each of configuration's databases.
@@ -467,8 +523,15 @@ class Controller(object):
         """
         return path.join(self.root, self._holdoutfile)
 
+    @property
+    def super_file(self):
+        """Returns the full path to the XYZ database file that can be
+        used to *super* validate the potential fit.
+        """
+        return path.join(self.root, self._superfile)
+    
     def split(self, train_perc, trainfile="train.xyz", holdfile="holdout.xyz",
-              recalc=0):
+              recalc=0, superfile="super.xyz"):
         """Splits the total available data in all databases into a
         training and holdout set.
 
@@ -486,13 +549,16 @@ class Controller(object):
             self._trainfile = trainfile
         if self._holdoutfile is None:
             self._holdoutfile = holdfile
+        if self._superfile is None:
+            self._superfile = superfile
 
         if (path.isfile(self.train_file) and path.isfile(self.holdout_file)
-            and recalc <= 0):
+            and path.isfile(self._superfile) and recalc <= 0):
             return
         
         trainfiles = []
         holdfiles = []
+        superfiles = []
         from fnmatch import fnmatch
         for name, db in self.collections.items():
             if self.trainer.configs is not None:
@@ -500,11 +566,13 @@ class Controller(object):
                 #the training spec.
                 if not any([fnmatch(name, p) for p in self.trainer.configs]):
                     continue
-
+            
             db.split(train_perc, trainfile, holdfile, recalc-1)
             trainfiles.append(db.train_file)
             holdfiles.append(db.holdout_file)
+            superfiles.append(db.super_file)
 
         from matdb.utility import cat
         cat(trainfiles, self.train_file)
         cat(holdfiles, self.holdout_file)
+        cat(superfiles, self.super_file)
