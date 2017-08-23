@@ -3,7 +3,11 @@
 #SBATCH --time={{ time }}:00:00   # walltime
 #SBATCH --ntasks={{ ntasks }}   # number of processor cores (i.e. tasks)
 #SBATCH --nodes={{ nodes }}   # number of nodes
+{%- if mem_per_cpu %}
 #SBATCH --mem-per-cpu={{ mem_per_cpu  }}G   # memory per CPU core
+{%- else %}
+#SBATCH --mem={{ mem }}G   # total memory
+{%- endif %}
 #SBATCH -J "{{ job_name }}"   # job name
 {% if partition %}
 #SBATCH --partition={{ partition }}
