@@ -44,7 +44,7 @@ def update_soap(settings):
         if k not in settings:
             settings[k] = v
 
-def dict_to_str(settings):
+def dict_to_str(settings, spacer=""):
     """Converts the specified dictionary of QUIP-compatible settings into a
     single string.
 
@@ -60,7 +60,9 @@ def dict_to_str(settings):
             value = v
 
         result.append("{}={}".format(k, value))
-    return '\n'.join(result)
+
+    joiner = " \\\n  {}".format(spacer)
+    return joiner.join(result)
 
 def gpfile_name(gaps, prefix="gp", hessfit=False):
     """Returns the expected gp file name for the specified set of GAPs.
@@ -612,7 +614,7 @@ class GAPTrainer(object):
         finally:
             out.close()
                 
-    def _desc_str(self, ptype, **kwargs):
+    def _desc_str(self, ptype, spacer="  ", **kwargs):
         """Returns the descriptor string for this training object, if it
         exists.
 
@@ -630,9 +632,13 @@ class GAPTrainer(object):
             
             settings = []
             settings.append("soap" if ptype == "soap" else "distance_Nb")
-            settings.append(dict_to_str(pdict))
+            settings.append(dict_to_str(pdict, spacer="  "))
             settings.append("add_species")
-            return ' '.join(settings)
+            settings.append("")
+            settings.append("")
+
+            joiner = " \\\n  {0}".format(spacer)
+            return joiner.join(settings)
                 
     def _soap_sparse_points(self, recalc=False):
         """Calculates the hessian sparse points for hessian-based
@@ -804,7 +810,11 @@ class GAPTrainer(object):
                 from matdb.utility import symlink
                 symlink(path.join(self.root, self.train_file), ptrain)
         
-        template = "teach_sparse at_file={train_file} gap={{{gap}}} {teach_sparse}"
+        template = ("teach_sparse at_file={train_file} \\\n"
+                    "  gap={{ \\\n"
+                    "    {gap} \\\n"
+                    "  }} \\\n"
+                    "  {teach_sparse}")
         #Compile the GAP string specifying the potential.
         gaplist = []
         for i, igap in enumerate(self.state):
