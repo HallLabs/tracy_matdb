@@ -722,16 +722,9 @@ class GAPTrainer(object):
         trainfile = path.join(self.root, self.train_file)
             
         if not path.isfile(trainfile):
-            #First, check to see if the training file is available one
-            #level up.
-            ptrain = path.join(self.db.train_file)
-            if path.isfile(ptrain):
-                from matdb.utility import symlink
-                symlink(ptrain, trainfile)
-            else:
-                from matdb.msg import std
-                std("*train.xyz missing in {}; can't execute.".format(self.root))
-                return False
+            from matdb.msg import std
+            std("*train.xyz missing in {}; can't execute.".format(self.root))
+            return False
         
         # We must have what we need to execute. Compile the command
         # and submit.
@@ -801,6 +794,12 @@ class GAPTrainer(object):
             #The split command writes the XYZ files using a new random subset of
             #the available configurations.
             self.db.split(self.split)
+            #Check to see if the training file is available one level
+            #up. If it is, symlink it.
+            ptrain = path.join(self.db.train_file)
+            if path.isfile(ptrain):
+                from matdb.utility import symlink
+                symlink(ptrain, path.join(self.root, self.train_file))
         
         template = "teach_sparse at_file={train_file} gap={{{gap}}} {teach_sparse}"
         #Compile the GAP string specifying the potential.
