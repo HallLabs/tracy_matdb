@@ -39,7 +39,7 @@ def _common_parser():
     parser = argparse.ArgumentParser(add_help=False)
     parser.add_argument("-examples", action="store_true",
                         help="See detailed help and examples for this script.")
-    parser.add_argument("-verbose", action="store_true",
+    parser.add_argument("--verbose", default=0, type=int,
                         help="See verbose output as the script runs.")
     parser.add_argument('-action', nargs=1, choices=['save','print'], default='print',
                         help="Specify what to do with the output (print or save)")

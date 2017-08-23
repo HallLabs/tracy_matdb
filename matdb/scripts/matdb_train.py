@@ -38,9 +38,18 @@ script_options = {
            "help": "Validate the potential's energy and force predictions."},
     "--status": {"action": "store_true",
                 "help": ("Determines status of the GAP fitting routines and "
-                         "job files. Sanity check before `-x`.")}
-    }
-"""dict: default command-line arguments and their
+                         "job files. Sanity check before `-x`.")},
+    "--xyz": {"action": "store_true",
+              "help": ("Recreate the XYZ training and validation files using "
+                       "the latest settings in `matdb.yml`")},
+    "--recalc": {"type": int, "default": 0,
+                 "help": ("Specify the stack depth for recalculation; this "
+                          "value is decreased as the stack is traversed. In "
+                          "any method with `recalc > 0`, the operation is done "
+                          "over from scratch.")}
+}
+"""
+dict: default command-line arguments and their
     :meth:`argparse.ArgumentParser.add_argument` keyword arguments.
 """
 
@@ -74,6 +83,8 @@ def run(args):
     #database controller for the specification they have given us.
     from matdb.database.controller import Controller
     cdb = Controller(args["dbspec"])
+    if args["xyz"]:
+        cdb.split(cdb.trainer.split, recalc=args["recalc"])
     if args["t"]:
         cdb.trainer.write_jobfile()
     if args["x"]:

@@ -1,6 +1,6 @@
 """Functions for interacting with various output formats.
 """
-def vasp_to_xyz(folder, outfile="output.xyz", recalc=False,
+def vasp_to_xyz(folder, outfile="output.xyz", recalc=0,
                 properties=["species", "pos", "z", "dft_force"],
                 parameters=["dft_energy", "dft_virial"]):
     """Creates an extended XYZ file for the calculated structure in
@@ -21,7 +21,7 @@ def vasp_to_xyz(folder, outfile="output.xyz", recalc=False,
         
     if (path.isfile(outfile)
         and stat(outfile).st_size > 100
-        and not recalc):
+        and recalc <= 0):
         return True
         
     p = ','.join(properties)

@@ -172,13 +172,15 @@ class Database(object):
             
         return outcars and busy
             
-    def execute(self, dryrun=False):
+    def execute(self, dryrun=False, recovery=False):
         """Submits the job script for each of the folders in this
         database if they are ready to run.
 
         Args:
             dryrun (bool): when True, simulate the submission without
               actually submitting.
+            recovery (bool): when True, submit the script for running recovery
+              jobs.
 
         Returns:
             bool: True if the submission generated a job id
@@ -187,21 +189,22 @@ class Database(object):
         if not path.isfile(path.join(self.root, "jobfile.sh")):
             return False
 
-        executors = {f: can_execute(f) for f in self.configs.values()}
-        if not all(executors.values()):
-            return False
-
-        #We also need to check that we haven't already submitted this job. If
-        #the OUTCAR file exists, then we don't want to resubmit.
-        for f in self.configs.values():
-            outcar = path.join(f, "OUTCAR")
-            if path.isfile(outcar):
+        if not recovery:
+            executors = {f: can_execute(f) for f in self.configs.values()}
+            if not all(executors.values()):
                 return False
+
+            #We also need to check that we haven't already submitted this job. If
+            #the OUTCAR file exists, then we don't want to resubmit.
+            for f in self.configs.values():
+                outcar = path.join(f, "OUTCAR")
+                if path.isfile(outcar):
+                    return False
         
         # We must have what we need to execute. Compile the command
         # and submit.
         from matdb.utility import execute
-        cargs = ["sbatch", "jobfile.sh"]
+        cargs = ["sbatch", "recovery.sh" if recovery else "jobfile.sh"]
         if dryrun:
             from matdb.msg import okay
             okay("Executed {} in {}".format(' '.join(cargs), self.root))
@@ -260,16 +263,42 @@ class Database(object):
                 for k, v in self.incar.items():
                     f.write("{}={}\n".format(k.upper(), v))
 
-    def jobfile(self, rerun=False):
+    def recover(self):
+        """Compiles a list of all DFT runs that didn't complete and compiles the
+        `failures` file. Creates a jobfile to re-run the failed folders only.
+        """
+        detail = self.status(False)
+        failed = [k for k, v in detail["done"].items() if not v]
+        xpath = path.join(self.root, "failures")
+        with open(xpath, 'w') as f:
+            f.write('\n'.join(failed))
+
+        imsg = "{0}: queued {1:d} configs for recovery."
+        msg.info(imsg.format(self.name, len(failed)))
+        self.jobfile(recovery=True)
+                    
+    def jobfile(self, rerun=False, recovery=False):
         """Creates the job array file to run each of the sub-configurations in
         this database.
 
         Args:
             rerun (bool): when True, recreate the jobfile even if it
               already exists. 
+            recovery (bool): when True, configure the jobfile to run
+              recovery jobs for those that have previously failed. This uses a
+              different template and execution path.
         """
         from os import path
-        target = path.join(self.root, "jobfile.sh")
+        if recovery:
+            from matdb.utility import linecount
+            target = path.join(self.root, "recovery.sh")
+            xpath = path.join(self.root, "failures")
+            asize = linecount(xpath)
+        else:
+            target = path.join(self.root, "jobfile.sh")
+            xpath = path.join(self.root, "{}.".format(self.prefix))
+            asize = len(self.configs)
+            
         if path.isfile(target) and not rerun:
             return
         
@@ -279,8 +308,6 @@ class Database(object):
         settings = self.parent.execution.copy()
         settings.update(self.execution.items())
 
-        xpath = path.join(self.root, "{}.".format(self.prefix))
-        asize = len(self.configs)
         settings["execution_path"] = xpath
         settings["array_size"] = asize
 
@@ -289,7 +316,11 @@ class Database(object):
         
         from jinja2 import Environment, PackageLoader
         env = Environment(loader=PackageLoader('matdb', 'templates'))
-        template = env.get_template(settings["template"])
+        if recovery:
+            template = env.get_template(settings["template"].replace("array", "recovery"))
+        else:
+            template = env.get_template(settings["template"])
+            
         with open(target, 'w') as f:
             f.write(template.render(**settings))
                     

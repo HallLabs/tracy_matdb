@@ -32,7 +32,8 @@ script_options = {
            "help": "Run the setup method for each database."},
     "-x": {"action": "store_true",
            "help": ("Submit the job array file for each database that has "
-                    "folders ready to run.")},
+                    "folders ready to run. If --recover is specified, then "
+                    "the recovery jobfile is submitted instead.")},
     "-c": {"action": "store_true",
            "help": ("Cleanup the databases that have completed execution "
                     "so that results can be extracted.")},
@@ -42,7 +43,16 @@ script_options = {
                          "directories. Sanity check before `-x`.")},
     "--rerun": {"action": "store_true",
                 "help": ("Re-run the specified option, even if it has already "
-                         "been done before.")}
+                         "been done before.")},
+    "--filter": {"nargs": "+",
+                 "help": ("Specify a list of patterns to match against config "
+                          "names that should be *included*.")},
+    "--busy": {"action": "store_true",
+               "help": ("Display a list of configurations that haven't "
+                        "finished running in DFT yet.")},
+    "--recover": {"action": "store_true",
+                  "help": ("Creates a jobfile for those configs that didn't "
+                           "finish computing so that they can be re-run.")}
     }
 """dict: default command-line arguments and their
     :meth:`argparse.ArgumentParser.add_argument` keyword arguments.
@@ -78,12 +88,15 @@ def run(args):
     if args["s"]:
         cdb.setup(args["rerun"])
     if args["x"]:
-        cdb.execute()
+        cdb.execute(args["filter"], args["recover"])
     if args["c"]:
         cdb.cleanup()    
 
+    if args["recover"] and not args["x"]:
+        cdb.recover(args["filter"])
+        
     if args["status"]:
-        cdb.status()
+        cdb.status(args["filter"], args["busy"])
         
 if __name__ == '__main__': # pragma: no cover
     run(_parser_options())

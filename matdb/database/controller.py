@@ -133,22 +133,48 @@ class DatabaseCollection(object):
         for dbtype in self.clsorder:
             self.order.extend(self.bytype[dbtype])
 
-    def status(self):
+    def recover(self):
+        """Runs recovery on this database to determine which configs failed and
+        then create a jobfile to requeue them for compute.
+        """
+        for dbname in self.order:
+            if dbname not in self.databases:
+                continue
+            db = self.databases[dbname]
+            db.recover()
+            
+    def status(self, busy=False):
         """Prints a status message for each of the databases relative
         to VASP execution status.
+
+        Args:
+            busy (bool): when True, print a list of the configurations that are
+              still busy being computed in DFT.
         """
+        from matdb.msg import verbosity
         for dbname in self.order:
             if dbname not in self.databases:
                 continue
 
             db = self.databases[dbname]
-            imsg = "{}:{} => {}".format(self.name, dbname, db.status())
-            msg.info(imsg)
+            if not busy:
+                imsg = "{}:{} => {}".format(self.name, dbname, db.status(verbosity<2))
+                msg.info(imsg)
+            else:
+                detail = db.status(False)
+                running = [k for k, v in detail["done"].items() if not v]
+                for config in running:
+                    msg.std(config.replace(self.root, ""))
+                
         msg.blank(level=1)
             
-    def execute(self):
+    def execute(self, recovery=False):
         """Submits job array files for any of the databases that are ready to
         execute, but which haven't been submitted yet.
+
+        Args:
+            recovery (bool): when True, submit the script for running recovery
+              jobs.
         """
         ready = True
         for dbname in self.order:
@@ -156,7 +182,7 @@ class DatabaseCollection(object):
                 continue
             if ready:
                 ready = (self.databases[dbname].ready() or
-                         self.databases[dbname].execute())
+                         self.databases[dbname].execute(recovery=recovery))
             else:
                 imsg = ("Database {}:{} is not ready to execute yet, or is "
                         "already executing. Done.")
@@ -179,7 +205,7 @@ class DatabaseCollection(object):
         return path.join(self.root, self._holdoutfile)
 
     def split(self, train_perc, trainfile="train.xyz", holdfile="holdout.xyz",
-              recalc=False):
+              recalc=0):
         """Splits the total available data in all databases into a
         training and holdout set.
 
@@ -187,8 +213,10 @@ class DatabaseCollection(object):
             train_perc (float): percentage of the data to use for training.
             trainfile (str): name of the training XYZ file to create.
             holdfile (str): name of the holdout/validation XYZ file to create.
-            recalc (bool): when True, re-split the data and overwrite any
-              existing *.xyz files.
+            recalc (int): when non-zero, re-split the data and overwrite any
+              existing *.xyz files. This parameter decreases as
+              rewrites proceed down the stack. To re-calculate
+              lower-level XYZ files, increase this value.
         """
         if self._trainfile is None:
             self._trainfile = trainfile
@@ -196,7 +224,7 @@ class DatabaseCollection(object):
             self._holdoutfile = holdfile
 
         if (path.isfile(self.train_file) and path.isfile(self.holdout_file)
-            and not recalc):
+            and recalc <= 0):
             return
         
         #Compile a list of all the sub-configurations we can include in the
@@ -217,12 +245,12 @@ class DatabaseCollection(object):
         from tqdm import tqdm
         trainfiles = []
         for tid in tqdm(tids):
-            if vasp_to_xyz(subconfs[tid]):
+            if vasp_to_xyz(subconfs[tid], recalc=recalc-1):
                 trainfiles.append(path.join(subconfs[tid], "output.xyz"))
                 
         holdfiles = []
         for hid in tqdm(hids):
-            if vasp_to_xyz(subconfs[hid]):
+            if vasp_to_xyz(subconfs[hid], recalc=recalc-1):
                 holdfiles.append(path.join(subconfs[hid], "output.xyz"))
 
         from matdb.utility import cat
@@ -351,17 +379,47 @@ class Controller(object):
         for name, coll in self.collections.items():
             coll.cleanup()
 
-    def execute(self):
+    def execute(self, cfilter=None, recovery=False):
         """Submits job array scripts for each database collection.
-        """
-        for name, coll in self.collections.items():
-            coll.execute()
 
-    def status(self):
-        """Prints status messages for each of the configuration's databases.
+        Args:
+            cfilter (list): of `str` patterns to match against configuration
+              names. This limits which configs status is retrieved for.
+            recovery (bool): when True, submit the script for running recovery
+              jobs.
         """
+        from fnmatch import fnmatch
         for name, coll in self.collections.items():
-            coll.status()   
+            if cfilter is None or any(fnmatch(name, p) for p in cfilter):
+                coll.execute(recovery)
+
+    def recover(self, cfilter=None):
+        """Runs recovery on this database to determine which configs failed and
+        then create a jobfile to requeue them for compute.
+
+        Args:
+            cfilter (list): of `str` patterns to match against configuration
+              names. This limits which configs status is retrieved for.
+        """
+        from fnmatch import fnmatch
+        for name, coll in self.collections.items():
+            if cfilter is None or any(fnmatch(name, p) for p in cfilter):
+                coll.recover() 
+                
+    def status(self, cfilter=None, busy=False):
+        """Prints status messages for each of the configuration's
+        databases.
+
+        Args:
+            cfilter (list): of `str` patterns to match against configuration
+              names. This limits which configs status is retrieved for.
+            busy (bool): when True, print a list of the configurations that are
+              still busy being computed in DFT.
+        """
+        from fnmatch import fnmatch
+        for name, coll in self.collections.items():
+            if cfilter is None or any(fnmatch(name, p) for p in cfilter):
+                coll.status(busy) 
             
     def POTCAR(self):
         """Creates the POTCAR file using the pseudopotential and version
@@ -410,16 +468,19 @@ class Controller(object):
         return path.join(self.root, self._holdoutfile)
 
     def split(self, train_perc, trainfile="train.xyz", holdfile="holdout.xyz",
-              recalc=False):
+              recalc=0):
         """Splits the total available data in all databases into a
         training and holdout set.
 
         Args:
             train_perc (float): percentage of the data to use for training.
             trainfile (str): name of the training XYZ file to create.
-            holdfile (str): name of the holdout/validation XYZ file to create.
-            recalc (bool): when True, re-split the data and overwrite any
-              existing *.xyz files.
+            holdfile (str): name of the holdout/validation XYZ file to
+              create.
+            recalc (int): when non-zero, re-split the data and overwrite any
+              existing *.xyz files. This parameter decreases as
+              rewrites proceed down the stack. To re-calculate
+              lower-level XYZ files, increase this value.
         """
         if self._trainfile is None:
             self._trainfile = trainfile
@@ -427,13 +488,20 @@ class Controller(object):
             self._holdoutfile = holdfile
 
         if (path.isfile(self.train_file) and path.isfile(self.holdout_file)
-            and not recalc):
+            and recalc <= 0):
             return
         
         trainfiles = []
         holdfiles = []
+        from fnmatch import fnmatch
         for name, db in self.collections.items():
-            db.split(train_perc, trainfile, holdfile, recalc)
+            if self.trainer.configs is not None:
+                #Skip all those databases that are not explicitly included in
+                #the training spec.
+                if not any([fnmatch(name, p) for p in self.trainer.configs]):
+                    continue
+
+            db.split(train_perc, trainfile, holdfile, recalc-1)
             trainfiles.append(db.train_file)
             holdfiles.append(db.holdout_file)
 
