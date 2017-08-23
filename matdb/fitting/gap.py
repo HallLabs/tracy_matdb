@@ -202,7 +202,8 @@ def _n_neighbors(atoms, cutoff):
     ncut += 1e-4
     
     acopy.set_cutoff(ncut)
-    acopy.calc_connect()    
+    acopy.calc_connect()
+    neighs = []
     for i in range(acopy.n):
         neighs.append(acopy.n_neighbours(i+1))
     return np.mean(neighs)
@@ -320,9 +321,9 @@ class GAPTrainer(object):
           that should be included in the training and validation.
 
     """
-    def __init__(self, gap=None, db=None, gp_file=None, e0=0., default_sigma=None,
+    def __init__(self, gap=None, db=None, gp_file=None, e0=0., sigma=None,
                  sparse_jitter=1e-12, split=0.5, root=None,
-                 execution={}, configs=None, **kwargs):
+                 execution={}, configs=None, basedft="phondft", **kwargs):
         self.db = db
         if db is None:
             raise ValueError("Cannot train a GAP without a database of "
@@ -556,7 +557,6 @@ class GAPTrainer(object):
         eigenvectors to relevant properties on copies of the seed configuration
         atoms objects.
         """
-        from matdb.database.phonon import PhononDFT
         from fnmatch import fnmatch
         
         hname = "hessian{}"        
@@ -568,7 +568,7 @@ class GAPTrainer(object):
                     continue
             
             self.seeds[name] = dbset.atoms.copy()
-            dmatrix = dbset.databases[PhononDFT.name].dmatrix
+            dmatrix = dbset.databases[self.basedft].dmatrix
             eigvecs, eigvals = dmatrix["eigvecs"], dmatrix["eigvals"]
             atc = self.seeds[name]
             
