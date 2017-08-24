@@ -121,7 +121,7 @@ def run(args):
     if args["bands"]:
         if not args["name"]:
             phonon = target.bytype["phonon.PhononDFT"]
-            if len(phonon) > 0:
+            if len(phonon) > 1:
                 raise ValueError("More than one DFT phonon database available."
                                  " Specify which to use with --name.")
             else:
