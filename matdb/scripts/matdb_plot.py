@@ -43,7 +43,9 @@ script_options = {
                   "help": "Specify the size of the figure in inches."},
     "--save": {"help": "Specify the name of a file to save the plot to." },
     "--nbands": {"help": "Number of bands to plot.",
-                 "default": 4}
+                 "default": 4},
+    "--name": {"help": ("If multiple DFT phonon databases exist, specify "
+                        "which one to use for plotting.")}
     }
 """dict: default command-line arguments and their
     :meth:`argparse.ArgumentParser.add_argument` keyword arguments.
@@ -117,8 +119,17 @@ def run(args):
     target = cdb.collections[args["s"]]
     
     if args["bands"]:
-        from matdb.database.phonon import PhononDFT
-        phondb = target.databases[PhononDFT.name]
+        if not args["name"]:
+            phonon = target.bytype["phonon.PhononDFT"]
+            if len(phonon) > 0:
+                raise ValueError("More than one DFT phonon database available."
+                                 " Specify which to use with --name.")
+            else:
+                dbname = phonon[0]
+        else:
+            dbname = args["name"]
+            
+        phondb = target.databases[dbname]
         phondb.calc_bands()
         _band_plot(phondb, args)        
         
