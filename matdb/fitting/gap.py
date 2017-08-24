@@ -829,7 +829,7 @@ class GAPTrainer(object):
 
         #e0 needs to be handled correctly for each pure species.
         if isinstance(self.e0, dict):
-            e0s = ["{0}:{1.6f}".format(*i) for i in self.e0.items()]
+            e0s = ["{0}:{1:.6f}".format(*i) for i in self.e0.items()]
             e0 = '{' + ':'.join(e0s) + '}'
         else:
             e0 = "{0:.6f}".format(self.e0)
@@ -864,7 +864,7 @@ class GAPTrainer(object):
         if len(custom) > 0:
             #If we have custom sigmas, add them in; make sure we have specified
             #which parameter to use for custom_types.
-            tsattrs["custom_type_sigma"] = '{' + ':'.join(custom) + '}'
+            tsattrs["config_type_sigma"] = '{' + ':'.join(custom) + '}'
             if "config_type_parameter_name" not in tsattrs:
                 tsattrs["config_type_parameter_name"] = "config_type"
                 

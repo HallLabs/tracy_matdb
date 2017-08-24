@@ -258,14 +258,16 @@ class DatabaseCollection(object):
         else:
             Ntot = 0
             subconfs = {}
+            fi = 0
             for dbtype in self.configdbs:
                 relevant = [self.databases[n].configs.values()
                             for n in self.bytype[dbtype]]
                 for dbconfigs in relevant:
-                    for fi, f in enumerate(dbconfigs):
-                        subconfs[fi + Ntot] = f
-                    Ntot += len(subconfs)
-
+                    for f in dbconfigs:
+                        subconfs[fi] = f
+                        fi += 1
+                        
+            Ntot = len(subconfs)
             Ntrain = int(np.ceil(Ntot*train_perc))
             ids = np.arange(len(subconfs))
             Nhold = int(np.ceil((Ntot-Ntrain)*train_perc))
