@@ -72,6 +72,9 @@ class LiquidDatabase(Database):
             rerun (bool): when True, recreate the job file. If the folders
               don't exist yet, they will still be created.
         """
+        if not self.mdbase.ready():
+            return
+    
         folders_ok = super(LiquidDatabase, self).setup()
         if folders_ok and not rerun:
             return
