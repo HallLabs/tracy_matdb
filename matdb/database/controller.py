@@ -189,7 +189,7 @@ class DatabaseCollection(object):
             if ready:
                 ready = (self.databases[dbname].ready() or
                          self.databases[dbname].execute(recovery=recovery))
-            else:
+            if not ready:
                 imsg = ("Database {}:{} is not ready to execute yet, or is "
                         "already executing. Done.")
                 msg.info(imsg.format(self.name, dbname))
