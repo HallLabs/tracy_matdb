@@ -481,11 +481,21 @@ class GAPTrainer(object):
             calculator = self.calculator
         else:
             from quippy.potential import Potential
+            from matdb.utility import chdir
+
+            #If they gave us a hard-coded XML path, then use that
+            #potential wherever it is.
             if ".xml" in potfile:
                 potfile = path.abspath(path.expanduser(potfile))
+                dirname = path.dirname(potfile)
             else:
-                potfile = path.join(self.root, "gp_{}.xml".format(potfile))
-            calculator = Potential("IP GAP", param_filename=potfile)
+                #Otherwise, use the known directory structure of the
+                #matdb.
+                potfile = "gp_{}.xml".format(potfile)
+                dirname = self.root
+                
+            with chdir(dirname):
+                calculator = Potential("IP GAP", param_filename=potfile)
             
         for a in tqdm(al):
             a.set_cutoff(self.calculator.cutoff())
