@@ -802,7 +802,8 @@ class PhononDatabase(Database):
         result = False
         if path.isfile(target):
             from matdb.utility import linecount
-            lpconfig = self.base.atoms.n * np.product(self.base.supercell) + 3
+            #We add +2 for the parameter line and the number of atoms.
+            lpconfig = self.base.atoms.n * np.product(self.base.supercell) + 2
             nlines = linecount(target)
             nconfigs = nlines/lpconfig
             result = nconfigs  == len(self.configs)
