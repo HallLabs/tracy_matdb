@@ -46,7 +46,10 @@ script_options = {
                  "help": ("Specify the stack depth for recalculation; this "
                           "value is decreased as the stack is traversed. In "
                           "any method with `recalc > 0`, the operation is done "
-                          "over from scratch.")}
+                          "over from scratch.")},
+    "--data": {"help": "Specify which data file to validate."},
+    "--pot": {"help": ("Name of the potential to use for validation "
+                       "(e.g., `2b3b` or `2b3b_soap`)")}
 }
 """
 dict: default command-line arguments and their
@@ -90,7 +93,7 @@ def run(args):
     if args["x"]:
         cdb.trainer.execute()
     if args["v"]:
-        vdict = cdb.trainer.validate()
+        vdict = cdb.trainer.validate(args["data"], args["pot"])
         e_err = np.std(vdict["e_dft"]-vdict["e_gap"])
         f_err = np.std(vdict["f_dft"].flatten()-vdict["f_gap"].flatten())
         msg.info("Energy RMS: {0:.4f}".format(e_err))

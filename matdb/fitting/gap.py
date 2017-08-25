@@ -453,9 +453,14 @@ class GAPTrainer(object):
             #Return the global validation list from the whole database.
             return quippy.AtomsList(self.db.holdout_file)
     
-    def validate(self):
+    def validate(self, datafile=None, potfile=None):
         """Validates the latest calculator in this training sequence against the
         `holdout.xyz` configurations in the controller database.
+
+        Args:
+            datafile (str): path to the datafile to validate against.
+            potfile (str): path to the GAP potential file to validate
+              with.
 
         Returns:
             dict: with keys ["e_dft", "e_gap"] where the values are
@@ -464,10 +469,24 @@ class GAPTrainer(object):
         #We need to split to get validation data. If the split has already been
         #done as part of a different training run, then it won't be done a
         #second time.
-        self.db.split(self.split)
+        if datafile is None:
+            self.db.split(self.split)
+            from tqdm import tqdm
+            al = self.validation_list
+        else:
+            datafile = path.abspath(path.expanduser(datafile))
+            al = quippy.AtomsList(datafile)
 
-        from tqdm import tqdm
-        al = self.validation_list
+        if potfile is None:
+            calculator = self.calculator
+        else:
+            from quippy.potential import Potential
+            if ".xml" in potfile:
+                potfile = path.abspath(path.expanduser(potfile))
+            else:
+                potfile = path.join(self.root, "gp_{}.xml".format(potfile))
+            calculator = Potential("IP GAP", param_filename=potfile)
+            
         for a in tqdm(al):
             a.set_cutoff(self.calculator.cutoff())
             a.calc_connect()
