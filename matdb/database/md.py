@@ -253,14 +253,15 @@ class DynamicsDatabase(Database):
         if not folders_ok:
             for strain in self.strains:
                 if strain == 0:
-                    self.create(self.seed)
+                    self.create(self.seed, sort=True)
+                    continue
                     
                 #Strain the base cell for the MD run. Make sure we copy the
                 #atoms first so that we don't mess up pointer references.
                 datoms = self.seed.copy()
                 smat = (1.+strain/100.)**(1./3.)
                 datoms.cell = datoms.cell*smat
-                self.create(datoms)
+                self.create(datoms, sort=True)
 
         # Last of all, create the job file to execute the job array.
         self.jobfile(rerun)

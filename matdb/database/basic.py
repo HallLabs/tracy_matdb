@@ -324,7 +324,7 @@ class Database(object):
         with open(target, 'w') as f:
             f.write(template.render(**settings))
                     
-    def create(self, atoms, cid=None, rewrite=False):
+    def create(self, atoms, cid=None, rewrite=False, sort=None):
         """Creates a folder within this database in which VASP may be run.
 
         Args:
@@ -333,6 +333,8 @@ class Database(object):
               the next available integer.
             rewrite (bool): when True, overwrite any existing files with the
               latest settings.
+            sort (bool): when True, sort the atoms by type so that
+              supercell writes work correctly.
         """
         if cid is None:
             cid = len(self.configs) + 1
@@ -344,7 +346,7 @@ class Database(object):
 
         #Now, just generate the POSCAR file.
         from ase.io import write
-        write(path.join(target, "POSCAR"), atoms, "vasp")
+        write(path.join(target, "POSCAR"), atoms, "vasp", sort=sort)
 
         #Create symbolic links to the INCAR and POTCAR files that we need. INCAR
         #is stored locally for each database type (in `self.root`) while the
