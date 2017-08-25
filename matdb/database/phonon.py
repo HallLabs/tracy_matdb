@@ -802,10 +802,15 @@ class PhononDatabase(Database):
         result = False
         if path.isfile(target):
             from matdb.utility import linecount
-            result = linecount(target) == len(self.configs)
+            lpconfig = self.base.atoms.n * np.product(self.base.supercell) + 3
+            nlines = linecount(target)
+            nconfigs = nlines/lpconfig
+            result = nconfigs  == len(self.configs)
             if not result:
-                msg.warn("Number of structures in `output.xyz` does not match "
-                         "number of requested configs.")
+                wmsg = ("Number of structures in `output.xyz` does not match "
+                        "number of requested configs. Found {0} configs in"
+                        " {1} lines.")
+                msg.warn(wmsg.format(nconfigs, nlines))
         return result
 
     def cleanup(self):
