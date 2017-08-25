@@ -798,8 +798,15 @@ class PhononDatabase(Database):
         """Determines if this database is finished calculating by testing the
         existence of the xyz database file in the root folder.
         """
-        return (path.isfile(path.join(self.root, "output.xyz")) and
-                len(self.configs) == self._nsuccess)
+        target = path.join(self.root, "output.xyz")
+        result = False
+        if path.isfile(target):
+            from matdb.utility import linecount
+            result = linecount(target) == len(self.configs)
+            if not result:
+                msg.warn("Number of structures in `output.xyz` does not match "
+                         "number of requested configs.")
+        return result
 
     def cleanup(self):
         """Generates the XYZ database file for all the sub-configs in this
