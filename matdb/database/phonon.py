@@ -812,7 +812,7 @@ class PhononDatabase(Database):
         if not super(PhononDatabase, self).cleanup():
             return
         
-        return self.xyz(config_type="ph")
+        return self.xyz(config_type="ph", combine=True)
     
     def setup(self, rerun=False):
         """Displaces the seed configuration preparatory to calculating the force
