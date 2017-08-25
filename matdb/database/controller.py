@@ -139,15 +139,19 @@ class DatabaseCollection(object):
         for dbtype in self.clsorder:
             self.order.extend(self.bytype[dbtype])
 
-    def recover(self):
+    def recover(self, rerun=False):
         """Runs recovery on this database to determine which configs failed and
         then create a jobfile to requeue them for compute.
+
+        Args:
+            rerun (bool): when True, recreate the jobfile even if it
+              already exists. 
         """
         for dbname in self.order:
             if dbname not in self.databases:
                 continue
             db = self.databases[dbname]
-            db.recover()
+            db.recover(rerun)
             
     def status(self, busy=False):
         """Prints a status message for each of the databases relative
@@ -451,18 +455,22 @@ class Controller(object):
             if cfilter is None or any(fnmatch(name, p) for p in cfilter):
                 coll.execute(recovery)
 
-    def recover(self, cfilter=None):
+    def recover(self, cfilter=None, rerun=False):
         """Runs recovery on this database to determine which configs failed and
         then create a jobfile to requeue them for compute.
 
         Args:
             cfilter (list): of `str` patterns to match against configuration
-              names. This limits which configs status is retrieved for.
+              names. This limits which configs status is retrieved
+              for.
+        Args:
+            rerun (bool): when True, recreate the jobfile even if it
+              already exists. 
         """
         from fnmatch import fnmatch
         for name, coll in self.collections.items():
             if cfilter is None or any(fnmatch(name, p) for p in cfilter):
-                coll.recover() 
+                coll.recover(rerun) 
                 
     def status(self, cfilter=None, busy=False):
         """Prints status messages for each of the configuration's

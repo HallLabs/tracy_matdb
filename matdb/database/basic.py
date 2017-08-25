@@ -263,9 +263,14 @@ class Database(object):
                 for k, v in self.incar.items():
                     f.write("{}={}\n".format(k.upper(), v))
 
-    def recover(self):
+    def recover(self, rerun=False):
         """Compiles a list of all DFT runs that didn't complete and compiles the
-        `failures` file. Creates a jobfile to re-run the failed folders only.
+        `failures` file. Creates a jobfile to re-run the failed
+        folders only.
+
+        Args:
+            rerun (bool): when True, recreate the jobfile even if it
+              already exists. 
         """
         detail = self.status(False)
         failed = [k for k, v in detail["done"].items() if not v]
@@ -275,7 +280,7 @@ class Database(object):
 
         imsg = "{0}: queued {1:d} configs for recovery."
         msg.info(imsg.format(self.name, len(failed)))
-        self.jobfile(recovery=True)
+        self.jobfile(rerun, recovery=True)
                     
     def jobfile(self, rerun=False, recovery=False):
         """Creates the job array file to run each of the sub-configurations in
