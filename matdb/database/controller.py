@@ -509,7 +509,11 @@ class Controller(object):
                 with open(ppot) as f:
                     first = f.readline()
                     if "version" in self.potcars:
-                        assert self.potcars["version"] in first
+                        if element in self.potcars["version"]:
+                            version = self.potcars["version"][element]
+                        else:
+                            version = self.potcars["version"]
+                        assert version in first
 
                 potcars.append(ppot)
 
