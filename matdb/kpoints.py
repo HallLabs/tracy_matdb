@@ -44,7 +44,7 @@ def kpath(poscar):
             names.append((e0, s1))
     names.append(kdict[u"path"][-1][1])
     
-    pts = {k: np.array(v) for k, v in kdict[u"kpoints"].items()}
+    pts = {k: np.array(v) for k, v in kdict[u"kpoints_rel"].items()}
     return (names, pts)   
 
 def _gamma_only(target, atoms):
