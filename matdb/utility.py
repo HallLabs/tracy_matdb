@@ -158,15 +158,85 @@ def linecount(filename):
         for i, l in enumerate(f):
             pass
     return i + 1
+
+def safe_update(obj, kv):
+    """Updates the key-value pairs on `obj` only if they are not
+    `None`.
+
+    Args:
+        obj: attributes will be set on this object according to the
+          keys in `kv`.
+        kv (dict): keys are target attribute names; values are desired
+          values.
+    """
+    for k, v in kv.items():
+        if hasattr(obj, k) and getattr(k, v) is not None:
+            continue
+        setattr(obj, k, v)
+
+def obj_update(d, k, v, copy=True):
+    """Updates a particular value in a set of nested objects.
+
+    .. note:: If `copy=True`, a *copy* of the object will be
+      manipulated, though it will only use `copy()`, not any deep
+      copying.
+
+    Args:
+        d: list or list of dict to update some sub-key on.
+        k (str): a '.'-separated list of keys to traverse down to get
+          to the value to set.
+        v: value to set at the final key.
+        copy (bool): when True, return a copy of the dictionary.
+    """
+    from copy import ocopy
+    chain = list(reversed(k.split('.')))
+    result = ocopy(d) if copy else d
+    target = d
+
+    if isinstance(target, list):
+        firstkey = chain[-1]
+        target = next(d for d in isteps if firstkey in d)
     
+    while len(chain) > 1:
+        target = getattr(target, chain.pop())
+        setattr(target, chain[0], v)
+        
+    return result
+        
 def _get_reporoot():
     """Returns the absolute path to the repo root directory on the current
     system.
     """
-    from os import path
     import matdb
     medpath = path.abspath(matdb.__file__)
     return path.dirname(path.dirname(medpath))
+
+def relpath(s):
+    """Returns the *repository-relative* path for the string `s`.
+
+    Args:
+        s (str): repository-relative path, see the examples.
+
+    Examples:
+
+        Suppose I have a repository at `/usr/opt/repo`, then:
+
+        >>> relpath("./tests") == "/usr/opt/repo/tests"
+        True
+        >>> relpath("../other/docs") == "/usr/opt/other/docs"
+        True
+    """
+    with chdir(reporoot):
+        result = path.abspath(s)
+    return result
+
+def copyonce(src, dst):
+    """Copies the specified file to the target *only* if it doesn't
+    already exist.
+    """
+    if not path.isfile(dst):
+        from shutil import copyfile
+        copyfile(src, dst)
 
 reporoot = _get_reporoot()
 """The absolute path to the repo root on the local machine.
