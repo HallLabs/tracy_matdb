@@ -30,6 +30,10 @@ function imagepoint(iap) {
     cssloads.map(loadcss);
 
     var plugindraw = function() {
+	//Adjust the height of the mpld3 figure so it doesn't cutoff the axes label.
+	h = $('.mpld3-figure').attr("height");
+	$('.mpld3-figure').attr("height", parseInt(h) + 20);
+	
         var obj = mpld3.get_element(iap.props.id);
         var images = iap.props.images;
         var canvas = iap.fig.canvas;
@@ -37,6 +41,7 @@ function imagepoint(iap) {
 	
         var pdiv = $(iap.fig.root[0][0]).parent();
 	var plotbox = $('<div>', {"data-columns": "", id: "grid"});
+	pdiv.css("text-align", "center");
         pdiv.append(plotbox);
 
 	var rowdivs = [];
@@ -48,8 +53,6 @@ function imagepoint(iap) {
 	    } else {
 		rowdiv = rowdivs[Math.floor(kindex/settings["ncols"])];
 	    }
-	    // var cdiv = $('<div>');
-	    // rowdiv.append(cdiv);
 	};
 	
         var imgids = {}
@@ -60,7 +63,7 @@ function imagepoint(iap) {
         for (imgtype in images) {
 	    var img = $('<img>', {id:imgids[imgtype], width: "100%"});
 	    var span = $('<span>', {id:imgids[imgtype] + '-title'});
-	    span.text(imgtype);
+	    span.text(settings["titles"][imgtype]);
 	    
 	    var content = MATDB_PANEL.replace(/\{\{(\w+)\}\}/g, function (match, g1) {
                 switch (g1) {
@@ -82,7 +85,7 @@ function imagepoint(iap) {
             for (imgtype in images) {
                 var urls = images[imgtype];
                 $('#' + imgids[imgtype]).attr("src", urls[i]);
-		var title = imgtype + ': ' + settings["names"][i];
+		var title = settings["titles"][imgtype] + ': ' + settings["names"][i];
 		$('#' + imgids[imgtype] + '-title').text(title);
             }
         });

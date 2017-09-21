@@ -54,6 +54,7 @@ class PointDetailImage(object):
     def __init__(self, x, y, plot="scatter", subplot_kw=None, gridspec_kw=None,
                  fig_kw=None, plot_kw=None, base64=False, name=None,
                  imgtype=None, index=None, folder=None, save_kw=None):
+        import matplotlib.pyplot as plt
         #Create the figure and axes for this plot.
         if fig_kw is None:
             fig_kw = {}
@@ -78,11 +79,11 @@ class PointDetailImage(object):
         self.filename, self.savepath = None, None
         self.encoded = None
         
+        if save_kw is None:
+            save_kw = {}
         if not base64:
-            if save_kw is None:
-                save_kw = {}
             self.filename = "{}-{}.png".format(name, index)
-            savepath = path.join(folder, filename)
+            savepath = path.join(folder, self.filename)
             plt.savefig(savepath, format="png", **save_kw)
         else:
             import StringIO
@@ -106,7 +107,7 @@ class PointDetailImage(object):
             return self.filename
 
 def html(data, folder, plot="scatter", subplot_kw=None, gridspec_kw=None,
-         fig_kw=None, plot_kw=None, titles=None, ncols=3):
+         fig_kw=None, plot_kw=None, titles=None, ncols=3, font=None):
     """Creates an HTML interactive plot package in the specified directory.
 
     Args:
@@ -130,6 +131,8 @@ def html(data, folder, plot="scatter", subplot_kw=None, gridspec_kw=None,
         titles (dict): keys are image types in `data`; values are `str` titles
           to display for each of the image types.
         ncols (int): number of columns for the grid of detail images.
+        font (dict): key-value pairs for the :func:`matplotlib.rc` configuration
+          for `font`.
 
     Examples:
 
@@ -152,30 +155,47 @@ def html(data, folder, plot="scatter", subplot_kw=None, gridspec_kw=None,
             }
         }
     """
+    import matplotlib
+    if font is None:
+        font = {'size'   : 22}
+    matplotlib.rc('font', **font)    
+
+    #Sort the data by index.
+    sdata = sorted(data.items(), key=(lambda d: d[1]["index"]))
+    
+    #Next, compile lists of URLs to use for each of the plot types.
+    first = next(data.itervalues())
+    imgtypes = [k for k in first.keys() if k not in ["location", "index"]]
+    images = {k: [] for k in imgtypes}
+    names, x, y = [], [], []    
+    
+    for name, detail in sdata:
+        for img in imgtypes:
+            images[img].append(detail[img].url)
+            
+        names.append(name)
+        x.append(detail["location"][0])
+        y.append(detail["location"][1])
+
+    import matplotlib.pyplot as plt
+    import numpy as np
+    import mpld3
     if fig_kw is None:
         fig_kw = {}
     figure, axes = plt.subplots(subplot_kw=subplot_kw,
                                 gridspec_kw=gridspec_kw,
                                 **fig_kw)
-
-    #Grab the particular plot type that the user wants to make, then
-    #generate the figure.
-    if plot_kw is None:
-        plot_kw = {}
-    plotter = getattr(axes, plot)
-    points = plotter(x, y, **plot_kw)
-
-    #Next, compile lists of URLs to use for each of the plot types.
-    first = next(data.itervalues())
-    imgtypes = [k for k in first.keys() if k not in ["location", "index"]]
-    images = {k: [] for k in imgtypes}
-    names = []
     
-    for img in imgtypes:
-        for name, detail in sorted(data.items(), key=(lambda d: d["index"])):
-            names.append(point)
-            images[img].append(detail[img].url)
-
+    #Grab the particular plot type that the user wants to make, then
+    #generate the figure. We need to compile the x and y arrays from the
+    #location information in each point.
+    if plot_kw is None:# pragma: no cover
+        plot_kw = {}
+    if "s" not in plot_kw:
+        plot_kw["s"] = 300
+    plotter = getattr(axes, plot)
+    points = plotter(np.array(x), np.array(y), **plot_kw)
+            
     from matdb.plotting.matd3 import ImagesAtPoint
     plugiap = ImagesAtPoint(points, names, ncols, titles, **images)
     mpld3.plugins.connect(figure, plugiap)
@@ -186,12 +206,12 @@ def html(data, folder, plot="scatter", subplot_kw=None, gridspec_kw=None,
     folder = path.abspath(path.expanduser(folder))
     js = relpath("matdb/js/imagepoint.js")
     copyonce(js, path.join(folder, "imagepoint.js"))
-    css = relpath("matdb/js/imagepoint.css")
+    css = relpath("matdb/css/imagepoint.css")
     copyonce(css, path.join(folder, "imagepoint.css"))    
 
     target = path.join(folder, "index.html")
     with open(target, 'w') as f:
-        mpld3.save_html(fig,f)
+        mpld3.save_html(figure, f)
 
 class ImagesAtPoint(plugins.PluginBase):
     """Plugin for displaying a series of rasterized plots specific to
@@ -246,12 +266,12 @@ class ImagesAtPoint(plugins.PluginBase):
         self.ncols = ncols
         self.names = names
         self.npoints = len(next(images.itervalues()))
-        if self.names is None:
+        if self.names is None:# pragma: no cover
             self.names = ["Point {}".format(i) for i in range(self.npoints)]
         self.dict_["settings"]["names"] = self.names
 
         self.titles = titles
-        if self.titles is None:
+        if self.titles is None:# pragma: no cover
             self.titles = {k: k for k in images}
         self.dict_["settings"]["titles"] = self.titles
         
