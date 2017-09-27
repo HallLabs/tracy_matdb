@@ -96,6 +96,11 @@ def trimer(pot, atoms, elements, folder=None, base64=False, index=None,
     possible = list(product(elements, repeat=3))
     target = list(set(map(lambda l: tuple(sorted(l)), possible)))
 
+    subplot_kw = {
+        "xlabel": "Angle (Rad)",
+        "ylabel": "IP Energy (eV)"
+    }
+    
     result = {}
     for elements in target:
         #Look up the lattice parameters for each of the elements. Use Vegard's
@@ -106,6 +111,7 @@ def trimer(pot, atoms, elements, folder=None, base64=False, index=None,
         rvegard = vegard(uelements, concdict)
 
         trimer = quippy.Atoms(n=3, lattice=np.eye(3)*100)
+        trimer.set_cutoff(pot.cutoff())
         trimer.pos = 0.
         trimer.set_chemical_symbols(elements)
         #Set the position of the second atom to be at equilibrium with respect
@@ -117,15 +123,15 @@ def trimer(pot, atoms, elements, folder=None, base64=False, index=None,
         theta = np.linspace(np.pi/6, np.pi, nsamples)
         energy = []
         for t in theta:
-            x = r*np.cos(t)
-            y = r*np.sin(t)
+            x = rvegard*np.cos(t)
+            y = rvegard*np.sin(t)
             trimer.pos[1,3] = x
             trimer.pos[2,3] = y
             pot.calc(trimer,energy=True)
             energy.append(trimer.energy)
 
         elemstr = trimer.get_chemical_formula()
-        img = PDI(rs, np.array(energy), "plot", subplot_kw=subplot_kw,
+        img = PDI(theta, np.array(energy), "plot", subplot_kw=subplot_kw,
                   index=index, base64=base64, name=elemstr, imgtype=elemstr,
                   folder=folder)
         result[elemstr] = img
@@ -182,6 +188,11 @@ def dimer(pot, atoms, elements, folder=None, base64=False, index=None,
     possible = list(product(elements, repeat=2))
     target = list(set(map(lambda l: tuple(sorted(l)), possible)))
 
+    subplot_kw = {
+        "xlabel": "Distance (Ang)",
+        "ylabel": "IP Energy (eV)"
+    }
+    
     result = {}
     for elements in target:
         #Look up the lattice parameters for each of the elements. Use Vegard's
@@ -189,6 +200,7 @@ def dimer(pot, atoms, elements, folder=None, base64=False, index=None,
         rmin, rvegard, rmax = _dimer_range(elements)
 
         dimer = quippy.Atoms(n=2, lattice=np.eye(3)*100)
+        dimer.set_cutoff(pot.cutoff())
         dimer.pos = 0.
         dimer.set_chemical_symbols(elements)
 
@@ -221,18 +233,17 @@ def _get_xy(pot, atoms, prop, **calcargs):
     Returns:
         tuple: of `(dft, pot)` values.
     """
-    from tqdm import tqdm
     dft = getattr(atoms, prop)
     ipprop = next(calcargs.iterkeys())
     ip = []
 
-    for a in tqdm(atoms):
+    for a in atoms:
         a.set_cutoff(pot.cutoff())
         a.calc_connect()
         pot.calc(a, **calcargs)
         ip.append(getattr(a, ipprop))
-            
-    return (dft.flatten(), np.array(ip).flatten())
+
+    return (np.array(dft), np.array(ip))
 
 def energy(pot, atoms, folder=None, base64=False, index=None):
     """Produces an energy correlation plot for the specified potential.
@@ -255,9 +266,8 @@ def energy(pot, atoms, folder=None, base64=False, index=None):
         "ylabel": "IP Energy (eV)"
     }
     
-    return PointDetailImage(dft, ip, subplot_kw=subplot_kw, index=index,
-                            base64=base64, name="Energy", imgtype="energy",
-                            folder=folder)
+    return PDI(dft, ip, subplot_kw=subplot_kw, index=index, base64=base64,
+               name="Energy", imgtype="energy", folder=folder)
 
 def force(pot, atoms, folder=None, base64=False, index=None):
     """Produces a force correlation plot for the specified potential.
@@ -272,7 +282,6 @@ def force(pot, atoms, folder=None, base64=False, index=None):
           name is returned.
         index (int): integer index of this plot in the parent collection.
     """
-    from matdb.plotting.matd3 import PointDetailImage
     dft, ip = _get_xy(pot, atoms, "dft_force", force=True)
 
     #Setup the keyword arguments for the axes labels, etc.
@@ -281,9 +290,9 @@ def force(pot, atoms, folder=None, base64=False, index=None):
         "ylabel": "IP Forces (eV)"
     }
 
-    return PointDetailImage(dft, ip, subplot_kw=subplot_kw, index=index,
-                            base64=base64, name="Force", imgtype="force",
-                            folder=folder)
+    return PDI(dft.flatten(), ip.flatten(), subplot_kw=subplot_kw, index=index,
+               base64=base64, name="Force", imgtype="force",
+               folder=folder)
 
 def virial(pot, atoms, folder=None, base64=False, index=None):
     """Produces a virial correlation plot for the specified potential.
@@ -298,18 +307,16 @@ def virial(pot, atoms, folder=None, base64=False, index=None):
           name is returned.
         index (int): integer index of this plot in the parent collection.
     """
-    from matdb.plotting.matd3 import PointDetailImage
-    dft, ip = _get_xy(pot, atoms, "dft_virial", force=True)
-
+    dft, ip = _get_xy(pot, atoms, "dft_virial", virial=True)
     #Setup the keyword arguments for the axes labels, etc.
     subplot_kw = {
         "xlabel": "DFT Virial (eV)",
         "ylabel": "IP Virial (eV)"
     }
 
-    return PointDetailImage(dft, ip, subplot_kw=subplot_kw, index=index,
-                            base64=base64, name="Virial", imgtype="virial",
-                            folder=folder)
+    return PDI(dft.flatten(), ip.flatten(), subplot_kw=subplot_kw, index=index,
+               base64=base64, name="Virial", imgtype="virial",
+               folder=folder)
 
 def EvsV(pot, atoms, folder=None, base64=False, index=None):
     """Produces an energy vs. volume plot for the energies predicted by the
@@ -325,7 +332,6 @@ def EvsV(pot, atoms, folder=None, base64=False, index=None):
           name is returned.
         index (int): integer index of this plot in the parent collection.
     """
-    from matdb.plotting.matd3 import PointDetailImage
     dft, ip = _get_xy(pot, atoms, "dft_energy", energy=True)
     vol = np.array([a.get_volume() for a in atoms])
     
@@ -334,6 +340,5 @@ def EvsV(pot, atoms, folder=None, base64=False, index=None):
         "ylabel": "IP Energy (eV)"
     }
 
-    return PointDetailImage(dft, ip, subplot_kw=subplot_kw, index=index,
-                            base64=base64, name="E vs. V", imgtype="evsv",
-                            folder=folder)
+    return PDI(np.array(dft), np.array(vol), subplot_kw=subplot_kw, index=index,
+               base64=base64, name="EvsV", imgtype="evsv", folder=folder)

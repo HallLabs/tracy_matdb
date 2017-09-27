@@ -12,13 +12,16 @@ def test_generate(tmpdir):
     """Tests generation of all plots supported by the potential plotter.
     """
     from matdb.plotting.potentials import generate
-    folder = tmpdir.join("plotting")
+    from os import mkdir
+    folder = str(tmpdir.join("plotting"))
+    mkdir(folder)
+    
     #We will plot some figures for a binary system using a simple Lennard-Jones
     #potential. Since we are doing binary, we expect 3 dimer plots and 4 trimer
     #plots. So, we end up with the following expected file names:
-    files = ["energy-0.png", "force-0.png", "virial-0.png", "evsv-0.png",
-             "AgPd-0.png", "AgAg-0.png", "PdPd-0.png", "Ag2Pd.png" "AgPd2.png",
-             "Ag3.png", "Pd3.png"]
+    files = ["Energy-0.png", "Force-0.png", "Virial-0.png", "EvsV-0.png",
+             "AgPd-0.png", "AgAg-0.png", "PdPd-0.png", "Ag2Pd-0.png", "AgPd2-0.png",
+             "Ag3-0.png", "Pd3-0.png"]
     plots = "efvodt"
 
     #Now, grab a test atoms list for AgPd that has lots of variation, then get a
@@ -26,7 +29,7 @@ def test_generate(tmpdir):
     from matdb.utility import relpath
     atoms = quippy.AtomsList(relpath("tests/files/AgPd.xyz"))
     pot = quippy.Potential("IP LJ", param_filename=relpath("tests/files/LJ-AgPd.xml"))    
-    generate(plots, pot, atoms, str(folder))
+    generate(plots, pot, atoms, folder)
 
     for fname in files:
-        assert path.isfile(str(folder.join(fname)))    
+        assert path.isfile(path.join(folder, fname))
