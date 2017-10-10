@@ -42,9 +42,9 @@ def _parsed_kpath(poscar):
 
     return (labels, band)
 
-class PhononDFT(Database):
+class DynMatrix(Database):
     """Sets up the displacement calculations needed to construct the dynamical
-    matrix. The dynamical matrix is required by :class:`PhononDatabase` to
+    matrix. The dynamical matrix is required by :class:`Modulation` to
     create the individual modulations.
 
     Args:
@@ -52,7 +52,7 @@ class PhononDFT(Database):
           displaced to generate the database.
         root (str): path to the folder where the database directories will
           be stored.
-        parent (matdb.database.controller.DatabaseCollection): parent collection
+        parent (matdb.database.controller.DatabaseSequence): parent sequence
           to which this database belongs.
         incar (dict): specify additional settings for the INCAR file (i.e.,
           differing from, or in addition to those in the global set).
@@ -61,6 +61,12 @@ class PhononDFT(Database):
         phonons (dict): specifying additional settings for `phonopy`
           configuration files (i.e., differing from, or in addition to those in
           the global set).
+        bandmesh (list): of `int`; number of splits in each reciprocal
+          lattice vector according to Monkhorst-Pack scheme. Used for
+          calculating the phonon bands.
+        dosmesh (list): of `int`; number of splits in each reciprocal
+          lattice vector according to Monkhorst-Pack scheme. Used for
+          calculating the phonon density-of-states.
 
     .. note:: Additional attributes are also exposed by the super class
       :class:`Database`.
@@ -72,18 +78,20 @@ class PhononDFT(Database):
         supercell (list): of `int`; number of cells in each direction for
           generating the supercell.
         phonodir (str): directory in which all `phonopy` executions take place.
-        grid (list): of `int`; number of splits in each reciprocal
-          lattice vector according to Monkhorst-Pack scheme.
+        bandmesh (list): mesh for calculating the phonon bands.
+        dosmesh (list): mesh for calculating the phonon density-of-states.
+
     """
     def __init__(self, atoms=None, root=None, parent=None,
-                 kpoints={}, incar={}, phonons={}, execution={},
-                 name="phondft"):
+                 kpoints={}, incar={}, phonopy={}, execution={},
+                 name="dynmatrix", bandmesh=None, dosmesh=None):
         self.name = name
-        super(PhononDFT, self).__init__(atoms, incar, kpoints, execution,
-                                         path.join(root, self.name),
-                                         parent, "W", nconfigs=None)
-        self.supercell = list(phonons.get("dim", [2, 2, 2]))
-        self.grid = list(phonons.get("mp", [20, 20, 20]))
+        super(DynMatrix, self).__init__(atoms, incar, kpoints, execution,
+                                        path.join(root, self.name),
+                                        parent, "W", nconfigs=None)
+        self.supercell = phonopy["dim"]
+        self.bandmesh = bandmesh
+        self.dosmesh = dosmesh
         self.phonodir = path.join(self.root, "phonopy")
         self.phonocache = path.join(self.root, "phoncache")
         
@@ -125,7 +133,8 @@ class PhononDFT(Database):
             "ediff": '1.0e-08',
             "ialgo": 38,
             "ismear": 0,
-            "lreal": False
+            "lreal": False,
+            "addgrid": True            
         }
         for k, v in usuals.items():
             if k not in self.incar:
@@ -256,7 +265,7 @@ class PhononDFT(Database):
         settings = {
             "ATOM_NAME": ' '.join(self.parent.species),
             "DIM": ' '.join(map(str, self.supercell)),
-            "MP": ' '.join(map(str, self.grid))
+            "MP": ' '.join(map(str, self.bandmesh))
         }
 
         labels, bands = self.kpath
@@ -298,7 +307,7 @@ class PhononDFT(Database):
         settings = {
             "ATOM_NAME": ' '.join(self.parent.species),
             "DIM": ' '.join(map(str, self.supercell)),
-            "MP": ' '.join(map(str, self.grid))
+            "MP": ' '.join(map(str, self.dosmesh))
         }
         with open(path.join(self.phonodir, "dos.conf"), 'w') as f:
             for k, v in settings.items():
@@ -352,7 +361,7 @@ class PhononDFT(Database):
             rerun (bool): when True, recreate the folders even if they
               already exist. 
         """
-        folders_ok = super(PhononDFT, self).setup()
+        folders_ok = super(DynMatrix, self).setup()
         if folders_ok and not rerun:
             return
 
@@ -397,7 +406,7 @@ class PhononDFT(Database):
            bool: True if the database is ready; this means that any other
            databases that rely on its outputs can be run.
         """
-        if not super(PhononDFT, self).cleanup():
+        if not super(DynMatrix, self).cleanup():
             return
         
         self.calc_forcesets(recalc)
@@ -488,7 +497,7 @@ def update_phonons(basic):
 
 def modulate_atoms(db):
     """Generates modulated configurations using the dynamical matrix of the
-    :class:`PhononDFT` instance.
+    :class:`DynMatrix` instance.
 
     Args:
         db (Database): database with parameters needed to module the atoms.
@@ -526,7 +535,7 @@ def modulate_atoms(db):
     sargs = ["phonopy", db.confname]
     xres = execute(sargs, db.base.phonodir, venv=True)
             
-class PhononCalibration(Database):
+class Calibration(Database):
     """Represents a set of modulated sub-configurations of differing amplitude,
     used to determine the maximum modulation amplitude where the force is still
     in the linear regime.
@@ -536,7 +545,7 @@ class PhononCalibration(Database):
           displaced to generate the database.
         root (str): path to the folder where the database directories will
           be stored.
-        parent (matdb.database.controller.DatabaseCollection): parent collection
+        parent (matdb.database.controller.DatabaseSequence): parent sequence
           to which this database belongs.
         incar (dict): specify additional settings for the INCAR file (i.e.,
           differing from, or in addition to those in the global set).
@@ -558,7 +567,7 @@ class PhononCalibration(Database):
         phonons (dict): specifying additional settings for `phonopy`
           configuration files (i.e., differing from, or in addition to those in
           the global set).
-        base (PhononDFT): reference database that computed the dynamical matrix
+        base (DynMatrix): reference database that computed the dynamical matrix
           for the seed configuration.
         confname (str): name of the phonopy configuration file used for the
           modulations in this database.
@@ -575,12 +584,12 @@ class PhononCalibration(Database):
     
     def __init__(self, atoms=None, root=None, parent=None,
                  kpoints={}, incar={}, phonons={}, execution={},
-                 nconfigs=10, name="phoncalib", dftbase="phondft"):
+                 nconfigs=10, name="calib", dynmat="dynmatrix"):
         self.name = name
-        super(PhononCalibration, self).__init__(atoms, incar, kpoints, execution,
+        super(Calibration, self).__init__(atoms, incar, kpoints, execution,
                                                 path.join(root, self.name),
                                                 parent, "C", nconfigs)
-        self.base = self.parent.databases[dftbase]
+        self.base = self.parent.steps[dynmat]
         self.phonons = phonons
         update_phonons(self.phonons)
 
@@ -608,11 +617,11 @@ class PhononCalibration(Database):
         Returns:
            bool: True if the amplitude calibration is ready.
         """
-        if not super(PhononCalibration, self).cleanup():
+        if not super(Calibration, self).cleanup():
             msg.warn("cannot cleanup calibration; not all configs ready.")
             return False
 
-        success = self.xyz(config_type="phcalib")
+        success = self.xyz(config_type="calib")
         if not success:
             msg.warn("could not extract the calibration XYZ configurations.")
             return False
@@ -659,7 +668,7 @@ class PhononCalibration(Database):
             rerun (bool): when True, recreate the folders even if they
               already exist. 
         """
-        if super(PhononCalibration, self).setup():
+        if super(Calibration, self).setup():
             return
 
         #We can't module atoms unless the phonon base is ready.
@@ -710,7 +719,7 @@ class PhononCalibration(Database):
         else:
             raise NotImplementedError("Automatic calibration not configured.")
             
-class PhononDatabase(Database):
+class Modulation(Database):
     """Represents a set of displaced configurations where atoms are
     moved, within a supercell, according to phonon eigenmodes.
 
@@ -750,7 +759,7 @@ class PhononDatabase(Database):
           selected ensuring that the force is still in the linear regime.
         amplitude (float): amplitude of displacement :math:`A` for eigenmode
           modulation. 
-        calibrator (PhononCalibration): instance used to calculate force
+        calibrator (Calibration): instance used to calculate force
           vs. amplitude for the seed configuration.
         name (str): name of this database type relative to the over database
           collection. This is also the name of the folder in which all of its
@@ -763,10 +772,10 @@ class PhononDatabase(Database):
     def __init__(self, atoms=None, root=None, parent=None,
                  kpoints={}, incar={}, phonons={}, execution={}, nconfigs=100,
                  calibrate=True, amplitude=None, sampling="uniform",
-                 name="phonons", dftbase="phondft",
-                 calibrator="phoncalib"):
+                 name="modulations", dynmat="dynmatrix",
+                 calibrator="calib"):
         self.name = name
-        super(PhononDatabase, self).__init__(atoms, incar, kpoints, execution,
+        super(Modulation, self).__init__(atoms, incar, kpoints, execution,
                                              path.join(root, self.name),
                                              parent, "M", nconfigs)
         self.sampling = sampling
@@ -774,12 +783,10 @@ class PhononDatabase(Database):
         
         #Setup a calibrator if automatic calibration was selected.
         if calibrate and amplitude is None:
-            self.calibrator = PhononCalibration(atoms, root, parent, kpoints,
-                                                incar, phonons,
-                                                execution, calibrate,
-                                                name=calibrator,
-                                                dftbase=dftbase)            
-            self.parent.databases[calibrator] = self.calibrator
+            self.calibrator = Calibration(atoms, root, parent, kpoints, incar,
+                                          phonons, execution, calibrate,
+                                          name=calibrator, dynmat=dynmat)
+            self.parent.steps[calibrator] = self.calibrator
             self.amplitude = self.calibrator.infer_amplitude()
             calibrated = "*calibrated* "
         else:
@@ -790,7 +797,7 @@ class PhononDatabase(Database):
         imsg = "Using {} as modulation {}amplitude for {}."
         msg.info(imsg.format(self.amplitude, calibrated, self.parent.name), 2)
 
-        self.base = self.parent.databases[dftbase]
+        self.base = self.parent.steps[dynmat]
         self.phonons = phonons        
         update_phonons(self.phonons)
 
@@ -822,7 +829,7 @@ class PhononDatabase(Database):
            bool: True if the database is ready; this means that any other
            databases that rely on its outputs can be run.
         """
-        if not super(PhononDatabase, self).cleanup():
+        if not super(Modulation, self).cleanup():
             return
         
         return self.xyz(config_type="ph", combine=True)
@@ -835,7 +842,7 @@ class PhononDatabase(Database):
             rerun (bool): when True, recreate the folders even if they
               already exist. 
         """
-        folders_ok = super(PhononDatabase, self).setup()
+        folders_ok = super(Modulation, self).setup()
         if folders_ok and not rerun:
             return
 

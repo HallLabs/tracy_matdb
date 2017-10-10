@@ -5,24 +5,24 @@ from os import path
 from matdb import msg
 import numpy as np
 
-class DatabaseCollection(object):
-    """Represents a collection of databases (all inheriting from
-    :class:`Database`) that are all related be the atomic species that they
-    model.
+class DatabaseSequence(object):
+    """Represents a sequence of databases (all inheriting from
+    :class:`Database`) that are all related be the atomic
+    configuration that they model.
 
     .. note:: See the list of attributes below which correspond to the sections
-    in the YAML database specification file.
+      in the YAML database specification file.
 
     Args:
-        name (str): name of the configuration that this database collection is
+        name (str): name of the configuration that this database sequence is
           operating for.
         poscar (str): name of the POSCAR file in `root` to extract atomic
           configuration information from.
-        root (str): root directory in which all other database collections for
+        root (str): root directory in which all other database sequences for
           the configurations in the same specification will be stored.
         parent (Controller): instance controlling multiple configurations.
-        database (dict): with keys and values describing the kinds of
-          sub-configuration databases to setup.
+        steps (list): of `dict` describing the kinds of sub-configuration
+          database steps to setup.
 
     Attributes:
         title (str): title for the alloy system that these databases work with.
@@ -38,26 +38,11 @@ class DatabaseCollection(object):
           corresponding values).
         kpoints (dict): keys are valid settings for the Mueller k-point PRECALC
           file that should be used as default for *all* database calculations.
-        databases (dict): keys are database types (e.g. `liquid`, `phonon`,
+        steps (OrderedDict): keys are step names (e.g. `dft`, `calibration`,
           etc.); values are the corresponding class instances.
-        order (list): of string database names (attribute `name` of each
-          database class) in the order in which they should be processed.
         parent (Controller): instance controlling multiple configurations.
-        configdbs (list): of `str` name attributes from databases that can
-          actually be used for potential training. Several support databases
-          (like PhononDFT and PhononCalibration) don't provide configurations
-          for training and testing.
-        byorder (dict): keys are database type qualified names; values
-          are a list of actual database names of that type.
-        clsorder (list): of database type qualified names and the
-          order in which they should be processed.
     """
-    clsorder = ["phonon.PhononDFT", "phonon.PhononCalibration",
-                "phonon.PhononDatabase", "md.DynamicsDatabase",
-                "liquid.LiquidDatabase"]
-    configdbs = ["phonon.PhononDatabase", "liquid.LiquidDatabase"]
-    
-    def __init__(self, name, poscar, root, parent, database):
+    def __init__(self, name, poscar, root, parent, steps):
         from quippy.atoms import Atoms
         self.name = name
         self.atoms = Atoms(path.join(root, poscar), format="POSCAR")
@@ -74,14 +59,16 @@ class DatabaseCollection(object):
         self.parent = parent
 
         self._trainfile = None
-        """str: name of the file that stores the XYZ *training* database.
+        """str: name of the file that stores the sequence's XYZ *training*
+        database.
         """
         self._holdoutfile = None
-        """str: name of the file that stores the XYZ *validation* database.
+        """str: name of the file that stores the sequence's XYZ *validation*
+        database.
         """        
         self._superfile = None
-        """str: name of the file that stores the XYZ *super*-validation
-        database.
+        """str: name of the file that stores the sequence's XYZ
+        *super*-validation database.
         """        
 
         #See if we have a training and holdout file specified already.
@@ -97,18 +84,17 @@ class DatabaseCollection(object):
                     self._superfile = xyzname
         
         from importlib import import_module
-        self._dbsettings = database
-        """dict: with keys and values describing the kinds of sub-configuration
-        databases to setup.
+        self._settings = steps
+        """dict: with keys and values describing the kinds of step databases to setup.
         """
 
-        self.databases = {}
-        self.bytype = {k: [] for k in self.clsorder}        
-        for dbspec in database:
+        from collections import OrderedDict
+        self.steps = OrderedDict()
+        for dbspec in steps:
             modname, clsname = dbspec["type"].split('.')
             fqdn = "matdb.database.{}".format(modname)
             module = import_module(fqdn)
-            if not hasattr(module, clsname):
+            if not hasattr(module, clsname):# pragma: no cover
                 #We haven't implemented this database type yet, just skip the
                 #initialization for now.
                 continue
@@ -130,15 +116,22 @@ class DatabaseCollection(object):
                     cpspec[k] = cpspec[k][self.name]
             
             instance = cls(**cpspec)
-            self.databases[instance.name] = instance
-            self.bytype[dbspec["type"]].append(instance.name)
+            self.steps[instance.name] = instance
 
-        #Finally, set the order that the databases should be processed
-        #in by iterating over names from each database type.
-        self.order = []                
-        for dbtype in self.clsorder:
-            self.order.extend(self.bytype[dbtype])
-
+    @property
+    def isteps(self):
+        """Returns a generator over steps in this sequence. The generator yields
+        the next step *only* if the previous one is already finished (i.e., the
+        `ready()` method returns True.
+        """
+        previous = None
+        for dbname, db in self.steps.items():
+            if previous is None or previous[1].ready():
+                previous = (dbname, db)
+                yield previous
+            else:
+                raise StopIteration()
+            
     def recover(self, rerun=False):
         """Runs recovery on this database to determine which configs failed and
         then create a jobfile to requeue them for compute.
@@ -147,10 +140,7 @@ class DatabaseCollection(object):
             rerun (bool): when True, recreate the jobfile even if it
               already exists. 
         """
-        for dbname in self.order:
-            if dbname not in self.databases:
-                continue
-            db = self.databases[dbname]
+        for dbname, db in self.steps.items():
             db.recover(rerun)
             
     def status(self, busy=False):
@@ -162,11 +152,7 @@ class DatabaseCollection(object):
               still busy being computed in DFT.
         """
         from matdb.msg import verbosity
-        for dbname in self.order:
-            if dbname not in self.databases:
-                continue
-
-            db = self.databases[dbname]
+        for dbname, db in self.isteps:
             if not busy:
                 imsg = "{}:{} => {}".format(self.name, dbname, db.status(verbosity<2))
                 msg.info(imsg)
@@ -187,14 +173,11 @@ class DatabaseCollection(object):
               jobs.
         """
         ready = True
-        for dbname in self.order:
-            if dbname not in self.databases:
-                continue
+        for dbname, db in self.isteps:
             if ready:
-                ready = (self.databases[dbname].ready() or
-                         self.databases[dbname].execute(recovery=recovery))
+                ready = (db.ready() or db.execute(recovery=recovery))
             if not ready:
-                imsg = ("Database {}:{} is not ready to execute yet, or is "
+                imsg = ("Database {}.{} is not ready to execute yet, or is "
                         "already executing. Done.")
                 msg.info(imsg.format(self.name, dbname))
                 break
@@ -235,12 +218,9 @@ class DatabaseCollection(object):
               rewrites proceed down the stack. To re-calculate
               lower-level XYZ files, increase this value.
         """
-        if self._trainfile is None:
-            self._trainfile = trainfile
-        if self._holdoutfile is None:
-            self._holdoutfile = holdfile
-        if self._superfile is None:
-            self._superfile = superfile
+        from matdb.utility import safe_update
+        safe_update(self, {"_trainfile": trainfile, "_holdoutfile": holdfile,
+                           "_superfile": superfile})
 
         if (path.isfile(self.train_file) and path.isfile(self.holdout_file)
             and path.isfile(self.super_file) and recalc <= 0):
@@ -263,10 +243,11 @@ class DatabaseCollection(object):
             Ntot = 0
             subconfs = {}
             fi = 0
-            for dbtype in self.configdbs:
-                relevant = [self.databases[n].configs.values()
-                            for n in self.bytype[dbtype]]
-                for dbconfigs in relevant:
+            for dbname, db in self.isteps:
+                if not db.has_data:
+                    continue
+                    
+                for dbconfigs in db.configs.values():
                     for f in dbconfigs:
                         subconfs[fi] = f
                         fi += 1
@@ -318,15 +299,8 @@ class DatabaseCollection(object):
         """Runs the cleanup methods of each database in the collection, in the
         correct order.
         """
-        ready = True
-        for dbname in self.order:
-            if dbname not in self.databases:
-                continue
-            
-            if ready:
-                ready = self.databases[dbname].cleanup()
-                
-            if not ready:
+        for dbname, db in self.isteps:
+            if not db.cleanup():
                 imsg = "Database {}:{} is not ready yet. Done."
                 msg.info(imsg.format(self.name, dbname))
                 break
@@ -345,14 +319,121 @@ class DatabaseCollection(object):
             rerun (bool): when True, recreate the folders even if they
               already exist. 
         """
-        for dbname in self.order:
-            if dbname not in self.databases:
-                continue
-            db = self.databases[dbname]
+        for dbname, db in self.isteps:
             msg.info("Setting up database {}:{}".format(self.name, dbname))
             db.setup(rerun)
         msg.blank()
+
+class SequenceRepeater(object):
+    """Repeats sequences of database steps across a parameter grid.
+
+    Args:
+        name (str): name of the configuration that this database sequence is
+          operating for.
+        poscar (str): name of the POSCAR file in `root` to extract atomic
+          configuration information from.
+        root (str): root directory in which all other database sequences for
+          the configurations in the same specification will be stored.
+        parent (Controller): instance controlling multiple configurations.
+        steps (list): of `dict` describing the kinds of sub-configuration
+          database steps to setup.
+    """
+    def __init__(self, name, poscar, root, parent, steps, niterations=None):
+        from collections import OrderedDict
+        from copy import copy
+        self.name = name
+        self.sequences = OrderedDict()
         
+        if niterations is not None:
+            from matdb.utility import obj_update
+            
+            for i, repeater in enumerate(niterations):
+                nname = None
+                isteps = copy(steps)
+                for k, v in repeater.items():
+                    if k == "suffix":
+                        nname = self.name + v
+                        continue
+                    
+                    obj_update(isteps, k, v, False)
+                    
+                if nname is None:
+                    nname = self.name + "-{0:d}".format(i)
+
+                iobj = DatabaseSequence(nname, poscar, root, parent, isteps)
+                self.sequences[nname] = iobj
+        else:
+            single = DatabaseSequence(name, poscar, root, parent, steps)
+            self.sequences[name] = single
+
+    def recover(self, rerun=False):
+        """Runs recovery on each step in the sequence to determine which configs failed
+        and then create a jobfile to requeue them for compute.
+
+        Args:
+            rerun (bool): when True, recreate the jobfile even if it
+              already exists.
+        """
+        for db in self.sequences.values():
+            db.recover(rerun)
+
+    def status(self, busy=False):
+        """Prints a status message for each step in the sequence relative
+        to VASP execution status.
+
+        Args:
+            busy (bool): when True, print a list of the configurations that are
+              still busy being computed in DFT.
+        """
+        for db in self.sequences.values():
+            db.setup(busy)
+
+    def execute(self, recovery=False):
+        """Submits job array files for any of steps in the sequence that are ready to
+        execute, but which haven't been submitted yet.
+
+        Args:
+            recovery (bool): when True, submit the script for running recovery
+              jobs.
+        """
+        for db in self.sequences.values():
+            db.execute(recovery)
+
+    def split(self, train_perc, trainfile="train.xyz", holdfile="holdout.xyz",
+              recalc=0, superfile="super.xyz"):
+        """Splits the total available data in each step's databases into a training and
+        holdout set.
+
+        Args:
+            train_perc (float): percentage of the data to use for training.
+            trainfile (str): name of the training XYZ file to create.
+            holdfile (str): name of the holdout/validation XYZ file to create.
+            recalc (int): when non-zero, re-split the data and overwrite any
+              existing *.xyz files. This parameter decreases as
+              rewrites proceed down the stack. To re-calculate
+              lower-level XYZ files, increase this value.
+        """
+        for db in self.sequences.values():
+            nrecalc = recalc - (0 if len(self.steps) == 0 else 1)
+            db.split(train_perc, trainfile, holdfile, superfile, nrecalc)
+
+    def cleanup(self):
+        """Runs the cleanup methods of each step's databases in the sequence.
+        """
+        for db in self.sequences.values():
+            db.cleanup(recovery)
+
+    def setup(self, rerun=False):
+        """Sets up the each step's database in the sequence in order. If an
+        earlier step is not ready yet, the next item in the step won't setup.
+
+        Args:
+            rerun (bool): when True, recreate the folders even if they
+              already exist. 
+        """
+        for db in self.sequences.values():
+            db.setup(rerun)
+            
 class Controller(object):
     """Implements methods for tying a configuration dictionary (in
     YAML format) to instances of various databases.
@@ -376,9 +457,8 @@ class Controller(object):
 
         #We allow the user to specify paths relative the matdb repo; this is
         #mainly to allow unit testing to run smoothly.
-        from matdb.utility import chdir, reporoot
-        with chdir(reporoot):
-            self.root = path.abspath(path.expanduser(self.specs["root"]))
+        from matdb.utility import relpath
+        self.root = relpath(path.expanduser(self.specs["root"]))
             
         self.plotdir = path.join(self.root, "plots")
         self.title = self.specs["title"]
@@ -391,9 +471,16 @@ class Controller(object):
 
         for cspec in self.specs["configs"]:
             name, poscar = cspec["name"], cspec["poscar"]
-            instance = DatabaseCollection(name, poscar, self.root, self,
-                                          self.specs.get("databases", []))
-            self.collections[name] = instance
+            self.collections[name] = {}
+            
+            # We need to split out the databases by user-given name to create
+            # the sequences.
+            for dbspec in self.specs.get("databases", []):
+                dbname = '.'.join((name, dbspec["name"]))
+                steps = dbspec["steps"]
+                seq = SequenceRepeater(dbname, poscar, self.root, self,
+                                       steps, dbspec["niterations"])
+                self.collections[name][dbspec["name"]] = seq
 
         from os import mkdir
         if not path.isdir(self.plotdir):
@@ -424,78 +511,104 @@ class Controller(object):
         database.
         """        
 
-            
-    def setup(self, rerun=False):
+    def ifiltered(self, cfilter=None, dfilter=None):
+        """Returns a *filtered* generator over sequences in the config collections of
+        this object.
+
+        Args:
+            cfilter (list): of `str` patterns to match against *configuration*
+              names. This limits which configs are returned.
+            dfilter (list): of `str` patterns to match against *database sequence*
+              names. This limits which databases sequences are returned.
+        """
+        from fnmatch import fnmatch
+        for name, coll in self.collections.items():
+            if cfilter is None or any(fnmatch(name, c) for c in cfilter):
+                for dbn, seq in coll.items():
+                    if dfilter is None or any(fnmatch(dbn, d) for d in dfilter):
+                        yield (dbn, seq)
+        
+    def setup(self, rerun=False, cfilter=None, dfilter=None):
         """Sets up each of configuration's databases.
 
         Args:
             rerun (bool): when True, recreate the folders even if they
               already exist.
+            cfilter (list): of `str` patterns to match against *configuration*
+              names. This limits which configs are returned.
+            dfilter (list): of `str` patterns to match against *database sequence*
+              names. This limits which databases sequences are returned.
         """
-        for name, coll in self.collections.items():
-            coll.setup(rerun)
+        for dbname, seq in self.ifiltered(cfilter, dfilter):
+            seq.setup(rerun)
 
-    def cleanup(self):
+    def cleanup(self, cfilter=None, dfilter=None):
         """Runs cleanup on each of the configuration's databases.
-        """
-        for name, coll in self.collections.items():
-            coll.cleanup()
 
-    def execute(self, cfilter=None, recovery=False):
+        Args:
+            cfilter (list): of `str` patterns to match against *configuration*
+              names. This limits which configs are returned.
+            dfilter (list): of `str` patterns to match against *database sequence*
+              names. This limits which databases sequences are returned.
+        """
+        for dbname, seq in self.ifiltered(cfilter, dfilter):
+            seq.cleanup()
+
+    def execute(self, recovery=False, cfilter=None, dfilter=None):
         """Submits job array scripts for each database collection.
 
         Args:
-            cfilter (list): of `str` patterns to match against configuration
-              names. This limits which configs status is retrieved for.
             recovery (bool): when True, submit the script for running recovery
               jobs.
+            cfilter (list): of `str` patterns to match against configuration
+              names. This limits which configs status is retrieved for.
+            dfilter (list): of `str` patterns to match against *database sequence*
+              names. This limits which databases sequences are returned.
         """
-        from fnmatch import fnmatch
-        for name, coll in self.collections.items():
-            if cfilter is None or any(fnmatch(name, p) for p in cfilter):
-                coll.execute(recovery)
+        for dbname, seq in self.ifiltered(cfilter, dfilter):
+            seq.execute(recovery)
 
-    def recover(self, cfilter=None, rerun=False):
+    def recover(self, rerun=False, cfilter=None, dfilter=None):
         """Runs recovery on this database to determine which configs failed and
         then create a jobfile to requeue them for compute.
 
         Args:
+            rerun (bool): when True, recreate the jobfile even if it
+              already exists. 
             cfilter (list): of `str` patterns to match against configuration
               names. This limits which configs status is retrieved
               for.
-        Args:
-            rerun (bool): when True, recreate the jobfile even if it
-              already exists. 
+            dfilter (list): of `str` patterns to match against *database sequence*
+              names. This limits which databases sequences are returned.
         """
-        from fnmatch import fnmatch
-        for name, coll in self.collections.items():
-            if cfilter is None or any(fnmatch(name, p) for p in cfilter):
-                coll.recover(rerun) 
+        for dbname, seq in self.ifiltered(cfilter, dfilter):
+            seq.recover(rerun) 
                 
-    def status(self, cfilter=None, busy=False):
+    def status(self, busy=False, cfilter=None, dfilter=None):
         """Prints status messages for each of the configuration's
         databases.
 
         Args:
-            cfilter (list): of `str` patterns to match against configuration
-              names. This limits which configs status is retrieved for.
             busy (bool): when True, print a list of the configurations that are
               still busy being computed in DFT.
+            cfilter (list): of `str` patterns to match against configuration
+              names. This limits which configs status is retrieved for.
+            dfilter (list): of `str` patterns to match against *database sequence*
+              names. This limits which databases sequences are returned.
         """
-        from fnmatch import fnmatch
-        for name, coll in self.collections.items():
-            if cfilter is None or any(fnmatch(name, p) for p in cfilter):
-                coll.status(busy) 
+        for dbname, seq in self.ifiltered(cfilter, dfilter):
+            seq.status(busy)
             
     def POTCAR(self):
         """Creates the POTCAR file using the pseudopotential and version
         specified in the file.
         """
+        from matdb.utility import relpath
         target = path.join(self.root, "POTCAR")
         if not path.isfile(target):
             # Make sure that the POTCAR version and pseudopotential type match
             # up so that we don't get nasty surprises.
-            potsrc = path.join(self.potcars["directory"],
+            potsrc = path.join(relpath(self.potcars["directory"]),
                                "pot{}".format(self.potcars["pseudo"]))
             potcars = []
             
@@ -559,12 +672,9 @@ class Controller(object):
               rewrites proceed down the stack. To re-calculate
               lower-level XYZ files, increase this value.
         """
-        if self._trainfile is None:
-            self._trainfile = trainfile
-        if self._holdoutfile is None:
-            self._holdoutfile = holdfile
-        if self._superfile is None:
-            self._superfile = superfile
+        from matdb.utility import safe_update
+        safe_update(self, {"_trainfile": trainfile, "_holdoutfile": holdfile,
+                           "_superfile": superfile})
 
         if (path.isfile(self.train_file) and path.isfile(self.holdout_file)
             and path.isfile(self._superfile) and recalc <= 0):
