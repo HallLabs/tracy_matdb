@@ -386,7 +386,7 @@ class SequenceRepeater(object):
               still busy being computed in DFT.
         """
         for db in self.sequences.values():
-            db.setup(busy)
+            db.status(busy)
 
     def execute(self, recovery=False):
         """Submits job array files for any of steps in the sequence that are ready to
