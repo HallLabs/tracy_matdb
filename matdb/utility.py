@@ -174,7 +174,7 @@ def safe_update(obj, kv):
             continue
         setattr(obj, k, v)
 
-def obj_update(d, k, v, copy=True):
+def obj_update(obj, k, v, copy=True):
     """Updates a particular value in a set of nested objects.
 
     .. note:: If `copy=True`, a *copy* of the object will be
@@ -182,23 +182,29 @@ def obj_update(d, k, v, copy=True):
       copying.
 
     Args:
-        d: list or list of dict to update some sub-key on.
+        obj: list or list of dict to update some sub-key on.
         k (str): a '.'-separated list of keys to traverse down to get
           to the value to set.
         v: value to set at the final key.
         copy (bool): when True, return a copy of the dictionary.
     """
-    from copy import ocopy
+    from copy import copy as ocopy
     chain = list(reversed(k.split('.')))
-    result = ocopy(d) if copy else d
-    target = d
+    result = ocopy(obj) if copy else obj
+    target = obj
 
     if isinstance(target, list):
         firstkey = chain[-1]
-        target = next(d for d in isteps if firstkey in d)
+        target = next(d for d in target if firstkey in d)
     
     while len(chain) > 1:
-        target = getattr(target, chain.pop())
+        key = chain.pop()
+        target = (target[key] if isinstance(target, dict)
+                  else getattr(target, chain.pop()))
+
+    if isinstance(target, dict):
+        target[chain[0]] = v
+    else:
         setattr(target, chain[0], v)
         
     return result
@@ -238,6 +244,30 @@ def copyonce(src, dst):
         from shutil import copyfile
         copyfile(src, dst)
 
+def compare_tree(folder, model):
+    """Compares to directory trees to determine if they have the same
+    contents. This does *not* compare the contents of each file, but rather just
+    that the file exists.
+
+    Args:
+        folder (str): path to the root directory that has folders/files in the
+          first level of `model`.
+        model (dict): keys are either folder names or `__files__`. For folder
+          names, :func:`compare_tree` is called recursively on the next level
+          down. For files, the existing of each file is checked.
+    """
+    if "__files__" in model:
+        for fname in model["__files__"]:
+            assert path.isfile(path.join(folder, fname))
+
+    for foldname, tree in model.items():
+        if foldname == "__files__":# pragma: no cover
+            continue
+
+        target = path.join(folder, foldname)
+        assert path.isdir(target)
+        compare_tree(target, tree)
+        
 reporoot = _get_reporoot()
 """The absolute path to the repo root on the local machine.
 """
