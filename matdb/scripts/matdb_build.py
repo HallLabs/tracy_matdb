@@ -44,9 +44,12 @@ script_options = {
     "--rerun": {"action": "store_true",
                 "help": ("Re-run the specified option, even if it has already "
                          "been done before.")},
-    "--filter": {"nargs": "+",
-                 "help": ("Specify a list of patterns to match against config "
+    "--cfilter": {"nargs": "+",
+                 "help": ("Specify a list of patterns to match against _config_ "
                           "names that should be *included*.")},
+    "--dfilter": {"nargs": "+",
+                  "help": ("Specify a list of patterns to match against _database_ "
+                           "names that should be *included*.")},
     "--busy": {"action": "store_true",
                "help": ("Display a list of configurations that haven't "
                         "finished running in DFT yet.")},
@@ -88,15 +91,15 @@ def run(args):
     if args["s"]:
         cdb.setup(args["rerun"])
     if args["x"]:
-        cdb.execute(args["filter"], args["recover"])
+        cdb.execute(args["cfilter"], args["recover"])
     if args["c"]:
         cdb.cleanup()    
 
     if args["recover"] and not args["x"]:
-        cdb.recover(args["filter"], args["rerun"])
+        cdb.recover(args["cfilter"], args["rerun"])
         
     if args["status"]:
-        cdb.status(args["filter"], args["busy"])
+        cdb.status(args["busy"], args["cfilter"], args["dfilter"])
         
 if __name__ == '__main__': # pragma: no cover
     run(_parser_options())
