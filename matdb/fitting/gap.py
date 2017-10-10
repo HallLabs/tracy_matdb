@@ -457,6 +457,10 @@ class GAPTrainer(object):
         """Validates the latest calculator in this training sequence against the
         `holdout.xyz` configurations in the controller database.
 
+        .. note:: For the `potfile` argument, you can use the shorthand notation
+          of `2b`, `2b3b` or `2b3b_soap` instead of typing full paths. Then a
+          directory-relative potential will be used.
+
         Args:
             datafile (str): path to the datafile to validate against.
             potfile (str): path to the GAP potential file to validate
