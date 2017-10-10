@@ -91,7 +91,7 @@ def run(args):
     if args["s"]:
         cdb.setup(args["rerun"])
     if args["x"]:
-        cdb.execute(args["cfilter"], args["recover"])
+        cdb.execute(args["recover"], args["cfilter"], args["dfilter"])
     if args["c"]:
         cdb.cleanup()    
 
