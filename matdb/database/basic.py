@@ -276,13 +276,22 @@ class Database(object):
         """
         detail = self.status(False)
         failed = [k for k, v in detail["done"].items() if not v]
-        xpath = path.join(self.root, "failures")
-        with open(xpath, 'w') as f:
-            f.write('\n'.join(failed))
+        identity = "{0}|{1}".format(self.parent.name, self.name)
+        
+        if len(failed) > 0:
+            #Only write a failures file if we had failures.
+            xpath = path.join(self.root, "failures")
+            with open(xpath, 'w') as f:
+                f.write('\n'.join(failed))
 
-        imsg = "{0}: queued {1:d} configs for recovery."
-        msg.info(imsg.format(self.name, len(failed)))
-        self.jobfile(rerun, recovery=True)
+            imsg = "{0}: queued {1:d} configs for recovery."
+            msg.info(imsg.format(identity, len(failed)))
+        else:
+            msg.okay("{0}: no failures.".format(identity))
+        
+        #Only create a jobfile if there were actually failures
+        if len(failed) > 0:
+            self.jobfile(rerun, recovery=True)
                     
     def jobfile(self, rerun=False, recovery=False):
         """Creates the job array file to run each of the sub-configurations in
