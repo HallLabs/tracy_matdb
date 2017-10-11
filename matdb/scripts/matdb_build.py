@@ -96,7 +96,7 @@ def run(args):
         cdb.cleanup()    
 
     if args["recover"] and not args["x"]:
-        cdb.recover(args["cfilter"], args["rerun"])
+        cdb.recover(args["rerun"], args["cfilter"], args["dfilter"])
         
     if args["status"]:
         cdb.status(args["busy"], args["cfilter"], args["dfilter"])
