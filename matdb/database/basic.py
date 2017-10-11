@@ -318,6 +318,12 @@ class Database(object):
 
         if "array_limit" in settings and asize < settings["array_limit"]:
             del settings["array_limit"]
+
+        #We overload the modules_load to allow reference to the execution_path.
+        if "modules_load" in settings:
+            for i, mcmd in enumerate(settings["modules_load"]):
+                mcmd = mcmd.format(**settings)
+                settings["modules_load"][i] = mcmd
         
         from jinja2 import Environment, PackageLoader
         env = Environment(loader=PackageLoader('matdb', 'templates'))
