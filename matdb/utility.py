@@ -285,7 +285,15 @@ def which(program):
             exe_file = os.path.join(path, program)
             if is_exe(exe_file):
                 return exe_file
-        
+
+def touch(fpath):
+    """Mimics the `touch` command in the unix to create an empty file with the
+    given path.
+    """
+    import os
+    with open(fpath, 'a'):
+        os.utime(fpath, None)
+            
 reporoot = _get_reporoot()
 """The absolute path to the repo root on the local machine.
 """
