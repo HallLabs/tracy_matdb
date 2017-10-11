@@ -9,6 +9,7 @@ potcars:
   directory: './tests/vasp'
   pseudo: 'paw_PBE'
   version: '04Jan2005'
+  pd: '_pv'
 # Directory in which the database folder system will be created.
 root: './tests/Pd'
 # List the names of files in the root directory that serve as seed
@@ -45,7 +46,8 @@ execution:
   job_name: 'Pd DB'
   partition: 'physics'
   array_limit: 50
-  exec_path: 'vasp53s'
+  modules_load: ['mkl/11.2.0']
+  exec_path: 'vasp'
 # Next, we include a list of all the databases we want to create. A
 # database following this pattern is created *for each* of the seed
 # configurations listed above.
