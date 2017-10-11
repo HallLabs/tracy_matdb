@@ -32,7 +32,7 @@ def chdir(target):
         chdir(current)
         
 def execute(args, folder, wait=True, nlines=100, venv=None,
-            printerr=True, **kwargs):
+            printerr=True, env_vars=None, **kwargs):
     """Executes the specified tuple that should include the command as
     first item and additional arguments afterward. See the
     documentation for :class:`subprocess.Popen` for details.
@@ -52,6 +52,8 @@ def execute(args, folder, wait=True, nlines=100, venv=None,
           activate before running the command.
         printerr (bool): when True, if `stderr` is not empty, print
           the lines automatically.
+        env_vars (dict): of environment variables to set before calling the
+          execution. The variables will be set back after execution.
         kwargs (dict): additional arguments that are passed directly
           to the :class:`subprocess.Popen` constructor.
 
@@ -81,6 +83,13 @@ def execute(args, folder, wait=True, nlines=100, venv=None,
             prefix = path.dirname(sys.executable)
         args[0] = path.join(prefix, args[0])
 
+    from os import environ
+    if env_vars is not None:
+        oldvars = {}
+        for name, val in env_vars.items():
+            oldvars[name] = environ[name] if name in environ else None
+            environ[name] = val
+        
     msg.std("Executing `{}` in {}.".format(' '.join(args), folder), 2)
     pexec = Popen(' '.join(args), shell=True, executable="/bin/bash", **kwargs)
     
@@ -88,6 +97,14 @@ def execute(args, folder, wait=True, nlines=100, venv=None,
         from os import waitpid
         waitpid(pexec.pid, 0)
 
+    if env_vars is not None:
+        #Set the environment variables back to what they used to be.
+        for name, val in oldvars.items():
+            if val is None:
+                del environ[name]
+            else:
+                environ[name] = val
+        
     #Redirect the output and errors so that we don't pollute stdout.
     output = None
     if kwargs["stdout"] is PIPE:
