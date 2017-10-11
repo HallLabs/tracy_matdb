@@ -535,7 +535,18 @@ class Controller(object):
                 for dbn, seq in coll.items():
                     if dfilter is None or any(fnmatch(dbn, d) for d in dfilter):
                         yield (dbn, seq)
-        
+
+    def __getitem__(self, key):
+        """Returns the database object associated with the given key. This is
+        necessary because of the hierarchy of objects needed to implement
+        sequence repitition.
+        """
+        config, parent, db = key.split('.')
+        coll = self.collections[config]
+        dbname, suffix = parent.split('-')
+        seq = coll[dbname].sequences['.'.join((config, parent))]
+        return seq.steps[db]
+                        
     def setup(self, rerun=False, cfilter=None, dfilter=None):
         """Sets up each of configuration's databases.
 
