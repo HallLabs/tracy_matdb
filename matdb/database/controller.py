@@ -441,6 +441,8 @@ class Controller(object):
     Args:
         config (str): path to the configuration YAML file that
           specifies all information for constructing the set of databases.
+        tmpdir (str): path to a temporary directory to use for the
+          database. This is for unit testing purposes.
 
     Attributes:
         specs (dict): the parsed settings from the YAML configuration file.
@@ -450,15 +452,16 @@ class Controller(object):
         plotdir (str): path to the directory to store plots in for all
           databases.
     """
-    def __init__(self, config):
+    def __init__(self, config, tmpdir=None):
         import yaml
         with open(config, 'r') as stream:
             self.specs = yaml.load(stream)
 
-        #We allow the user to specify paths relative the matdb repo; this is
-        #mainly to allow unit testing to run smoothly.
+        #We allow the user to specify paths relative the matdb repo.
         from matdb.utility import relpath
         self.root = relpath(path.expanduser(self.specs["root"]))
+        if tmpdir is not None:
+            self.root = tmpdir
             
         self.plotdir = path.join(self.root, "plots")
         self.title = self.specs["title"]
