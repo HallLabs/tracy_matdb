@@ -267,6 +267,24 @@ def compare_tree(folder, model):
         target = path.join(folder, foldname)
         assert path.isdir(target)
         compare_tree(target, tree)
+
+def which(program):
+    """Tests whether the specified program is anywhere in the environment
+    PATH so that it probably exists."""
+    import os
+    def is_exe(fpath):
+        return os.path.isfile(fpath) and os.access(fpath, os.X_OK)
+
+    fpath, fname = os.path.split(program)
+    if fpath:
+        if is_exe(program):
+            return program
+    else:
+        for path in os.environ["PATH"].split(os.pathsep):
+            path = path.strip('"')
+            exe_file = os.path.join(path, program)
+            if is_exe(exe_file):
+                return exe_file
         
 reporoot = _get_reporoot()
 """The absolute path to the repo root on the local machine.
