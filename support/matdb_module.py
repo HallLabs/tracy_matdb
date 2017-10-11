@@ -13,11 +13,7 @@ def examples():
                "there. This includes `vasp` and `module`. This script mimcs the"
                "behavior of `module` (but doesn't actually do anything). The "
                "`vasp.py` stub mimics `vasp` by copying output." )
-    contents = [(("Setup the `.matdb.json` file for the `vasprun.xml` in the "
-                  "current directory; place it in `/tests/Pd-2`."), 
-                 "module.py load arbitrary/module --copy vasprun.xml --xdir /tests/Pd-2",
-                 "This simply copies the full path to `vasprun.xml` in the "
-                 "current folder to a `.matdb.json` file in the execution dir.")]
+    contents = []
     required = ("")
     output = ("")
     details = ("")
@@ -27,14 +23,7 @@ def examples():
 
 script_options = {
     "cmd": {"help": "Which command to mimic; may not do anything.",
-            "choices": ["list", "load", "unload"],
             "nargs": "+"},
-    "--copy": {"help": ("Specify the name(s) of a list of files in the current "
-                        "directory that should be written to a `.matdb.json` "
-                        "file in the *execution* directory."),
-               "nargs": "*"},
-    "--xdir": {"help": ("Path to the execution directory where the "
-                        "`.matdb.json` file will be created.")}
     }
 """dict: default command-line arguments and their
     :meth:`argparse.ArgumentParser.add_argument` keyword arguments.
@@ -63,19 +52,8 @@ def run(args):
     if args is None:
         return
 
-    if not args["xdir"]:
-        return
+    with open(".matdb.module", 'w') as f:
+        f.write(' '.join(args["cmd"]))
     
-    from os import path
-    matdb = {}
-    current = path.abspath('.')
-    for f in args["copy"]:
-        matdb[target] = path.join(current, f)
-
-    import json
-    target = path.abspath(path.expanduser(args["xdir"]))
-    with open(path.join(target, ".matdb.json"), 'w') as f:
-        json.dump(matdb, f)
-        
 if __name__ == '__main__': # pragma: no cover
     run(_parser_options())
