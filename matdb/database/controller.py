@@ -164,18 +164,21 @@ class DatabaseSequence(object):
                 
         msg.blank(level=1)
             
-    def execute(self, recovery=False):
+    def execute(self, recovery=False, env_vars=None):
         """Submits job array files for any of the databases that are ready to
         execute, but which haven't been submitted yet.
 
         Args:
             recovery (bool): when True, submit the script for running recovery
               jobs.
+            env_vars (dict): of environment variables to set before calling the
+              execution. The variables will be set back after execution.
         """
         ready = True
         for dbname, db in self.isteps:
             if ready:
-                ready = (db.ready() or db.execute(recovery=recovery))
+                ready = (db.ready() or db.execute(recovery=recovery,
+                                                  env_vars=env_vars))
             if not ready:
                 imsg = ("Database {}.{} is not ready to execute yet, or is "
                         "already executing. Done.")
@@ -388,16 +391,18 @@ class SequenceRepeater(object):
         for db in self.sequences.values():
             db.status(busy)
 
-    def execute(self, recovery=False):
+    def execute(self, recovery=False, env_vars=None):
         """Submits job array files for any of steps in the sequence that are ready to
         execute, but which haven't been submitted yet.
 
         Args:
             recovery (bool): when True, submit the script for running recovery
               jobs.
+            env_vars (dict): of environment variables to set before calling the
+              execution. The variables will be set back after execution.
         """
         for db in self.sequences.values():
-            db.execute(recovery)
+            db.execute(recovery, env_vars=env_vars)
 
     def split(self, train_perc, trainfile="train.xyz", holdfile="holdout.xyz",
               recalc=0, superfile="super.xyz"):
@@ -557,7 +562,7 @@ class Controller(object):
         for dbname, seq in self.ifiltered(cfilter, dfilter):
             seq.cleanup()
 
-    def execute(self, recovery=False, cfilter=None, dfilter=None):
+    def execute(self, recovery=False, cfilter=None, dfilter=None, env_vars=None):
         """Submits job array scripts for each database collection.
 
         Args:
@@ -567,9 +572,11 @@ class Controller(object):
               names. This limits which configs status is retrieved for.
             dfilter (list): of `str` patterns to match against *database sequence*
               names. This limits which databases sequences are returned.
+            env_vars (dict): of environment variables to set before calling the
+              execution. The variables will be set back after execution.
         """
         for dbname, seq in self.ifiltered(cfilter, dfilter):
-            seq.execute(recovery)
+            seq.execute(recovery, env_vars=env_vars)
 
     def recover(self, rerun=False, cfilter=None, dfilter=None):
         """Runs recovery on this database to determine which configs failed and

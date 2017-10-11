@@ -172,7 +172,7 @@ class Database(object):
             
         return outcars and busy
             
-    def execute(self, dryrun=False, recovery=False):
+    def execute(self, dryrun=False, recovery=False, env_vars=None):
         """Submits the job script for each of the folders in this
         database if they are ready to run.
 
@@ -181,6 +181,8 @@ class Database(object):
               actually submitting.
             recovery (bool): when True, submit the script for running recovery
               jobs.
+            env_vars (dict): of environment variables to set before calling the
+              execution. The variables will be set back after execution.
 
         Returns:
             bool: True if the submission generated a job id
@@ -210,7 +212,7 @@ class Database(object):
             okay("Executed {} in {}".format(' '.join(cargs), self.root))
             return True
         else:
-            xres = execute(cargs, self.root)
+            xres = execute(cargs, self.root, env_vars=env_vars)
 
         if len(xres["output"]) > 0 and "Submitted" in xres["output"][0]:
             from matdb.msg import okay
