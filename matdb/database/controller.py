@@ -536,6 +536,47 @@ class Controller(object):
                     if dfilter is None or any(fnmatch(dbn, d) for d in dfilter):
                         yield (dbn, seq)
 
+    def find(self, pattern):
+        """Finds a list of database steps that match the given pattern. The
+        pattern is formed using `config.dbname-suffix.step`. `*` can be used as
+        a wildcard for any portion of the '.'-separated path.
+
+        .. note:: Actually, an :func:`~fnmatch.fnmatch` pattern can be used.
+
+        Args:
+            pattern (str): fnmatch pattern that follows the convention of the DB
+              key.
+
+        Examples:
+        
+            Get all the dynamical matrix databases for the `Pd`
+            configuration. The example assumes that the database name is
+            `phonon` and that it includes a dynamical matrix step.
+
+            >>> Pd = Controller("Pd.yml")
+            >>> Pd.find("Pd.phonon*.dynmatrix")
+        """
+        from fnmatch import fnmatch
+        config, parent, db = pattern.split('.')
+        colls = [v for k, v in self.collections.items() if fnmatch(k, config)]
+
+        #For databases without repeaters, there is no suffix.
+        if '-' in parent:
+            dbname, suffix = parent.split('-')
+        else:
+            dbname, suffix = parent, None
+
+        steps = []
+        for coll in colls:
+            dbs = [dbi for dbn, dbi in coll.items() if fnmatch(dbn, dbname)]
+            for dbi in dbs:
+                seqs = [seqi for seqn, seqi in dbi.sequences.items()
+                        if fnmatch(seqn, '.'.join((config, parent)))]
+                for seq in seqs:
+                    steps.extend([si for sn, si in seq.steps.items()
+                                  if fnmatch(sn, db)])
+        return steps
+                        
     def __getitem__(self, key):
         """Returns the database object associated with the given key. This is
         necessary because of the hierarchy of objects needed to implement

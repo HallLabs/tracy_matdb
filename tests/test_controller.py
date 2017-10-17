@@ -53,6 +53,17 @@ def Pd(tmpdir):
     
     return Controller(target, dbdir)
 
+def test_find(Pd):
+    """Tests the find function with pattern matching.
+    """
+    steps = Pd.find("Pd.phonon*.dynmatrix")
+    model = ['Pd.phonon-2', 'Pd.phonon-16', 'Pd.phonon-32', 'Pd.phonon-4', 'Pd.phonon-54']
+    assert model == [s.parent.name for s in steps]
+
+    steps = Pd.find("Pd.phonon-*2.dynmatrix")
+    model = ['Pd.phonon-2', 'Pd.phonon-32']
+    assert model == [s.parent.name for s in steps]
+
 def test_repeater_multi(Pd):
     """Tests the `niterations` functionality on simple Pd.
     """
@@ -108,10 +119,25 @@ def test_repeater_multi(Pd):
     for rkey in okay:
         assert not path.isfile(path.join(Pd[rkey].root, "recovery.sh"))
 
-    # Pd.execute(env_vars={"SLURM_ARRAY_TASK_ID": "1"}, recovery=True)
-    # folder = path.join(reporoot, "tests", "data", "Pd", "rexecute")
-    # _mimic_vasp(folder, Pd.root)   
+    Pd.execute(env_vars={"SLURM_ARRAY_TASK_ID": "1"}, recovery=True)
+    folder = path.join(reporoot, "tests", "data", "Pd", "rexecute")
+    _mimic_vasp(folder, Pd.root)   
 
+    #Now that we have recovered vasp files, we can queue a *second*
+    #recovery. All but one of the `vasprun.xml` files that we linked to are
+    #complete for all the structures. This test that we can recover and execute
+    #multiple times in order.
+    Pd.recover()
+    recoveries = ["Pd.phonon-32.dynmatrix"]
+    okay = ["Pd.phonon-2.dynmatrix",
+            "Pd.phonon-16.dynmatrix",
+            "Pd.phonon-4.dynmatrix",
+            "Pd.phonon-54.dynmatrix"]
+    for rkey in recoveries:
+        assert path.isfile(path.join(Pd[rkey].root, "recovery.sh"))
+    for rkey in okay:
+        assert not path.isfile(path.join(Pd[rkey].root, "recovery.sh"))
+    
         
 # def test_split():
 #     """Tests the splitting logic and that the ids from original
