@@ -293,6 +293,12 @@ class Database(object):
         #Only create a jobfile if there were actually failures
         if len(failed) > 0:
             self.jobfile(rerun, recovery=True)
+        else:
+            #Delete any existing recovery files from previous failures.
+            jobfile = path.join(self.root, "recovery.sh")
+            if path.isfile(jobfile):
+                from os import remove
+                remove(jobfile)            
                     
     def jobfile(self, rerun=False, recovery=False):
         """Creates the job array file to run each of the sub-configurations in

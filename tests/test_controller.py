@@ -5,7 +5,8 @@ outputs that temporary directories will be compared to.
 import numpy as np
 from os import path
 import pytest
-
+from matdb.utility import reporoot
+    
 def _mimic_vasp(folder, xroot):
     """Copies a `vasprun.xml` and `OUTCAR ` output files from the given folder into
     the execution directory to mimic what VASP would have done.
@@ -89,7 +90,6 @@ def test_repeater_multi(Pd):
 
     #Test execution command; this uses stubs for all of the commands that would
     #be executed.
-    from matdb.utility import reporoot
     Pd.execute(env_vars={"SLURM_ARRAY_TASK_ID": "1"})
     folder = path.join(reporoot, "tests", "data", "Pd", "recover")
     _mimic_vasp(folder, Pd.root)
@@ -101,8 +101,17 @@ def test_repeater_multi(Pd):
     recoveries = ["Pd.phonon-16.dynmatrix",
                   "Pd.phonon-32.dynmatrix",
                   "Pd.phonon-54.dynmatrix"]
+    okay = ["Pd.phonon-2.dynmatrix",
+            "Pd.phonon-4.dynmatrix"]
     for rkey in recoveries:
         assert path.isfile(path.join(Pd[rkey].root, "recovery.sh"))
+    for rkey in okay:
+        assert not path.isfile(path.join(Pd[rkey].root, "recovery.sh"))
+
+    # Pd.execute(env_vars={"SLURM_ARRAY_TASK_ID": "1"}, recovery=True)
+    # folder = path.join(reporoot, "tests", "data", "Pd", "rexecute")
+    # _mimic_vasp(folder, Pd.root)   
+
         
 # def test_split():
 #     """Tests the splitting logic and that the ids from original

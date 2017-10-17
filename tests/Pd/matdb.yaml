@@ -8,7 +8,7 @@ species:
 potcars:
   directory: './tests/vasp'
   pseudo: 'paw_PBE'
-  version: '04Jan2005'
+  version: '28Jan2005'
   pd: '_pv'
 # Directory in which the database folder system will be created.
 root: './tests/Pd'
