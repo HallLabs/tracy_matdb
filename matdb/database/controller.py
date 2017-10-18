@@ -576,7 +576,29 @@ class Controller(object):
                     steps.extend([si for sn, si in seq.steps.items()
                                   if fnmatch(sn, db)])
         return steps
-                        
+
+    def steps(self):
+        """Compiles a list of all steps in this set of databases.
+        """
+        result = []
+        for config, coll in self.collections.items():
+            for repeater in coll.values():
+                for parent, seq in repeater.sequences.items():
+                    for step in seq.steps:
+                        result.append("{0}.{1}".format(parent, step))
+
+        return sorted(result)        
+    
+    def sequences(self):
+        """Compiles a list of all sequences in this set of databases.
+        """
+        result = []
+        for config, coll in self.collections.items():
+            for repeater in coll.values():
+                result.extend(repeater.sequences.keys())
+
+        return sorted(result)        
+    
     def __getitem__(self, key):
         """Returns the database object associated with the given key. This is
         necessary because of the hierarchy of objects needed to implement

@@ -53,6 +53,20 @@ def Pd(tmpdir):
     
     return Controller(target, dbdir)
 
+def test_steps(Pd):
+    """Tests compilation of all steps in the database.
+    """
+    steps = ['Pd.phonon-16.dynmatrix', 'Pd.phonon-16.modulations',
+             'Pd.phonon-2.dynmatrix', 'Pd.phonon-2.modulations',
+             'Pd.phonon-32.dynmatrix', 'Pd.phonon-32.modulations',
+             'Pd.phonon-4.dynmatrix', 'Pd.phonon-4.modulations',
+             'Pd.phonon-54.dynmatrix', 'Pd.phonon-54.modulations']
+    
+    seqs = sorted(['Pd.phonon-2', 'Pd.phonon-16', 'Pd.phonon-32',
+                    'Pd.phonon-4', 'Pd.phonon-54'])
+    assert Pd.steps() == steps
+    assert Pd.sequences() == seqs
+
 def test_find(Pd):
     """Tests the find function with pattern matching.
     """
