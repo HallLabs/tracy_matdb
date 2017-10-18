@@ -137,8 +137,28 @@ def test_repeater_multi(Pd):
         assert path.isfile(path.join(Pd[rkey].root, "recovery.sh"))
     for rkey in okay:
         assert not path.isfile(path.join(Pd[rkey].root, "recovery.sh"))
+
+    #Now copy the final files, which are all good.
+    Pd.execute(env_vars={"SLURM_ARRAY_TASK_ID": "1"}, recovery=True)
+    folder = path.join(reporoot, "tests", "data", "Pd", "complete")
+    _mimic_vasp(folder, Pd.root)
+
+    Pd.recover()
+    okay = ["Pd.phonon-2.dynmatrix",
+            "Pd.phonon-16.dynmatrix",
+            "Pd.phonon-4.dynmatrix",
+            "Pd.phonon-54.dynmatrix",
+            "Pd.phonon-32.dynmatrix"]
+    for rkey in okay:
+        assert not path.isfile(path.join(Pd[rkey].root, "recovery.sh"))
     
-        
+    #We are finally ready to cleanup the phonon database.
+    Pd.cleanup()
+    
+    for rkey in okay:
+        assert path.isfile(path.join(Pd[rkey].root, "phonopy", "FORCE_SETS"))
+        assert path.isfile(path.join(Pd[rkey].root, "phonopy", "total_dos.dat"))
+    
 # def test_split():
 #     """Tests the splitting logic and that the ids from original
 #     randomization are saved correctly.
