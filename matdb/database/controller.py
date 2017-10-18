@@ -16,8 +16,8 @@ class DatabaseSequence(object):
     Args:
         name (str): name of the configuration that this database sequence is
           operating for.
-        poscar (str): name of the POSCAR file in `root` to extract atomic
-          configuration information from.
+        repeater (SequenceRepeater): repeater for a set of sequences that all
+          share the same root `atoms` object.
         root (str): root directory in which all other database sequences for
           the configurations in the same specification will be stored.
         parent (Controller): instance controlling multiple configurations.
@@ -42,11 +42,11 @@ class DatabaseSequence(object):
           etc.); values are the corresponding class instances.
         parent (Controller): instance controlling multiple configurations.
     """
-    def __init__(self, name, poscar, root, parent, steps):
-        from quippy.atoms import Atoms
+    def __init__(self, name, repeater, root, parent, steps):
         self.name = name
-        self.atoms = Atoms(path.join(root, poscar), format="POSCAR")
+        self.atoms = repeater.atoms.copy()
         self.root = path.join(root, name)
+        self.repeater = repeater
         
         if not path.isdir(self.root):
             from os import mkdir
@@ -340,12 +340,31 @@ class SequenceRepeater(object):
         parent (Controller): instance controlling multiple configurations.
         steps (list): of `dict` describing the kinds of sub-configuration
           database steps to setup.
+
+    Attributes:
+        atoms (quippy.atoms.Atoms): a single atomic configuration from
+          which many others may be derived using MD, phonon
+          displacements, etc.
+        poscar (str): path to the POSCAR file for the seed configuration that
+          all sequences in this repeater will use.
+        kfile (str): path to the kpath.json cached file for this repeater.        
     """
     def __init__(self, name, poscar, root, parent, steps, niterations=None):
         from collections import OrderedDict
         from copy import copy
+        from quippy.atoms import Atoms
+        
         self.name = name
         self.sequences = OrderedDict()
+        self.poscar = path.join(root, poscar)
+        self.atoms = Atoms(self.poscar, format="POSCAR")
+        self.kfile = path.join(parent.kpathdir, "{0}.json".format(self.name))
+
+        self._kpath = None
+        """tuple: result of querying the materialscloud.org special path
+        service. First term is a list of special point labels; second is the
+        list of points corresponding to those labels.
+        """
         
         if niterations is not None:
             from matdb.utility import obj_update
@@ -363,12 +382,40 @@ class SequenceRepeater(object):
                 if nname is None:
                     nname = self.name + "-{0:d}".format(i)
 
-                iobj = DatabaseSequence(nname, poscar, root, parent, isteps)
+                iobj = DatabaseSequence(nname, self, root, parent, isteps)
                 self.sequences[nname] = iobj
         else:
-            single = DatabaseSequence(name, poscar, root, parent, steps)
+            single = DatabaseSequence(name, self, root, parent, steps)
             self.sequences[name] = single
 
+    @property
+    def kpath(self):
+        """Returns the materialscloud.org special path in k-space for the seed
+        configuration of this database.
+
+        Returns:
+            tuple: result of querying the materialscloud.org special path
+            service. First term is a list of special point labels; second is the
+            list of points corresponding to those labels.
+        """
+        if self._kpath is None:
+            import json
+            #We use some caching here so that we don't have to keep querying the
+            #server and waiting for an identical response.
+            if path.isfile(self.kfile):
+                with open(self.kfile) as f:
+                    kdict = json.load(f)
+            else:
+                from .phonon import _parsed_kpath
+                labels, band = _parsed_kpath(self.poscar)
+                kdict = {"labels": labels, "band": band}
+                with open(self.kfile, 'w') as f:
+                    json.dump(kdict, f)
+            
+            self._kpath = (kdict["labels"], kdict["band"])
+            
+        return self._kpath
+            
     def recover(self, rerun=False):
         """Runs recovery on each step in the sequence to determine which configs failed
         and then create a jobfile to requeue them for compute.
@@ -456,6 +503,8 @@ class Controller(object):
           instances.
         plotdir (str): path to the directory to store plots in for all
           databases.
+        kpathdir (str): path to the directory where cached k-paths are stored
+          for root configurations.
     """
     def __init__(self, config, tmpdir=None):
         import yaml
@@ -469,6 +518,7 @@ class Controller(object):
             self.root = tmpdir
             
         self.plotdir = path.join(self.root, "plots")
+        self.kpathdir = path.join(self.root, "kpaths")
         self.title = self.specs["title"]
         self.collections = {}
         self.species = [s for s in self.specs["species"]]
@@ -493,6 +543,8 @@ class Controller(object):
         from os import mkdir
         if not path.isdir(self.plotdir):
             mkdir(self.plotdir)
+        if not path.isdir(self.kpathdir):
+            mkdir(self.kpathdir)
             
         #Extract the POTCAR that all the databases are going to use. TODO: pure
         #elements can't use this POTCAR, so we have to copy the single POTCAR

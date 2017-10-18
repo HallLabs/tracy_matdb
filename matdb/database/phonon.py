@@ -102,12 +102,6 @@ class DynMatrix(Database):
         along the paths, and their corresponding distances.
         """
 
-        self._kpath = None
-        """tuple: result of querying the materialscloud.org special path
-        service. First term is a list of special point labels; second is the
-        list of points corresponding to those labels.
-        """
-
         self._dmatrix = None
         """dict: with keys ['dynmat', 'eigvals', 'eigvecs'] representing the dynamical
         matrix for the gamma point in the seed configuration along with its
@@ -146,7 +140,7 @@ class DynMatrix(Database):
         """
         #If the DOS has been calculated, then all the other steps must have
         #completed correctly.
-        dosfile = path.join(self.phonodir, "mesh.yaml")
+        dosfile = path.join(self.phonodir, "total_dos.dat")
         return path.isfile(dosfile)
 
     @property
@@ -229,24 +223,7 @@ class DynMatrix(Database):
             service. First term is a list of special point labels; second is the
             list of points corresponding to those labels.
         """
-        if self._kpath is None:
-            import json
-            poscar = path.join(self.phonodir, "POSCAR")
-            kcache = path.join(self.phonodir, "kpath.json")
-            #We use some caching here so that we don't have to keep querying the
-            #server and waiting for an identical response.
-            if path.isfile(kcache):
-                with open(kcache) as f:
-                    kdict = json.load(f)
-            else:
-                labels, band = _parsed_kpath(poscar)
-                kdict = {"labels": labels, "band": band}
-                with open(kcache, 'w') as f:
-                    json.dump(kdict, f)
-            
-            self._kpath = (kdict["labels"], kdict["band"])
-            
-        return self._kpath
+        return self.parent.repeater.kpath
     
     def calc_bands(self, recalc=False):
         """Calculates the bands at the special points given by the
