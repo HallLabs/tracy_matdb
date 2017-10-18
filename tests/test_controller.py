@@ -51,38 +51,43 @@ def Pd(tmpdir):
     POSCAR = relpath("./tests/Pd/POSCAR")
     copy(POSCAR, dbdir)
     
-    return Controller(target, dbdir)
+    result = Controller(target, dbdir)
+    return result
 
-def test_steps(Pd):
-    """Tests compilation of all steps in the database.
-    """
-    steps = ['Pd.phonon-16.dynmatrix', 'Pd.phonon-16.modulations',
-             'Pd.phonon-2.dynmatrix', 'Pd.phonon-2.modulations',
-             'Pd.phonon-32.dynmatrix', 'Pd.phonon-32.modulations',
-             'Pd.phonon-4.dynmatrix', 'Pd.phonon-4.modulations',
-             'Pd.phonon-54.dynmatrix', 'Pd.phonon-54.modulations']
+@pytest.fixture()
+def dynPd(Pd):
+    Pd.setup()
     
-    seqs = sorted(['Pd.phonon-2', 'Pd.phonon-16', 'Pd.phonon-32',
-                    'Pd.phonon-4', 'Pd.phonon-54'])
-    assert Pd.steps() == steps
-    assert Pd.sequences() == seqs
+    #First, we need to copy the FORCE_SETS and total_dos.dat files so that we
+    #don't have to recompile those (they are tested elsewhere).
+    from matdb.utility import symlink    
+    troot = path.join(reporoot, "tests", "data", "Pd", "dynmatrix")
+    files = ["FORCE_SETS", "total_dos.dat"]
+    for seq in Pd.find("Pd.phonon-*.dynmatrix"):
+        for filename in files:
+            target = path.join(seq.root, "phonopy", filename)
+            source = path.join(troot, "{0}__{1}".format(filename, seq.parent.name))
+            symlink(target, source)
 
-def test_find(Pd):
-    """Tests the find function with pattern matching.
+    return Pd
+
+def test_Pd_phonplot(dynPd, tmpdir):
+    """Tests the plotting of phonon bands for supercell convergence test in Pd.
     """
-    steps = Pd.find("Pd.phonon*.dynmatrix")
-    model = ['Pd.phonon-2', 'Pd.phonon-16', 'Pd.phonon-32', 'Pd.phonon-4', 'Pd.phonon-54']
-    assert model == [s.parent.name for s in steps]
-
-    steps = Pd.find("Pd.phonon-*2.dynmatrix")
-    model = ['Pd.phonon-2', 'Pd.phonon-32']
-    assert model == [s.parent.name for s in steps]
-
-def test_repeater_multi(Pd):
-    """Tests the `niterations` functionality on simple Pd.
+    from matdb.plotting.comparative import band_plot
+    dbs = dynPd.find("Pd.phonon-*.dynmatrix")
+    target = str(tmpdir.join("Pd.phonon-convergence.pdf"))
+    args = {
+        "dim": 3,
+        "save": target
+    }
+    band_plot(dbs, **args)
+    assert path.isfile(target)
+    
+def test_Pd_setup(Pd):
+    """Makes sure the initial folders were setup according to the spec.
     """
     Pd.setup()
-
     modelroot = path.join(Pd.root, "Pd.phonon-2", "dynmatrix")
     assert Pd["Pd.phonon-2.dynmatrix"].root == modelroot
     
@@ -109,7 +114,36 @@ def test_repeater_multi(Pd):
     for db in dbs:
         dbfolder = path.join(Pd.root, db)
         compare_tree(dbfolder, folders)
+    
+def test_steps(Pd):
+    """Tests compilation of all steps in the database.
+    """
+    steps = ['Pd.phonon-16.dynmatrix', 'Pd.phonon-16.modulations',
+             'Pd.phonon-2.dynmatrix', 'Pd.phonon-2.modulations',
+             'Pd.phonon-32.dynmatrix', 'Pd.phonon-32.modulations',
+             'Pd.phonon-4.dynmatrix', 'Pd.phonon-4.modulations',
+             'Pd.phonon-54.dynmatrix', 'Pd.phonon-54.modulations']
+    
+    seqs = sorted(['Pd.phonon-2', 'Pd.phonon-16', 'Pd.phonon-32',
+                    'Pd.phonon-4', 'Pd.phonon-54'])
+    assert Pd.steps() == steps
+    assert Pd.sequences() == seqs
 
+def test_find(Pd):
+    """Tests the find function with pattern matching.
+    """
+    steps = Pd.find("Pd.phonon*.dynmatrix")
+    model = ['Pd.phonon-2', 'Pd.phonon-16', 'Pd.phonon-32', 'Pd.phonon-4', 'Pd.phonon-54']
+    assert model == [s.parent.name for s in steps]
+
+    steps = Pd.find("Pd.phonon-*2.dynmatrix")
+    model = ['Pd.phonon-2', 'Pd.phonon-32']
+    assert model == [s.parent.name for s in steps]
+    
+@pytest.mark.skip()    
+def test_Pd_dynmatrix(Pd):
+    """Tests the `niterations` functionality on simple Pd.
+    """
     #Test the status, we should have some folder ready to execute.
     Pd.status()
 
@@ -172,7 +206,7 @@ def test_repeater_multi(Pd):
     for rkey in okay:
         assert path.isfile(path.join(Pd[rkey].root, "phonopy", "FORCE_SETS"))
         assert path.isfile(path.join(Pd[rkey].root, "phonopy", "total_dos.dat"))
-    
+
 # def test_split():
 #     """Tests the splitting logic and that the ids from original
 #     randomization are saved correctly.
