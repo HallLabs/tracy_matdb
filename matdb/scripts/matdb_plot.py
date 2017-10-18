@@ -9,11 +9,18 @@ def examples():
                "script provides a unified interface for all such plotting.")
     contents = [(("Plot the phonon bands for the structure labeled as 'PdAg25' "
                   "in the `system.yaml` database specification."), 
-                 "matdb_plot.py system.yaml -s PdAg25 --bands",
+                 "matdb_plot.py system.yaml -d PdAg25.phonon.dynmatrix --bands",
                  "If the `bands.yaml` file hasn't been created yet using "
                  "`phonopy`, then this will create that file. Note that "
                  "this does *not* plot any predictions; use -p to specify "
-                 "the names of MTP/GAP potentials to calculate phonons with.")]
+                 "the names of MTP/GAP potentials to calculate phonons with."),
+                ("Plot the supercell convergence of phonon bands for the "
+                 "structure labeled as 'PdAg25' in the `system.yaml` database"
+                 " specification.", 
+                 "matdb_plot.py system.yaml -d PdAg25.phonon*.dynmatrix --bands",
+                 "Notice that * can be used as a pattern. For example, to plot "
+                 "all configurations you could use *.phonon*.dynmatrix, "
+                 "assuming that the database was called `phonon`.")]
     required = ("'matdb.yaml' file with database settings.")
     output = ("")
     details = ("")
@@ -23,10 +30,13 @@ def examples():
 
 script_options = {
     "dbspec": {"help": "File containing the database specifications."},
-    "-s": {"help": "Specify the name of the structure to work with."},
+    "-d": {"help": ("Specify the pattern of the databases to work with. "
+                    "For example `Pd.phonon-2.dynmatrix` specifies the "
+                    "dynamical matrix *step* for suffix `2` of the phonon"
+                    " *database* of configuration `Pd`.")},
     "--bands": {"action": "store_true",
-                "help": ("Plot the phonon bands for the structure given "
-                         "by '-s'")},
+                "help": ("Plot the phonon bands for the structures given "
+                         "by '-d'")},
     "--dim": {"nargs": "+", "default": 2,
               "help": ("Specify the supercell dimensions for the phonon "
                        "calculations.")},
@@ -43,9 +53,7 @@ script_options = {
                   "help": "Specify the size of the figure in inches."},
     "--save": {"help": "Specify the name of a file to save the plot to." },
     "--nbands": {"help": "Number of bands to plot.",
-                 "default": 4},
-    "--name": {"help": ("If multiple DFT phonon databases exist, specify "
-                        "which one to use for plotting.")}
+                 "default": 4}
     }
 """dict: default command-line arguments and their
     :meth:`argparse.ArgumentParser.add_argument` keyword arguments.
@@ -68,44 +76,6 @@ def _parser_options():
 
     return args
 
-def _band_plot(phondb, args):
-    """Plots the phonon bands for the specified CLI args.
-
-    Args:
-        phondb (matdb.database.phonon.PhononDFT): `phonopy` calculation
-          database instance that has DFT-accurate band information.
-    """
-    from matdb.phonons import bandplot
-    from os import path
-    DFT = phondb.bands
-    names, kpath = phondb.kpath
-    #matplotlib needs the $ signs for latex if we are using special characters.
-    names = ["${}$".format(n) if '\\' in n else n for n in names]
-
-    from matdb.phonons import calc as phon_calc
-    from tqdm import tqdm
-    bands = {"DFT": DFT}
-    colors = ['k', 'b', 'g', 'r', 'c', 'm', 'y' ]
-    style = {"DFT": {"color": colors[0], "lw": 2}}
-    
-    if args["pots"]:
-        for poti, potpath in enumerate(tqdm(args["pots"])):
-            potname = path.basename(potpath)
-            potkey = potname[:-4]
-            pottype = "GAP" if potname[0:2] == "gp" else "MTP"
-            bands[potkey] = phon_calc(phondb.atoms, potpath, kpath,
-                                      phondb.phonocache, supercell=args["dim"],
-                                      Npts=args["npts"], potname=pottype)
-            style[potkey] = {"color": colors[1+poti], "lw": 2}
-
-    title = args["title"].format(phondb.atoms.get_chemical_formula())
-    savefile = None
-    if args["save"]:
-        savefile = path.join(phondb.parent.plotdir, args["save"])
-                             
-    bandplot(bands, names, title=title, outfile=savefile,
-             figsize=args["figsize"], style=style, nbands=args["nbands"])
-
 def run(args):
     """Runs the matdb setup and cleanup to produce database files.
     """
@@ -116,22 +86,16 @@ def run(args):
     #database controller for the specification they have given us.
     from matdb.database.controller import Controller
     cdb = Controller(args["dbspec"])
-    target = cdb.collections[args["s"]]
+
+    #We allow any number of databases to be plotted together at the same
+    #tame. The `s` argument gives a `fnmatch` pattern for database paths.
+    #For example `Pd.phonon-2.dynmatrix` specifies the dynamical matrix *step*
+    #for suffix `2` of the phonon *database* of configuration `Pd`.
+    dbs = cdb.find(args["d"])
     
     if args["bands"]:
-        if not args["name"]:
-            phonon = target.bytype["phonon.PhononDFT"]
-            if len(phonon) > 1:
-                raise ValueError("More than one DFT phonon database available."
-                                 " Specify which to use with --name.")
-            else:
-                dbname = phonon[0]
-        else:
-            dbname = args["name"]
-            
-        phondb = target.databases[dbname]
-        phondb.calc_bands()
-        _band_plot(phondb, args)        
+        from matdb.plotting.comparative import band_plot
+        band_plot(phondbs, **args)
         
 if __name__ == '__main__': # pragma: no cover
     run(_parser_options())
