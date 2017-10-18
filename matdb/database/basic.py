@@ -278,10 +278,10 @@ class Database(object):
         detail = self.status(False)
         failed = [k for k, v in detail["done"].items() if not v]
         identity = "{0}|{1}".format(self.parent.name, self.name)
+        xpath = path.join(self.root, "failures")
         
         if len(failed) > 0:
             #Only write a failures file if we had failures.
-            xpath = path.join(self.root, "failures")
             with open(xpath, 'w') as f:
                 f.write('\n'.join(failed))
 
@@ -295,10 +295,12 @@ class Database(object):
             self.jobfile(rerun, recovery=True)
         else:
             #Delete any existing recovery files from previous failures.
+            from os import remove
             jobfile = path.join(self.root, "recovery.sh")
             if path.isfile(jobfile):
-                from os import remove
-                remove(jobfile)            
+                remove(jobfile)
+            if path.isfile(xpath):
+                remove(xpath)
                     
     def jobfile(self, rerun=False, recovery=False):
         """Creates the job array file to run each of the sub-configurations in
