@@ -426,7 +426,7 @@ class SequenceRepeater(object):
         """Runs the cleanup methods of each step's databases in the sequence.
         """
         for db in self.sequences.values():
-            db.cleanup(recovery)
+            db.cleanup()
 
     def setup(self, rerun=False):
         """Sets up the each step's database in the sequence in order. If an

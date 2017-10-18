@@ -314,7 +314,7 @@ class DynMatrix(Database):
                 f.write("{} = {}\n".format(k, v))
 
         from matdb.utility import execute
-        sargs = ["phonopy", "-p", "dos.conf"]
+        sargs = ["phonopy", "-p", "dos.conf", "-s", "dos.pdf"]
         xres = execute(sargs, self.phonodir, venv=True)
         if not path.isfile(dosfile):
             msg.err("could not calculate the DOS; see errors.")
