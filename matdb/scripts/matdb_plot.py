@@ -95,7 +95,7 @@ def run(args):
     
     if args["bands"]:
         from matdb.plotting.comparative import band_plot
-        band_plot(phondbs, **args)
+        band_plot(dbs, **args)
         
 if __name__ == '__main__': # pragma: no cover
     run(_parser_options())
