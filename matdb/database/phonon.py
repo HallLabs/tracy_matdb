@@ -283,7 +283,7 @@ class DynMatrix(Database):
                 f.write("{} = {}\n".format(k, v))
 
         from matdb.utility import execute
-        sargs = ["phonopy", "-p", "band.conf"]
+        sargs = ["phonopy", "-p", "band.conf", "-s"]
         xres = execute(sargs, self.phonodir, venv=True)
         if not path.isfile(bandfile):
             msg.err("could not calculate phonon bands; see errors.")
@@ -314,7 +314,7 @@ class DynMatrix(Database):
                 f.write("{} = {}\n".format(k, v))
 
         from matdb.utility import execute
-        sargs = ["phonopy", "-p", "dos.conf", "-s", "dos.pdf"]
+        sargs = ["phonopy", "-p", "dos.conf", "-s"]
         xres = execute(sargs, self.phonodir, venv=True)
         if not path.isfile(dosfile):
             msg.err("could not calculate the DOS; see errors.")
