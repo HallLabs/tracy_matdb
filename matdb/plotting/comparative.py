@@ -3,7 +3,7 @@ product. In order to adjust parameters it is useful to plot potentials and
 convergence runs against each other.
 """
 def band_plot(phondbs, pots=None, dim=2, npts=100, title="{} Phonon Spectrum",
-              save=None, figsize=(10, 8), nbands=4):
+              save=None, figsize=(10, 8), nbands=4, **kwargs):
     """Plots the phonon bands for the specified CLI args.
 
     Args:
@@ -21,6 +21,8 @@ def band_plot(phondbs, pots=None, dim=2, npts=100, title="{} Phonon Spectrum",
           shown in a window.
         figsize (tuple): of `float`; the size of the figure in inches.
         nbands (int): number of bands to plot.
+        kwargs (dict): additional "dummy" arguments so that this method can be
+          called with arguments to other functions.
     """
     from matdb.phonons import bandplot
     from os import path
