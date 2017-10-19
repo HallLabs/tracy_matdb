@@ -456,17 +456,18 @@ def sample_dos(meshfile, sampling="uniform", nfreqs=100):
 
     return [lookup[f] for f in np.round(sample, 6)]
 
-def update_phonons(basic):
+def update_phonons(basic, base):
     """Updates the `basic` phonon settings using the usual defaults. The update
     only happens if the user didn't already specify a value in the config file.
 
     Args:
         basic (dict): user-specified phonon settings that should be updated to
           include defaults.
+        base (DynMatrix): dynamical matrix step to take default values from.
     """
     usuals = {
-        "mesh": [13, 13, 13],
-        "dim": [2, 2, 2]
+        "mesh": base.dosmesh,
+        "dim": base.supercell
     }
     for k, v in usuals.items():
         if k not in basic:
@@ -568,7 +569,7 @@ class Calibration(Database):
                                                 parent, "C", nconfigs)
         self.base = self.parent.steps[dynmat]
         self.phonons = phonons
-        update_phonons(self.phonons)
+        update_phonons(self.phonons, self.base)
 
         #Calculate which amplitudes to use for the calibration based on the
         #number of desired configurations (calibration points).
@@ -775,8 +776,8 @@ class Modulation(Database):
         msg.info(imsg.format(self.amplitude, calibrated, self.parent.name), 2)
 
         self.base = self.parent.steps[dynmat]
-        self.phonons = phonons        
-        update_phonons(self.phonons)
+        self.phonons = phonons
+        update_phonons(self.phonons, self.base)
 
     def ready(self):
         """Determines if this database is finished calculating by testing the

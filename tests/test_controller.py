@@ -62,7 +62,7 @@ def dynPd(Pd):
     #don't have to recompile those (they are tested elsewhere).
     from matdb.utility import symlink    
     troot = path.join(reporoot, "tests", "data", "Pd", "dynmatrix")
-    files = ["FORCE_SETS", "total_dos.dat"]
+    files = ["FORCE_SETS", "total_dos.dat", "mesh.yaml"]
     for seq in Pd.find("Pd.phonon-*.dynmatrix"):
         for filename in files:
             target = path.join(seq.root, "phonopy", filename)
@@ -71,6 +71,7 @@ def dynPd(Pd):
 
     return Pd
 
+@pytest.mark.skip()
 def test_Pd_phonplot(dynPd, tmpdir):
     """Tests the plotting of phonon bands for supercell convergence test in Pd.
     """
@@ -118,20 +119,21 @@ def test_Pd_setup(Pd):
 def test_steps(Pd):
     """Tests compilation of all steps in the database.
     """
-    steps = ['Pd.phonon-16.dynmatrix', 'Pd.phonon-16.modulations',
-             'Pd.phonon-2.dynmatrix', 'Pd.phonon-2.modulations',
-             'Pd.phonon-32.dynmatrix', 'Pd.phonon-32.modulations',
-             'Pd.phonon-4.dynmatrix', 'Pd.phonon-4.modulations',
-             'Pd.phonon-54.dynmatrix', 'Pd.phonon-54.modulations']
+    steps = ['Pd.modulate.dynmatrix', 'Pd.modulate.modulations',                          
+             'Pd.phonon-16.dynmatrix', 'Pd.phonon-2.dynmatrix',
+             'Pd.phonon-32.dynmatrix', 'Pd.phonon-4.dynmatrix',
+             'Pd.phonon-54.dynmatrix'] 
     
     seqs = sorted(['Pd.phonon-2', 'Pd.phonon-16', 'Pd.phonon-32',
-                    'Pd.phonon-4', 'Pd.phonon-54'])
+                   'Pd.phonon-4', 'Pd.phonon-54', 'Pd.modulate'])
     assert Pd.steps() == steps
     assert Pd.sequences() == seqs
 
 def test_find(Pd):
     """Tests the find function with pattern matching.
     """
+    assert Pd['Pd.modulate.dynmatrix'] is Pd['Pd.phonon-16.dynmatrix']
+    
     steps = Pd.find("Pd.phonon*.dynmatrix")
     model = ['Pd.phonon-2', 'Pd.phonon-16', 'Pd.phonon-32', 'Pd.phonon-4', 'Pd.phonon-54']
     assert model == [s.parent.name for s in steps]
@@ -140,10 +142,35 @@ def test_find(Pd):
     model = ['Pd.phonon-2', 'Pd.phonon-32']
     assert model == [s.parent.name for s in steps]
     
+def test_Pd_modulation(dynPd):
+    """Tests generation of modulated configurations along phonon modes.
+    """
+    #Call setup again since we have force_sets and DOS available.
+    dynPd.cleanup()
+    dynPd.setup()
+
+    folders = {
+        "modulations": {
+            "__files__": ["INCAR", "PRECALC", "jobfile.sh"]
+        }
+    }
+
+    files = ["INCAR", "POSCAR", "POTCAR", "PRECALC", "KPOINTS"]
+    for i in range(1, 6):
+        key = "M.{0:d}".format(i)
+        folders["modulations"][key] = {}
+        folders["modulations"][key]["__files__"] = files
+
+    from matdb.utility import compare_tree
+    dbfolder = path.join(dynPd.root, "Pd.modulate")
+    compare_tree(dbfolder, folders)    
+    
 @pytest.mark.skip()    
 def test_Pd_dynmatrix(Pd):
     """Tests the `niterations` functionality on simple Pd.
     """
+    Pd.setup()
+        
     #Test the status, we should have some folder ready to execute.
     Pd.status()
 

@@ -27,6 +27,8 @@ class DatabaseSequence(object):
 
     Attributes:
         title (str): title for the alloy system that these databases work with.
+        config (str): name of the configuration that this database sequence is
+          running for.
         species (list): of `str` element names in the alloy system.
         potcars (dict): keys are lower-case element names; values are *suffixes*
           for the various pseudo-potentials that ship with VASP.
@@ -45,6 +47,7 @@ class DatabaseSequence(object):
     """
     def __init__(self, name, repeater, root, parent, steps):
         self.name = name
+        self.config = name.split('.')[0]
         self.atoms = repeater.atoms.copy()
         self.root = path.join(root, name)
         self.repeater = repeater
@@ -120,8 +123,8 @@ class DatabaseSequence(object):
             #Handle the special cases where settings are specified uniquely for
             #each of the configurations separately.
             for k in list(cpspec.keys()):
-                if isinstance(cpspec[k], dict) and self.name in cpspec[k]:
-                    cpspec[k] = cpspec[k][self.name]
+                if isinstance(cpspec[k], dict) and self.config in cpspec[k]:
+                    cpspec[k] = cpspec[k][self.config]
             
             instance = cls(**cpspec)
             self.steps[instance.name] = instance
