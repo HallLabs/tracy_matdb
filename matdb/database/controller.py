@@ -618,9 +618,19 @@ class Controller(object):
 
             >>> Pd = Controller("Pd.yml")
             >>> Pd.find("Pd.phonon*.dynmatrix")
+
+            Get all the database sequences for liquids across all configurations in
+            the database.
+
+            >>> CdWO4 = Controller("CdWO4.yml")
+            >>> CdWO4.find("*.liquid*")
         """
         from fnmatch import fnmatch
-        config, parent, db = pattern.split('.')
+        if pattern.count('.') == 2:
+            config, parent, db = pattern.split('.')
+        else:
+            config, parent = pattern.split('.')
+            db = None
         colls = [v for k, v in self.collections.items() if fnmatch(k, config)]
 
         #For databases without repeaters, there is no suffix.
@@ -629,16 +639,21 @@ class Controller(object):
         else:
             dbname, suffix = parent, None
 
-        steps = []
+        result = []
         for coll in colls:
             dbs = [dbi for dbn, dbi in coll.items() if fnmatch(dbn, dbname)]
             for dbi in dbs:
                 seqs = [seqi for seqn, seqi in dbi.sequences.items()
                         if fnmatch(seqn, '.'.join((config, parent)))]
-                for seq in seqs:
-                    steps.extend([si for sn, si in seq.steps.items()
-                                  if fnmatch(sn, db)])
-        return steps
+
+                if db is not None:
+                    for seq in seqs:
+                        result.extend([si for sn, si in seq.steps.items()
+                                       if fnmatch(sn, db)])
+                else:
+                    result.extend(seqs)
+                    
+        return result
 
     def steps(self):
         """Compiles a list of all steps in this set of databases.
@@ -667,14 +682,23 @@ class Controller(object):
         necessary because of the hierarchy of objects needed to implement
         sequence repitition.
         """
-        config, parent, db = key.split('.')
+        if key.count('.') == 2:
+            config, parent, db = key.split('.')
+        else:
+            config, parent = key.split('.')
+            db = None
+            
         coll = self.collections[config]
         if '-' in parent:
             dbname, suffix = parent.split('-')
         else:
             dbname = parent
         seq = coll[dbname].sequences['.'.join((config, parent))]
-        return seq.steps[db]
+
+        if db is not None:
+            return seq.steps[db]
+        else:
+            return seq
                         
     def setup(self, rerun=False, cfilter=None, dfilter=None):
         """Sets up each of configuration's databases.
