@@ -705,7 +705,7 @@ class Modulation(Database):
           displaced to generate the database.
         root (str): path to the folder where the database directories will
           be stored.
-        parent (matdb.database.controller.DatabaseCollection): parent collection
+        parent (matdb.database.controller.DatabaseSequence): parent collection
           to which this database belongs.
         incar (dict): specify additional settings for the INCAR file (i.e.,
           differing from, or in addition to those in the global set).
