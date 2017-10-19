@@ -4,6 +4,7 @@ folders via a simple configuration file.
 from os import path
 from matdb import msg
 import numpy as np
+import six
 
 class DatabaseSequence(object):
     """Represents a sequence of databases (all inheriting from
@@ -91,6 +92,13 @@ class DatabaseSequence(object):
         from collections import OrderedDict
         self.steps = OrderedDict()
         for dbspec in steps:
+            if isinstance(dbspec, six.string_types):
+                #This is a reference to an existing database instance that was
+                #defined previously.
+                instance = self.parent[dbspec]
+                self.steps[instance.name] = instance
+                continue
+                
             modname, clsname = dbspec["type"].split('.')
             fqdn = "matdb.database.{}".format(modname)
             module = import_module(fqdn)
@@ -537,7 +545,7 @@ class Controller(object):
                 dbname = '.'.join((name, dbspec["name"]))
                 steps = dbspec["steps"]
                 seq = SequenceRepeater(dbname, poscar, self.root, self,
-                                       steps, dbspec["niterations"])
+                                       steps, dbspec.get("niterations"))
                 self.collections[name][dbspec["name"]] = seq
 
         from os import mkdir
@@ -658,7 +666,10 @@ class Controller(object):
         """
         config, parent, db = key.split('.')
         coll = self.collections[config]
-        dbname, suffix = parent.split('-')
+        if '-' in parent:
+            dbname, suffix = parent.split('-')
+        else:
+            dbname = parent
         seq = coll[dbname].sequences['.'.join((config, parent))]
         return seq.steps[db]
                         
