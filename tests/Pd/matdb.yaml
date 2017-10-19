@@ -63,11 +63,6 @@ databases:
           dim: [2, 2, 2]
         bandmesh: [13, 13, 13]
         dosmesh: [10, 10, 10]
-      - type: "phonon.Modulation"
-        nconfigs: 5
-        sampling: 'uniform'
-        amplitude:
-          Si: 10
     niterations:
       - phonopy.dim: [0,1,1,1,0,1,1,1,0]
         suffix: "-2"
@@ -79,3 +74,11 @@ databases:
         suffix: "-4"
       - phonopy.dim: [3,3,3]
         suffix: "-54"
+  - name: 'modulate'
+    steps:
+      - "Pd.phonon-16.dynmatrix"
+      - type: "phonon.Modulation"
+        nconfigs: 5
+        sampling: 'uniform'
+        amplitude:
+          Pd: 10
