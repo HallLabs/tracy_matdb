@@ -29,60 +29,35 @@ class Trainer(object):
 
     Args:
         name (str): name of this model; used as the output folder name.
-        db (matdb.database.controller.Controller): database controller whose
-          data will be used to train the potentials.
-        sources (list): of `str` database patterns from the `db`
-          that should be included in the training and validation.
-        split (float): percentage of the available data to use for
-          training (vs. validation).
+        controller (matdb.fitting.controller.Controller): fitting controller
+          whose data will be used to train the potentials.
+        dbs (list): of `str` database patterns from the `db` that should be
+          included in the training and validation.
         execution (dict): settings needed to configure the jobfile for running
           the fit.
 
     Attributes:
-        db (matdb.database.controller.Controller): database controller whose
-          data will be used to train the potentials.
-        name (str): name of the folder in which all the fitting for this trainer
-          takes place; defaults to :attr:`outfile` without the extension.
-        root (str): root directory that this trainer operates in.
-        split (float): percentage of the available data to use for
-          training (vs. validation).
-        execution (dict): default settings needed to configure the
-          jobfile for running the fit.
-        state (list): of `int` step codes in :attr:`gap` indicating the current
-          progress/state in the multi-chain fitting process. This value iterates
-          over each of the fits in turn, adding one extra one each time the
-          previous set has finished executing.
-        latest (str): name of the latest, complete potential file that can be
-          used to make predictions for configurations.
-        sources (list): of `str` database patterns from the `db`
-          that should be included in the training and validation.
     """
-    def __init__(self, name=None, db=None, sources=None, split=0.5,
-                 execution={}):
-        self.db = db
-        if db is None:
-            raise ValueError("Cannot train a model without a database of "
-                             "configurations!")
-
+    def __init__(self, controller=None, dbs=None, execution={}, split=None):
+        self.controller = controller
+        self.execution = execution.copy()
         self.split = split
-        self.execution = execution.copy()        
-        self.sources = ['*.*'] if sources is None else sources
-        if not isinstance(self.sources, (list, set, tuple)):
-            self.sources = [self.sources]
+        self._dbs = ['*.*'] if dbs is None else dbs
+        if not isinstance(self._dbs, (list, set, tuple)):
+            self._dbs = [self._dbs]
         
         #Configure the fitting directory for this particular set of
         #potentials. This way, we can get separate directories if the parameters
         #change.
         from os import mkdir
-        self.name = name
         self.root = path.join(root, self.name)
         if not path.isdir(self.root):
             mkdir(self.root)
 
         #Find all the database sequences that match the patterns supplied to us.
         self.dbs = []
-        for source in self.sources:
-            self.dbs.extend(self.db.find(source))
+        for dbpat in self._dbs:
+            self.dbs.extend(self.controller.db.find(dbpat))
             
         self._calculator = None
         """ase.Calculator: potential for the fitted file in this Trainer.
@@ -112,6 +87,23 @@ class Trainer(object):
         """
         pass
 
+    def extras(self):
+        """Returns a list of extra XYZ training files that should be included in
+        the database training. This is used by some trainers that create
+        additional configurations as part of the training.
+
+        .. note:: This method returns an empty list; override it if necessary.
+        """
+        return []
+    
+    def ready(self):
+        """Returns True if the training step is complete. This method usually
+        just tests whether the :attr:`calculator` is a valid object. However,
+        for training steps that don't produce calculators, this method can be
+        overridden.
+        """
+        return self.calculator is not None
+    
     @abc.abstractmethod
     def status(self, printed=True):
         """Returns or prints the current status of the training.
@@ -242,7 +234,7 @@ class Trainer(object):
             #done a second time.
             seq.split(self.split)
             tfiles.append(seq.train_file)
-
+        tfiles.extend(self.extras)
         cat(tfiles, self._trainfile)
         
         # We use the global execution parameters and then any updates
