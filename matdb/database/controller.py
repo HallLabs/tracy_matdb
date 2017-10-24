@@ -556,7 +556,7 @@ class Controller(object):
         self.trainer = None
         if "fitting" in self.specs:
             from matdb.fitting.controller import TController
-            tict = self.specs["fitting"].copy()
+            tdict = self.specs["fitting"].copy()
             tdict["root"] = self.root
             tdict["db"] = self
             self.trainer = TController(**tdict)
