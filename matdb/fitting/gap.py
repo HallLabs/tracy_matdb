@@ -148,24 +148,23 @@ class GAP(Trainer):
     """
     def __init__(self, nb=None, controller=None, dbs=None, execution=None,
                  split=None, sigmas=None, ogaps=None, teach_sparse=None,
-                 **gapargs):
+                 root=None, **gapargs):
         self.name = "{}b".format(nb) if isinstance(nb, int) else "soap"
-        super(Nb, self).__init__(controller, dbs, execution, split)
+        super(GAP, self).__init__(controller, dbs, execution, split, root)
 
         self.controller = controller
         self.e0 = controller.e0
         self.sigmas = sigmas
         self.gap = gapargs
-        self.ogaps = [self.controller[gap] for gap in ogaps]
-        self.gp_file = "{}.xml".format(self.name)        
-        self.hessfit = "hessian_delta" in self.teach_sparse
+        self.ogaps = [] if ogaps is None else [controller[gap] for gap in ogaps]
+        self.gp_file = "{}.xml".format(self.name)
         self.teach_sparse = {} if teach_sparse is None else teach_sparse
+        self.hessfit = "hessian_delta" in self.teach_sparse
         
         #Configure the fitting directory for this particular set of
         #potentials. This way, we can get separate directories if the number of
         #n-body or soap potentials changes.
         from os import mkdir
-        self.root = path.join(root, self.name)
         if not path.isdir(self.root):
             mkdir(self.root)
 

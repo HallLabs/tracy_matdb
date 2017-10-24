@@ -1,7 +1,7 @@
 """Implements a basic trainer that train material models.
 """
 import abc
-
+from os import path
 class Trainer(object):
     """Represents an algorithm that can use a :class:`DatabaseSequence` (or set of
     sequences) to produce a multi-component potential.
@@ -38,9 +38,10 @@ class Trainer(object):
 
     Attributes:
     """
-    def __init__(self, controller=None, dbs=None, execution={}, split=None):
+    def __init__(self, controller=None, dbs=None, execution={}, split=None,
+                 root=None):
         self.controller = controller
-        self.execution = execution.copy()
+        self.execution = {} if execution is None else execution.copy()
         self.split = split
         self._dbs = ['*.*'] if dbs is None else dbs
         if not isinstance(self._dbs, (list, set, tuple)):

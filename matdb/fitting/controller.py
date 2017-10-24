@@ -5,6 +5,11 @@ module supplies objects (similar in spirit to :mod:`matdb.database.controller`
 for producting sequences of training objects that can be repeated across
 parameter grids.
 """
+from collections import OrderedDict
+from os import path
+import six
+from matdb import msg
+
 class TrainingSequence(object):
     """Represents a sequence of training steps (each sub-classing
     :class:`~matdb.training.basic.Trainer`) where each subsequent step depends
@@ -17,7 +22,7 @@ class TrainingSequence(object):
           that all share the same root training and validation databases.
         root (str): root directory in which all other training sequences for
           the configurations in the same specification will be stored.
-        parent (TController): instance controlling multiple trainers.
+        controller (TController): instance controlling multiple trainers.
         steps (list): of `dict` describing the kinds of potential training steps
           to setup.
         kwargs (dict): key-value pairs to pass to the individual trainer
@@ -54,6 +59,7 @@ class TrainingSequence(object):
             if not hasattr(module, clsname):# pragma: no cover
                 #We haven't implemented this database type yet, just skip the
                 #initialization for now.
+                msg.warn("Cannot find trainer of type {}.".format(tspec["type"]))
                 continue
             
             cls = getattr(module, clsname)
@@ -64,6 +70,7 @@ class TrainingSequence(object):
             del cpspec["type"]
             cpspec["root"] = self.root
             cpspec["parent"] = self
+            cpspec["controller"] = self.controller
 
             #Add in the default values passed in from the parent instances, but
             #only update them if they weren't specified.
@@ -99,9 +106,14 @@ class TSequenceRepeater(object):
         self.sequences = OrderedDict()
         self.root = path.join(root, name)
         
+        if not path.isdir(self.root):
+            from os import mkdir
+            mkdir(self.root)
+        
         if niterations is not None:
             from matdb.utility import obj_update
-            
+            from copy import copy
+        
             for i, sequence in enumerate(niterations):
                 nname = None
                 isteps = copy(steps)
@@ -115,11 +127,11 @@ class TSequenceRepeater(object):
                 if nname is None:
                     nname = self.name + "-{0:d}".format(i)
 
-                iobj = TrainingSequence(nname, self, self.root, parent, isteps,
-                                        **kwargs)
+                iobj = TrainingSequence(nname, self, self.root, controller,
+                                        isteps, **kwargs)
                 self.sequences[nname] = iobj
         else:
-            single = TrainingSequence(name, self, self.root, parent, steps,
+            single = TrainingSequence(name, self, self.root, controller, steps,
                                       **kwargs)
             self.sequences[name] = single
 
@@ -139,6 +151,7 @@ class TController(object):
     def __init__(self, db=None, root=None, fits=None, e0=None, **kwargs):
         self.db = db
         self.e0 = e0
+        self.root = root
         self.fits = OrderedDict()
 
         for fspec in fits:
