@@ -7,9 +7,8 @@ import numpy as np
 import six
 
 class DatabaseSequence(object):
-    """Represents a sequence of databases (all inheriting from
-    :class:`Database`) that are all related be the atomic
-    configuration that they model.
+    """Represents a sequence of databases (all inheriting from :class:`Database`)
+    that are all related be the atomic configuration that they model.
 
     .. note:: See the list of attributes below which correspond to the sections
       in the YAML database specification file.
@@ -24,6 +23,8 @@ class DatabaseSequence(object):
         parent (Controller): instance controlling multiple configurations.
         steps (list): of `dict` describing the kinds of sub-configuration
           database steps to setup.
+        splits (dict): keys are split names; values are `float` *training*
+          percentages to use.
 
     Attributes:
         title (str): title for the alloy system that these databases work with.
@@ -44,13 +45,15 @@ class DatabaseSequence(object):
         steps (OrderedDict): keys are step names (e.g. `dft`, `calibration`,
           etc.); values are the corresponding class instances.
         parent (Controller): instance controlling multiple configurations.
+
     """
-    def __init__(self, name, repeater, root, parent, steps):
+    def __init__(self, name, repeater, root, parent, steps, splits):
         self.name = name
         self.config = name.split('.')[0]
         self.atoms = repeater.atoms.copy()
         self.root = path.join(root, name)
         self.repeater = repeater
+        self.splits = {} if splits is None else splits
         
         if not path.isdir(self.root):
             from os import mkdir
@@ -61,31 +64,6 @@ class DatabaseSequence(object):
         for ref in parrefs:
             setattr(self, ref, getattr(parent, ref))
         self.parent = parent
-
-        self._trainfile = None
-        """str: name of the file that stores the sequence's XYZ *training*
-        database.
-        """
-        self._holdoutfile = None
-        """str: name of the file that stores the sequence's XYZ *validation*
-        database.
-        """        
-        self._superfile = None
-        """str: name of the file that stores the sequence's XYZ
-        *super*-validation database.
-        """        
-
-        #See if we have a training and holdout file specified already.
-        from glob import glob
-        from matdb.utility import chdir
-        with chdir(self.root):
-            for xyzname in glob("*.xyz"):
-                if "train" in xyzname:
-                    self._trainfile = xyzname
-                if "hold" in xyzname:
-                    self._holdoutfile = xyzname
-                if "super" in xyzname:
-                    self._superfile = xyzname
         
         from importlib import import_module
         self._settings = steps
@@ -197,53 +175,65 @@ class DatabaseSequence(object):
                 break
         msg.blank()
 
-    @property
-    def train_file(self):
+    def train_file(self, split):
         """Returns the full path to the XYZ database file that can be
         used for training.
-        """
-        return path.join(self.root, self._trainfile)
-
-    @property
-    def holdout_file(self):
-        """Returns the full path to the XYZ database file that can be
-        used to validate the potential fit.
-        """
-        return path.join(self.root, self._holdoutfile)
-
-    @property
-    def super_file(self):
-        """Returns the full path to the XYZ database file that can be
-        used to *super* validate the potential fit.
-        """
-        return path.join(self.root, self._superfile)
-    
-    def split(self, train_perc, trainfile="train.xyz", holdfile="holdout.xyz",
-              recalc=0, superfile="super.xyz"):
-        """Splits the total available data in all databases into a
-        training and holdout set.
 
         Args:
-            train_perc (float): percentage of the data to use for training.
-            trainfile (str): name of the training XYZ file to create.
-            holdfile (str): name of the holdout/validation XYZ file to create.
+            split (str): name of the split to use.
+        """
+        return path.join(self.root, "{0}-train.xyz".format(split))
+
+    def holdout_file(self, split):
+        """Returns the full path to the XYZ database file that can be
+        used to validate the potential fit.
+
+        Args:
+            split (str): name of the split to use.
+        """
+        return path.join(self.root, "{0}-holdout.xyz".format(split))
+
+    def super_file(self, split):
+        """Returns the full path to the XYZ database file that can be
+        used to *super* validate the potential fit.
+
+        Args:
+            split (str): name of the split to use.
+        """
+        return path.join(self.root, "{0}-super.xyz".format(split))
+
+    def split(self, recalc=0):
+        """Splits the database multiple times, one for each `split` setting in
+        the database specification.
+        """
+        for name in self.splits:
+            self._split(name, recalc)
+    
+    def _split(self, name, recalc=0):
+        """Splits the total available data in all databases into a training and holdout
+        set.
+
+        Args:
+            name (str): name of the split to perform.
             recalc (int): when non-zero, re-split the data and overwrite any
               existing *.xyz files. This parameter decreases as
               rewrites proceed down the stack. To re-calculate
               lower-level XYZ files, increase this value.
-        """
-        from matdb.utility import safe_update
-        safe_update(self, {"_trainfile": trainfile, "_holdoutfile": holdfile,
-                           "_superfile": superfile})
 
-        if (path.isfile(self.train_file) and path.isfile(self.holdout_file)
-            and path.isfile(self.super_file) and recalc <= 0):
+        """
+        train_file = self.train_file(name)
+        holdout_file = self.holdout_file(name)
+        super_file = self.super_file(name)
+        if (path.isfile(train_file) and path.isfile(holdout_file)
+            and path.isfile(super_file) and recalc <= 0):
             return
+
+        train_perc = self.splits[name]
         
         #Compile a list of all the sub-configurations we can include in the
         #training.
         from cPickle import dump, load
-        idfile = path.join(self.root, "ids.pkl")
+        idfile = path.join(self.root, "{0}-ids.pkl".format(name))
         if path.isfile(idfile):
             with open(idfile, 'rb') as f:
                 data = load(f)
@@ -305,9 +295,9 @@ class DatabaseSequence(object):
         superfiles = subset(subconfs, sids)
 
         from matdb.utility import cat
-        cat(trainfiles, self.train_file)
-        cat(holdfiles, self.holdout_file)
-        cat(superfiles, self.super_file)
+        cat(trainfiles, train_file)
+        cat(holdfiles, holdout_file)
+        cat(superfiles, super_file)
         
     def cleanup(self):
         """Runs the cleanup methods of each database in the collection, in the
@@ -351,6 +341,8 @@ class SequenceRepeater(object):
         parent (Controller): instance controlling multiple configurations.
         steps (list): of `dict` describing the kinds of sub-configuration
           database steps to setup.
+        splits (dict): keys are split names; values are `float` *training*
+          percentages to use.
 
     Attributes:
         atoms (quippy.atoms.Atoms): a single atomic configuration from
@@ -360,7 +352,8 @@ class SequenceRepeater(object):
           all sequences in this repeater will use.
         kfile (str): path to the kpath.json cached file for this repeater.        
     """
-    def __init__(self, name, poscar, root, parent, steps, niterations=None):
+    def __init__(self, name, poscar, root, parent, steps, niterations=None,
+                 splits=None):
         from collections import OrderedDict
         from copy import copy
         from quippy.atoms import Atoms
@@ -393,10 +386,10 @@ class SequenceRepeater(object):
                 if nname is None:
                     nname = self.name + "-{0:d}".format(i)
 
-                iobj = DatabaseSequence(nname, self, root, parent, isteps)
+                iobj = DatabaseSequence(nname, self, root, parent, isteps, splits)
                 self.sequences[nname] = iobj
         else:
-            single = DatabaseSequence(name, self, root, parent, steps)
+            single = DatabaseSequence(name, self, root, parent, steps, splits)
             self.sequences[name] = single
 
     @property
@@ -462,15 +455,11 @@ class SequenceRepeater(object):
         for db in self.sequences.values():
             db.execute(recovery, env_vars=env_vars)
 
-    def split(self, train_perc, trainfile="train.xyz", holdfile="holdout.xyz",
-              recalc=0, superfile="super.xyz"):
+    def split(self, recalc=0):
         """Splits the total available data in each step's databases into a training and
         holdout set.
 
         Args:
-            train_perc (float): percentage of the data to use for training.
-            trainfile (str): name of the training XYZ file to create.
-            holdfile (str): name of the holdout/validation XYZ file to create.
             recalc (int): when non-zero, re-split the data and overwrite any
               existing *.xyz files. This parameter decreases as
               rewrites proceed down the stack. To re-calculate
@@ -478,7 +467,7 @@ class SequenceRepeater(object):
         """
         for db in self.sequences.values():
             nrecalc = recalc - (0 if len(self.steps) == 0 else 1)
-            db.split(train_perc, trainfile, holdfile, superfile, nrecalc)
+            db.split(nrecalc)
 
     def cleanup(self):
         """Runs the cleanup methods of each step's databases in the sequence.
@@ -548,7 +537,8 @@ class Controller(object):
                 dbname = '.'.join((name, dbspec["name"]))
                 steps = dbspec["steps"]
                 seq = SequenceRepeater(dbname, poscar, self.root, self,
-                                       steps, dbspec.get("niterations"))
+                                       steps, dbspec.get("niterations"),
+                                       self.specs.get("splits"))
                 self.collections[name][dbspec["name"]] = seq
 
         from os import mkdir
@@ -564,23 +554,12 @@ class Controller(object):
 
         #If the controller is going to train any potentials, we also need to 
         self.trainer = None
-        if "training" in self.specs:
-            from matdb.fitting.gap import GAPTrainer
-            gpdict = self.specs["training"].copy()
-            gpdict["root"] = self.root
-            gpdict["db"] = self
-            self.trainer = GAPTrainer(**gpdict)
-
-        self._trainfile = None
-        """str: name of the file that stores the XYZ *training* database.
-        """
-        self._holdoutfile = None
-        """str: name of the file that stores the XYZ *validation* database.
-        """
-        self._superfile = None
-        """str: name of the file that stores the XYZ *super*-validation
-        database.
-        """        
+        if "fitting" in self.specs:
+            from matdb.fitting.controller import TController
+            tict = self.specs["fitting"].copy()
+            tdict["root"] = self.root
+            tdict["db"] = self
+            self.trainer = TController(**tdict)
 
     def ifiltered(self, cfilter=None, dfilter=None):
         """Returns a *filtered* generator over sequences in the config collections of
@@ -810,67 +789,19 @@ class Controller(object):
             else:
                 msg.err("Couldn't create POTCAR for system.")
 
-    @property
-    def train_file(self):
-        """Returns the full path to the XYZ database file that can be
-        used for training.
-        """
-        return path.join(self.root, self._trainfile)
-
-    @property
-    def holdout_file(self):
-        """Returns the full path to the XYZ database file that can be
-        used to validate the potential fit.
-        """
-        return path.join(self.root, self._holdoutfile)
-
-    @property
-    def super_file(self):
-        """Returns the full path to the XYZ database file that can be
-        used to *super* validate the potential fit.
-        """
-        return path.join(self.root, self._superfile)
-    
-    def split(self, train_perc, trainfile="train.xyz", holdfile="holdout.xyz",
-              recalc=0, superfile="super.xyz"):
-        """Splits the total available data in all databases into a
-        training and holdout set.
+    def split(self, recalc=0, cfilter=None, dfilter=None):
+        """Splits the total available data in all databases into a training and holdout
+        set.
 
         Args:
-            train_perc (float): percentage of the data to use for training.
-            trainfile (str): name of the training XYZ file to create.
-            holdfile (str): name of the holdout/validation XYZ file to
-              create.
             recalc (int): when non-zero, re-split the data and overwrite any
               existing *.xyz files. This parameter decreases as
               rewrites proceed down the stack. To re-calculate
               lower-level XYZ files, increase this value.
+            cfilter (list): of `str` patterns to match against *configuration*
+              names. This limits which configs are returned.
+            dfilter (list): of `str` patterns to match against *database sequence*
+              names. This limits which databases sequences are returned.
         """
-        from matdb.utility import safe_update
-        safe_update(self, {"_trainfile": trainfile, "_holdoutfile": holdfile,
-                           "_superfile": superfile})
-
-        if (path.isfile(self.train_file) and path.isfile(self.holdout_file)
-            and path.isfile(self._superfile) and recalc <= 0):
-            return
-        
-        trainfiles = []
-        holdfiles = []
-        superfiles = []
-        from fnmatch import fnmatch
-        for name, db in self.collections.items():
-            if self.trainer.configs is not None:
-                #Skip all those databases that are not explicitly included in
-                #the training spec.
-                if not any([fnmatch(name, p) for p in self.trainer.configs]):
-                    continue
-            
-            db.split(train_perc, trainfile, holdfile, recalc-1)
-            trainfiles.append(db.train_file)
-            holdfiles.append(db.holdout_file)
-            superfiles.append(db.super_file)
-
-        from matdb.utility import cat
-        cat(trainfiles, self.train_file)
-        cat(holdfiles, self.holdout_file)
-        cat(superfiles, self.super_file)
+        for dbname, seq in self.ifiltered(cfilter, dfilter):
+            seq.split(recalc)

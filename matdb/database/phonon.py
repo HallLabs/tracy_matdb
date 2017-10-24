@@ -512,6 +512,12 @@ def modulate_atoms(db):
     from matdb.utility import execute
     sargs = ["phonopy", db.confname]
     xres = execute(sargs, db.base.phonodir, venv=True)
+
+    #Make sure that phonopy actually produced files; otherwise show the output
+    #(phonopy doesn't write to stderr, only stdout).
+    testmod = path.join(db.base.phonodir, "MPOSCAR-001")
+    if not path.isfile(testmod):
+        msg.err(testmod["output"])
             
 class Calibration(Database):
     """Represents a set of modulated sub-configurations of differing amplitude,
