@@ -204,7 +204,7 @@ def dimer(pot, atoms, elements, folder=None, base64=False, index=None,
         dimer.pos = 0.
         dimer.set_chemical_symbols(elements)
 
-        rs = np.linspace(rmin, rmax, nsamples)
+        rs = np.linspace(0.5*rmin, pot.cutoff(), nsamples)
         energy = []
         for r in rs:
             dimer.pos[1,2] = r

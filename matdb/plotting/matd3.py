@@ -55,6 +55,8 @@ class PointDetailImage(object):
                  fig_kw=None, plot_kw=None, base64=False, name=None,
                  imgtype=None, index=None, folder=None, save_kw=None):
         import matplotlib.pyplot as plt
+        self.x, self.y = x, y
+        
         #Create the figure and axes for this plot.
         if fig_kw is None:
             fig_kw = {}
@@ -81,6 +83,9 @@ class PointDetailImage(object):
         
         if save_kw is None:
             save_kw = {}
+        if folder is None:
+            return
+            
         if not base64:
             self.filename = "{}-{}.png".format(name, index)
             savepath = path.join(folder, self.filename)
