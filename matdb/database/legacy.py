@@ -6,6 +6,23 @@ format that can be used by the `matdb` fitting machinery.
 """
 from os import path
 import quippy
+import numpy as np
+
+def _quick_write(atlist, outpath):
+    """Writes the atoms list to file using the
+    :class:`~quippy.cinoutput.CInOutputWriter` for optimization.
+
+    Args:
+        atlist (quippy.AtomsList): atoms to write to XYZ file.
+        outpath (str): full path to the location of the output file to write.
+    """
+    import quippy.cinoutput as qcio
+    out = qcio.CInOutputWriter(outpath)
+    try:
+        for ai in atlist:
+            ai.write(out)
+    finally:
+        out.close()
 
 def _atoms_conform(dbfile, energy, force, virial):
     """Determines whether the specified database conforms to the constraints for
@@ -32,9 +49,11 @@ def _atoms_conform(dbfile, energy, force, virial):
     
     if energy not in a.params:
         raise ValueError(emsg.format("energy", energy))
-    if force not in a.properties:
+    #These next two have unit tests and pytest says these are raised, but
+    #coverage doesn't catch them for some reason...
+    if force not in a.properties:# pragma: no cover
         raise ValueError(emsg.format("force", force))
-    if virial not in a.params:
+    if virial not in a.params:# pragma: no cover
         raise ValueError(emsg.format("virial", virial))
 
     if energy != "dft_energy":
@@ -115,7 +134,10 @@ class LegacyDatabase(object):
             from glob import glob
             from tqdm import tqdm
             import quippy.cinoutput as qcio
-            
+
+            #NB! There is a subtle bug here: if you try and open a quippy.Atoms
+            #within the context manager of `chdir`, something messes up with the
+            #memory sharing in fortran and it dies. This has to be separate.
             with chdir(folder):
                 self.dbfiles = glob(pattern)
             rewrites = []
@@ -157,8 +179,9 @@ class LegacyDatabase(object):
                     catdbs.append(path.join(self.root, dbfile))
                 else:
                     catdbs.append(path.join(folder, dbfile))
-                    
-            self.config["dbfiles"] = catdbs
+
+            self.dbfiles = catdbs
+            self.config["dbfiles"] = self.dbfiles
             self.config["config_type"] = self.config_type
             self.config["folder"] = folder
 
@@ -229,24 +252,27 @@ class LegacyDatabase(object):
         #training.
         from cPickle import dump, load
         idfile = path.join(self.root, "{0}-ids.pkl".format(name))
+
+        #Either way, we will have to compile a list of all available atoms in
+        #the database files.
+        subconfs = quippy.AtomsList()
+        for dbfile in self.dbfiles:
+            al = quippy.AtomsList(dbfile)
+            subconfs.extend(al)
+
         if path.isfile(idfile):
             with open(idfile, 'rb') as f:
                 data = load(f)
-            subconfs = data["subconfs"]
+
             ids = data["ids"]
             Ntrain = data["Ntrain"]
             Nhold = data["Nhold"]
             Ntot = data["Ntot"]
             Nsuper = data["Nsuper"]
         else:
-            Ntot = 0
-            subconfs = {}
-            for fi, dbfile in enumerate(self.dbfiles):
-                subconfs[fi] = path.join(self.config["folder"], dbfile)
-                        
             Ntot = len(subconfs)
             Ntrain = int(np.ceil(Ntot*train_perc))
-            ids = np.arange(len(subconfs))
+            ids = np.arange(Ntot)
             Nhold = int(np.ceil((Ntot-Ntrain)*train_perc))
             Nsuper = Ntot-Ntrain-Nhold
             np.random.shuffle(ids)
@@ -254,7 +280,6 @@ class LegacyDatabase(object):
             #We need to save these ids so that we don't mess up the statistics on
             #the training and validation sets.
             data = {
-                "subconfs": subconfs,
                 "ids": ids,
                 "Ntrain": Ntrain,
                 "Nhold": Nhold,
@@ -263,27 +288,17 @@ class LegacyDatabase(object):
             }
             with open(idfile, 'wb') as f:
                 dump(data, f)
-        
-        tids = ids[0:Ntrain]
-        hids = ids[Ntrain:-Nsuper]
-        sids = ids[-Nsuper:]
 
-        def subset(subconfs, idlist, recalc):
-            from matdb.io import vasp_to_xyz
-            from tqdm import tqdm
-            files = []
-            for aid in tqdm(idlist):
-                if vasp_to_xyz(subconfs[aid], recalc=recalc-1):
-                    files.append(path.join(subconfs[aid], "output.xyz"))
-
-            return files
-
-        arrconfs = np.array(subconfs)
-        trainfiles = arrconfs[tids]
-        holdfiles = arrconfs[hids]
-        superfiles = arrconfs[sids]
-
-        from matdb.utility import cat
-        cat(trainfiles, train_file)
-        cat(holdfiles, holdout_file)
-        cat(superfiles, super_file)
+        #Only write the minimum necessary files.
+        if not path.isfile(train_file):
+            tids = ids[0:Ntrain]
+            altrain = subconfs[tids]
+            _quick_write(altrain, train_file)
+        if not path.isfile(holdout_file):
+            hids = ids[Ntrain:-Nsuper]
+            alhold = subconfs[hids]
+            _quick_write(alhold, holdout_file)
+        if not path.isfile(super_file):
+            sids = ids[-Nsuper:]
+            alsuper = subconfs[sids]
+            _quick_write(alsuper, super_file)
