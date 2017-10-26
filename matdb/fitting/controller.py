@@ -94,7 +94,14 @@ class TrainingSequence(object):
                 yield previous
             else:
                 raise StopIteration()
-        
+
+    def jobfile(self):
+        """Runs the jobfile creation methods of the steps in this sequence, in
+        the correct order and only as each step completes.
+        """
+        for fitname, fit in self.isteps:
+            fit.jobfile()
+            
 class TSequenceRepeater(object):
     """Represents a group of training sequences that share the same underlying
     database of configurations for training and validation, but that vary only
@@ -111,25 +118,27 @@ class TSequenceRepeater(object):
             mkdir(self.root)
         
         if niterations is not None:
-            from matdb.utility import obj_update
+            from matdb.utility import obj_update, pgrid
             from copy import copy
-        
+            
             for i, sequence in enumerate(niterations):
-                nname = None
-                isteps = copy(steps)
-                for k, v in sequence.items():
-                    if k == "suffix":
-                        nname = self.name + v
-                        continue
-                    
-                    obj_update(isteps, k, v, False)
-                    
-                if nname is None:
-                    nname = self.name + "-{0:d}".format(i)
+                suffix = sequence.get("suffix")
+                grid, keys = pgrid(sequence, ["suffix"])
+                
+                for ival, vals in enumerate(grid):
+                    isteps = copy(steps)
+                    for k, oval in zip(keys, vals):
+                        obj_update(isteps, k, oval, False)
 
-                iobj = TrainingSequence(nname, self, self.root, controller,
-                                        isteps, **kwargs)
-                self.sequences[nname] = iobj
+                    nsuffix = "" if len(vals) == 1 else "-{0:d}".format(ival)
+                    if suffix is not None:
+                        nn = self.name + "-{0}{1}".format(suffix, nsuffix)
+                    else:
+                        nn = self.name + "-{0:d}{1}".format(i, nsuffix)
+
+                    iobj = TrainingSequence(nn, self, self.root,
+                                            controller, isteps, **kwargs)
+                    self.sequences[nn] = iobj
         else:
             single = TrainingSequence(name, self, self.root, controller, steps,
                                       **kwargs)
@@ -149,6 +158,7 @@ class TController(object):
           trainer objects.
     """
     def __init__(self, db=None, root=None, fits=None, e0=None, **kwargs):
+        from matdb.utility import dict_update
         self.db = db
         self.e0 = e0
         self.root = root
@@ -158,9 +168,58 @@ class TController(object):
             cpspec = fspec.copy()
             cpspec["root"] = self.root
             cpspec["controller"] = self
+
+            dict_update(cpspec, kwargs)
             seq = TSequenceRepeater(**cpspec)
             self.fits[fspec["name"]] = seq
 
+    def ifiltered(self, tfilter=None, sfilter=None):
+        """Returns a *filtered* generator over sequences of trainers in the :attr:`fits`
+        collection of this object.
+
+        Args:
+            tfilter (list): of `str` patterns to match against *fit* names.
+            tfilter (list): of `str` patterns to match against *step* names.
+        """
+        from fnmatch import fnmatch
+        for name, fit in self.fits.items():
+            if tfilter is None or any(fnmatch(name, t) for t in tfilter):
+                for fitn, seq in fit.sequences.items():
+                    if sfilter is None or any(fnmatch(fitn,s) for s in sfilter):
+                        yield (fitn, seq)
+
+    def steps(self):
+        """Compiles a list of all steps in this set of trainers.
+        """
+        result = []
+        for name, fits in self.fits.items():
+            for repeater in fits.values():
+                for parent, seq in repeater.sequences.items():
+                    for step in seq.steps:
+                        result.append("{0}.{1}".format(parent, step))
+
+        return sorted(result)        
+    
+    def sequences(self):
+        """Compiles a list of all sequences in this set of trainers.
+        """
+        result = []
+        for name, fits in self.fits.items():
+            for repeater in fits.values():
+                result.extend(repeater.sequences.keys())
+
+        return sorted(result) 
+                        
+    def jobfiles(self, tfilter=None, sfilter=None):
+        """Creates the jobfiles for every trainer in the system.
+
+        Args:
+            tfilter (list): of `str` patterns to match against *fit* names.
+            tfilter (list): of `str` patterns to match against *step* names.
+        """
+        for fitname, fit in self.ifiltered(tfilter, sfilter):
+            fit.jobfile()
+            
     def find(self, pattern):
         """Finds a list of trainers that match the specified pattern. Trainer FQNs
         follow the pattern `trainer-suffix.step` where the suffix may be
@@ -168,7 +227,7 @@ class TController(object):
         :class:`Trainer` sub-class. Wildcard `*` or any other
         :func:`~fnmatch.fnmatch` patterns may be used.
         """
-        trainer, step = key.split('.')
+        trainer, step = pattern.split('.')
         if '-' in trainer:
             repname, suffix = trainer.split('-')
         else:
