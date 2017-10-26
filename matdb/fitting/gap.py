@@ -92,7 +92,7 @@ def _rescale_2body(atoms, settings):
     """
     n = _n_neighbors(atoms, settings["cutoff"])
     msg.okay("2-body: scaling by {}.".format(n))
-    return np.sqrt(n)
+    return n
 
 def _rescale_3body(atoms, settings):
     """Calculates the appropriate scaling factor for the RMS error of a 3-body
@@ -104,7 +104,7 @@ def _rescale_3body(atoms, settings):
     """
     #First, get the number of nearest neighbors in the cutoff.
     n = _n_neighbors(atoms, settings["cutoff"])
-    result = np.sqrt(n*(n-1)/2.)
+    result = n*(n-1)/2.
     msg.okay("3-body: scaling by {} (from {} neighbors).".format(result, n))
     return result
 
@@ -129,6 +129,8 @@ class GAP(Trainer):
         ogaps (list): of `str` trainer FQNs for previous gaps that were fitted,
           whose parameters should be included in the final GAP IP.
         teach_sparse (dict): key-value pairs for the `teach_sparse` executable.
+        parent (TrainingSequence): training sequence that this trainer belongs
+          to.
         gapargs (dict): parameters for the n-body potential.
 
     Attributes:
@@ -148,10 +150,12 @@ class GAP(Trainer):
     """
     def __init__(self, nb=None, controller=None, dbs=None, execution=None,
                  split=None, sigmas=None, ogaps=None, teach_sparse=None,
-                 root=None, **gapargs):
+                 root=None, parent=None, **gapargs):
         self.name = "{}b".format(nb) if isinstance(nb, int) else "soap"
         super(GAP, self).__init__(controller, dbs, execution, split, root)
 
+        self.nb = nb
+        self.parent = parent
         self.controller = controller
         self.e0 = controller.e0
         self.sigmas = sigmas
@@ -173,12 +177,15 @@ class GAP(Trainer):
         #configurations anyway.
         self.seeds = [(seq.atoms.copy(), seq) for seq in self.dbs]
 
+        self.compile()
+
     def get_calculator(self):
         """Returns an instance of :class:`ase.Calculator` using the latest
         fitted GAP potential in this trainer.
         """
         from quippy.potential import Potential
-        return Potential("IP GAP", param_filename=self.gp_file)
+        if path.isfile(self.gp_file):
+            return Potential("IP GAP", param_filename=self.gp_file)
             
     @property
     def delta_cache(self):
@@ -260,6 +267,9 @@ class GAP(Trainer):
         """Writes the h_train.xyz file that is needed for the Hessian-based
         training program.
         """
+        if not self.hessfit:
+            return []
+        
         self._get_hessians()
         outpath = path.join(self.root, "hessians.xyz")
         if not path.isfile(outpath):
@@ -278,7 +288,8 @@ class GAP(Trainer):
         exists.
         """
         pdict = self.gap.copy()
-        pdict["delta"] = self._get_delta()        
+        if "delta" not in pdict:
+            pdict["delta"] = self._get_delta()        
         
         if pdict.get("sparse_method") == "file":
             pdict["sparse_file"] = "soap_sparse_points.dat"
@@ -393,7 +404,7 @@ class GAP(Trainer):
         if isinstance(self.sigmas, (list, tuple)):
             tsattrs["default_sigma"] = self.sigmas
         else:
-            for k, sigs in self.sigma.items():
+            for k, sigs in self.sigmas.items():
                 if k == "__":
                     tsattrs["default_sigma"] = sigs
                 else:
@@ -414,7 +425,7 @@ class GAP(Trainer):
 
         tsstr = dict_to_str(tsattrs)                
         fields = {
-            "train_file": self.train_file,
+            "train_file": self._trainfile,
             "gap": gapstr,
             "teach_sparse": tsstr
         }
