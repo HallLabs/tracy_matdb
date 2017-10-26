@@ -176,6 +176,18 @@ def linecount(filename):
             pass
     return i + 1
 
+def dict_update(a, b):
+    """Inserts keys and values from `b` into `a` if they don't already
+    exist. This function performs this updated recursively for nested `dict`.
+
+    .. warning:: This function modifies the variable `a`.
+    """
+    for k, v in b.items():
+        if k not in a:
+            a[k] = v
+        elif isinstance(a[k], dict):
+            dict_update(a[k], v)
+
 def safe_update(obj, kv):
     """Updates the key-value pairs on `obj` only if they are not
     `None`.
@@ -310,7 +322,45 @@ def touch(fpath):
     import os
     with open(fpath, 'a'):
         os.utime(fpath, None)
-            
+
+def pgrid(options, ignore=None):
+    """Creates a parameter grid over the specified options.
+
+    .. note:: This function treats keys that end in `*` specially. When the key
+      ends in `*`, the values in the specified list contribute to the cartesian
+      product.
+
+    Args:
+        options (dict): key-value pairs to iterate across.
+        ignore (list): of `str` keys to ignore in the options dict.
+
+    Returns:
+        tuple: `(grid, keys)` where grid is a list of tuples with a value for
+        each key in `options` and keys is a listed of the keys in the order they
+        appear in the tuples.
+    """
+    from itertools import product
+    from collections import OrderedDict
+    from operator import itemgetter
+
+    #Sort the dict so that we get the same ordering of parameters in the
+    #product.
+    params = OrderedDict(sorted(options.items(), key=itemgetter(0)))
+    values = []
+    keys = []
+    for k, v in params.items():
+        if ignore is None or k in ignore:
+            continue
+        
+        if k[-1] != '*':
+            values.append([v])
+        else:
+            values.append(v)
+        keys.append(k.strip('*'))
+        
+    grid = list(product(*values))
+    return (grid, keys)
+
 reporoot = _get_reporoot()
 """The absolute path to the repo root on the local machine.
 """
