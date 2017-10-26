@@ -25,8 +25,9 @@ def _atoms_conform(dbfile, energy, force, virial):
         in the atoms object. `force` is a boolean that is True if `force` must
         be copied to `dft_force` to conform with `matdb` conventions.
     """
+    emsg = "Cannot find {0} under parameter name {1}."
     params = {}
-    force = False
+    doforce = False
     a = quippy.Atoms(dbfile)
     
     if energy not in a.params:
@@ -39,14 +40,14 @@ def _atoms_conform(dbfile, energy, force, virial):
     if energy != "dft_energy":
         params["dft_energy"] = energy
     if force != "dft_force":
-        force = True
+        doforce = True
     if virial != "dft_virial":
         params["dft_virial"] = virial
 
     if "config_type" not in a.params:
         params["config_type"] = None
 
-    return params, force
+    return params, doforce
 
 class LegacyDatabase(object):
     """Reperesents a database read in from one or more files that were not
@@ -82,8 +83,13 @@ class LegacyDatabase(object):
                  force="dft_force", virial="dft_virial"):
         self.name = name
         self.root = path.join(root, self.name)
+        if not path.isdir(self.root):
+            from os import mkdir
+            mkdir(self.root)
+
         self.controller = controller
         self.splits = {} if splits is None else splits
+        self.folder = folder
 
         self._dbfile = path.join(self.root, "legacy.xyz")
         """str: path to the combined legacy database.
@@ -103,44 +109,66 @@ class LegacyDatabase(object):
 
             self.dbfiles = self.config["dbfiles"]
             self.config_type = self.config["config_type"]
+            self.folder = folder
         else:
             from matdb.utility import chdir
             from glob import glob
             from tqdm import tqdm
-            emsg = "Cannot find {0} under parameter name {1}."
+            import quippy.cinoutput as qcio
+            
             with chdir(folder):
                 self.dbfiles = glob(pattern)
-                for dbfile in self.dbfiles:
-                    #Look at the first configuration in the atoms list to
-                    #determine if it matches the energy, force, virial and
-                    #config type parameter names.
-                    params, force = _atoms_conform(dbfile, energy, force, virial)
-                    if len(params) > 0 or force:
-                        import quippy.cinoutput as qcio
-                        al = quippy.AtomsList(dbfile)
-                        out = qcio.CInOutputWriter(path.join(self.root, dbfile))
-                        try:
-                            for ai in tqdm(al):
-                                for target, source in params.items():
-                                    if target == "config_type":
-                                        ai.params[target] = config_type
-                                    else:
-                                        ai.params[target] = ai.params[source]
-                                        del ai.params[source]
+            rewrites = []
+                
+            for dbfile in self.dbfiles:
+                #Look at the first configuration in the atoms list to
+                #determine if it matches the energy, force, virial and
+                #config type parameter names.
+                dbpath = path.join(folder, dbfile)
+                params, doforce = _atoms_conform(dbpath, energy, force, virial)
+                if len(params) > 0 or doforce:
+                    al = quippy.AtomsList(dbpath)
+                    out = qcio.CInOutputWriter(path.join(self.root, dbfile))
+                    try:
+                        for ai in tqdm(al):
+                            for target, source in params.items():
+                                if (target == "config_type" and
+                                      config_type is not None):
+                                    ai.params[target] = config_type
+                                else:
+                                    ai.params[target] = ai.params[source]
+                                    del ai.params[source]
 
-                                if force:
-                                    ai.properties["dft_force"] = ai.properties[force]
-                                    del ai.properties[force]
+                            if doforce:
+                                ai.properties["dft_force"] = ai.properties[force]
+                                del ai.properties[force]
 
-                                a.write(out)
-                        finally:
-                            out.close()
-                                
-            self.config["dbfiles"] = self.dbfiles
+                            ai.write(out)
+
+                        #Mark this db as non-conforming so that we created a new
+                        #version of it.
+                        rewrites.append(dbfile)
+                    finally:
+                        out.close()
+
+            catdbs = []
+            for dbfile in self.dbfiles:
+                if dbfile in rewrites:
+                    catdbs.append(path.join(self.root, dbfile))
+                else:
+                    catdbs.append(path.join(folder, dbfile))
+                    
+            self.config["dbfiles"] = catdbs
             self.config["config_type"] = self.config_type
             self.config["folder"] = folder
 
-            with open(self._configfile) as f:
+            #Finally, concatenate all the files together to form the final
+            #database.
+            from matdb.utility import cat
+            with chdir(folder):
+                cat(self.config["dbfiles"], self._dbfile)
+
+            with open(self._configfile, 'w') as f:
                 json.dump(self.config, f)
 
     def train_file(self, split):
