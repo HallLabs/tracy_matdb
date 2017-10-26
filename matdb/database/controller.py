@@ -248,13 +248,12 @@ class DatabaseSequence(object):
             subconfs = {}
             fi = 0
             for dbname, db in self.isteps:
-                if not db.has_data:
+                if len(db.configs) == 0:
                     continue
                     
-                for dbconfigs in db.configs.values():
-                    for f in dbconfigs:
-                        subconfs[fi] = f
-                        fi += 1
+                for configpath in db.configs.values():
+                    subconfs[fi] = configpath
+                    fi += 1
                         
             Ntot = len(subconfs)
             Ntrain = int(np.ceil(Ntot*train_perc))
@@ -280,7 +279,7 @@ class DatabaseSequence(object):
         hids = ids[Ntrain:-Nsuper]
         sids = ids[-Nsuper:]
 
-        def subset(subconfs, idlist):
+        def subset(subconfs, idlist, recalc):
             from matdb.io import vasp_to_xyz
             from tqdm import tqdm
             files = []
@@ -290,9 +289,9 @@ class DatabaseSequence(object):
 
             return files
 
-        trainfiles = subset(subconfs, tids)
-        holdfiles = subset(subconfs, hids)
-        superfiles = subset(subconfs, sids)
+        trainfiles = subset(subconfs, tids, recalc)
+        holdfiles = subset(subconfs, hids, recalc)
+        superfiles = subset(subconfs, sids, recalc)
 
         from matdb.utility import cat
         cat(trainfiles, train_file)
@@ -553,13 +552,13 @@ class Controller(object):
         self.POTCAR()
 
         #If the controller is going to train any potentials, we also need to 
-        self.trainer = None
+        self.trainers = None
         if "fitting" in self.specs:
             from matdb.fitting.controller import TController
             tdict = self.specs["fitting"].copy()
             tdict["root"] = self.root
             tdict["db"] = self
-            self.trainer = TController(**tdict)
+            self.trainers = TController(**tdict)
 
     def ifiltered(self, cfilter=None, dfilter=None):
         """Returns a *filtered* generator over sequences in the config collections of
@@ -604,6 +603,9 @@ class Controller(object):
             >>> CdWO4 = Controller("CdWO4.yml")
             >>> CdWO4.find("*.liquid*")
         """
+        if pattern == '*':
+            return self.find('*.*')
+        
         from fnmatch import fnmatch
         if pattern.count('.') == 2:
             config, parent, db = pattern.split('.')
