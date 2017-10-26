@@ -71,6 +71,22 @@ class Trainer(object):
         """str: path to the jobfile for the current trainer.
         """
 
+    def compile(self):
+        """Compiles the cumulative database for this particular fit.
+        """
+        #Setup the train.xyz file for the set of databases specified in the
+        #source patterns.
+        from matdb.utility import cat
+        tfiles = []
+        for seq in self.dbs:
+            #We need to split to get training data. If the split has already
+            #been done as part of a different training run, then it won't be
+            #done a second time.
+            seq.split()
+            tfiles.append(seq.train_file(self.split))
+        tfiles.extend(self.extras())
+        cat(tfiles, self._trainfile)        
+        
     @abc.abstractmethod
     def get_calculator(self):
         """Constructs an :ase:`Calculator` instance using the fitted potential
@@ -225,19 +241,6 @@ class Trainer(object):
         if path.isfile(self._jobfile):
             return
 
-        #Setup the train.xyz file for the set of databases specified in the
-        #source patterns.
-        from matdb.utility import cat
-        tfiles = []
-        for seq in self.dbs:
-            #We need to split to get training data. If the split has already
-            #been done as part of a different training run, then it won't be
-            #done a second time.
-            seq.split(self.split)
-            tfiles.append(seq.train_file)
-        tfiles.extend(self.extras)
-        cat(tfiles, self._trainfile)
-        
         # We use the global execution parameters and then any updates
         # locally. We need to add the execution directory (including prefix) and
         # the number of jobs in the array.
@@ -248,5 +251,5 @@ class Trainer(object):
         from jinja2 import Environment, PackageLoader
         env = Environment(loader=PackageLoader('matdb', 'templates'))
         template = env.get_template(settings["template"])
-        with open(target, 'w') as f:
+        with open(self._jobfile, 'w') as f:
             f.write(template.render(**settings))
