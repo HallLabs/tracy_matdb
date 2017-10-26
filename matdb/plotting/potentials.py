@@ -204,7 +204,7 @@ def dimer(pot, atoms, elements, folder=None, base64=False, index=None,
         dimer.pos = 0.
         dimer.set_chemical_symbols(elements)
 
-        rs = np.linspace(0.5*rmin, pot.cutoff(), nsamples)
+        rs = np.linspace(0.7*rmin, pot.cutoff(), nsamples)
         energy = []
         for r in rs:
             dimer.pos[1,2] = r
@@ -333,10 +333,10 @@ def EvsV(pot, atoms, folder=None, base64=False, index=None):
         index (int): integer index of this plot in the parent collection.
     """
     dft, ip = _get_xy(pot, atoms, "dft_energy", energy=True)
-    vol = np.array([a.get_volume() for a in atoms])
+    vol = np.array([a.get_volume()/a.n for a in atoms])
     
     subplot_kw = {
-        "xlabel": "Volume (A^3)",
+        "xlabel": "Volume/Atom (A^3)",
         "ylabel": "IP Energy (eV)"
     }
 
