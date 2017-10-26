@@ -48,6 +48,10 @@ execution:
   array_limit: 50
   modules_load: ['mkl/11.2.0']
   exec_path: 'vasp'
+#Different split parameters to apply globally to all database types.
+splits:
+  A: 0.4
+  B: 0.2
 # Next, we include a list of all the databases we want to create. A
 # database following this pattern is created *for each* of the seed
 # configurations listed above.
@@ -82,3 +86,50 @@ databases:
         sampling: 'uniform'
         amplitude:
           Pd: 10
+          
+fitting:
+  dbs: ['*']
+  execution:
+    template: 'run_teachsparse_ml.sh'
+    time: 10
+    ntasks: 8
+    nodes: 1
+    mem_per_cpu: 5
+    job_name: 'AgPd GAP'
+  e0:
+    Pd: -1.45835775
+  fits:
+    - name: "2b"
+      dbs: ["Pd.phonon-*"]
+      steps:
+        - type: "gap.GAP"
+          nb: 2
+          cutoff: 6.0
+          cutoff_transition_width: 1.0
+          n_sparse: 20
+          split: ""
+          sigmas:
+            __: [.001, 0.01, 0.1, 1.0]
+            liq: [.005, 0.03, 0.2, 1.0]
+          delta: 0.5
+      execution:
+        time: 1
+        ntasks: 1
+      niterations:
+        - split: "A"
+          suffix: "A"
+          delta*: [0.5, 0.4, 0.3]
+          sigmas.liq*:
+            - [.005, 0.03, 0.2, 1.0]
+            - [.01, 0.1, 0.2, 1.0]
+        - split: "B"
+          suffix: "B"
+    - name: "2b3b"
+      split: "B"
+      steps:
+        - "2b-B.2b"
+        - type: "gap.GAP"
+          nb: 3
+          cutoff: 3.5
+          cutoff_transition_width: 0.5
+          n_sparse: 200
