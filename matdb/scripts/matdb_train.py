@@ -106,7 +106,7 @@ def run(args):
     if args["t"]:
         cdb.trainers.jobfiles()
     if args["x"]:
-        cdb.trainers.execute(args["dryrun"])
+        cdb.trainers.execute(args["tfilter"], args["sfilter"], args["dryrun"])
     if args["v"]:
         vdict = cdb.trainers.validate(args["data"], args["tfilter"],
                                       args["sfilter"], args["energy"],
