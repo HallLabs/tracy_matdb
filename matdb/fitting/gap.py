@@ -20,7 +20,8 @@ def update_nbody(settings):
         "compact_clusters": True,
         "sparse_method": "uniform",
         "covariance_type": "ARD_SE",
-        "theta_uniform": 1.0
+        "theta_uniform": 1.0,
+        "cutoff_transition_width": 1.0
     }
     for k, v in usuals.items():
         if k not in settings:
@@ -176,7 +177,6 @@ class GAP(Trainer):
         #updates its hessian attributes. Calculating delta uses seed
         #configurations anyway.
         self.seeds = [(seq.atoms.copy(), seq) for seq in self.dbs]
-
         self.compile()
 
     def get_calculator(self):
@@ -293,6 +293,14 @@ class GAP(Trainer):
         
         if pdict.get("sparse_method") == "file":
             pdict["sparse_file"] = "soap_sparse_points.dat"
+
+        #Add default parameters for the parameters.
+        if self.nb == "soap":
+            update_soap(pdict)
+        else:
+            update_nbody(pdict)
+            if "order" not in pdict:
+                pdict["order"] = self.nb
         
         settings = []
         settings.append("soap" if self.nb == "soap" else "distance_Nb")
@@ -425,7 +433,7 @@ class GAP(Trainer):
 
         tsstr = dict_to_str(tsattrs)                
         fields = {
-            "train_file": self._trainfile,
+            "train_file": "train.xyz",
             "gap": gapstr,
             "teach_sparse": tsstr
         }
