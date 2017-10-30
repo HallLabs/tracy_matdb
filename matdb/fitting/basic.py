@@ -157,11 +157,13 @@ class Trainer(object):
 
         return result
     
-    def validate(self, energy=True, force=True, virial=True):
+    def validate(self, configs=None, energy=True, force=True, virial=True):
         """Validates the calculator in this training object against the `holdout.xyz`
         configurations in the source databases.
 
         Args:
+            configs (quippy.AtomsList): list of configurations to validate
+              against. If not provided, built-in holdout set will be used.
             energy (bool): when True, validate the energies of each
               configuration.
             forces (bool): when True, validate the force *components* of each
@@ -175,7 +177,7 @@ class Trainer(object):
             energies, force components or virial components.
         """
         from tqdm import tqdm
-        for a in tqdm(self.validation):
+        for a in tqdm(self.validation if configs is None else configs):
             a.set_cutoff(self.calculator.cutoff())
             a.calc_connect()
             self.calculator.calc(a, energy=energy, force=force, virial=virial)
