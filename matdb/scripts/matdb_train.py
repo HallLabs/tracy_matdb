@@ -14,12 +14,13 @@ def examples():
                  "matdb.py system.yaml -t",
                  "This generates the XYZ database of configurations, and sets "
                  "up the jobfile for execution."),
-                (("Continue training the next GAP in the potential after "
+                (("Continue training the next step in the sequence after "
                   "execution of the previous example is completed."), 
                  "matdb.py system.yaml -c",
                  "This generates a new jobfile for execution and updates the "
-                 "`delta` parameter based on fitting errors. This should be "
-                 "called once for each additional GAP in the overall potential.")]
+                 "parameters based on fitting errors. This should be "
+                 "called once for each additional step in the overall "
+                 "sequence of potential training steps.")]
     required = ("'matdb.yaml' file with database settings.")
     output = ("")
     details = ("")
@@ -30,12 +31,13 @@ def examples():
 script_options = {
     "dbspec": {"help": "File containing the database specifications."},
     "-t": {"action": "store_true",
-           "help": ("Create the training XYZ files and the initial job script"
-                    "for training the first GAP in the potential.")},
+           "help": ("Create the database splits and the initial job script"
+                    "for training the first steps in each sequence.")},
     "-x": {"action": "store_true",
-           "help": ("Submit the job array file for the next GAP.")},
+           "help": ("Submit the job array files for the next fits.")},
     "-v": {"action": "store_true",
-           "help": "Validate the potential's energy and force predictions."},
+           "help": ("Validate the potential's energy, force and virial"
+                    " predictions.")},
     "--status": {"action": "store_true",
                 "help": ("Determines status of the GAP fitting routines and "
                          "job files. Sanity check before `-x`.")},
@@ -48,8 +50,21 @@ script_options = {
                           "any method with `recalc > 0`, the operation is done "
                           "over from scratch.")},
     "--data": {"help": "Specify which data file to validate."},
-    "--pot": {"help": ("Name of the potential to use for validation "
-                       "(e.g., `2b3b` or `2b3b_soap`)")}
+    "--tfilter": {"nargs": "+",
+                 "help": ("Specify a list of patterns to match against _fit_ "
+                          "names that should be *included*.")},
+    "--sfilter": {"nargs": "+",
+                  "help": ("Specify a list of patterns to match against _step_ "
+                           "names that should be *included*.")},
+    "--energy": {"action": "store_true",
+                 "help": "With --validate, calculate the energies."},
+    "--force": {"action": "store_true",
+                 "help": "With --validate, calculate the forces."},
+    "--virial": {"action": "store_true",
+                 "help": "With --validate, calculate the virial."},
+    "--dryrun": {"action": "store_true",
+                 "help": ("With --execute, only do a dry-run to see what"
+                          " would happen.")},
 }
 """
 dict: default command-line arguments and their
@@ -87,20 +102,27 @@ def run(args):
     from matdb.database.controller import Controller
     cdb = Controller(args["dbspec"])
     if args["xyz"]:
-        cdb.split(cdb.trainer.split, recalc=args["recalc"])
+        cdb.split(cdb.trainers.split, recalc=args["recalc"])
     if args["t"]:
-        cdb.trainer.write_jobfile()
+        cdb.trainers.jobfiles()
     if args["x"]:
-        cdb.trainer.execute()
+        cdb.trainers.execute(args["dryrun"])
     if args["v"]:
-        vdict = cdb.trainer.validate(args["data"], args["pot"])
-        e_err = np.std(vdict["e_dft"]-vdict["e_gap"])
-        f_err = np.std(vdict["f_dft"].flatten()-vdict["f_gap"].flatten())
-        msg.info("Energy RMS: {0:.4f}".format(e_err))
-        msg.info("Force RMS: {0:.4f}".format(f_err))
+        vdict = cdb.trainers.validate(args["data"], args["tfilter"],
+                                      args["sfilter"], args["energy"],
+                                      args["force"], args["virial"])
+        if "e_ref" in vdict:
+            e_err = np.std(vdict["e_ref"]-vdict["e_pot"])
+            msg.info("Energy RMS: {0:.4f}".format(e_err))
+        if "f_ref" in vdict:
+            f_err = np.std(vdict["f_ref"].flatten()-vdict["f_pot"].flatten())
+            msg.info("Force RMS: {0:.4f}".format(f_err))
+        if "v_ref" in vdict:
+            v_err = np.std(vdict["v_ref"].flatten()-vdict["v_pot"].flatten())
+            msg.info("Virial RMS: {0:.4f}".format(v_err))
         
     if args["status"]:
-        cdb.trainer.status()
+        cdb.trainers.status()
         
 if __name__ == '__main__': # pragma: no cover
     run(_parser_options())
