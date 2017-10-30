@@ -3,9 +3,6 @@ species:
   - 'Ag'
   - 'Pd'
 root: './tests/Pd'
-configs:
-  - name: 'AgPd'
-    poscar: 'POSCAR'
 #Different split parameters to apply globally to all database types.
 splits:
   A: 0.5
