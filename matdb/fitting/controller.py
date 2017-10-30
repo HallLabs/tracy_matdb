@@ -278,6 +278,18 @@ class TController(object):
         """
         for fitname, fit in self.ifiltered(tfilter, sfilter):
             fit.execute(dryrun)
+
+    def status(self, tfilter=None, sfilter=None, printed=True):
+        """Prints status information for training steps in the controller.
+
+        Args:
+            tfilter (list): of `str` patterns to match against *fit* names.
+            tfilter (list): of `str` patterns to match against *step* names.
+            printed (bool): when True, print the status to screen; otherwise,
+              return a dictionary with the relevant quantities.
+        """
+        for fitname, fit in self.ifiltered(tfilter, sfilter):
+            fit.status(printed)
             
     def find(self, pattern):
         """Finds a list of trainers that match the specified pattern. Trainer FQNs
