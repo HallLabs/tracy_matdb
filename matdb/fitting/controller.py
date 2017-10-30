@@ -95,12 +95,15 @@ class TrainingSequence(object):
             else:
                 raise StopIteration()
 
-    def jobfile(self):
+    def jobfiles(self):
         """Runs the jobfile creation methods of the steps in this sequence, in
         the correct order and only as each step completes.
         """
         for fitname, fit in self.isteps:
             fit.jobfile()
+            if path.isfile(path.join(fit._jobfile)):
+                fqn = "{}.{}".format(self.name, fitname)
+                msg.okay("Completed jobfile creation for {}.".format(fqn))
             
 class TSequenceRepeater(object):
     """Represents a group of training sequences that share the same underlying
@@ -243,9 +246,7 @@ class TController(object):
             tfilter (list): of `str` patterns to match against *step* names.
         """
         for fitname, fit in self.ifiltered(tfilter, sfilter):
-            fit.jobfile()
-            if path.isfile(path.join(fit._jobfile)):
-                msg.okay("Completed jobfile creation for {}.".format(fitname))
+            fit.jobfiles()
 
     def execute(self, tfilter=None, sfilter=None, dryrun=False):
         """Executes the jobfiles for every trainer in the system.
