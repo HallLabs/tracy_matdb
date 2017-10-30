@@ -153,7 +153,7 @@ class Trainer(object):
             #been done as part of a different training run, then it won't be
             #done a second time.
             seq.split(self.split)
-            result.extend(quippy.AtomsList(seq.holdout_file))
+            result.extend(quippy.AtomsList(seq.holdout_file(self.split)))
 
         return result
     
