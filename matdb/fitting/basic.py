@@ -74,6 +74,11 @@ class Trainer(object):
     def compile(self):
         """Compiles the cumulative database for this particular fit.
         """
+        if path.isfile(self._trainfile):
+            #No need to recompile the file. Since the splits are defined
+            #globally and cached, we don't have to worry about inconsistencies.
+            return
+        
         #Setup the train.xyz file for the set of databases specified in the
         #source patterns.
         from matdb.utility import cat
@@ -240,9 +245,6 @@ class Trainer(object):
           directory that the executable will run in. You are responsible for
           sub-classing that method correctly.
         """
-        if path.isfile(self._jobfile):
-            return
-
         # We use the global execution parameters and then any updates
         # locally. We need to add the execution directory (including prefix) and
         # the number of jobs in the array.
