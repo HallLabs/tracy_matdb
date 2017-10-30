@@ -500,6 +500,8 @@ class Controller(object):
         collections (dict): keys are configuration names listed in attribute
           `configs` of the YAML file. Values are the :class:`DatabaseCollection`
           instances.
+        legacy (dict): keys are legacy database names; values are
+          :class:`~matdb.database.legacy.LegacyDatabase`.
         plotdir (str): path to the directory to store plots in for all
           databases.
         kpathdir (str): path to the directory where cached k-paths are stored
@@ -520,25 +522,39 @@ class Controller(object):
         self.kpathdir = path.join(self.root, "kpaths")
         self.title = self.specs["title"]
         self.collections = {}
+        self.legacy = {}
         self.species = [s for s in self.specs["species"]]
-        self.potcars = self.specs["potcars"]
+        self.potcars = self.specs.get("potcars", {})
         self.incar = self.specs.get("incar", {})
         self.kpoints = self.specs.get("kpoints", {})
-        self.execution = self.specs["execution"]
+        self.execution = self.specs.get("execution", {})
 
-        for cspec in self.specs["configs"]:
-            name, poscar = cspec["name"], cspec["poscar"]
-            self.collections[name] = {}
-            
-            # We need to split out the databases by user-given name to create
-            # the sequences.
-            for dbspec in self.specs.get("databases", []):
-                dbname = '.'.join((name, dbspec["name"]))
-                steps = dbspec["steps"]
-                seq = SequenceRepeater(dbname, poscar, self.root, self,
-                                       steps, dbspec.get("niterations"),
-                                       self.specs.get("splits"))
-                self.collections[name][dbspec["name"]] = seq
+        # We need to split out the databases by user-given name to create
+        # the sequences.
+        from matdb.database.legacy import LegacyDatabase
+        for dbspec in self.specs.get("databases", []):
+            if dbspec.get("legacy", False):
+                cpspec = dbspec.copy()
+                cpspec["root"] = self.root
+                cpspec["controller"] = self
+                cpspec["splits"] = self.specs.get("splits")
+                #We allow the user to specify the folder relative to repository
+                #root; this is mainly for unit tests.
+                cpspec["folder"] = relpath(cpspec["folder"])
+                del cpspec["legacy"]
+                self.legacy[cpspec["name"]] = LegacyDatabase(**cpspec)
+            else:
+                for cspec in self.specs["configs"]:
+                    name, poscar = cspec["name"], cspec["poscar"]
+                    if name not in self.collections:
+                        self.collections[name] = {}
+                
+                    dbname = '.'.join((name, dbspec["name"]))
+                    steps = dbspec["steps"]
+                    seq = SequenceRepeater(dbname, poscar, self.root, self,
+                                           steps, dbspec.get("niterations"),
+                                           self.specs.get("splits"))
+                    self.collections[name][dbspec["name"]] = seq
 
         from os import mkdir
         if not path.isdir(self.plotdir):
@@ -549,7 +565,8 @@ class Controller(object):
         #Extract the POTCAR that all the databases are going to use. TODO: pure
         #elements can't use this POTCAR, so we have to copy the single POTCAR
         #directly for those databases; update the create().
-        self.POTCAR()
+        if "potcars" in self.specs:
+            self.POTCAR()
 
         #If the controller is going to train any potentials, we also need to 
         self.trainers = None
@@ -609,9 +626,14 @@ class Controller(object):
         from fnmatch import fnmatch
         if pattern.count('.') == 2:
             config, parent, db = pattern.split('.')
-        else:
+        elif pattern.count('.') == 1:
             config, parent = pattern.split('.')
             db = None
+        else:
+            #We must be searching legacy databases; match the pattern against
+            #those.
+            return [li for ln, li in self.legacy.items() if fnmatch(ln, pattern)]
+        
         colls = [v for k, v in self.collections.items() if fnmatch(k, config)]
 
         #For databases without repeaters, there is no suffix.
