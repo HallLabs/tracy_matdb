@@ -635,6 +635,9 @@ class Controller(object):
             return [li for ln, li in self.legacy.items() if fnmatch(ln, pattern)]
         
         colls = [v for k, v in self.collections.items() if fnmatch(k, config)]
+        if len(colls) == 1:
+            #Perhaps we should be searching the legacy databases.
+            return [li for ln, li in self.legacy.items() if fnmatch(ln, config)]
 
         #For databases without repeaters, there is no suffix.
         if '-' in parent:
