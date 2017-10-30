@@ -104,6 +104,27 @@ class TrainingSequence(object):
             if path.isfile(path.join(fit._jobfile)):
                 fqn = "{}.{}".format(self.name, fitname)
                 msg.okay("Completed jobfile creation for {}.".format(fqn))
+
+    def status(self, printed=True):
+        """Determines status information for each of the training steps within
+        this sequence.
+
+        Args:
+            printed (bool): when True, print the status to screen; otherwise,
+              return a dictionary with the relevant quantities.
+        """
+        for fitname, fit in self.isteps:
+            fit.status(printed)
+
+    def execute(self, dryrun=False):
+        """Submits the job script for the each training step in the sequence.
+
+        Args:
+            dryrun (bool): when True, simulate the submission without actually
+              submitting.
+        """
+        for fitname, fit in self.isteps:
+            fit.execute(dryrun)
             
 class TSequenceRepeater(object):
     """Represents a group of training sequences that share the same underlying
