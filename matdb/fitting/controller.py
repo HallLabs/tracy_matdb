@@ -209,7 +209,32 @@ class TController(object):
                 result.extend(repeater.sequences.keys())
 
         return sorted(result) 
-                        
+
+    def validate(self, datafile=None, tfilter=None, sfilter=None, energy=True,
+                 force=True, virial=True):
+        """Validates all potentials/fitters in this controller against the
+        specified data file. If not specified, then the built-in hold out sets
+        are used.
+
+        Args:
+            datafile (str): path to the data file to read the atoms list from.
+            tfilter (list): of `str` patterns to match against *fit* names.
+            tfilter (list): of `str` patterns to match against *step* names.        
+            energy (bool): when True, validate the energies of each
+              configuration.
+            forces (bool): when True, validate the force *components* of each
+              configuration.
+            virial (bool): when True, validate the virial *components* of each
+              configuration.
+        """
+        if datafile is not None:
+            configs = quippy.AtomsList(datafile)
+        else:
+            configs = None
+
+        for trainer in self.ifiltered(tfilter, sfilter):
+            trainer.validate(configs, energy, force, virial)
+    
     def jobfiles(self, tfilter=None, sfilter=None):
         """Creates the jobfiles for every trainer in the system.
 
@@ -219,6 +244,16 @@ class TController(object):
         """
         for fitname, fit in self.ifiltered(tfilter, sfilter):
             fit.jobfile()
+
+    def execute(self, tfilter=None, sfilter=None, dryrun=False):
+        """Executes the jobfiles for every trainer in the system.
+
+        Args:
+            tfilter (list): of `str` patterns to match against *fit* names.
+            tfilter (list): of `str` patterns to match against *step* names.
+        """
+        for fitname, fit in self.ifiltered(tfilter, sfilter):
+            fit.execute(dryrun)
             
     def find(self, pattern):
         """Finds a list of trainers that match the specified pattern. Trainer FQNs
