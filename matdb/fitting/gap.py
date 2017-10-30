@@ -130,8 +130,6 @@ class GAP(Trainer):
         ogaps (list): of `str` trainer FQNs for previous gaps that were fitted,
           whose parameters should be included in the final GAP IP.
         teach_sparse (dict): key-value pairs for the `teach_sparse` executable.
-        parent (TrainingSequence): training sequence that this trainer belongs
-          to.
         gapargs (dict): parameters for the n-body potential.
 
     Attributes:
@@ -153,10 +151,9 @@ class GAP(Trainer):
                  split=None, sigmas=None, ogaps=None, teach_sparse=None,
                  root=None, parent=None, **gapargs):
         self.name = "{}b".format(nb) if isinstance(nb, int) else "soap"
-        super(GAP, self).__init__(controller, dbs, execution, split, root)
+        super(GAP, self).__init__(controller, dbs, execution, split, root, parent)
 
         self.nb = nb
-        self.parent = parent
         self.controller = controller
         self.e0 = controller.e0
         self.sigmas = sigmas
@@ -457,8 +454,10 @@ class GAP(Trainer):
         }
         
         if printed:
-            msg.info("Model ready: {}".format(result["trained"]))
+            fqn = "{}.{}".format(self.parent.name, self.name)
+            msg.info("{} => Model ready: {}".format(fqn, result["trained"]))
             x = "exists" if result["jobfile"] else "does not exist"
-            msg.info("Next jobfile '{}' {}".format(self.jobfile, x))
+            msg.info("{} => Next jobfile '{}' {}".format(fqn, self._jobfile, x))
+            msg.blank()
         else:
             return result

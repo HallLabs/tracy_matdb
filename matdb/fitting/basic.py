@@ -35,12 +35,15 @@ class Trainer(object):
           included in the training and validation.
         execution (dict): settings needed to configure the jobfile for running
           the fit.
+        parent (TrainingSequence): training sequence that this trainer belongs
+          to.
 
     Attributes:
     """
     def __init__(self, controller=None, dbs=None, execution={}, split=None,
-                 root=None):
+                 root=None, parent=None):
         self.controller = controller
+        self.parent = parent
         self.execution = {} if execution is None else execution.copy()
         self.split = split
         self._dbs = ['*.*'] if dbs is None else dbs
