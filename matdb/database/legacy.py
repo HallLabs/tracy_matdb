@@ -76,7 +76,7 @@ class LegacyDatabase(object):
         name (str): the name to use for the database.
         root (str): root directory in which all other database sequences for
           the configurations in the same specification will be stored.
-        parent (matdb.database.controller.Controller): instance controlling
+        controller (matdb.database.controller.Controller): instance controlling
           multiple configurations.
         splits (dict): keys are split names; values are `float` *training*
           percentages to use.
@@ -194,6 +194,10 @@ class LegacyDatabase(object):
             with open(self._configfile, 'w') as f:
                 json.dump(self.config, f)
 
+        #The rest of matdb expects each database to have an atoms object that is
+        #representative. Just take the first config in the combined database.
+        self.atoms = quippy.Atoms(self._dbfile)
+                
     def train_file(self, split):
         """Returns the full path to the XYZ database file that can be
         used for training.
