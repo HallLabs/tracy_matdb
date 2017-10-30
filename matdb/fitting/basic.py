@@ -227,10 +227,10 @@ class Trainer(object):
         cargs = ["sbatch", self._jobfile]
         if dryrun:
             from matdb.msg import okay
-            okay("Executed {} in {}".format(' '.join(cargs), self.parent.root))
+            okay("Executed {} in {}".format(' '.join(cargs), self.root))
             return True
         else:
-            xres = execute(cargs, self.parent.root)
+            xres = execute(cargs, self.root)
 
         if len(xres["output"]) > 0 and "Submitted" in xres["output"][0]:
             from matdb.msg import okay
