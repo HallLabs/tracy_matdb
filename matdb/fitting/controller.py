@@ -244,6 +244,8 @@ class TController(object):
         """
         for fitname, fit in self.ifiltered(tfilter, sfilter):
             fit.jobfile()
+            if path.isfile(path.join(fit._jobfile)):
+                msg.okay("Completed jobfile creation for {}.".format(fitname))
 
     def execute(self, tfilter=None, sfilter=None, dryrun=False):
         """Executes the jobfiles for every trainer in the system.
