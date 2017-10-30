@@ -123,10 +123,8 @@ class TrainingSequence(object):
             dryrun (bool): when True, simulate the submission without actually
               submitting.
         """
-        from matdb.utility import chdir
-        with chdir(self.root):
-            for fitname, fit in self.isteps:
-                fit.execute(dryrun)
+        for fitname, fit in self.isteps:
+            fit.execute(dryrun)
             
 class TSequenceRepeater(object):
     """Represents a group of training sequences that share the same underlying
