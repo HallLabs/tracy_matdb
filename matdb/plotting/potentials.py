@@ -233,17 +233,18 @@ def _get_xy(pot, atoms, prop, **calcargs):
     Returns:
         tuple: of `(dft, pot)` values.
     """
+    from tqdm import tqdm
     dft = getattr(atoms, prop)
     ipprop = next(calcargs.iterkeys())
     ip = []
-
-    for a in atoms:
+    
+    for a in tqdm(atoms):
         a.set_cutoff(pot.cutoff())
         a.calc_connect()
         pot.calc(a, **calcargs)
         ip.append(getattr(a, ipprop))
 
-    return (np.array(dft), np.array(ip))
+    return (dft, ip)
 
 def energy(pot, atoms, folder=None, base64=False, index=None):
     """Produces an energy correlation plot for the specified potential.
@@ -259,7 +260,8 @@ def energy(pot, atoms, folder=None, base64=False, index=None):
         index (int): integer index of this plot in the parent collection.
     """
     dft, ip = _get_xy(pot, atoms, "dft_energy", energy=True)
-
+    dft, ip = np.array(dft), np.array(ip)
+    
     #Setup the keyword arguments for the axes labels, etc.
     subplot_kw = {
         "xlabel": "DFT Energy (eV)",
@@ -283,7 +285,9 @@ def force(pot, atoms, folder=None, base64=False, index=None):
         index (int): integer index of this plot in the parent collection.
     """
     dft, ip = _get_xy(pot, atoms, "dft_force", force=True)
-
+    dft = np.hstack([np.array(f).flatten() for f in dft]).flatten()
+    ip = np.hstack([np.array(f).flatten() for f in ip]).flatten()
+    
     #Setup the keyword arguments for the axes labels, etc.
     subplot_kw = {
         "xlabel": "DFT Forces (eV)",
@@ -308,6 +312,9 @@ def virial(pot, atoms, folder=None, base64=False, index=None):
         index (int): integer index of this plot in the parent collection.
     """
     dft, ip = _get_xy(pot, atoms, "dft_virial", virial=True)
+    dft = np.hstack([np.array(v).flatten() for v in dft]).flatten()
+    ip = np.hstack([np.array(v).flatten() for v in ip]).flatten()
+
     #Setup the keyword arguments for the axes labels, etc.
     subplot_kw = {
         "xlabel": "DFT Virial (eV)",
