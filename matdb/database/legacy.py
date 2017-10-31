@@ -100,7 +100,7 @@ class LegacyDatabase(object):
     """
     def __init__(self, name=None, root=None, controller=None, splits=None,
                  folder=None, pattern=None, config_type=None, energy="dft_energy",
-                 force="dft_force", virial="dft_virial"):
+                 force="dft_force", virial="dft_virial", limit=None):
         self.name = name
         self.root = path.join(root, self.name)
         if not path.isdir(self.root):
@@ -111,9 +111,13 @@ class LegacyDatabase(object):
         self.splits = {} if splits is None else splits
         self.folder = folder
 
-        self._dbfile = path.join(self.root, "legacy.xyz")
-        """str: path to the combined legacy database.
+        self._dbfile = path.join(self.root, "legacy-{}.xyz".format(limit))
+        """str: path to the combined legacy database, with limits included.
         """
+        self._dbfull = path.join(self.root, "legacy.xyz")
+        """str: path to the combined legacy database, *without* limits.
+        """
+
         self._configfile = path.join(self.root, "config.json")
         """str: path to the file that stores configuration information about how
         the :attr:`_dbfile` was created.
@@ -131,66 +135,19 @@ class LegacyDatabase(object):
             self.config_type = self.config["config_type"]
             self.folder = folder
         else:
-            from matdb.utility import chdir
-            from glob import glob
-            from tqdm import tqdm
-            import quippy.cinoutput as qcio
-
-            #NB! There is a subtle bug here: if you try and open a quippy.Atoms
-            #within the context manager of `chdir`, something messes up with the
-            #memory sharing in fortran and it dies. This has to be separate.
-            with chdir(folder):
-                self.dbfiles = glob(pattern)
-            rewrites = []
-                
-            for dbfile in self.dbfiles:
-                #Look at the first configuration in the atoms list to
-                #determine if it matches the energy, force, virial and
-                #config type parameter names.
-                dbpath = path.join(folder, dbfile)
-                params, doforce = _atoms_conform(dbpath, energy, force, virial)
-                if len(params) > 0 or doforce:
-                    al = quippy.AtomsList(dbpath)
-                    out = qcio.CInOutputWriter(path.join(self.root, dbfile))
-                    try:
-                        for ai in tqdm(al):
-                            for target, source in params.items():
-                                if (target == "config_type" and
-                                      config_type is not None):
-                                    ai.params[target] = config_type
-                                else:
-                                    ai.params[target] = ai.params[source]
-                                    del ai.params[source]
-
-                            if doforce:
-                                ai.properties["dft_force"] = ai.properties[force]
-                                del ai.properties[force]
-
-                            ai.write(out)
-
-                        #Mark this db as non-conforming so that we created a new
-                        #version of it.
-                        rewrites.append(dbfile)
-                    finally:
-                        out.close()
-
-            catdbs = []
-            for dbfile in self.dbfiles:
-                if dbfile in rewrites:
-                    catdbs.append(path.join(self.root, dbfile))
-                else:
-                    catdbs.append(path.join(folder, dbfile))
-
-            self.dbfiles = catdbs
-            self.config["dbfiles"] = self.dbfiles
-            self.config["config_type"] = self.config_type
-            self.config["folder"] = folder
-
-            #Finally, concatenate all the files together to form the final
-            #database.
-            from matdb.utility import cat
-            with chdir(folder):
-                cat(self.config["dbfiles"], self._dbfile)
+            if not path.isfile(self._dbfull):
+                self._create_dbfull(folder, pattern, energy, force, virial, config_type)
+            
+            if limit is not None:
+                full = quippy.AtomsList(self._dbfull)
+                N = np.arange(len(full))
+                np.random.shuffle(N)
+                ids = N[0:limit]
+                part = full[ids]
+                part.write(self._dbfile)
+            else:
+                from matdb.utility import symlink
+                symlink(self._dbfile, self._dbfull)
 
             with open(self._configfile, 'w') as f:
                 json.dump(self.config, f)
@@ -198,7 +155,72 @@ class LegacyDatabase(object):
         #The rest of matdb expects each database to have an atoms object that is
         #representative. Just take the first config in the combined database.
         self.atoms = quippy.Atoms(self._dbfile)
-                
+
+    def _create_dbfull(self, folder, pattern, energy, force, virial, config_type):
+        """Creates the full combined database.
+        """
+        from matdb.utility import chdir
+        from glob import glob
+        from tqdm import tqdm
+        import quippy.cinoutput as qcio
+        from os import path
+        
+        #NB! There is a subtle bug here: if you try and open a quippy.Atoms
+        #within the context manager of `chdir`, something messes up with the
+        #memory sharing in fortran and it dies. This has to be separate.
+        with chdir(folder):
+            self.dbfiles = glob(pattern)
+        rewrites = []
+            
+        for dbfile in self.dbfiles:
+            #Look at the first configuration in the atoms list to
+            #determine if it matches the energy, force, virial and
+            #config type parameter names.
+            dbpath = path.join(folder, dbfile)
+            params, doforce = _atoms_conform(dbpath, energy, force, virial)
+            if len(params) > 0 or doforce:
+                al = quippy.AtomsList(dbpath)
+                out = qcio.CInOutputWriter(path.join(self.root, dbfile))
+                try:
+                    for ai in tqdm(al):
+                        for target, source in params.items():
+                            if (target == "config_type" and
+                                  config_type is not None):
+                                ai.params[target] = config_type
+                            else:
+                                ai.params[target] = ai.params[source]
+                                del ai.params[source]
+
+                        if doforce:
+                            ai.properties["dft_force"] = ai.properties[force]
+                            del ai.properties[force]
+
+                        ai.write(out)
+
+                    #Mark this db as non-conforming so that we created a new
+                    #version of it.
+                    rewrites.append(dbfile)
+                finally:
+                    out.close()
+
+        catdbs = []
+        for dbfile in self.dbfiles:
+            if dbfile in rewrites:
+                catdbs.append(path.join(self.root, dbfile))
+            else:
+                catdbs.append(path.join(folder, dbfile))
+
+        self.dbfiles = catdbs
+        self.config["dbfiles"] = self.dbfiles
+        self.config["config_type"] = self.config_type
+        self.config["folder"] = folder
+
+        #Finally, concatenate all the files together to form the final
+        #database.
+        from matdb.utility import cat
+        with chdir(folder):
+            cat(self.config["dbfiles"], self._dbfull)        
+        
     def train_file(self, split):
         """Returns the full path to the XYZ database file that can be
         used for training.
