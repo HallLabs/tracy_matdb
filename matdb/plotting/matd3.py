@@ -85,8 +85,8 @@ class PointDetailImage(object):
             save_kw = {}
         if folder is None:
             return
-            
-        if not base64:
+
+        if not self.base64:
             self.filename = "{}-{}.png".format(name, index)
             savepath = path.join(folder, self.filename)
             plt.savefig(savepath, format="png", **save_kw)

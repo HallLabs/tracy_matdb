@@ -146,6 +146,8 @@ class GAP(Trainer):
         hessfit (bool): when True, the trainer is performing a hessian-based fit
           over the configurations (as opposed to using the entire configuration
           library).
+        params (dict): key-value pairs that are parameters for the model
+          fitting.
     """
     def __init__(self, nb=None, controller=None, dbs=None, execution=None,
                  split=None, sigmas=None, ogaps=None, teach_sparse=None,
@@ -158,6 +160,12 @@ class GAP(Trainer):
         self.e0 = controller.e0
         self.sigmas = sigmas
         self.gap = gapargs
+        self.params = self.gap
+        #We have to run the descriptor string to populate the parameters
+        #correctly.
+        self.desc_str()
+        self.params.update({"sigma_{}".format(k): v for k, v in sigmas.items()})
+        
         self.ogaps = [] if ogaps is None else [controller[gap] for gap in ogaps]
         self.gp_file = "{}.xml".format(self.name)
         self.teach_sparse = {} if teach_sparse is None else teach_sparse
@@ -298,7 +306,10 @@ class GAP(Trainer):
             update_nbody(pdict)
             if "order" not in pdict:
                 pdict["order"] = self.nb
-        
+        #Overwrite our parameter dictionary for the model. This is needed by
+        #other methods and functions that want to do plotting, etc.
+        self.params = pdict
+                
         settings = []
         settings.append("soap" if self.nb == "soap" else "distance_Nb")
         settings.append(dict_to_str(pdict, spacer="  "))

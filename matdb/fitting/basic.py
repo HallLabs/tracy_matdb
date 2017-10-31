@@ -41,11 +41,13 @@ class Trainer(object):
           to.
 
     Attributes:
+        fqn (str): fully-qualified name of the trainer.
     """
     def __init__(self, controller=None, dbs=None, execution={}, split=None,
                  root=None, parent=None):
         self.controller = controller
         self.parent = parent
+        self.fqn = "{}.{}".format(self.parent.name, self.name)
         self.execution = {} if execution is None else execution.copy()
         self.split = split
         self._dbs = ['*.*'] if dbs is None else dbs

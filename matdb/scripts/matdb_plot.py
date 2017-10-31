@@ -1,4 +1,5 @@
  #!/usr/bin/python
+from os import path
 def examples():
     """Prints examples of using the script to the console using colored output.
     """
@@ -35,6 +36,10 @@ script_options = {
                     "dynamical matrix *step* for suffix `2` of the phonon"
                     " *database* of configuration `Pd`."),
            "nargs": "+"},
+    "-x": {"help": ("Specify a parameter name to plot along `x` axis in "
+                    "interactive plots.")},
+    "-y": {"help": ("Specify a parameter name to plot along `y` axis in "
+                    "interactive plots.")},
     "--bands": {"action": "store_true",
                 "help": ("Plot the phonon bands for the structures given "
                          "by '-d'")},
@@ -102,6 +107,60 @@ def _parser_options():
 
     return args
 
+def _generate_pkl(pot, **args):
+    """Generates a pickle file for a single potential and its default databases.
+    """
+    from matdb.plotting.potentials import generate
+    from cPickle import dump
+    pdis = generate(args["plots"], pot.calculator,
+                    pot.configs(args["subset"]),
+                    args["folder"], args["base64"])
+
+    pklname = "{}-{}-plotgen.pkl".format(args["subset"], args["plots"])
+    target = path.join(pot.root, pklname)
+    with open(target, 'w') as f:
+        dump(pdis, f)
+
+def _generate_html(potlist, **args):
+    """Generates the interactive HTML page for the potentials and databases.
+    """
+    from cPickle import load
+    data = {}
+    pklname = "{}-{}-plotgen.pkl".format(args["subset"], args["plots"])
+    for ipot, pot in enumerate(potlist):
+        target = path.join(pot.root, pklname)
+        if not path.isfile(target):
+            _generate_pkl(pot, **args)
+        with open(target) as f:
+            pdis = load(f)
+
+        xf, yf = "{%s}" % args["x"], "{%s}" % args["y"]
+        x, y = xf.format(**pot.params), yf.format(**pot.params)
+        #Actually, use the parameters dict for the fitting.
+        data[pot.fqn] = {
+            "location": (x, y),
+            "index": ipot
+        }
+        data[pot.fqn].update(pdis)
+
+        from shutil import copyfile
+        for pdi in pdis.values():
+            newname = "{}__{}".format(pot.fqn, pdi.url)
+            trg = path.join(args["folder"], newname)
+            copyfile(path.join(pot.root, pdi.url), trg)
+            pdi.filename = newname
+
+    from matdb.plotting.matd3 import html
+    subplot_kw = {
+        "title": "Interactive Potential Explorer",
+        "xlabel": args["x"],
+        "ylabel": args["y"]
+    }
+    plot_kw = {
+        "alpha": 0.3
+    }
+    html(data, args["folder"], subplot_kw=subplot_kw, plot_kw=plot_kw)    
+        
 def run(args):
     """Runs the matdb setup and cleanup to produce database files.
     """
@@ -111,7 +170,6 @@ def run(args):
     #No matter what other options the user has chosen, we will have to create a
     #database controller for the specification they have given us.
     from matdb.database.controller import Controller
-    from os import getcwd, path
     cdb = Controller(args["dbspec"])
 
     #We allow any number of databases to be plotted together at the same
@@ -127,15 +185,6 @@ def run(args):
     if args["pots"]:
         for potp in args["pots"]:
             pots.extend(cdb.trainers.find(potp)) 
-    if len(pots) == 0:
-        #Try and get a potential from the current directory.
-        dot = getcwd()
-        step = path.dirname(dot)
-        seq = path.dirname(step)
-        probable = "{}.{}".format(seq, step)
-        _pot = cdb.trainers.find(probable)
-        if _pot:
-            pots.append(_pot)
 
     if args["bands"]:
         from matdb.plotting.comparative import band_plot
@@ -143,21 +192,14 @@ def run(args):
         band_plot(dbs, **args)
 
     if args["generate"]:
-        from matdb.plotting.potentials import generate
-        from cPickle import dump
-        
         if len(pots) > 1:
             raise ValueError("Generate only operates for a single trainer "
                              "at a time; don't specify so many patterns.")
         pot = pots[0]
-        pdis = generate(args["plots"], pot.calculator,
-                        pot.configs(args["subset"]),
-                        args["folder"], args["base64"])
+        _generate_pkl(pot, **args)
 
-        pklname = "{}-{}-plotgen.pkl".format(args["subset"], args["plots"])
-        target = path.join(pot.root, pklname)
-        with open(target, 'w') as f:
-            dump(pdis, f)
+    if args["html"]:
+        _generate_html(pots, **args)
         
 if __name__ == '__main__': # pragma: no cover
     run(_parser_options())
