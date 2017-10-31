@@ -33,7 +33,8 @@ script_options = {
     "-d": {"help": ("Specify the pattern of the databases to work with. "
                     "For example `Pd.phonon-2.dynmatrix` specifies the "
                     "dynamical matrix *step* for suffix `2` of the phonon"
-                    " *database* of configuration `Pd`.")},
+                    " *database* of configuration `Pd`."),
+           "nargs": "+"},
     "--bands": {"action": "store_true",
                 "help": ("Plot the phonon bands for the structures given "
                          "by '-d'")},
@@ -41,8 +42,8 @@ script_options = {
               "help": ("Specify the supercell dimensions for the phonon "
                        "calculations.")},
     "--pots": {"nargs": "+",
-               "help": ("Specify the names of GAP/MTP potential parameter "
-                        "files to compute properties for.")},
+               "help": ("Specify a list of patterns for trainer sequences "
+                        "to compute/plot properties for.")},
     "--title": {"help": ("Override the default title for plotting; "
                          "use {} for formatting chemical formula."),
                 "default": "{} Phonon Spectrum"},
@@ -53,7 +54,30 @@ script_options = {
                   "help": "Specify the size of the figure in inches."},
     "--save": {"help": "Specify the name of a file to save the plot to." },
     "--nbands": {"help": "Number of bands to plot.",
-                 "default": 4}
+                 "default": 4},
+    "--generate": {"action": "store_true",
+                   "help": ("Generate the sub-plots for HTML interactive"
+                            " package.")},
+    "--plots": {"default": "efvodt",
+                "help": ("Specify the kinds of plots to generate as a string: "
+                         "1. Energy Correlation Plot (`e`); "
+                         "2. Force Correlation Plot (`f`); "
+                         "3. Virial Correlation Plot (`v`); "
+                         "4. Energy vs. Volume Plot (`o`); "
+                         "5. Dimer Plots for 2-body Potentials (`d`); "
+                         "6. Trimer Plots for 3-body Potentials (`t`); ")},
+    "--base64": {"action": "store_true",
+                 "help": ("When true, don't save plots, rather base64 "
+                          "encode them for HTML.")},
+    "--folder": {"help": ("Specify the folder to store the plots in.")},
+    "--html": {"action": "store_true",
+               "help": ("Generate the interactive HTML plotter for all "
+                        "databases an potentials specified.")},
+    "--gzip": {"action": "store_true",
+               "help": ("For --html, gzip the resulting directory of plots "
+                        "and the html page.")},
+    "--splits": {"nargs": "+",
+                "help": "Specify a list of global splits to use for plotting."},
     }
 """dict: default command-line arguments and their
     :meth:`argparse.ArgumentParser.add_argument` keyword arguments.
@@ -85,17 +109,49 @@ def run(args):
     #No matter what other options the user has chosen, we will have to create a
     #database controller for the specification they have given us.
     from matdb.database.controller import Controller
+    from os import getcwd, path
     cdb = Controller(args["dbspec"])
 
     #We allow any number of databases to be plotted together at the same
     #tame. The `s` argument gives a `fnmatch` pattern for database paths.
     #For example `Pd.phonon-2.dynmatrix` specifies the dynamical matrix *step*
     #for suffix `2` of the phonon *database* of configuration `Pd`.
-    dbs = cdb.find(args["d"])
-    
+    dbs = []
+    for dbp in args["d"]:
+        dbs.extend(cdb.find(dbp))
+
+    pots = []
+    for potp in args["pots"]:
+        pots.extend(cdb.trainers.find(potp)) 
+    if len(pots) == 0:
+        #Try and get a potential from the current directory.
+        dot = getcwd()
+        step = path.dirname(dot)
+        seq = path.dirname(step)
+        probable = "{}.{}".format(seq, step)
+        _pot = cdb.trainers.find(probable)
+        if _pot:
+            pots.append(_pot)
+
     if args["bands"]:
         from matdb.plotting.comparative import band_plot
+        raise NotImplementedError("Still need to refactor since db/pot major refactor.")
         band_plot(dbs, **args)
+
+    if args["generate"]:
+        from matdb.plotting.potential import generate
+        from cPickle import dump
+        
+        if len(pots) > 1:
+            raise ValueError("Generate only operates for a single trainer "
+                             "at a time; don't specify so many patterns.")
+        pot = pots[0]
+        pdis = generate(args["plots"], pot.validation, atoms, args["folder"],
+                        args["base64"])
+        
+        target = path.join(pot.root, "plotgen.pkl".format(split))
+        with open(target, 'w') as f:
+            dump(pdis, f)
         
 if __name__ == '__main__': # pragma: no cover
     run(_parser_options())
