@@ -17,9 +17,10 @@ def _quick_write(atlist, outpath):
         outpath (str): full path to the location of the output file to write.
     """
     import quippy.cinoutput as qcio
+    from tqdm import tqdm
     out = qcio.CInOutputWriter(outpath)
     try:
-        for ai in atlist:
+        for ai in tqdm(atlist):
             ai.write(out)
     finally:
         out.close()
@@ -255,12 +256,13 @@ class LegacyDatabase(object):
         #Compile a list of all the sub-configurations we can include in the
         #training.
         from cPickle import dump, load
+        from tqdm import tqdm
         idfile = path.join(self.root, "{0}-ids.pkl".format(name))
 
         #Either way, we will have to compile a list of all available atoms in
         #the database files.
         subconfs = quippy.AtomsList()
-        for dbfile in self.dbfiles:
+        for dbfile in tqdm(self.dbfiles):
             al = quippy.AtomsList(dbfile)
             subconfs.extend(al)
 
