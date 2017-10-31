@@ -73,9 +73,14 @@ class Trainer(object):
         command.
         """
         self._holdfile = path.join(self.root, "holdout.xyz")
-        """str: path to the XYZ training file that will be passed to the training
+        """str: path to the XYZ validation file that will be passed to the training
         command.
         """
+        self._superfile = path.join(self.root, "super.xyz")
+        """str: path to the XYZ super validation file that will be passed to the
+        training command.
+        """
+
         self._jobfile = path.join(self.root, "jobfile.sh")
         """str: path to the jobfile for the current trainer.
         """
@@ -161,18 +166,41 @@ class Trainer(object):
         """Returns a :class:`quippy.AtomsList` of configurations that can be
         used for potential validation.
         """
-        if not path.isfile(self._holdfile):
+        return self.configs("holdout")
+
+    def configs(self, kind):
+        """Loads a list of configurations of the specified kind.
+
+        Args:
+            kind (str): on of ['train', 'holdout', 'super'].
+
+        Returns:
+            quippy.AtomsList: for the specified configuration class.
+        """
+        fmap = {
+            "train": lambda seq: seq.train_file(self.split),
+            "holdout": lambda seq: seq.holdout_file(self.split),
+            "super": lambda seq: seq.super_file(self.split)
+        }
+        smap = {
+            "train": self._trainfile,
+            "holdout": self._holdfile,
+            "super": self._superfile
+        }
+        cfile = smap[kind]
+
+        if not path.isfile(cfile):
             from matdb.utility import cat
-            hfiles = []
+            cfiles = []
             for seq in self.dbs:
                 #We need to split to get training data. If the split has already
                 #been done as part of a different training run, then it won't be
                 #done a second time.
                 seq.split()
-                hfiles.append(seq.holdout_file(self.split))
-            cat(hfiles, self._holdfile)
+                cfiles.append(fmap[kind]())
+            cat(cfiles, cfile)
 
-        return quippy.AtomsList(self._holdfile)
+        return quippy.AtomsList(cfile)
     
     def validate(self, configs=None, energy=True, force=True, virial=True):
         """Validates the calculator in this training object against the `holdout.xyz`
