@@ -197,7 +197,7 @@ class Trainer(object):
                 #been done as part of a different training run, then it won't be
                 #done a second time.
                 seq.split()
-                cfiles.append(fmap[kind]())
+                cfiles.append(fmap[kind](seq))
             cat(cfiles, cfile)
 
         return quippy.AtomsList(cfile)
