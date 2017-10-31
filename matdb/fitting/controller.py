@@ -300,9 +300,9 @@ class TController(object):
         """
         trainer, step = pattern.split('.')
         if '-' in trainer:
-            repname, suffix = trainer.split('-')
+            repname = trainer.split('-')[0]
         else:
-            repname, suffix = trainer, None
+            repname = trainer
 
         from fnmatch import fnmatch
         result = []
