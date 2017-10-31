@@ -78,6 +78,8 @@ script_options = {
                         "and the html page.")},
     "--splits": {"nargs": "+",
                 "help": "Specify a list of global splits to use for plotting."},
+    "--subset": {"choices": ["train", "holdout", "super"], "default": "holdout",
+                 "help": "Specify which database subset to use."}
     }
 """dict: default command-line arguments and their
     :meth:`argparse.ArgumentParser.add_argument` keyword arguments.
@@ -148,10 +150,12 @@ def run(args):
             raise ValueError("Generate only operates for a single trainer "
                              "at a time; don't specify so many patterns.")
         pot = pots[0]
-        pdis = generate(args["plots"], pot, pot.validation, args["folder"],
-                        args["base64"])
-        
-        target = path.join(pot.root, "plotgen.pkl".format(split))
+        pdis = generate(args["plots"], pot.calculator,
+                        pot.configs(args["subset"]),
+                        args["folder"], args["base64"])
+
+        pklname = "{}-{}-plotgen.pkl".format(args["subset"], args["plots"])
+        target = path.join(pot.root, pklname)
         with open(target, 'w') as f:
             dump(pdis, f)
         
