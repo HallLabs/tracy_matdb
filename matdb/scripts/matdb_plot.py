@@ -102,6 +102,20 @@ def _parser_options():
 
     return args
 
+def _generate_pkl(pot, **args):
+    """Generates a pickle file for a single potential and its default databases.
+    """
+    from matdb.plotting.potentials import generate
+    from cPickle import dump
+    pdis = generate(args["plots"], pot.calculator,
+                    pot.configs(args["subset"]),
+                    args["folder"], args["base64"])
+
+    pklname = "{}-{}-plotgen.pkl".format(args["subset"], args["plots"])
+    target = path.join(pot.root, pklname)
+    with open(target, 'w') as f:
+        dump(pdis, f)
+        
 def run(args):
     """Runs the matdb setup and cleanup to produce database files.
     """
@@ -143,21 +157,14 @@ def run(args):
         band_plot(dbs, **args)
 
     if args["generate"]:
-        from matdb.plotting.potentials import generate
-        from cPickle import dump
-        
         if len(pots) > 1:
             raise ValueError("Generate only operates for a single trainer "
                              "at a time; don't specify so many patterns.")
         pot = pots[0]
-        pdis = generate(args["plots"], pot.calculator,
-                        pot.configs(args["subset"]),
-                        args["folder"], args["base64"])
+        _generate_pkl(pot, **args)
 
-        pklname = "{}-{}-plotgen.pkl".format(args["subset"], args["plots"])
-        target = path.join(pot.root, pklname)
-        with open(target, 'w') as f:
-            dump(pdis, f)
+    if args["html"]:
+        pass
         
 if __name__ == '__main__': # pragma: no cover
     run(_parser_options())
