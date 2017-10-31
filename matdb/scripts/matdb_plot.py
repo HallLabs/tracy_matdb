@@ -117,12 +117,14 @@ def run(args):
     #For example `Pd.phonon-2.dynmatrix` specifies the dynamical matrix *step*
     #for suffix `2` of the phonon *database* of configuration `Pd`.
     dbs = []
-    for dbp in args["d"]:
-        dbs.extend(cdb.find(dbp))
+    if args["d"]:
+        for dbp in args["d"]:
+            dbs.extend(cdb.find(dbp))
 
     pots = []
-    for potp in args["pots"]:
-        pots.extend(cdb.trainers.find(potp)) 
+    if args["pots"]:
+        for potp in args["pots"]:
+            pots.extend(cdb.trainers.find(potp)) 
     if len(pots) == 0:
         #Try and get a potential from the current directory.
         dot = getcwd()
@@ -139,14 +141,14 @@ def run(args):
         band_plot(dbs, **args)
 
     if args["generate"]:
-        from matdb.plotting.potential import generate
+        from matdb.plotting.potentials import generate
         from cPickle import dump
         
         if len(pots) > 1:
             raise ValueError("Generate only operates for a single trainer "
                              "at a time; don't specify so many patterns.")
         pot = pots[0]
-        pdis = generate(args["plots"], pot.validation, atoms, args["folder"],
+        pdis = generate(args["plots"], pot, pot.validation, args["folder"],
                         args["base64"])
         
         target = path.join(pot.root, "plotgen.pkl".format(split))

@@ -1,7 +1,9 @@
 """Implements a basic trainer that train material models.
 """
 import abc
+import quippy
 from os import path
+
 class Trainer(object):
     """Represents an algorithm that can use a :class:`DatabaseSequence` (or set of
     sequences) to produce a multi-component potential.
@@ -67,6 +69,10 @@ class Trainer(object):
         """ase.Calculator: potential for the fitted file in this Trainer.
         """
         self._trainfile = path.join(self.root, "train.xyz")
+        """str: path to the XYZ training file that will be passed to the training
+        command.
+        """
+        self._holdfile = path.join(self.root, "holdout.xyz")
         """str: path to the XYZ training file that will be passed to the training
         command.
         """
@@ -155,15 +161,18 @@ class Trainer(object):
         """Returns a :class:`quippy.AtomsList` of configurations that can be
         used for potential validation.
         """
-        result = quippy.AtomsList()
-        for seq in self.dbs:
-            #We need to split to get validation data. If the split has already
-            #been done as part of a different training run, then it won't be
-            #done a second time.
-            seq.split(self.split)
-            result.extend(quippy.AtomsList(seq.holdout_file(self.split)))
+        if not path.isfile(self._holdfile):
+            from matdb.utility import cat
+            hfiles = []
+            for seq in self.dbs:
+                #We need to split to get training data. If the split has already
+                #been done as part of a different training run, then it won't be
+                #done a second time.
+                seq.split()
+                hfiles.append(seq.holdout_file(self.split))
+            cat(hfiles, self._holdfile)
 
-        return result
+        return quippy.AtomsList(self._holdfile)
     
     def validate(self, configs=None, energy=True, force=True, virial=True):
         """Validates the calculator in this training object against the `holdout.xyz`
