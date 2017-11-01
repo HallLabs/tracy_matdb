@@ -283,10 +283,7 @@ class LegacyDatabase(object):
 
         #Either way, we will have to compile a list of all available atoms in
         #the database files.
-        subconfs = quippy.AtomsList()
-        for dbfile in tqdm(self.dbfiles):
-            al = quippy.AtomsList(dbfile)
-            subconfs.extend(al)
+        subconfs = quippy.AtomsList(self._dbfile)
 
         if path.isfile(idfile):
             with open(idfile, 'rb') as f:
