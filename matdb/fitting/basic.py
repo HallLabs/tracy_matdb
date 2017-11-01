@@ -50,6 +50,7 @@ class Trainer(object):
         self.fqn = "{}.{}".format(self.parent.name, self.name)
         self.execution = {} if execution is None else execution.copy()
         self.split = split
+        self.params = {}
         self._dbs = ['*.*'] if dbs is None else dbs
         if not isinstance(self._dbs, (list, set, tuple)):
             self._dbs = [self._dbs]
@@ -66,6 +67,12 @@ class Trainer(object):
         self.dbs = []
         for dbpat in self._dbs:
             self.dbs.extend(self.controller.db.find(dbpat))
+
+        if len(self.dbs) > 0:
+            _splitavg = []
+            for db in self.dbs:
+                _splitavg.append(db.splits[self.split])
+            self.params["split"] = sum(_splitavg)/len(self.dbs)
             
         self._calculator = None
         """ase.Calculator: potential for the fitted file in this Trainer.
