@@ -511,8 +511,8 @@ class Controller(object):
     """
     def __init__(self, config, tmpdir=None):
         import yaml
-        self.config = config
-        with open(config, 'r') as stream:
+        self.config = path.expanduser(path.abspath(config))
+        with open(self.config, 'r') as stream:
             self.specs = yaml.load(stream)
 
         #We allow the user to specify paths relative the matdb repo.
