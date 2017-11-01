@@ -32,4 +32,10 @@ cd {{ execution_path }}
 
 # Get the path to the executable; should be on user's path after the modules have been loaded.
 {{ exec_path }}
+{%- if venv %}
+workon {{ venv }}
+{%- endif %}
+{%- if plots %}
+matdb_plot.py {{ matdbyml }} --generate --pots {{ fqn }} --folder {{ execution_path }} --plots {{ plots }}
+{%- endif %}
 
