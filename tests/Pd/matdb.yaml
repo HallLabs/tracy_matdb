@@ -12,6 +12,7 @@ potcars:
   pd: '_pv'
 # Directory in which the database folder system will be created.
 root: './tests/Pd'
+venv: 'matdb-dev'
 # List the names of files in the root directory that serve as seed
 # configurations for sub-sampling to create additional configs. The
 # name keyword decides what the folder name will be called in which
@@ -98,6 +99,9 @@ fitting:
     job_name: 'AgPd GAP'
   e0:
     Pd: -1.45835775
+  plotting:
+    plots: 'efdzv'
+    subset: 'super'
   fits:
     - name: "2b"
       dbs: ["Pd.phonon-*"]
@@ -133,3 +137,4 @@ fitting:
           cutoff: 3.5
           cutoff_transition_width: 0.5
           n_sparse: 200
+          delta: 0.5
