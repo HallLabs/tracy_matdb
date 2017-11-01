@@ -178,14 +178,19 @@ class TController(object):
         fits (dict): key-value pairs defining the list of fitters to try out.
         e0 (list): of `float` values indicating the *isolated* atom energy in
           `eV`.
+        plotting (dict): keyword arguments for plotting to generate for each
+          trainer after it is finished fitting. This uses
+          :func:`~matdb.plotting.potentials.generate`. 
         kwargs (dict): additional key-value pairs to pass down to the individual
           trainer objects.
     """
-    def __init__(self, db=None, root=None, fits=None, e0=None, **kwargs):
+    def __init__(self, db=None, root=None, fits=None, e0=None, plotting=None,
+                 **kwargs):
         from matdb.utility import dict_update
         self.db = db
         self.e0 = e0
         self.root = root
+        self.plotting = plotting
         self.fits = OrderedDict()
 
         for fspec in fits:
