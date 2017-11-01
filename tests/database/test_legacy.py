@@ -35,7 +35,8 @@ def rendb(tmpdir):
         mkdir(root)
     folder = relpath("./tests/data/legacy")    
     return LegacyDatabase("R-50", root, None, splits, folder, "r-50-*.xyz",
-                          "re", energy="energy", force="force", virial="virial")
+                          "re", energy="energy", force="force", virial="virial",
+                          limit=80)
 
 def test_split(phondb):
     """Tests splitting of available data from a legacy database.
@@ -113,3 +114,6 @@ def test_rename(rendb):
     assert "dft_force" in first.properties
     assert "dft_virial" in first.params
     assert  first.params["config_type"] == "re"
+
+    al = quippy.AtomsList(rendb._dbfile)
+    assert len(al) == 80
