@@ -59,7 +59,7 @@ def _get_calculator(name, potfile):
 
     return pot
 
-def calc(atoms, potfile, kpath, cachedir, supercell=4, delta=0.01, Npts=100,
+def calc(atoms, fit, kpath, cachedir, supercell=4, delta=0.01, Npts=100,
          potname="GAP"):
     """Calculates the phonon band structure for the specified QUIP IP parameter
     file.
@@ -71,7 +71,7 @@ def calc(atoms, potfile, kpath, cachedir, supercell=4, delta=0.01, Npts=100,
     
     Args:
         atoms (quippy.Atoms): atomic structure information.
-        potfile (str): full path to the parameter file for the IP.
+        fit (matdb.fitting.basic.Trainer): potential to run the calculation for.
         kpath (list): of :class:`numpy.ndarray` specifying the points in k-space
           that should be visited.
         cachedir (str): path to the directory where phonon calculations are
@@ -95,18 +95,12 @@ def calc(atoms, potfile, kpath, cachedir, supercell=4, delta=0.01, Npts=100,
     """
     from matdb.utility import reporoot
     from os import path, mkdir, getcwd, chdir
-
-    #First, we initialize a potential object to calculate forces and energies
-    #with.
-    pot = _get_calculator(potname, potfile)
-
     #The phonon calculator caches the displacements and force sets for each
     #atomic displacement using pickle. This generates three files for each
     #atomic degree of freedom (one for each cartesian direction). We want to
     #save these in a special directory.
-    potname = path.basename(potfile)
-    cachename = potname[:-4].replace("/","_")
-    dirname = path.join(cachedir, cachename)
+    pot = fit.calculator
+    dirname = path.join(cachedir, fit.fqn)
     if not path.isdir(dirname):
         mkdir(dirname)
     curdir = getcwd()
@@ -118,8 +112,9 @@ def calc(atoms, potfile, kpath, cachedir, supercell=4, delta=0.01, Npts=100,
             
         #Relax the cell before we try and get phonons out.
         atoms.set_calculator(pot)
-        #minim = PreconLBFGS(atoms, precon=Exp(A=3.0))
-        #minim.run(fmax=1e-7)
+        atoms.set_cutoff(pot.cutoff())
+        # minim = PreconLBFGS(atoms, precon=Exp(A=3.0))
+        # minim.run(fmax=1e-7)
 
         #Now run the phonon calculation
         from ase.phonons import Phonons
