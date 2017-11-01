@@ -2,7 +2,7 @@
 product. In order to adjust parameters it is useful to plot potentials and
 convergence runs against each other.
 """
-def band_plot(phondbs, pots=None, dim=2, npts=100, title="{} Phonon Spectrum",
+def band_plot(phondbs, fits=None, dim=2, npts=100, title="{} Phonon Spectrum",
               save=None, figsize=(10, 8), nbands=4, **kwargs):
     """Plots the phonon bands for the specified CLI args.
 
@@ -10,8 +10,8 @@ def band_plot(phondbs, pots=None, dim=2, npts=100, title="{} Phonon Spectrum",
         phondbs (list): of :class:`matdb.database.phonon.DynMatrix` `phonopy`
           calculation database instances that have DFT-accurate band
           information.
-        pots (list): of `str`; names of GAP/MTP potential parameter files to
-          compute properties for.
+        fits (list): of :class:`~matdb.fitting.basic.Trainer` to calculate bands
+          for.
         dim (list): of `int`; supercell dimensions for the phonon calculations.
         npts (int): number of points to sample along the special path in
           k-space.
@@ -32,7 +32,7 @@ def band_plot(phondbs, pots=None, dim=2, npts=100, title="{} Phonon Spectrum",
     #Make sure we have bands calculated for each of the databases passed in.
     for phondb in phondbs:
         phondb.calc_bands()
-    
+
     colors = ['k', 'b', 'g', 'r', 'c', 'm', 'y' ]
     bands, style = {}, {}
     names, kpath = None, None
@@ -49,15 +49,12 @@ def band_plot(phondbs, pots=None, dim=2, npts=100, title="{} Phonon Spectrum",
 
     #All of the phonon calculations use the same base atoms configuration. The
     #last `phondb` in the enumerated list is as good as any other.
-    if pots:
-        for poti, potpath in enumerate(tqdm(pots)):
-            potname = path.basename(potpath)
-            potkey = potname[:-4]
-            pottype = "GAP" if potname[0:2] == "gp" else "MTP"
-            bands[potkey] = phon_calc(phondb.atoms, potpath, kpath,
+    if fits is not None:
+        for fiti, fit in enumerate(tqdm(fits)):
+            bands[fit.fqn] = phon_calc(phondb.atoms, fit, kpath,
                                       phondb.phonocache, supercell=dim,
-                                      Npts=npts, potname=pottype)
-            style[potkey] = {"color": colors[len(phondbs)+poti], "lw": 2}
+                                      Npts=npts, potname=fit.fqn)
+            style[fit.fqn] = {"color": colors[len(phondbs)+fiti], "lw": 2}
 
     title = title.format(phondb.atoms.get_chemical_formula())
     savefile = None
