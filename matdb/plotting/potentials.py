@@ -51,13 +51,14 @@ def generate(plots, pot, atoms, folder=None, base64=False, index=0, ndimer=50,
         'v': lambda i: virial(pot, atoms, folder, base64, i),
         'o': lambda i: EvsV(pot, atoms, folder, base64, i),
         'd': lambda i: dimer(pot, atoms, elements, folder, base64, i, ndimer),
+        'z': lambda i: dimer(pot, atoms, elements, folder, base64, i, ndimer, zoom=True),
         't': lambda i: trimer(pot, atoms, elements, folder, base64, i, ndimer)
     }
 
     result = {}
     for char in plots:
         image = plotmap[char](index)
-        if char in ['d', 't']:
+        if char in ['d', 't', 'z']:
             for k, img in image.items():
                 result[k] = img
         else:
@@ -158,7 +159,7 @@ def _dimer_range(elements):
     return (rmin, alloy, rmax)
 
 def dimer(pot, atoms, elements, folder=None, base64=False, index=None,
-          nsamples=50):
+          nsamples=50, zoom=False):
     """Plots the potential behavior as the distance between two atoms in a
     dimer.
 
@@ -177,6 +178,7 @@ def dimer(pot, atoms, elements, folder=None, base64=False, index=None,
         index (int): integer index of this plot in the parent
           collection.
         nsamples (int): number of samples to take along the trajectory.
+        zoom (bool): when True, show a zoomed in view of the potential.
 
     Returns:
 
@@ -204,14 +206,18 @@ def dimer(pot, atoms, elements, folder=None, base64=False, index=None,
         dimer.pos = 0.
         dimer.set_chemical_symbols(elements)
 
-        rs = np.linspace(0.7*rmin, pot.cutoff(), nsamples)
+        if zoom:
+            rs = np.linspace(0.7*rmin, pot.cutoff(), nsamples)
+        else:
+            rs = np.linspace(0.4*rmin, pot.cutoff(), nsamples)
+            
         energy = []
         for r in rs:
             dimer.pos[1,2] = r
             pot.calc(dimer, energy=True)
             energy.append(dimer.energy)
 
-        elemstr = ''.join(elements)
+        elemstr = ''.join(elements) + ('z' if zoom else "")
         img = PDI(rs, np.array(energy), "plot", subplot_kw=subplot_kw,
                   index=index, base64=base64, name=elemstr, imgtype=elemstr,
                   folder=folder)
@@ -219,7 +225,7 @@ def dimer(pot, atoms, elements, folder=None, base64=False, index=None,
 
     return result        
 
-def _get_xy(pot, atoms, prop, **calcargs):
+def _get_xy(pot, atoms, prop, peratom=False, **calcargs):
     """Gets the x and y values for the specified potential and property.
     
     Args:
@@ -227,6 +233,7 @@ def _get_xy(pot, atoms, prop, **calcargs):
         atoms (quippy.AtomsList): list of atoms to calculate correlations with
           respect to.
         prop (str): name of the property on each atoms object.
+        peratom (bool): when True, plot per atom quantities.
         calcargs (dict): key-value pairs passed to
           :meth:`~quippy.Potential.calc`.
 
@@ -234,7 +241,10 @@ def _get_xy(pot, atoms, prop, **calcargs):
         tuple: of `(dft, pot)` values.
     """
     from tqdm import tqdm
-    dft = getattr(atoms, prop)
+    if peratom:
+        dft = [getattr(a, prop)/float(a.n) for a in atoms]
+    else:
+        dft = getattr(atoms, prop)
     ipprop = next(calcargs.iterkeys())
     ip = []
     
@@ -242,8 +252,11 @@ def _get_xy(pot, atoms, prop, **calcargs):
         a.set_cutoff(pot.cutoff())
         a.calc_connect()
         pot.calc(a, **calcargs)
-        ip.append(getattr(a, ipprop))
-
+        if peratom:
+            ip.append(getattr(a, ipprop)/float(a.n))
+        else:
+            ip.append(getattr(a, ipprop))
+            
     return (dft, ip)
 
 def energy(pot, atoms, folder=None, base64=False, index=None):
@@ -259,7 +272,7 @@ def energy(pot, atoms, folder=None, base64=False, index=None):
           name is returned.
         index (int): integer index of this plot in the parent collection.
     """
-    dft, ip = _get_xy(pot, atoms, "dft_energy", energy=True)
+    dft, ip = _get_xy(pot, atoms, "dft_energy", energy=True, peratom=True)
     dft, ip = np.array(dft), np.array(ip)
     
     #Setup the keyword arguments for the axes labels, etc.
@@ -267,9 +280,11 @@ def energy(pot, atoms, folder=None, base64=False, index=None):
         "xlabel": "DFT Energy (eV)",
         "ylabel": "IP Energy (eV)"
     }
-    
+    ctypes = np.array(atoms.config_type)
+    title = "RMSE {0:.4f}".format(np.std(dft-ip))
     return PDI(dft, ip, subplot_kw=subplot_kw, index=index, base64=base64,
-               name="Energy", imgtype="energy", folder=folder)
+               name="Energy", imgtype="energy", folder=folder, withdiag=True,
+               title=title, partition=ctypes)
 
 def force(pot, atoms, folder=None, base64=False, index=None):
     """Produces a force correlation plot for the specified potential.
@@ -287,16 +302,23 @@ def force(pot, atoms, folder=None, base64=False, index=None):
     dft, ip = _get_xy(pot, atoms, "dft_force", force=True)
     dft = np.hstack([np.array(f).flatten() for f in dft]).flatten()
     ip = np.hstack([np.array(f).flatten() for f in ip]).flatten()
+
+    aconfigs = atoms.config_type
+    N = np.array(atoms.n)*3
+    uconfigs = list(set(aconfigs))
+    dconfigs = {c: i for i, c in enumerate(uconfigs)}
+    ctypes = np.array([ac for ac, n in zip(aconfigs, N) for i in range(n)])
+    assert len(ctypes) == len(dft)
     
     #Setup the keyword arguments for the axes labels, etc.
     subplot_kw = {
-        "xlabel": "DFT Forces (eV)",
-        "ylabel": "IP Forces (eV)"
+        "xlabel": "DFT Forces (eV/A)",
+        "ylabel": "IP Forces (eV/A)"
     }
-
+    title = "RMSE {0:.4f}".format(np.std(dft-ip))
     return PDI(dft.flatten(), ip.flatten(), subplot_kw=subplot_kw, index=index,
                base64=base64, name="Force", imgtype="force",
-               folder=folder)
+               folder=folder, withdiag=True, title=title, partition=ctypes)
 
 def virial(pot, atoms, folder=None, base64=False, index=None):
     """Produces a virial correlation plot for the specified potential.
@@ -311,19 +333,25 @@ def virial(pot, atoms, folder=None, base64=False, index=None):
           name is returned.
         index (int): integer index of this plot in the parent collection.
     """
-    dft, ip = _get_xy(pot, atoms, "dft_virial", virial=True)
+    dft, ip = _get_xy(pot, atoms, "dft_virial", virial=True, peratom=True)
     dft = np.hstack([np.array(v).flatten() for v in dft]).flatten()
     ip = np.hstack([np.array(v).flatten() for v in ip]).flatten()
 
+    aconfigs = atoms.config_type
+    uconfigs = list(set(aconfigs))
+    dconfigs = {c: i for i, c in enumerate(uconfigs)}
+    ctypes = np.array([ac for ac in aconfigs for i in range(9)])
+    assert len(ctypes) == len(dft)
+    
     #Setup the keyword arguments for the axes labels, etc.
     subplot_kw = {
-        "xlabel": "DFT Virial (eV)",
-        "ylabel": "IP Virial (eV)"
+        "xlabel": "DFT Virial (eV/A^3)",
+        "ylabel": "IP Virial (eV/A^3)"
     }
-
+    title = "RMSE {0:.4f}".format(np.std(dft-ip))
     return PDI(dft.flatten(), ip.flatten(), subplot_kw=subplot_kw, index=index,
                base64=base64, name="Virial", imgtype="virial",
-               folder=folder)
+               folder=folder, withdiag=True, title=title, partition=ctypes)
 
 def EvsV(pot, atoms, folder=None, base64=False, index=None):
     """Produces an energy vs. volume plot for the energies predicted by the
