@@ -31,7 +31,7 @@ class Trainer(object):
 
     Args:
         name (str): name of this model; used as the output folder name.
-        controller (matdb.fitting.controller.Controller): fitting controller
+        controller (matdb.fitting.controller.TController): fitting controller
           whose data will be used to train the potentials.
         dbs (list): of `str` database patterns from the `db` that should be
           included in the training and validation.
@@ -294,6 +294,15 @@ class Trainer(object):
         settings["execution_path"] = self.root
         settings["exec_path"] = self.command()
 
+        #Add the settings for virtual env and plot function so that we can
+        #generate the plots in parallel.
+        if self.controller.plotting is not None:
+            settings.update(self.controller.plotting)
+            settings["fqn"] = self.fqn
+            settings["matdbyml"] = self.controller.db.config
+        if self.controller.db.venv is not None:
+            settings["venv"] = self.controller.db.venv
+        
         from jinja2 import Environment, PackageLoader
         env = Environment(loader=PackageLoader('matdb', 'templates'))
         template = env.get_template(settings["template"])
