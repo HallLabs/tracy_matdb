@@ -164,7 +164,8 @@ class GAP(Trainer):
         #We have to run the descriptor string to populate the parameters
         #correctly.
         self.desc_str()
-        self.params.update({"sigma_{}".format(k): v for k, v in sigmas.items()})
+        if sigmas is not None:
+            self.params.update({"sigma_{}".format(k): v for k, v in sigmas.items()})
         
         self.ogaps = [] if ogaps is None else [controller[gap] for gap in ogaps]
         self.gp_file = "{}.xml".format(self.name)
