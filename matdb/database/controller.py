@@ -506,9 +506,12 @@ class Controller(object):
           databases.
         kpathdir (str): path to the directory where cached k-paths are stored
           for root configurations.
+        venv (str): name of a virtual environment to activate for plotting
+          potentials after fitting.
     """
     def __init__(self, config, tmpdir=None):
         import yaml
+        self.config = config
         with open(config, 'r') as stream:
             self.specs = yaml.load(stream)
 
@@ -528,6 +531,7 @@ class Controller(object):
         self.incar = self.specs.get("incar", {})
         self.kpoints = self.specs.get("kpoints", {})
         self.execution = self.specs.get("execution", {})
+        self.venv = self.specs.get("venv")
 
         # We need to split out the databases by user-given name to create
         # the sequences.
