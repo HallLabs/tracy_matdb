@@ -395,7 +395,7 @@ class GAP(Trainer):
         #Compile the GAP string specifying the potential. Check to see if we
         #have other GAPs that were referenced.
         gaplist = []
-        for igap in enumerate(self.ogaps):
+        for igap in self.ogaps:
             gaplist.append(igap.desc_str())
         gaplist.append(self.desc_str())
         gapstr = ':'.join(gaplist)
