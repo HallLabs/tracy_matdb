@@ -160,7 +160,8 @@ class GAP(Trainer):
         self.e0 = controller.e0
         self.sigmas = sigmas
         self.gap = gapargs
-        self.params = self.gap
+        self.params.update(self.gap)
+
         #We have to run the descriptor string to populate the parameters
         #correctly.
         self.desc_str()
@@ -309,7 +310,7 @@ class GAP(Trainer):
                 pdict["order"] = self.nb
         #Overwrite our parameter dictionary for the model. This is needed by
         #other methods and functions that want to do plotting, etc.
-        self.params = pdict
+        self.params.update(pdict)
                 
         settings = []
         settings.append("soap" if self.nb == "soap" else "distance_Nb")
