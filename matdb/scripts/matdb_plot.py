@@ -125,6 +125,13 @@ def _generate_html(potlist, **args):
     """Generates the interactive HTML page for the potentials and databases.
     """
     from cPickle import load
+    from os import mkdir
+    #We create a new folder for the HTML plot inside the overall system
+    #directory.
+    plotdir = path.join(potlist[0].controller.db.plotdir, args["folder"])
+    if not path.isdir(plotdir):
+        mkdir(plotdir)
+
     data = {}
     pklname = "{}-{}-plotgen.pkl".format(args["subset"], args["plots"])
     for ipot, pot in enumerate(potlist):
@@ -146,7 +153,7 @@ def _generate_html(potlist, **args):
         from shutil import copyfile
         for pdi in pdis.values():
             newname = "{}__{}".format(pot.fqn, pdi.url)
-            trg = path.join(args["folder"], newname)
+            trg = path.join(plotdir, newname)
             copyfile(path.join(pot.root, pdi.url), trg)
             pdi.filename = newname
 
@@ -159,7 +166,8 @@ def _generate_html(potlist, **args):
     plot_kw = {
         "alpha": 0.3
     }
-    html(data, args["folder"], subplot_kw=subplot_kw, plot_kw=plot_kw)    
+
+    html(data, plotdir, subplot_kw=subplot_kw, plot_kw=plot_kw)    
         
 def run(args):
     """Runs the matdb setup and cleanup to produce database files.
@@ -188,8 +196,7 @@ def run(args):
 
     if args["bands"]:
         from matdb.plotting.comparative import band_plot
-        raise NotImplementedError("Still need to refactor since db/pot major refactor.")
-        band_plot(dbs, **args)
+        band_plot(dbs, pots, **args)
 
     if args["generate"]:
         if len(pots) > 1:
