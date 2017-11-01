@@ -3,6 +3,7 @@
 """
 from mpld3 import utils, plugins
 from os import path
+import numpy as np
 
 class PointDetailImage(object):
     """Container for an image associated with a single point in the main plot.
@@ -53,7 +54,8 @@ class PointDetailImage(object):
     """
     def __init__(self, x, y, plot="scatter", subplot_kw=None, gridspec_kw=None,
                  fig_kw=None, plot_kw=None, base64=False, name=None,
-                 imgtype=None, index=None, folder=None, save_kw=None):
+                 imgtype=None, index=None, folder=None, save_kw=None,
+                 withdiag=False, title=None, partition=None):
         import matplotlib.pyplot as plt
         self.x, self.y = x, y
         
@@ -61,7 +63,7 @@ class PointDetailImage(object):
         if fig_kw is None:
             fig_kw = {}
         if "figsize" not in fig_kw:
-            fig_kw["figsize"] = (3, 2)
+            fig_kw["figsize"] = (8, 6)
         figure, axes = plt.subplots(subplot_kw=subplot_kw,
                                     gridspec_kw=gridspec_kw,
                                     **fig_kw)
@@ -70,8 +72,27 @@ class PointDetailImage(object):
         #generate the figure.
         if plot_kw is None:
             plot_kw = {}
+        if "lw" not in plot_kw and plot == "scatter":
+            plot_kw["lw"] = 0
+            
         plotter = getattr(axes, plot)
-        points = plotter(x, y, **plot_kw)
+        if partition is not None:
+            colors = ['k', 'b', 'g', 'r', 'c', 'm', 'y' ]
+            types = np.unique(partition)
+            for pi, ptype in enumerate(types):
+                ids = np.where(partition == ptype)[0]
+                points = plotter(x[ids], y[ids], c=colors[pi], label=ptype,
+                                 **plot_kw)
+            axes.legend(loc='lower right', fontsize=16)
+        else:
+            points = plotter(x, y, **plot_kw)
+
+        if withdiag:
+            xl = np.linspace(min((min(x), min(y))), max((max(x), max(y))), 50)
+            axes.plot(xl, xl, 'b-')
+
+        if title:
+            axes.set_title(title)
 
         self.folder = folder
         self.name = name
