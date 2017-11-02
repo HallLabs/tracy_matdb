@@ -308,6 +308,9 @@ class Trainer(object):
           directory that the executable will run in. You are responsible for
           sub-classing that method correctly.
         """
+        if self.ready():
+            return
+        
         # We use the global execution parameters and then any updates
         # locally. We need to add the execution directory (including prefix) and
         # the number of jobs in the array.
