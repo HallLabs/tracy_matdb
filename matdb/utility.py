@@ -457,7 +457,9 @@ def dbcat(files, output, **params):
     try:
         with open(confpath, 'w') as f:
             json.dump(config, f, default=datetime_handler)
-        cat(files)
+
+        if len(files) > 1 or (len(files) == 1 and files[0] != output):
+            cat(files, output)
     except:
         from os import remove
         remove(confpath)
