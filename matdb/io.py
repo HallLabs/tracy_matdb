@@ -47,7 +47,11 @@ def is_link(obj):
     """Determines whether the specified object is a link according to the `matdb`
     templating specification.
     """
-    return isinstance(obj, str) and obj[0] == ":"
+    result = False
+    if isinstance(obj, str):
+        if len(obj) > 0:
+            result = obj[0] == ":"
+    return result
 
 def _unpack_obj(context, obj, lcontext=None):
     """Unpacks each item of the specified object recursively so that all
