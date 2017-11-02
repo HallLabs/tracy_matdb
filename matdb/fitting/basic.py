@@ -160,7 +160,7 @@ class Trainer(object):
                     self._dbfilters[db] = {}
 
                 opf = lambda v: eval(estr.format(__v=v, **vals))
-                self._dbfilters[db][attr] = opf     
+                self._dbfilters[db][attr] = (opf, vals)
         
     def _update_split_params(self):
         """Updates the parameters set for the trainer to include the splits.
@@ -264,7 +264,12 @@ class Trainer(object):
         from matdb.utility import dbcat
         if len(self.dbfilter) > 0 and seqname in self._dbfilters:
             filtered = []
+            #The filters values have a function and a list of the actual values
+            #used in the formula replacement. Extract the parameters; we can't
+            #serialize the actual functions.
             filters = self._dbfilters[seqname].items()
+            params = {k: v[1] for k, v in filters.items()}
+            
             for dbfile in dbfiles:
                 filtdb = path.join(self.root, "__" + path.bbasename(nfile))
                 if path.isfile(filtdb):
@@ -273,12 +278,14 @@ class Trainer(object):
                 al = quippy.AtomsList(dbfile)
                 nl = quippy.AtomsList()
                 for a in al:
-                    if not any(opf(getattr(a, attr)) for attr, opf in filters):
+                    #The 0 index here gets the function out; see comment above
+                    #about the filters dictionary.
+                    if not any(opf[0](getattr(a, attr)) for attr, opf in filters):
                         nl.append(a)
 
                 if len(nl) != len(al):
                     nl.write(filtdb)
-                    dbcat([filtdb], filtdb, filters=filters)
+                    dbcat([filtdb], filtdb, filters=params)
                     filtered.append(filtdb)
                 else:
                     filtered.append(nfile)
