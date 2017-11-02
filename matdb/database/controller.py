@@ -490,7 +490,7 @@ class Controller(object):
     YAML format) to instances of various databases.
 
     Args:
-        config (str): path to the configuration YAML file that
+        config (str): name of the YML file (without the .yml) that
           specifies all information for constructing the set of databases.
         tmpdir (str): path to a temporary directory to use for the
           database. This is for unit testing purposes.
@@ -510,10 +510,13 @@ class Controller(object):
           potentials after fitting.
     """
     def __init__(self, config, tmpdir=None):
-        import yaml
+        from matdb.io import read
         self.config = path.expanduser(path.abspath(config))
-        with open(self.config, 'r') as stream:
-            self.specs = yaml.load(stream)
+        if path.isabs(config):
+            root, config = path.split(config)
+        else:
+            root, config = path.dirname(self.config), config
+        self.specs = read(root, config)
 
         #We allow the user to specify paths relative the matdb repo.
         from matdb.utility import relpath
