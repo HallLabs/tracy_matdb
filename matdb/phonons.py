@@ -113,8 +113,8 @@ def calc(atoms, fit, kpath, cachedir, supercell=4, delta=0.01, Npts=100,
         #Relax the cell before we try and get phonons out.
         atoms.set_calculator(pot)
         atoms.set_cutoff(pot.cutoff())
-        # minim = PreconLBFGS(atoms, precon=Exp(A=3.0))
-        # minim.run(fmax=1e-7)
+        minim = PreconLBFGS(atoms, precon=Exp(A=3.0))
+        minim.run(fmax=1e-7)
 
         #Now run the phonon calculation
         from ase.phonons import Phonons
