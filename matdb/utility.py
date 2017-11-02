@@ -464,6 +464,26 @@ def dbcat(files, output, **params):
         from os import remove
         remove(confpath)
 
+def getattrs(obj, chain):
+    """Recursively gets attributes in a chain from object to object until the
+    train terminates.
+
+    Args:
+        obj: to get attributes from.
+        chain (list): of `str` attribute names.
+
+    Examples:
+
+        Get the `energy` attribute of the `atoms` attribute of a database
+          (`obj`).
+
+        >>> getattrs(obj, ["atoms", "energy"])
+    """
+    o = obj
+    for attr in chain:
+        o = getattr(o, attr)
+    return o
+        
 reporoot = _get_reporoot()
 """The absolute path to the repo root on the local machine.
 """
