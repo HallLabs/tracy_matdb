@@ -568,11 +568,12 @@ class Calibration(Database):
     
     def __init__(self, atoms=None, root=None, parent=None,
                  kpoints={}, incar={}, phonons={}, execution={},
-                 nconfigs=10, name="calib", dynmat="dynmatrix"):
+                 nconfigs=10, name="calib", dynmat="dynmatrix",
+                 config_type="calib"):
         self.name = name
         super(Calibration, self).__init__(atoms, incar, kpoints, execution,
                                                 path.join(root, self.name),
-                                                parent, "C", nconfigs)
+                                                parent, "C", nconfigs, config_type)
         self.base = self.parent.steps[dynmat]
         self.phonons = phonons
         update_phonons(self.phonons, self.base)
@@ -605,7 +606,7 @@ class Calibration(Database):
             msg.warn("cannot cleanup calibration; not all configs ready.")
             return False
 
-        success = self.xyz(config_type="calib")
+        success = self.xyz()
         if not success:
             msg.warn("could not extract the calibration XYZ configurations.")
             return False
@@ -757,11 +758,11 @@ class Modulation(Database):
                  kpoints={}, incar={}, phonons={}, execution={}, nconfigs=100,
                  calibrate=True, amplitude=None, sampling="uniform",
                  name="modulations", dynmat="dynmatrix",
-                 calibrator="calib"):
+                 calibrator="calib", config_type="ph"):
         self.name = name
         super(Modulation, self).__init__(atoms, incar, kpoints, execution,
                                              path.join(root, self.name),
-                                             parent, "M", nconfigs)
+                                             parent, "M", nconfigs, config_type)
         self.sampling = sampling
         self.calibrate = calibrate
         
@@ -816,7 +817,7 @@ class Modulation(Database):
         if not super(Modulation, self).cleanup():
             return
         
-        return self.xyz(config_type="ph", combine=True)
+        return self.xyz(combine=True)
     
     def setup(self, rerun=False):
         """Displaces the seed configuration preparatory to calculating the force
