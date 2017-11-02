@@ -132,7 +132,10 @@ class Trainer(object):
         purposes.
         """
         from fnmatch import fnmatch
+        from six import string_types
         import operator
+        from matdb.utility import getattrs
+        
         alldbs = [db.name for db in self.dbs]
         opmap = {
             '<': operator.lt,
@@ -142,6 +145,7 @@ class Trainer(object):
             '>=': operator.ge,
             '>': operator.gt
         }
+        
         for attr, spec in self.dbfilter.items():
             if "dbs" in spec:
                 dbs = [db for db in alldbs if fnmatch(db, spec["dbs"])]
@@ -151,7 +155,15 @@ class Trainer(object):
             for db in dbs:
                 if db not in self._dbfilters:
                     self._dbfilters[db] = {}
-                opf = lambda v: opmap[spec["operator"]](v, spec["value"])
+                    
+                ref = spec["value"]    
+                if isinstance(spec["value"], string_types):
+                    if len(spec["value"]) > 0 and spec["value"][0] == ':':
+                        chain = spec["value"][1:].split('.')
+                        odb = self.controller.db.find(chain[0])[0]
+                        ref = getattrs(odb, chain[1:])
+
+                opf = lambda v: opmap[spec["operator"]](v, ref)
                 self._dbfilters[db][attr] = opf        
         
     def _update_split_params(self):
