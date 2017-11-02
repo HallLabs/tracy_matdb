@@ -118,7 +118,7 @@ class Database(object):
         nconfigs (int): number of displaced configurations to create.
     """
     def __init__(self, atoms, incar, kpoints, execution, root, parent,
-                 prefix='S', nconfigs=100):
+                 prefix='S', nconfigs=100, config_type=None):
         self.atoms = atoms
         self.incar = incar.copy()
         self.kpoints = kpoints.copy()
@@ -131,7 +131,7 @@ class Database(object):
         self.parent = parent
         self.prefix = prefix
         self.nconfigs = nconfigs
-
+        self.config_type = config_type
         self._nsuccess = 0
         """int: number of configurations whose output files were successfully
         converted to XYZ format. Should be equal to :attr:`nconfigs` if the
@@ -489,7 +489,7 @@ class Database(object):
     def xyz(self, filename="output.xyz",
             properties=["species", "pos", "z", "dft_force"],
             parameters=["dft_energy", "dft_virial"],
-            recalc=False, combine=False, config_type=None):
+            recalc=False, combine=False):
         """Creates an XYZ file for each of the sub-sampled configurations in this
         database.
 
@@ -504,8 +504,6 @@ class Database(object):
               exist. 
             combine (bool): when True, combine all the sub-configuration XYZ
               files into a single, giant XYZ file.
-            config_type(str): name of the configuration type in the
-              database; for example "liquid", "phonon", "crack" etc.
 
         Returns:
             bool: True if the number of xyz files created equals the number of
@@ -525,7 +523,7 @@ class Database(object):
                     #parameter and then save it again.
                     from quippy.atoms import Atoms
                     a = Atoms(outpath)
-                    a.params["config_type"] = config_type
+                    a.params["config_type"] = self.config_type
                     a.write(outpath)
                     
         self._nsuccess = len(created)
