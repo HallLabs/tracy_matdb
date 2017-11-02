@@ -42,6 +42,8 @@ class Trainer(object):
 
     Attributes:
         fqn (str): fully-qualified name of the trainer.
+        cust_splits (dict): keys are database sequence names; values are custom
+          splits that should be used for that particular database sequence.
     """
     def __init__(self, controller=None, dbs=None, execution={}, split=None,
                  root=None, parent=None):
@@ -65,8 +67,18 @@ class Trainer(object):
 
         #Find all the database sequences that match the patterns supplied to us.
         self.dbs = []
+        self.cust_splits = {}
         for dbpat in self._dbs:
-            self.dbs.extend(self.controller.db.find(dbpat))
+            if '/' in dbpat:
+                pat, split = dbpat.split('/')
+            else:
+                pat, split = dbpat, None
+
+            matches = self.controller.db.find(pat)
+            self.dbs.extend(matches)
+            if split is not None:
+                for match in matches:
+                    self.cust_splits[match.name] = split
 
         if len(self.dbs) > 0:
             _splitavg = []
@@ -104,16 +116,7 @@ class Trainer(object):
         
         #Setup the train.xyz file for the set of databases specified in the
         #source patterns.
-        from matdb.utility import cat
-        tfiles = []
-        for seq in self.dbs:
-            #We need to split to get training data. If the split has already
-            #been done as part of a different training run, then it won't be
-            #done a second time.
-            seq.split()
-            tfiles.append(seq.train_file(self.split))
-        tfiles.extend(self.extras())
-        cat(tfiles, self._trainfile)        
+        self.configs("train", False)
         
     @abc.abstractmethod
     def get_calculator(self):
@@ -177,19 +180,21 @@ class Trainer(object):
         """
         return self.configs("holdout")
 
-    def configs(self, kind):
+    def configs(self, kind, asatoms=True):
         """Loads a list of configurations of the specified kind.
 
         Args:
             kind (str): on of ['train', 'holdout', 'super'].
+            asatoms (bool): when True, return a :class:`quippy.AtomsList`
+              object; otherwise just compile the file.
 
         Returns:
             quippy.AtomsList: for the specified configuration class.
         """
         fmap = {
-            "train": lambda seq: seq.train_file(self.split),
-            "holdout": lambda seq: seq.holdout_file(self.split),
-            "super": lambda seq: seq.super_file(self.split)
+            "train": lambda seq, splt: seq.train_file(splt),
+            "holdout": lambda seq, splt: seq.holdout_file(splt),
+            "super": lambda seq, splt: seq.super_file(splt)
         }
         smap = {
             "train": self._trainfile,
@@ -206,10 +211,19 @@ class Trainer(object):
                 #been done as part of a different training run, then it won't be
                 #done a second time.
                 seq.split()
-                cfiles.append(fmap[kind](seq))
+                if seq.name in self.cust_splits:
+                    splt = self.cust_splits[seq.name]
+                else:
+                    splt = self.split
+                    
+                if splt == '*':
+                    cfiles.extend([f(seq) for f in fmap.values()])
+                else:
+                    cfiles.append(fmap[kind](seq, splt))
             cat(cfiles, cfile)
 
-        return quippy.AtomsList(cfile)
+        if asatoms:
+            return quippy.AtomsList(cfile)
     
     def validate(self, configs=None, energy=True, force=True, virial=True):
         """Validates the calculator in this training object against the `holdout.xyz`
