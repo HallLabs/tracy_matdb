@@ -552,7 +552,9 @@ class Controller(object):
                     name, poscar = cspec["name"], cspec["poscar"]
                     if name not in self.collections:
                         self.collections[name] = {}
-                
+
+                    if ("configs" in dbspec) and (cspec["name"] not in dbspec["configs"]):
+                        continue
                     dbname = '.'.join((name, dbspec["name"]))
                     steps = dbspec["steps"]
                     seq = SequenceRepeater(dbname, poscar, self.root, self,
