@@ -29,6 +29,11 @@ class Trainer(object):
          internally calls :meth:`get_calculator` only once and then caches the
          object for the lifetime of the Trainer.
 
+    .. note:: For the `dbfilter` parameter, you can use one of the standard
+      comparison `operator` ['>', '<', '=', '>=', '<=']; `value` should be the RHS
+      of the operator. Finally, `dbs` specifies a list of databases to apply the
+      filter to.
+
     Args:
         name (str): name of this model; used as the output folder name.
         controller (matdb.fitting.controller.TController): fitting controller
@@ -39,6 +44,9 @@ class Trainer(object):
           the fit.
         parent (TrainingSequence): training sequence that this trainer belongs
           to.
+        dbfilter (dict): keys are attributes on individual :class:`Atoms`
+          objects; values are dictionaries with keys `operator`, `value` and
+          `dbs` as described above.
 
     Attributes:
         fqn (str): fully-qualified name of the trainer.
@@ -46,7 +54,7 @@ class Trainer(object):
           splits that should be used for that particular database sequence.
     """
     def __init__(self, controller=None, dbs=None, execution={}, split=None,
-                 root=None, parent=None):
+                 root=None, parent=None, dbfilter=None):
         self.controller = controller
         self.parent = parent
         self.fqn = "{}.{}".format(self.parent.name, self.name)
@@ -56,7 +64,7 @@ class Trainer(object):
         self._dbs = ['*.*'] if dbs is None else dbs
         if not isinstance(self._dbs, (list, set, tuple)):
             self._dbs = [self._dbs]
-        
+
         #Configure the fitting directory for this particular set of
         #potentials. This way, we can get separate directories if the parameters
         #change.
@@ -80,10 +88,47 @@ class Trainer(object):
                 for match in matches:
                     self.cust_splits[match.name] = split
 
+        #Invert the dbfilter so that it is keyed by database; this is for
+        #optimization purposes.
+        from fnmatch import fnmatch
+        import operator
+        self.dbfilter = {} if dbfilter is None else dbfilter
+        self._dbfilters = {}
+        """dict: keys are database names; values are also dictionaries but with
+        keys being :class:`Atoms` attribute names and values functions that
+        return a bool based on a reference comparison value.
+        """
+        alldbs = [db.name for db in self.dbs]
+        opmap = {
+            '<': operator.lt,
+            '<=': operator.le,
+            '==': operator.eq,
+            '!=': operator.ne,
+            '>=': operator.ge,
+            '>': operator.gt
+        }
+        for attr, spec in self.dbfilter.items():
+            if "dbs" in spec:
+                dbs = [db for db in alldbs if fnmatch(db, spec["dbs"])]
+            else:
+                dbs = alldbs
+
+            for db in dbs:
+                if db not in self._dbfilters:
+                    self._dbfilters[db] = {}
+                opf = lambda v: opmap[spec["operator"]](v, spec["value"])
+                self._dbfilters[db][attr] = opf            
+
+        #We allow plotting to use split percentages; calculate the average split
+        #percentage.
         if len(self.dbs) > 0:
             _splitavg = []
             for db in self.dbs:
-                _splitavg.append(db.splits[self.split])
+                if db in self.cust_splits:
+                    splt = self.cust_splits[db]
+                    _splitavg.append(1 if splt == '*' else splt)
+                else:
+                    _splitavg.append(db.splits[self.split])
             self.params["split"] = sum(_splitavg)/len(self.dbs)
             
         self._calculator = None
@@ -205,6 +250,7 @@ class Trainer(object):
 
         if not path.isfile(cfile):
             from matdb.utility import cat
+            from fnmatch import fnmatch
             cfiles = []
             for seq in self.dbs:
                 #We need to split to get training data. If the split has already
@@ -220,8 +266,23 @@ class Trainer(object):
                     cfiles.extend([f(seq) for f in fmap.values()])
                 else:
                     cfiles.append(fmap[kind](seq, splt))
-            cat(cfiles, cfile)
 
+                if len(self.dbfilter) > 0:
+                    if any(fnmatch(seq.name, p) for p in dbf["dbs"]):
+                        pass
+                    
+                    
+            #First, save the configurations to a single file; include any
+            #relevant parameters.
+            params = {}
+            if len(self.dbfilter) > 0:
+                params["dbfilter"] = self.dbfilter
+            cat(cfiles, cfile)#, **params)
+
+            #See if we need to filter any of the configurations.
+            if len(self.dbfilter) > 0:
+                al = quippy.AtomsList()
+            
         if asatoms:
             return quippy.AtomsList(cfile)
     
