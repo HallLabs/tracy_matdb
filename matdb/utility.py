@@ -361,6 +361,107 @@ def pgrid(options, ignore=None):
     grid = list(product(*values))
     return (grid, keys)
 
+import pytz
+from datetime import datetime
+from six import string_types
+
+epoch = datetime(1970,1,1, tzinfo=pytz.utc)
+"""datetime.datetime: 1/1/1970 for encoding UNIX timestamps.
+"""
+
+def datetime_handler(x):
+    """Prepares a :class:`datetime.datetime` for JSON serialization by encoding
+    it in UNIX timestamp relative to zero-offset UTC.
+    Args:
+        x (datetime.datetime): to be turned into a `float`.
+    Returns:
+        float: number of seconds since 1/1/1970, UTC zero offset.
+    """
+    if isinstance(x, datetime):
+        delta = x.astimezone(pytz.utc) - epoch
+        return "dt:{0:.7f}".format(delta.total_seconds())
+
+def parse_date(v):
+    """Parses the date from the specified single value or list of values.
+    Args:
+        v (str): string representation of the :class:`datetime` returned by
+          :func:`datetime_handler`.
+    """
+    if isinstance(v, (list, tuple)):
+        return [parse_date(vi) for vi in v]
+    elif isinstance(v, string_types) and v[0:3] == "dt:":
+        ts = float(v[3:])
+        return datetime.fromtimestamp(ts, pytz.utc)
+    else:# pragma: no cover
+        raise ValueError("Not a valid datetime string.")
+
+def load_datetime(pairs):
+    """Deserialize a JSON string with dates encoded by
+    :func:`datetime_handler`.
+    """
+    d = {}
+    for k, v in pairs:
+        if isinstance(v, (list, tuple, string_types)):
+            try:
+                d[k] = parse_date(v)
+            except ValueError:# pragma: no cover
+                d[k] = v
+        else:
+            d[k] = v             
+    return d
+
+def dbconfig(dbfile):
+    """Returns the database configuration `dict` of the specified database file.
+
+    Args:
+        dbfile (str): path to the database file to get config information for.
+    """
+    import json
+    confpath = dbfile + ".json"
+    with open(confpath) as f:
+        config = json.load(f, object_pairs_hook=load_datetime)
+
+    return config
+
+def dbcat(files, output, **params):
+    """Constructs a new database file using a set of existing database files.
+
+    .. note:: This function is important because it enforces reproducibility. It
+      assigns a version number to the new database file and stores a config file
+      with the specific details of how it was created.
+
+    Args:
+        files (list): of `str` paths to files to combine to create the new
+          file. 
+        output (str): path to the file to write the combined files to.
+        params (dict): key-value pairs that characterize *how* the database was
+          created using the source files.
+    """
+    from uuid import uuid4
+    from datetime import datetime
+    from matdb import __version__
+    import json
+    confpath = output + ".json"
+    config = {
+        "version": uuid4(),
+        "sources": [],
+        "timestamp": datetime.now(),
+        "matdb": __version__
+    }
+    for dbpath in files:
+        _dbconf = dbconfig(dbpath)
+        config["sources"].append((dbpath, _dbconf["version"]))
+
+    config.update(params)
+
+    try:
+        with open(confpath, 'w') as f:
+            json.dump(config, f, default=datetime_handler)
+        cat(files)
+    except:
+        from os import remove
+        remove(confpath)
+
 reporoot = _get_reporoot()
 """The absolute path to the repo root on the local machine.
 """
