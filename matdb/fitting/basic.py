@@ -30,7 +30,7 @@ class Trainer(object):
          object for the lifetime of the Trainer.
 
     .. note:: For the `dbfilter` parameter, you can use one of the standard
-      comparison `operator` ['>', '<', '=', '>=', '<=']; `value` should be the RHS
+      comparison `operator` ['>', '<', '==', '!=', '>=', '<=']; `value` should be the RHS
       of the operator. Finally, `dbs` specifies a list of databases to apply the
       filter to.
 
@@ -76,60 +76,21 @@ class Trainer(object):
         #Find all the database sequences that match the patterns supplied to us.
         self.dbs = []
         self.cust_splits = {}
-        for dbpat in self._dbs:
-            if '/' in dbpat:
-                pat, split = dbpat.split('/')
-            else:
-                pat, split = dbpat, None
-
-            matches = self.controller.db.find(pat)
-            self.dbs.extend(matches)
-            if split is not None:
-                for match in matches:
-                    self.cust_splits[match.name] = split
+        self._find_dbs()
 
         #Invert the dbfilter so that it is keyed by database; this is for
         #optimization purposes.
-        from fnmatch import fnmatch
-        import operator
         self.dbfilter = {} if dbfilter is None else dbfilter
         self._dbfilters = {}
         """dict: keys are database names; values are also dictionaries but with
         keys being :class:`Atoms` attribute names and values functions that
         return a bool based on a reference comparison value.
         """
-        alldbs = [db.name for db in self.dbs]
-        opmap = {
-            '<': operator.lt,
-            '<=': operator.le,
-            '==': operator.eq,
-            '!=': operator.ne,
-            '>=': operator.ge,
-            '>': operator.gt
-        }
-        for attr, spec in self.dbfilter.items():
-            if "dbs" in spec:
-                dbs = [db for db in alldbs if fnmatch(db, spec["dbs"])]
-            else:
-                dbs = alldbs
-
-            for db in dbs:
-                if db not in self._dbfilters:
-                    self._dbfilters[db] = {}
-                opf = lambda v: opmap[spec["operator"]](v, spec["value"])
-                self._dbfilters[db][attr] = opf            
-
+        self._invert_filters()
+        
         #We allow plotting to use split percentages; calculate the average split
         #percentage.
-        if len(self.dbs) > 0:
-            _splitavg = []
-            for db in self.dbs:
-                if db in self.cust_splits:
-                    splt = self.cust_splits[db]
-                    _splitavg.append(1 if splt == '*' else splt)
-                else:
-                    _splitavg.append(db.splits[self.split])
-            self.params["split"] = sum(_splitavg)/len(self.dbs)
+        self._update_split_params()
             
         self._calculator = None
         """ase.Calculator: potential for the fitted file in this Trainer.
@@ -151,6 +112,61 @@ class Trainer(object):
         """str: path to the jobfile for the current trainer.
         """
 
+    def _find_dbs(self):
+        """Finds all dbs that match the patterns supplied for training.
+        """
+        for dbpat in self._dbs:
+            if '/' in dbpat:
+                pat, split = dbpat.split('/')
+            else:
+                pat, split = dbpat, None
+
+            matches = self.controller.db.find(pat)
+            self.dbs.extend(matches)
+            if split is not None:
+                for match in matches:
+                    self.cust_splits[match.name] = split        
+        
+    def _invert_filters(self):
+        """Inverts any available db filters for this trainer for optimization
+        purposes.
+        """
+        from fnmatch import fnmatch
+        import operator
+        alldbs = [db.name for db in self.dbs]
+        opmap = {
+            '<': operator.lt,
+            '<=': operator.le,
+            '==': operator.eq,
+            '!=': operator.ne,
+            '>=': operator.ge,
+            '>': operator.gt
+        }
+        for attr, spec in self.dbfilter.items():
+            if "dbs" in spec:
+                dbs = [db for db in alldbs if fnmatch(db, spec["dbs"])]
+            else:
+                dbs = alldbs
+
+            for db in dbs:
+                if db not in self._dbfilters:
+                    self._dbfilters[db] = {}
+                opf = lambda v: opmap[spec["operator"]](v, spec["value"])
+                self._dbfilters[db][attr] = opf        
+        
+    def _update_split_params(self):
+        """Updates the parameters set for the trainer to include the splits.
+        """
+        if len(self.dbs) > 0:
+            _splitavg = []
+            for db in self.dbs:
+                if db in self.cust_splits:
+                    splt = self.cust_splits[db]
+                    _splitavg.append(1 if splt == '*' else splt)
+                else:
+                    _splitavg.append(db.splits[self.split])
+            self.params["split"] = sum(_splitavg)/len(self.dbs)
+        
     def compile(self):
         """Compiles the cumulative database for this particular fit.
         """
@@ -225,6 +241,44 @@ class Trainer(object):
         """
         return self.configs("holdout")
 
+    def _filter_dbs(self, seqname, dbfiles):
+        """Filters each of the database files specified so that they conform to
+        any specified filters.
+
+        Args:
+            seqname (str): name of the sequence that the database files are
+              from.
+            dbfiles (list): of `str` paths to database files to filter.
+
+        Returns:
+            list: of `str` paths to include in the database from this sequence.
+        """
+        from matdb.utility import dbcat
+        if len(self.dbfilter) > 0 and seqname in self._dbfilters:
+            filtered = []
+            filters = self._dbfilters[seqname].items()
+            for dbfile in dbfiles:
+                filtdb = path.join(self.root, "__" + path.bbasename(nfile))
+                if path.isfile(filtdb):
+                    continue
+                
+                al = quippy.AtomsList(dbfile)
+                nl = quippy.AtomsList()
+                for a in al:
+                    if not any(opf(getattr(a, attr)) for attr, opf in filters):
+                        nl.append(a)
+
+                if len(nl) != len(al):
+                    nl.write(filtdb)
+                    dbcat([filtdb], filtdb, filters=filters)
+                    filtered.append(filtdb)
+                else:
+                    filtered.append(nfile)
+        else:
+            filtered = dbfiles
+
+        return filtered
+    
     def configs(self, kind, asatoms=True):
         """Loads a list of configurations of the specified kind.
 
@@ -249,7 +303,7 @@ class Trainer(object):
         cfile = smap[kind]
 
         if not path.isfile(cfile):
-            from matdb.utility import cat
+            from matdb.utility import dbcat
             from fnmatch import fnmatch
             cfiles = []
             for seq in self.dbs:
@@ -261,28 +315,21 @@ class Trainer(object):
                     splt = self.cust_splits[seq.name]
                 else:
                     splt = self.split
-                    
+
+                #We grab a list of all the files that match the particular split
+                #pattern. Then we apply any filters to individual atoms objects
+                #within each of the databases.
                 if splt == '*':
-                    cfiles.extend([f(seq) for f in fmap.values()])
+                    nfiles = [f(seq) for f in fmap.values()]
                 else:
-                    cfiles.append(fmap[kind](seq, splt))
+                    nfiles = [fmap[kind](seq, splt)]
 
-                if len(self.dbfilter) > 0:
-                    if any(fnmatch(seq.name, p) for p in dbf["dbs"]):
-                        pass
-                    
-                    
-            #First, save the configurations to a single file; include any
-            #relevant parameters.
-            params = {}
-            if len(self.dbfilter) > 0:
-                params["dbfilter"] = self.dbfilter
-            cat(cfiles, cfile)#, **params)
+                filtered = _filter_dbs(self, seq.name, nfiles)
+                cfiles.extend(filtered)
 
-            #See if we need to filter any of the configurations.
-            if len(self.dbfilter) > 0:
-                al = quippy.AtomsList()
-            
+            #First, save the configurations to a single file.
+            dbcat(cfiles, cfile)
+
         if asatoms:
             return quippy.AtomsList(cfile)
     
