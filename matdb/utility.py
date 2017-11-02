@@ -470,14 +470,14 @@ def getattrs(obj, chain):
 
     Args:
         obj: to get attributes from.
-        chain (list): of `str` attribute names.
+        chain (str): of '.'-separated attribute names.
 
     Examples:
 
         Get the `energy` attribute of the `atoms` attribute of a database
           (`obj`).
 
-        >>> getattrs(obj, ["atoms", "energy"])
+        >>> getattrs(obj, "atoms.energy")
     """
     o = obj
     for attr in chain:

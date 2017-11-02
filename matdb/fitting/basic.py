@@ -136,35 +136,31 @@ class Trainer(object):
         import operator
         from matdb.utility import getattrs
         
-        alldbs = [db.name for db in self.dbs]
-        opmap = {
-            '<': operator.lt,
-            '<=': operator.le,
-            '==': operator.eq,
-            '!=': operator.ne,
-            '>=': operator.ge,
-            '>': operator.gt
-        }
-        
+        alldbs = [db.name for db in self.dbs]        
         for attr, spec in self.dbfilter.items():
             if "dbs" in spec:
                 dbs = [db for db in alldbs if fnmatch(db, spec["dbs"])]
             else:
                 dbs = alldbs
 
+            vals = {}
+            for k, v in spec.items():
+                if isinstance(v, string_types):
+                    if len(v) > 0 and v[0] == ':':
+                        otype, oname, chain = v[1:].split(':')
+                        if otype == "db":
+                            obj = self.controller.db.find(oname)
+                        elif otype == "ip":
+                            obj = self.controller.find(oname)
+                        vals[k] = getattrs(obj[0], chain)
+
+            estr = ("{__v}" + spec["operator"])
             for db in dbs:
                 if db not in self._dbfilters:
                     self._dbfilters[db] = {}
-                    
-                ref = spec["value"]    
-                if isinstance(spec["value"], string_types):
-                    if len(spec["value"]) > 0 and spec["value"][0] == ':':
-                        chain = spec["value"][1:].split('.')
-                        odb = self.controller.db.find(chain[0])[0]
-                        ref = getattrs(odb, chain[1:])
 
-                opf = lambda v: opmap[spec["operator"]](v, ref)
-                self._dbfilters[db][attr] = opf        
+                opf = lambda v: eval(estr.format(__v=v, **vals))
+                self._dbfilters[db][attr] = opf     
         
     def _update_split_params(self):
         """Updates the parameters set for the trainer to include the splits.
