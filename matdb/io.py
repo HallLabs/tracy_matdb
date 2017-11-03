@@ -28,16 +28,16 @@ def vasp_to_xyz(folder, outfile="output.xyz", recalc=0,
     P = ','.join(parameters)
     renames = [("energy", "dft_energy"), ("force", "dft_force"),
                ("virial", "dft_virial")]
-    sargs = ["convert.py", "-I", "OUTCAR", "-p", p, "-P", P, "-f", "xyz"]
+    sargs = ["convert.py", "-I", "vasprun.xml", "-p", p, "-P", P, "-f", "xyz"]
     for s, d in renames:
         sargs.append("-n")
         sargs.append(s)
         sargs.append(d)
         
-    sargs.extend(["-o", outfile, "OUTCAR"])
+    sargs.extend(["-o", outfile, "vasprun.xml"])
 
     from matdb.utility import execute
-    execute(sargs, folder)
+    execute(sargs, folder, errignore="OMP_STACKSIZE")
     return path.isfile(outfile) and stat(outfile).st_size > 100
 
 import yaml
