@@ -100,6 +100,9 @@ class TrainingSequence(object):
         the correct order and only as each step completes.
         """
         for fitname, fit in self.isteps:
+            if fit.ready():
+                continue        
+
             fit.jobfile()
             if path.isfile(path.join(fit._jobfile)):
                 fqn = "{}.{}".format(self.name, fitname)
