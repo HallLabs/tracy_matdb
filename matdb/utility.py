@@ -32,7 +32,7 @@ def chdir(target):
         chdir(current)
         
 def execute(args, folder, wait=True, nlines=100, venv=None,
-            printerr=True, env_vars=None, **kwargs):
+            printerr=True, env_vars=None, errignore=None, **kwargs):
     """Executes the specified tuple that should include the command as
     first item and additional arguments afterward. See the
     documentation for :class:`subprocess.Popen` for details.
@@ -54,6 +54,8 @@ def execute(args, folder, wait=True, nlines=100, venv=None,
           the lines automatically.
         env_vars (dict): of environment variables to set before calling the
           execution. The variables will be set back after execution.
+        errignore (str): if errors are produced that include this pattern, then
+          they will *not* be printed to `stdout`.
         kwargs (dict): additional arguments that are passed directly
           to the :class:`subprocess.Popen` constructor.
 
@@ -119,7 +121,8 @@ def execute(args, folder, wait=True, nlines=100, venv=None,
     if kwargs["stderr"] is PIPE:
         error = []
         for line in pexec.stderr:
-            error.append(line)
+            if errignore is None or errignore not in line:
+                error.append(line)
             if len(error) >= nlines:
                 break
         pexec.stderr.close()
