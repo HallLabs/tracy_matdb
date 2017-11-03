@@ -3,6 +3,7 @@
 import abc
 import quippy
 from os import path
+from matdb import msg
 
 class Trainer(object):
     """Represents an algorithm that can use a :class:`DatabaseSequence` (or set of
@@ -86,7 +87,6 @@ class Trainer(object):
         keys being :class:`Atoms` attribute names and values functions that
         return a bool based on a reference comparison value.
         """
-        self._invert_filters()
         
         #We allow plotting to use split percentages; calculate the average split
         #percentage.
@@ -139,19 +139,30 @@ class Trainer(object):
         alldbs = [db.name for db in self.dbs]        
         for attr, spec in self.dbfilter.items():
             if "dbs" in spec:
-                dbs = [db for db in alldbs if fnmatch(db, spec["dbs"])]
+                dbs = [db for db in alldbs
+                       for dbpat in spec["dbs"]
+                       if fnmatch(db, dbpat)]
             else:
                 dbs = alldbs
 
             vals = {}
             for k, v in spec.items():
+                if k not in ["operator", "dbs"]:
+                    vals[k] = v
                 if isinstance(v, string_types):
-                    if len(v) > 0 and v[0] == ':':
-                        otype, oname, chain = v[1:].split(':')
+                    if len(v) > 0 and v[0] == '|':
+                        otype, oname, chain = v[1:].split('|')
                         if otype == "db":
                             obj = self.controller.db.find(oname)
                         elif otype == "ip":
-                            obj = self.controller.find(oname)
+                            if oname == "self":
+                                obj = [self]
+                            else:
+                                obj = self.controller.find(oname)
+
+                        if len(obj) == 0:
+                            emsg = "Cannot find object {} with type {}."                            
+                            raise ValueError(emsg.format(oname, otype))
                         vals[k] = getattrs(obj[0], chain)
 
             estr = ("{__v}" + spec["operator"])
@@ -185,6 +196,7 @@ class Trainer(object):
         
         #Setup the train.xyz file for the set of databases specified in the
         #source patterns.
+        self._invert_filters()
         self.configs("train", False)
         
     @abc.abstractmethod
@@ -268,10 +280,11 @@ class Trainer(object):
             #used in the formula replacement. Extract the parameters; we can't
             #serialize the actual functions.
             filters = self._dbfilters[seqname].items()
-            params = {k: v[1] for k, v in filters.items()}
+            params = {k: v[1] for k, v in filters}
             
             for dbfile in dbfiles:
-                filtdb = path.join(self.root, "__" + path.bbasename(nfile))
+                dbname = path.basename(path.dirname(dbfile))
+                filtdb = path.join(self.root, "__{}.xyz".format(dbname))
                 if path.isfile(filtdb):
                     continue
                 
@@ -285,7 +298,8 @@ class Trainer(object):
 
                 if len(nl) != len(al):
                     nl.write(filtdb)
-                    dbcat([filtdb], filtdb, filters=params)
+                    dN, N = (len(al)-len(nl), len(nl))
+                    dbcat([dbfile], filtdb, filters=params, dN=dN, N=N)
                     filtered.append(filtdb)
                 else:
                     filtered.append(nfile)
@@ -325,6 +339,7 @@ class Trainer(object):
                 #We need to split to get training data. If the split has already
                 #been done as part of a different training run, then it won't be
                 #done a second time.
+                msg.info("Compiling database {} for {}.".format(seq.name, self.fqn))
                 seq.split()
                 if seq.name in self.cust_splits:
                     splt = self.cust_splits[seq.name]
@@ -339,7 +354,7 @@ class Trainer(object):
                 else:
                     nfiles = [fmap[kind](seq, splt)]
 
-                filtered = _filter_dbs(self, seq.name, nfiles)
+                filtered = self._filter_dbs(seq.name, nfiles)
                 cfiles.extend(filtered)
 
             #First, save the configurations to a single file.
@@ -431,9 +446,6 @@ class Trainer(object):
           directory that the executable will run in. You are responsible for
           sub-classing that method correctly.
         """
-        if self.ready():
-            return
-        
         # We use the global execution parameters and then any updates
         # locally. We need to add the execution directory (including prefix) and
         # the number of jobs in the array.
