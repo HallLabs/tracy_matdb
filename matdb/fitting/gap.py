@@ -195,7 +195,7 @@ class GAP(Trainer):
             return Potential("IP GAP", param_filename=self.gp_file)
 
     def ready(self):
-        return path.isfile(self.gp_file)
+        return path.isfile(path.join(self.root, self.gp_file))
         
     @property
     def delta_cache(self):
