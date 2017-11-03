@@ -370,16 +370,17 @@ epoch = datetime(1970,1,1, tzinfo=pytz.utc)
 """
 
 def datetime_handler(x):
-    """Prepares a :class:`datetime.datetime` for JSON serialization by encoding
-    it in UNIX timestamp relative to zero-offset UTC.
+    """Prepares a :class:`datetime.datetime` for JSON serialization by turning
+    it into the ISO format for time-zone sensitive data.
+
     Args:
-        x (datetime.datetime): to be turned into a `float`.
+        x (datetime.datetime): to be stringified.
+
     Returns:
-        float: number of seconds since 1/1/1970, UTC zero offset.
+        str: ISO format; `None` if `x` is not a date.
     """
     if isinstance(x, datetime):
-        delta = x.astimezone(pytz.utc) - epoch
-        return "dt:{0:.7f}".format(delta.total_seconds())
+        return x.isoformat()
 
 def parse_date(v):
     """Parses the date from the specified single value or list of values.
@@ -387,11 +388,11 @@ def parse_date(v):
         v (str): string representation of the :class:`datetime` returned by
           :func:`datetime_handler`.
     """
+    from dateutil import parser
     if isinstance(v, (list, tuple)):
         return [parse_date(vi) for vi in v]
-    elif isinstance(v, string_types) and v[0:3] == "dt:":
-        ts = float(v[3:])
-        return datetime.fromtimestamp(ts, pytz.utc)
+    elif isinstance(v, string_types):
+        return parser.parse(v)
     else:# pragma: no cover
         raise ValueError("Not a valid datetime string.")
 
@@ -416,14 +417,17 @@ def dbconfig(dbfile):
     Args:
         dbfile (str): path to the database file to get config information for.
     """
-    import json
     confpath = dbfile + ".json"
+    if not path.isfile(confpath):
+        return {}
+    
+    import json
     with open(confpath) as f:
         config = json.load(f, object_pairs_hook=load_datetime)
 
     return config
 
-def dbcat(files, output, **params):
+def dbcat(files, output, sources=None, docat=True, **params):
     """Constructs a new database file using a set of existing database files.
 
     .. note:: This function is important because it enforces reproducibility. It
@@ -432,8 +436,11 @@ def dbcat(files, output, **params):
 
     Args:
         files (list): of `str` paths to files to combine to create the new
-          file. 
+          file.
+        sources (list): of `str` sources as a reference for a created file.
         output (str): path to the file to write the combined files to.
+        docat (bool): when True, perform the concatenation; otherwise, just
+          create the config file.
         params (dict): key-value pairs that characterize *how* the database was
           created using the source files.
     """
@@ -443,14 +450,17 @@ def dbcat(files, output, **params):
     import json
     confpath = output + ".json"
     config = {
-        "version": uuid4(),
+        "version": str(uuid4()),
         "sources": [],
-        "timestamp": datetime.now(),
+        "timestamp": datetime.utcnow(),
         "matdb": __version__
     }
-    for dbpath in files:
-        _dbconf = dbconfig(dbpath)
-        config["sources"].append((dbpath, _dbconf["version"]))
+    if sources is None:
+        for dbpath in files:
+            _dbconf = dbconfig(dbpath)
+            config["sources"].append((dbpath, _dbconf.get("version")))
+    else:
+        config["sources"] = sources
 
     config.update(params)
 
@@ -458,8 +468,9 @@ def dbcat(files, output, **params):
         with open(confpath, 'w') as f:
             json.dump(config, f, default=datetime_handler)
 
-        if len(files) > 1 or (len(files) == 1 and files[0] != output):
-            cat(files, output)
+        if docat:
+            if len(files) > 1 or (len(files) == 1 and files[0] != output):
+                cat(files, output)
     except:
         from os import remove
         remove(confpath)
