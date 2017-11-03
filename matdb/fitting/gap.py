@@ -151,10 +151,10 @@ class GAP(Trainer):
     """
     def __init__(self, nb=None, controller=None, dbs=None, execution=None,
                  split=None, sigmas=None, ogaps=None, teach_sparse=None,
-                 root=None, parent=None, **gapargs):
+                 root=None, parent=None, dbfilter=None, **gapargs):
         self.name = "{}b".format(nb) if isinstance(nb, int) else "soap"
-        super(GAP, self).__init__(controller, dbs, execution, split, root, parent)
-
+        super(GAP, self).__init__(controller, dbs, execution, split, root,
+                                  parent, dbfilter)
         self.nb = nb
         self.controller = controller
         self.e0 = controller.e0
