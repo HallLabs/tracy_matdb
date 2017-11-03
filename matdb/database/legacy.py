@@ -131,6 +131,7 @@ class LegacyDatabase(object):
                 self._create_dbfull(folder, pattern, energy, force, virial, config_type)
             
             if limit is not None:
+                msg.std("Slicing limit subset of full {} db.".format(self.name))
                 full = quippy.AtomsList(self._dbfull)
                 N = np.arange(len(full))
                 np.random.shuffle(N)
