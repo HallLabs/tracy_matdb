@@ -491,8 +491,11 @@ def getattrs(obj, chain):
         >>> getattrs(obj, "atoms.energy")
     """
     o = obj
-    for attr in chain:
-        o = getattr(o, attr)
+    for attr in chain.split('.'):
+        if isinstance(o, dict):
+            o = o[attr]
+        else:
+            o = getattr(o, attr)
     return o
         
 reporoot = _get_reporoot()
