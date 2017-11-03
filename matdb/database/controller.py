@@ -293,10 +293,19 @@ class DatabaseSequence(object):
         holdfiles = subset(subconfs, hids, recalc)
         superfiles = subset(subconfs, sids, recalc)
 
-        from matdb.utility import cat
+        #We don't use dbcat for the concatenation because there are hundreds of
+        #files and the pkl file above keeps track of all the splits and ids,
+        #etc. Instead, we dbcat after the fact to create the configuration files
+        #and version numbers.        
+        from matdb.utility import cat, dbcat
         cat(trainfiles, train_file)
         cat(holdfiles, holdout_file)
         cat(superfiles, super_file)
+
+        sources = self.isteps.keys()
+        dbcat([], train_file, sources=sources, N=Ntrain)
+        dbcat([], holdout_file, sources=sources, N=Nhold)
+        dbcat([], super_file, sources=sources, N=Nsuper)
         
     def cleanup(self):
         """Runs the cleanup methods of each database in the collection, in the
