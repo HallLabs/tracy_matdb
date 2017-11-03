@@ -7,6 +7,7 @@ format that can be used by the `matdb` fitting machinery.
 from os import path
 import quippy
 import numpy as np
+from matdb import msg
 
 def _quick_write(atlist, outpath):
     """Writes the atoms list to file using the
@@ -95,8 +96,6 @@ class LegacyDatabase(object):
     Attributes:
         dbfiles (list): of `str` file paths that were sources for this legacy
           database.
-        config (dict): key-value pairs describing how the `legacy.xyz` combined
-          database file was created.
     """
     def __init__(self, name=None, root=None, controller=None, splits=None,
                  folder=None, pattern=None, config_type=None, energy="dft_energy",
@@ -117,24 +116,17 @@ class LegacyDatabase(object):
         self._dbfull = path.join(self.root, "legacy.xyz")
         """str: path to the combined legacy database, *without* limits.
         """
-
-        self._configfile = path.join(self.root, "config.json")
-        """str: path to the file that stores configuration information about how
-        the :attr:`_dbfile` was created.
-        """
-        self.config = {}
         self.dbfiles = []
         self.config_type = config_type
 
-        import json
-        if path.isfile(self._dbfile) and path.isfile(self._configfile):
-            with open(self._configfile) as f:
-                self.config = json.load(f)
-
-            self.dbfiles = self.config["dbfiles"]
-            self.config_type = self.config["config_type"]
+        from matdb.utility import dbconfig
+        config = dbconfig(self._dbfull)
+        if path.isfile(self._dbfile) and len(config) > 0:
+            self.dbfiles = [db[0] for db in config["sources"]]
+            self.config_type = config["config_type"]
             self.folder = folder
         else:
+            from matdb.utility import dbcat
             if not path.isfile(self._dbfull):
                 self._create_dbfull(folder, pattern, energy, force, virial, config_type)
             
@@ -145,12 +137,11 @@ class LegacyDatabase(object):
                 ids = N[0:limit]
                 part = full[ids]
                 part.write(self._dbfile)
+                dbcat([self._dbfull], self._dbfile, docat=False, limit=limit,
+                      ids=ids)
             else:
                 from matdb.utility import symlink
                 symlink(self._dbfile, self._dbfull)
-
-            with open(self._configfile, 'w') as f:
-                json.dump(self.config, f)
 
         #The rest of matdb expects each database to have an atoms object that is
         #representative. Just take the first config in the combined database.
@@ -159,7 +150,7 @@ class LegacyDatabase(object):
     def _create_dbfull(self, folder, pattern, energy, force, virial, config_type):
         """Creates the full combined database.
         """
-        from matdb.utility import chdir
+        from matdb.utility import chdir, dbcat
         from glob import glob
         from tqdm import tqdm
         import quippy.cinoutput as qcio
@@ -179,8 +170,10 @@ class LegacyDatabase(object):
             dbpath = path.join(folder, dbfile)
             params, doforce = _atoms_conform(dbpath, energy, force, virial)
             if len(params) > 0 or doforce:
+                msg.std("Conforming database file {}.".format(dbpath))
                 al = quippy.AtomsList(dbpath)
-                out = qcio.CInOutputWriter(path.join(self.root, dbfile))
+                outpath = path.join(self.root, dbfile)
+                out = qcio.CInOutputWriter(outpath)
                 try:
                     for ai in tqdm(al):
                         for target, source in params.items():
@@ -203,6 +196,9 @@ class LegacyDatabase(object):
                 finally:
                     out.close()
 
+                dbcat([dbpath], outpath, docat=False, renames=params,
+                      doforce=doforce)
+
         catdbs = []
         for dbfile in self.dbfiles:
             if dbfile in rewrites:
@@ -211,15 +207,12 @@ class LegacyDatabase(object):
                 catdbs.append(path.join(folder, dbfile))
 
         self.dbfiles = catdbs
-        self.config["dbfiles"] = self.dbfiles
-        self.config["config_type"] = self.config_type
-        self.config["folder"] = folder
 
         #Finally, concatenate all the files together to form the final
         #database.
-        from matdb.utility import cat
+        from matdb.utility import dbcat
         with chdir(folder):
-            cat(self.config["dbfiles"], self._dbfull)        
+            dbcat(self.dbfiles, self._dbfull, config_type=self.config_type)
         
     def train_file(self, split):
         """Returns the full path to the XYZ database file that can be
@@ -283,6 +276,7 @@ class LegacyDatabase(object):
 
         #Either way, we will have to compile a list of all available atoms in
         #the database files.
+        msg.info("Working on split {} for {}.".format(name, self.name))
         subconfs = quippy.AtomsList(self._dbfile)
 
         if path.isfile(idfile):
@@ -314,16 +308,23 @@ class LegacyDatabase(object):
             with open(idfile, 'wb') as f:
                 dump(data, f)
 
-        #Only write the minimum necessary files.
+        #Only write the minimum necessary files. Use dbcat to create the
+        #database version and configuration information. There is duplication
+        #here because we also store the ids again. We retain the pkl file above
+        #so that we can recreate *exactly* the same split again later.
+        from matdb.utility import dbcat
         if not path.isfile(train_file):
             tids = ids[0:Ntrain]
             altrain = subconfs[tids]
             _quick_write(altrain, train_file)
+            dbcat([self._dbfile], train_file, docat=False, ids=tids, N=Ntrain)
         if not path.isfile(holdout_file):
             hids = ids[Ntrain:-Nsuper]
             alhold = subconfs[hids]
             _quick_write(alhold, holdout_file)
+            dbcat([self._dbfile], holdout_file, docat=False, ids=hids, N=Nhold)
         if not path.isfile(super_file):
             sids = ids[-Nsuper:]
             alsuper = subconfs[sids]
             _quick_write(alsuper, super_file)
+            dbcat([self._dbfile], super_file, docat=False, ids=sids, N=Nsuper)
