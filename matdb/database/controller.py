@@ -302,7 +302,7 @@ class DatabaseSequence(object):
         cat(holdfiles, holdout_file)
         cat(superfiles, super_file)
 
-        sources = self.isteps.keys()
+        sources = self.steps.keys()
         dbcat([], train_file, sources=sources, N=Ntrain)
         dbcat([], holdout_file, sources=sources, N=Nhold)
         dbcat([], super_file, sources=sources, N=Nsuper)
