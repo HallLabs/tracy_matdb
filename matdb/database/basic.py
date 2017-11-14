@@ -514,18 +514,11 @@ class Database(object):
         from tqdm import tqdm
         created = []
         for i, folder in tqdm(self.configs.items()):
-            if vasp_to_xyz(folder, filename, recalc, properties, parameters):
+            if vasp_to_xyz(folder, filename, recalc, properties, parameters,
+                           self.config_type):
                 outpath = path.join(folder, filename)
                 created.append(outpath)
                 
-                if config_type is not None:
-                    #We need to load the XYZ file, add the config_type
-                    #parameter and then save it again.
-                    from quippy.atoms import Atoms
-                    a = Atoms(outpath)
-                    a.params["config_type"] = self.config_type
-                    a.write(outpath)
-                    
         self._nsuccess = len(created)
         
         #Finally, combine all of them together into a single

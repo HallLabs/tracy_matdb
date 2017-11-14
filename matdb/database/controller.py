@@ -280,12 +280,12 @@ class DatabaseSequence(object):
         sids = ids[-Nsuper:]
 
         def subset(subconfs, idlist, recalc):
-            from matdb.io import vasp_to_xyz
             from tqdm import tqdm
             files = []
             for aid in tqdm(idlist):
-                if vasp_to_xyz(subconfs[aid], recalc=recalc-1):
-                    files.append(path.join(subconfs[aid], "output.xyz"))
+                target = path.join(subconfs[aid], "output.xyz")
+                if path.isfile(target):
+                    files.append(target)
 
             return files
 

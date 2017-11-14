@@ -2,7 +2,8 @@
 """
 def vasp_to_xyz(folder, outfile="output.xyz", recalc=0,
                 properties=["species", "pos", "z", "dft_force"],
-                parameters=["dft_energy", "dft_virial"]):
+                parameters=["dft_energy", "dft_virial"],
+                config_type=None):
     """Creates an extended XYZ file for the calculated structure in
     OUTCAR for the given folder.
 
@@ -38,6 +39,16 @@ def vasp_to_xyz(folder, outfile="output.xyz", recalc=0,
 
     from matdb.utility import execute
     execute(sargs, folder, errignore="OMP_STACKSIZE")
+
+    if config_type is not None:
+        #We need to load the XYZ file, add the config_type parameter and then
+        #save it again. The -e parameter of convert.py should save this, but in
+        #our experiments, it doesn't :(.
+        from quippy.atoms import Atoms
+        a = Atoms(outfile)
+        a.params["config_type"] = config_type
+        a.write(outfile)
+
     return path.isfile(outfile) and stat(outfile).st_size > 100
 
 import yaml
