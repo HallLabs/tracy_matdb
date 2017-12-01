@@ -8,7 +8,7 @@ def legDB(tmpdir):
     from matdb.database.controller import Controller
     from os import mkdir
 
-    target = relpath("./tests/legacy/matdb.yaml")
+    target = relpath("./tests/legacy/matdb")
     dbdir = str(tmpdir.join("legacy"))
     mkdir(dbdir)
 
