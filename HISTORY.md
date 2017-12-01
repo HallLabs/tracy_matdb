@@ -1,5 +1,10 @@
 # Revision History for `matdb`
 
+## Revision 0.0.6
+
+- Added `EnumDatabase` for generating enumerated runs.
+- Added `lattice.in` template for phenum's use.
+
 ## Revision 0.0.5
 
 - Added `DynamicDatabase` for generating MD runs.

@@ -38,7 +38,8 @@ setup(name='matdb',
           "beautifulsoup4",
           "tqdm",
           "html5lib",
-          "mpld3"
+          "mpld3",
+          "phenum"
       ],
       packages=['matdb', 'matdb.database', 'matdb.fitting'],
       scripts=['matdb/scripts/matdb_build.py',
