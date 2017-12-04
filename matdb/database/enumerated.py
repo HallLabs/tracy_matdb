@@ -26,6 +26,7 @@ class EnumDatabase(Database):
           in the enumeration.
         n_systems (int): the number of systems to be selected from the enumerated
           list to form the initial database.
+        species (list): the atomic species included in the system.
         seed (hashable): a seed to feed to the random number generator.
 
     .. note:: Additional attributes are also exposed by the super class
@@ -39,11 +40,12 @@ class EnumDatabase(Database):
        max_size (int): the largest allowed cell size in the database.
        min_size (int): the smallest allowed cell size in the database.
        knary (int): the number of atomic species in the enumeration.
+       species (list): the atomic species in the system
 
     """
     def __init__(self, atoms=None, root=None, controller=None, parent=None, incar={},
                  kpoints={}, execution={}, sizes=None,
-                 nconfigs=None, nspecies=None, name="enum", seed=None):
+                 nconfigs=None, species=None, name="enum", seed=None):
 
         self.name = name
         super(EnumDatabase, self).__init__(atoms,incar,kpoints,execution,
@@ -59,11 +61,14 @@ class EnumDatabase(Database):
         else:
             raise ValueError("The sizes specified must be a list of 1 or 2 values."
                              "If one value then it must be the largest cell size to include,"
-                             "i.e., [32]. If 2 values then it is the smallest then largest cell "
-                             "sizes to include, i.e., [10,12].")
+                             "i.e., [32]. If 2 values then it the first value is the smallest "
+                             "and the second value is the largest cell size to include, "
+                             "i.e., [10,12].")
 
         self.seed = seed
-        self.knary = nspecies
+        self.knary = len(species)
+        self.species = species
+        self.incar = incar
                 
     def ready(self):
         """Returns True if this database has finished its computations and is
@@ -71,6 +76,11 @@ class EnumDatabase(Database):
         """
         from numpy import count_nonzero as cnz
         from tqdm import tqdm
+        from matdb.database.basic import can_cleanup
+
+        # If we haven't made a folder for each config then we aren't ready.
+        if len(self.configs) != self.nconfigs:
+            return False
         
         done = {}
         for f in tqdm(self.configs.values()):
@@ -85,7 +95,7 @@ class EnumDatabase(Database):
             return False
     
     def cleanup(self):
-        """Cleans up the DFT runs to ensure that the database ran to
+        """If possible cleans up the DFT runs to ensure that the database ran to
         completion.
 
         Returns:
@@ -169,7 +179,6 @@ class EnumDatabase(Database):
         """
         from os import chdir, system, getcwd
         from glob import glob
-        
         folders_ok = super(EnumDatabase, self).setup()
         if folders_ok and not rerun:
             return
@@ -196,14 +205,16 @@ class EnumDatabase(Database):
                 self._build_lattice_file(lattices[i])
                 outfile = "-outfile enum.out.{}".format(lattices[i])
                 dist = "all {}".format(sub_nconfigs[i])
+                this_sys = "-species {}".format(" ".join(self.species))
                 # Perform the enumeration.
                 if self.seed is None:
                     system("enumeration.py -enum -distribution {0} {1}".format(dist,outfile))
                 else:
-                    system("enumeration.py -enum -distribution {0} {1} -seed {2}".format(dist,outfile,seed))
+                    system("enumeration.py -enum -distribution {0} {1} -seed {2}".format(dist,outfile,self.seed))
+                    
                 system("rm polya* enum.in")
                 # extract the POSCARS
-                system("makeStr.py all -input enum.out.{}".format(lattices[i]))
+                system("makeStr.py all -input enum.out.{0} {1}".format(lattices[i],this_sys))
 
                 # Now we need to 
                 from quippy.atoms import Atoms
@@ -217,3 +228,4 @@ class EnumDatabase(Database):
         # Last of all, create the job file to execute the job array.
         self.jobfile(rerun)
             
+

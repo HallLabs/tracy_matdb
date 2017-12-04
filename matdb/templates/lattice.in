@@ -11,9 +11,9 @@ bulk
 {{ k_nary }}
 # basis atoms
 {{ n_basis }}
-{{%- for basis in atomic_basis %}}
+{%- for basis in atomic_basis %}
 {{ basis }}
-{{%- endfor %}}
+{%- endfor %}
 #----------------------------------------
 # Concentrations
 #
@@ -30,8 +30,8 @@ bulk
 # indicates the fractional amount of displaced atoms of that species.
 {{ conc_res }}
 {{ incl_arrows }}
-{{%- if concentrations %}
-{{%- for conc in concentrations %}}
+{%- if concentrations %}
+{%- for conc in concentrations %}
 {{ conc }}
-{{%- endfor %}}
-{{%- endif %}}
+{%- endfor %}
+{%- endif %}
