@@ -1,5 +1,5 @@
 """Tests the controller and database collection objects methods
-directly. These tests rely on the `./tests/Si` directory, which has the model
+directly. These tests rely on the `./tests/Pd` directory, which has the model
 outputs that temporary directories will be compared to.
 """
 import numpy as np
@@ -234,6 +234,25 @@ def test_Pd_dynmatrix(Pd):
         assert path.isfile(path.join(Pd[rkey].root, "phonopy", "FORCE_SETS"))
         assert path.isfile(path.join(Pd[rkey].root, "phonopy", "total_dos.dat"))
 
+def test_recover(Pd):
+    """Tests the recovery of the database.
+    """
+    from os import path
+    Pd.setup()
+    Pd.recover()
+
+    #Test jobfile removal
+    jobfile = path.join(Pd["Pd.modulate"].root,"modulations","failures")
+    xpath = path.join(Pd["Pd.modulate"].root,"modulations","recovery.sh")
+    with open(jobfile,'w+') as f:
+        f.write("\n")
+    with open(xpath,'w+') as f:
+        f.write("\n")
+    Pd.recover()
+    
+    assert not path.isfile(jobfile)
+    assert not path.isfile(xpath)
+        
 # def test_split():
 #     """Tests the splitting logic and that the ids from original
 #     randomization are saved correctly.
