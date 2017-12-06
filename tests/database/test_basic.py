@@ -185,7 +185,7 @@ def test_xyz(Pd_p):
         dest = relpath("./tests/data/Pd/basic_pass/S.{}/output.xyz.idx".format(i))
         remove(dest)
     
-def test_tarbal(Pd_p):
+def test_tarball(Pd_p):
     """Tests the tar ball creation.
     """
 
