@@ -7,6 +7,7 @@ from matdb.database import basic
 
 @pytest.fixture(scope="module", autouse=True)
 def Pd_f(request):
+
     """Returns a :class:`matdb.database.basic.Database` using Pd as a
     seed configuration, the linked to database tests the failurs or False
     staments for the basic Database.
@@ -119,3 +120,87 @@ def test_execution(Pd_p):
 
     assert not Pd_p.execute()    
     assert Pd_p.execute(dryrun=True)
+
+def test_jobfile(Pd_p):
+    """Tests the jobfile creation corner cases.
+    """
+
+    Pd_p.jobfile()
+
+# Needs parent to perform
+#   Pd_p.jobfile(recovery=True)
+#
+# def test_recover(Pd_p):
+#     """Tests the recovery function.
+#     """
+#     Pd_p.recover()
+#
+# def test_create(Pd_p):
+#     """Tests the create function's corner cases.
+#     """
+#
+#     POSCAR = relpath("./tests/Pd/POSCAR")
+#     from quippy.atoms import Atoms
+#     datoms = Atoms(POSCAR,format="POSCAR")
+#     Pd_p.create(datoms)
+
+def test_setup(Pd_f):
+    """Tests the setup funciton's corner cases.
+    """
+    from os import remove
+    outfile = relpath("./tests/data/Pd/basic_pass/S.1/OUTCAR")
+    with open(outfile,"w+") as f:
+        f.write('/n')
+
+    assert Pd_f.setup()        
+    remove(outfile)
+
+def test_status(Pd_p):
+    """Tests the status of the database.
+    """
+
+    assert "ready to execute 3/3; finished executing 0/3;" == Pd_p.status()
+
+    status = {'ready': {'/root/codes/matdb/tests/data/Pd/basic_pass/S.1': True, '/root/codes/matdb/tests/data/Pd/basic_pass/S.2': True, '/root/codes/matdb/tests/data/Pd/basic_pass/S.3': True}, 'stats': {'ready': 3, 'done': 0, 'N': 3}, 'busy': False, 'done': {'/root/codes/matdb/tests/data/Pd/basic_pass/S.1': False, '/root/codes/matdb/tests/data/Pd/basic_pass/S.2': False, '/root/codes/matdb/tests/data/Pd/basic_pass/S.3': False}}
+    assert status == Pd_p.status(print_msg=False)
+
+def test_xyz(Pd_p):
+    """Tests the coversion to xyz files.
+    """
+    from os import symlink, remove, path
+    src = relpath("./tests/data/Pd/complete/vasprun.xml__Pd.phonon-16")
+    for i in range(1,4):
+        dest = relpath("./tests/data/Pd/basic_pass/S.{}/vasprun.xml".format(i))
+        symlink(src,dest)
+    
+    assert Pd_p.xyz(combine=True)
+    xyzf = relpath("./tests/data/Pd/basic_pass/output.xyz")
+    assert path.isfile(xyzf)
+    remove(xyzf)
+    for i in range(1,4):
+        dest = relpath("./tests/data/Pd/basic_pass/S.{}/vasprun.xml".format(i))
+        remove(dest)
+        dest = relpath("./tests/data/Pd/basic_pass/S.{}/output.xyz".format(i))
+        remove(dest)
+        dest = relpath("./tests/data/Pd/basic_pass/S.{}/output.xyz.idx".format(i))
+        remove(dest)
+    
+def test_tarbal(Pd_p):
+    """Tests the tar ball creation.
+    """
+
+    from os import symlink, remove, path
+    src = relpath("./tests/data/Pd/complete/OUTCAR__Pd.phonon-16")
+    for i in range(1,4):
+        dest = relpath("./tests/data/Pd/basic_pass/S.{}/OUTCAR".format(i))
+        symlink(src,dest)
+
+    Pd_p.tarball()
+    target = relpath("./tests/data/Pd/basic_pass/output.tar.gz")
+    assert path.isfile(target)
+
+    remove(target)
+    for i in range(1,4):
+        dest = relpath("./tests/data/Pd/basic_pass/S.{}/OUTCAR".format(i))
+        remove(dest)
+    
