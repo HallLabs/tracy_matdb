@@ -280,7 +280,10 @@ def energy(pot, atoms, folder=None, base64=False, index=None):
         "xlabel": "DFT Energy (eV)",
         "ylabel": "IP Energy (eV)"
     }
-    ctypes = np.array(atoms.config_type)
+    if hasattr(atoms[0],"config_type"):
+        ctypes = np.array(atoms.config_type)
+    else:
+        ctypes = None
     title = "RMSE {0:.4f}".format(np.std(dft-ip))
     return PDI(dft, ip, subplot_kw=subplot_kw, index=index, base64=base64,
                name="Energy", imgtype="energy", folder=folder, withdiag=True,
@@ -303,12 +306,13 @@ def force(pot, atoms, folder=None, base64=False, index=None):
     dft = np.hstack([np.array(f).flatten() for f in dft]).flatten()
     ip = np.hstack([np.array(f).flatten() for f in ip]).flatten()
 
-    aconfigs = atoms.config_type
-    N = np.array(atoms.n)*3
-    uconfigs = list(set(aconfigs))
-    dconfigs = {c: i for i, c in enumerate(uconfigs)}
-    ctypes = np.array([ac for ac, n in zip(aconfigs, N) for i in range(n)])
-    assert len(ctypes) == len(dft)
+    if hasattr(atoms[0],"config_type"):
+        aconfigs = atoms.config_type
+        N = np.array(atoms.n)*3
+        ctypes = np.array([ac for ac, n in zip(aconfigs, N) for i in range(n)])
+        assert len(ctypes) == len(dft)
+    else:
+        ctypes = None
     
     #Setup the keyword arguments for the axes labels, etc.
     subplot_kw = {
@@ -337,11 +341,12 @@ def virial(pot, atoms, folder=None, base64=False, index=None):
     dft = np.hstack([np.array(v).flatten() for v in dft]).flatten()
     ip = np.hstack([np.array(v).flatten() for v in ip]).flatten()
 
-    aconfigs = atoms.config_type
-    uconfigs = list(set(aconfigs))
-    dconfigs = {c: i for i, c in enumerate(uconfigs)}
-    ctypes = np.array([ac for ac in aconfigs for i in range(9)])
-    assert len(ctypes) == len(dft)
+    if hasattr(atoms[0],"config_type"):
+        aconfigs = atoms.config_type
+        ctypes = np.array([ac for ac in aconfigs for i in range(9)])
+        assert len(ctypes) == len(dft)
+    else:
+        ctypes = None
     
     #Setup the keyword arguments for the axes labels, etc.
     subplot_kw = {

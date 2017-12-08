@@ -4,6 +4,11 @@
 
 - Added `EnumDatabase` for generating enumerated runs.
 - Added `lattice.in` template for phenum's use.
+- Fixed the `fileformat` in `matdb/kpoints.py` to be `vasp-ase` to
+  match materialscloud server update.
+- Changed `matdb/plotting/potentials.py` so that if the
+  `atoms.config_type` attribute does not exist it doesn't throw
+  errors.
 
 ## Revision 0.0.5
 

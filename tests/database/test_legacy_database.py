@@ -104,7 +104,7 @@ def test_merge(phondb):
     root = path.dirname(phondb.root)
     newdb = LegacyDatabase("AgPd-50", root, None, phondb.splits, phondb.folder,
                            "p-50-*.xyz", "ph")
-    assert newdb.config == phondb.config
+    assert newdb.atoms == phondb.atoms
     
 def test_rename(rendb):
     """Tests renaming of properties to meet `matdb` conventions.

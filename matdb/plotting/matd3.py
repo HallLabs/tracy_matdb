@@ -104,7 +104,7 @@ class PointDetailImage(object):
         
         if save_kw is None:
             save_kw = {}
-        if folder is None:
+        if folder is None and not base64:
             return
 
         if not self.base64:

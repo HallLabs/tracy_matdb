@@ -11,6 +11,13 @@ import pandas as pd
 def d2b(atoms, cutoff):
     """Returns histogram data for the specified *list* of atoms within the given
     cutoff.
+
+    Args:
+        atoms (list): A list of atoms objects
+        cutof (float): The distance to cutoff the contributions at.
+
+    Returns:
+        pandas.dataframe: of ["N","D","T"] as the columns.
     """
     D2b = quippy.Descriptor("distance_Nb order=2 cutoff={0:.2f}".format(cutoff))
     rs = []
@@ -30,6 +37,13 @@ def d2b(atoms, cutoff):
 def d3b(atoms, cutoff):
     """Returns histogram data for the specified *list* of atoms within the given
     cutoff.
+
+    Args:
+        atoms (list): A list of atoms objects
+        cutof (float): The distance to cutoff the contributions at.
+
+    Returns:
+        pandas.dataframe: of ["N","D","T"] as the columns.
     """
     D3b = quippy.Descriptor("distance_Nb order=3 cutoff={0:.2f}".format(cutoff))
     ds = []
