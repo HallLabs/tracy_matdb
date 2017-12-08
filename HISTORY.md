@@ -2,6 +2,7 @@
 
 ## Revision 0.0.6
 
+- Set the _bands attribute in the phonon database.
 - Added `EnumDatabase` for generating enumerated runs.
 - Added `lattice.in` template for phenum's use.
 - Fixed the `fileformat` in `matdb/kpoints.py` to be `vasp-ase` to
