@@ -5,6 +5,7 @@ points has a set of three random plots generated to add detail to the point.
 import pytest
 import numpy as np
 from os import path, mkdir
+import matplotlib.pyplot as plt
 
 def test_pointdetail(tmpdir):
     """Tests creation of a point-detail plot of a sine-wave.
@@ -24,7 +25,8 @@ def test_pointdetail(tmpdir):
     with open(relpath("tests/plotting/sine-base64.dat")) as f:
         model = f.read()
     assert img2.url == model
-
+    plt.close('all')
+    
 def test_html(tmpdir):
     """Tests the creation of the HTML package folder with custom point detail
     plots.
@@ -85,4 +87,4 @@ def test_html(tmpdir):
     assert path.isfile(path.join(folder, "imagepoint.js"))
     assert path.isfile(path.join(folder, "imagepoint.css"))
     assert path.isfile(path.join(folder, "index.html"))
-    
+    plt.close('all')    
