@@ -479,7 +479,8 @@ def modulate_atoms(db):
     :class:`DynMatrix` instance.
 
     Args:
-        db (Database): database with parameters needed to module the atoms.
+        db (Database): database with parameters needed to module the
+            atoms, (Calibration or Modulation databases).
     """
     #Generating the modulation file. We need to sample the DOS in order to
     #compute that correctly.
@@ -518,7 +519,7 @@ def modulate_atoms(db):
     #(phonopy doesn't write to stderr, only stdout).
     testmod = path.join(db.base.phonodir, "MPOSCAR-001")
     if not path.isfile(testmod):#pragma: no cover
-        msg.err(testmod["output"])
+        msg.err(xres["output"])
             
 class Calibration(Database):
     """Represents a set of modulated sub-configurations of differing amplitude,
