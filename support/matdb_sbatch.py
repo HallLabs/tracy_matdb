@@ -1,0 +1,14 @@
+"""This is a stub for the sbatch script on the supercomputer.
+"""
+from matdb.utility import touch
+import sys
+
+if len(sys.argv) >1 and sys.argv[1][-3:] == ".sh":
+    from matdb.utility import execute
+    temp =sys.argv[1].split('/')
+    execute(["bash",temp[-1:][0]],'/'.join(temp[:-1]))
+    sys.stdout.write("Submitted batch job {}\n".format(abs(hash(sys.argv[1]))))
+else:
+    sys.stderr.write("Failed to submit\n")
+
+

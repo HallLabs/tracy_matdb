@@ -5,11 +5,11 @@ def stubs(request, tmpdir_factory):
     #We need to hack $PATH so that `vasp` and `module` point to the unit testing
     #stubs that we created.
     from os import path, pathsep, environ
-    from matdb.utility import which, symlink
+    from matdb.utility import which, symlink, touch
     stubs = {
         "vasp": "matdb_vasp.py",
         "module": "matdb_module.py",
-        "sbatch": "bash",
+        "sbatch": "matdb_sbatch.py",
         "getKPoints": "matdb_getkpoints.py"
     }
 
@@ -36,7 +36,13 @@ def stubs(request, tmpdir_factory):
     xres = execute(["module", "load", "mkl/*"], stubpath)
     assert path.isfile(path.join(stubpath, ".matdb.module"))
     xres = execute(["sbatch", "-c", "pwd"], stubpath)
-    assert xres["output"][0].strip() == stubpath
+    assert xres["output"] == []
+    assert xres["error"][0].strip() == "Failed to submit"
+    symlink(stubpath+"/sbatch.sh",stubpath+"/sbatch")
+    xres = execute(["sbatch", stubpath+"/sbatch.sh"], stubpath)
+    temp = xres["output"][-1].strip().split()[0:3]
+    assert ' '.join(temp) == "Submitted batch job"
+    assert xres["error"] == []
 
     touch(path.join(stubpath, "PRECALC"))
     xres = execute(["getKPoints"], stubpath)

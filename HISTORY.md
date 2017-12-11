@@ -2,7 +2,10 @@
 
 ## Revision 0.0.6
 
-- Set the _bands attribute in the phonon database.
+- Added `support/matdb_sbatch.py` for the unit testing stub for sbatch.
+- Added `matdb/querries.py` so that the different environments, i.e.,
+  sbatch and Tracy, can be handled appropriately.
+- Set the `self._bands` attribute in the phonon database.
 - Added `EnumDatabase` for generating enumerated runs.
 - Added `lattice.in` template for phenum's use.
 - Fixed the `fileformat` in `matdb/kpoints.py` to be `vasp-ase` to
