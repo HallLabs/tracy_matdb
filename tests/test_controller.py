@@ -74,7 +74,7 @@ def dynPd(Pd):
 
     return Pd
 
-@pytest.mark.skip()
+# @pytest.mark.skip()
 def test_Pd_phonplot(dynPd, tmpdir):
     """Tests the plotting of phonon bands for supercell convergence test in Pd.
     """
@@ -260,7 +260,7 @@ def test_split(Pd):
     Pd["Pd.phonon-4"]._split("A")
     remove(output)
 
-    # Pd.split() Bug?
+    Pd.split()
 
 def test_SequenceRepeater(Pd):
     """Tests the initialization of the squence repeater.
@@ -274,4 +274,3 @@ def test_SequenceRepeater(Pd):
                                              'type': 'phonon.DynMatrix',
                                              'bandmesh': [13, 13, 13]}],
                      niterations=[{'phonopy.dim': [0, 1, 1, 1, 0, 1, 1, 1, 0]}])
-    # temp._kpath Bug?
