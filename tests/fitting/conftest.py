@@ -39,6 +39,7 @@ def Pd_db(tmpdir):
 
     files = ["OUTCAR", "output.xyz"]
     seq = Pd["Pd.modulate.modulations"]
+    troot = path.join(reporoot, "tests", "data", "Pd", "modulations")
     for i in range(1, 6):
         key = "M.{0:d}".format(i)
         for filename in files:
