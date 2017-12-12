@@ -2,6 +2,7 @@
 
 ## Revision 0.0.6
 
+- Assigned self.steps to the Sequence database.
 - Added `support/matdb_sbatch.py` for the unit testing stub for sbatch.
 - Added `matdb/querries.py` so that the different environments, i.e.,
   sbatch and Tracy, can be handled appropriately.

@@ -41,17 +41,103 @@ class EnumDatabase(Database):
        min_size (int): the smallest allowed cell size in the database.
        knary (int): the number of atomic species in the enumeration.
        species (list): the atomic species in the system
+       arrows (list): list of arrow restrictions.
+       concs (list): a list of the concetration restrictions.
+       eps (float): the floating point tolerance
+       arrow_res (bool): True if arrows are present.
+       conc_res (bool): True if concetrations are being restricted.
+       lattice (list): the lattice vectors for the system.
+       basis (list): the atomic basis for the system.
 
     """
     def __init__(self, atoms=None, root=None, controller=None, parent=None, incar={},
-                 kpoints={}, execution={}, sizes=None,
-                 nconfigs=None, species=None, name="enum", seed=None):
+                 kpoints={}, execution={}, sizes=None, basis=None, lattice=None, concs=None,
+                 arrows = None, eps=None, nconfigs=None, species=None, name="enum", seed=None):
 
         self.name = name
         super(EnumDatabase, self).__init__(atoms,incar,kpoints,execution,
                                            path.join(root,self.name),
                                            parent,"E",nconfigs=None)
         self.nconfigs = nconfigs
+        if eps is None:
+            self.eps = 10**(-3)
+        else:
+            self.eps = eps
+            
+        #determine the lattice.
+        if isinstance(lattice,str):
+            if lattice.lower() == "fcc":
+                self.lattice = [[0.5,0.5,0],[0.5,0,0.5],[0,0.5,0.5]]
+            elif lattice.lower() == "bcc":
+                self.lattice = [[0.5,0.5,-0.5],[0.5,-0.5,0.5],[-0.5,0.5,0.5]]
+            elif lattice.lower() == "sc":
+                self.lattice = [[1,0,0],[0,1,0],[0,0,1]]
+            elif lattice.lower() == "hcp":
+                self.lattice = [[1,0,0],[.5, 0.866025403784439, 0],[0, 0, 1.6329931618554521]]
+            else:
+                msg.err("The lattice type {} is unsupported. Please enter your lattice vectors "
+                        "as a 3x3 matrix with the vectors as rows in the config file "
+                        "(i.e. [a1,a2,a3]).".format(lattice))
+        elif isinstance(lattice,list):
+            if len(lattice) == 3 and len(lattice[0]) == 3:
+                self.lattice = lattice
+            else: 
+                msg.err("The lattice vectors must be a 3x3 matrix with the vectors as rows.")
+        else:
+            msg.err("The lattice vectors must either be a string of 'sc', 'fcc', 'hcp', 'bcc', "
+                    "or a 3x3 matrix with the vectors a rows, not {}".format(lattice))
+
+        if isinstance(basis,list):
+            if len(basis[0]) == 3:
+                self.basis = basis
+            else:
+                msg.err("The atomic basis must be a list of lists that is nx3 where n is "
+                        "the number of atoms in the basis.")
+        elif basis is None:
+            if lattice.lower() != "hcp":
+                self.basis = [[0,0,0]]
+            else:
+                self.basis = [[0,0,0],[0.5,0.28867513459,0.81649658093]]                
+        else:
+            msg.err("The atomic basis must be a list of lists that is nx3 where n is "
+                    "the number of atoms in the basis or left blank.")
+
+        if isinstance(species,list):
+            self.knary = len(species)
+            if len(self.knary) == 1:
+                self.species = [species[0],species[0]]
+            else:
+                self.species = species
+        else:
+            msg.err("The species must be a list of atomic elements.")
+            
+
+        if concs is not None and len(concs) == len(species):
+            if len(concs[0]) == 3:
+                self.concs = concs
+                self.conc_res = True
+            else:
+                msg.err("The concetrations must be a nx3 list.")
+        elif concs is None:
+            self.concs = concs
+            self.conc_res = False
+        else:
+            msg.err("The number of species and the concentrations must be have the "
+                    "same length.")
+
+        if arrows is not None and len(arrows) == len(species):
+            if isinstance(arrows[0],(int,float)) and arrows[0]<=1:
+                self.arrows = arrows
+                self.arrow_res = False
+            else :
+                msg.err("The arrows must be a list of values <= 1.")
+        elif arrows is None:
+            self.arrows = arrows
+            self.arrow_res = False
+        else:
+            msg.err("The number of species and arrow concentrations must have the "
+                    "same length.")
+            
         if len(sizes)==1 and isinstance(sizes,list):
             self.min_size = 1
             self.max_size = sizes[0]
@@ -66,8 +152,6 @@ class EnumDatabase(Database):
                              "i.e., [10,12].")
 
         self.seed = seed
-        self.knary = len(species)
-        self.species = species
         self.incar = incar
                 
     def ready(self):
@@ -112,13 +196,10 @@ class EnumDatabase(Database):
         
         return True
 
-    def _build_lattice_file(self,lattice):
+    def _build_lattice_file(self):
         """Creates the lattice.is file that phenum needs in order to perform
         the enumeration.
         
-        Args:
-            lattice (str): The string that identifies which lattice to use as the
-              parent lattice, i.e., 'fcc', 'bcc', 'sc', 'hcp'.
         """
 
         from os import path
@@ -130,37 +211,26 @@ class EnumDatabase(Database):
         settings["template"] = "lattice.in"
         settings["min_cell_size"] = self.min_size
         settings["max_cell_size"] = self.max_size
-        settings["conc_res"] = "F"
-        settings["incl_arrows"] = "F"
-        settings["k_nary"] = self.knary
-
-        if lattice.lower() == "sc":
-            settings["vec_1"] = "1 0 0"
-            settings["vec_2"] = "0 1 0"
-            settings["vec_3"] = "0 0 1"
-            settings["n_basis"] = "1"
-            settings["atomic_basis"] = ["0 0 0"]
-        elif lattice.lower() == "fcc":
-            settings["vec_1"] = "0 0.5 0.5"
-            settings["vec_2"] = "0.5 0 0.5"
-            settings["vec_3"] = "0.5 0.5 0"
-            settings["n_basis"] = "1"
-            settings["atomic_basis"] = ["0 0 0"]
-        elif lattice.lower() == "bcc":
-            settings["vec_1"] = "-0.5 0.5 0.5"
-            settings["vec_2"] = "0.5 -0.5 0.5"
-            settings["vec_3"] = "0.5 0.5 -0.5"
-            settings["n_basis"] = "1"
-            settings["atomic_basis"] = ["0 0 0"]
-        elif lattice.lower() == "hcp":
-            settings["vec_1"] = "1 0 0"
-            settings["vec_2"] = ".5 0.866025403784439 0"
-            settings["vec_3"] = "0 0 1.6329931618554521"
-            settings["n_basis"] = "2"
-            settings["atomic_basis"] = ["0 0 0","0.5 0.28867513459  0.81649658093"]
+        if self.conc_res:
+            settings["conc_res"] = "T"
+            if self.arrow_res:
+                temp = []
+                for i, a in enumerate(self.arrows):
+                    temp.append("{0} {1}".format(" ".join([str(j) in self.concs[i]]),a))
+            else:
+                temp = [" ".join([str(i) for i in j]) for j in self.concs]
+                    
+            settings["concetrations"] = temp
         else:
-            raise ValueError("The {} lattice type is unrecognized.".format(lattice))
-        
+            settings["conc_res"] = "F"
+        if self.arrow_res:
+            settings["incl_arrows"] = "T"
+        else:
+            settings["incl_arrows"] = "F"
+        settings["lattice"] = [" ".join([str(i) for i in j]) for j in self.lattice]
+        settings["k_nary"] = self.knary
+        settings["atomic_basis"] = [" ".join([str(i) for i in j]) for j in self.basis]
+        settings["n_basis"] = len(self.basis)        
         
         from jinja2 import Environment, PackageLoader
         env = Environment(loader=PackageLoader('matdb', 'templates'))
@@ -199,29 +269,27 @@ class EnumDatabase(Database):
             # correct number of configurations.
             current = getcwd()
             chdir(self.root)
-            lattices = ["fcc","bcc","hcp"]
             dind = 0
-            for i in range(3):
-                self._build_lattice_file(lattices[i])
-                outfile = "-outfile enum.out.{}".format(lattices[i])
-                dist = "all {}".format(sub_nconfigs[i])
-                this_sys = "-species {}".format(" ".join(self.species))
-                # Perform the enumeration.
-                if self.seed is None:
-                    system("enumeration.py -enum -distribution {0} {1}".format(dist,outfile))
-                else:
-                    system("enumeration.py -enum -distribution {0} {1} -seed {2}".format(dist,outfile,self.seed))
+            self._build_lattice_file(lattices[i])
+            outfile = "-outfile enum.out"
+            dist = "all {}".format(sub_nconfigs[i])
+            this_sys = "-species {}".format(" ".join(self.species))
+            # Perform the enumeration.
+            if self.seed is None:
+                system("enumeration.py -enum -distribution {0} {1}".format(dist,outfile))
+            else:
+                system("enumeration.py -enum -distribution {0} {1} -seed {2}".format(dist,outfile,self.seed))
                     
-                system("rm polya* enum.in")
-                # extract the POSCARS
-                system("makeStr.py all -input enum.out.{0} {1}".format(lattices[i],this_sys))
+            system("rm polya* enum.in")
+            # extract the POSCARS
+            system("makeStr.py all -input enum.out.{0} {1}".format(lattices[i],this_sys))
 
-                # Now we need to 
-                from quippy.atoms import Atoms
-                for dposcar in glob("vasp.*"):
-                    datoms = Atoms(dposcar,format="POSCAR")
-                    self.create(datoms,cid=dind)
-                    dind += 1
+            # Now we need to 
+            from quippy.atoms import Atoms
+            for dposcar in glob("vasp.*"):
+                datoms = Atoms(dposcar,format="POSCAR")
+                self.create(datoms,cid=dind)
+                dind += 1
                     
             chdir(current)
 
