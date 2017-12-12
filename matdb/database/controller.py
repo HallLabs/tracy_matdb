@@ -9,10 +9,8 @@ import six
 class DatabaseSequence(object):
     """Represents a sequence of databases (all inheriting from :class:`Database`)
     that are all related be the atomic configuration that they model.
-
     .. note:: See the list of attributes below which correspond to the sections
       in the YAML database specification file.
-
     Args:
         name (str): name of the configuration that this database sequence is
           operating for.
@@ -25,7 +23,6 @@ class DatabaseSequence(object):
           database steps to setup.
         splits (dict): keys are split names; values are `float` *training*
           percentages to use.
-
     Attributes:
         title (str): title for the alloy system that these databases work with.
         config (str): name of the configuration that this database sequence is
@@ -45,7 +42,6 @@ class DatabaseSequence(object):
         steps (OrderedDict): keys are step names (e.g. `dft`, `calibration`,
           etc.); values are the corresponding class instances.
         parent (Controller): instance controlling multiple configurations.
-
     """
     def __init__(self, name, repeater, root, parent, steps, splits):
         self.name = name
@@ -124,7 +120,6 @@ class DatabaseSequence(object):
     def recover(self, rerun=False):
         """Runs recovery on this database to determine which configs failed and
         then create a jobfile to requeue them for compute.
-
         Args:
             rerun (bool): when True, recreate the jobfile even if it
               already exists. 
@@ -135,7 +130,6 @@ class DatabaseSequence(object):
     def status(self, busy=False):
         """Prints a status message for each of the databases relative
         to VASP execution status.
-
         Args:
             busy (bool): when True, print a list of the configurations that are
               still busy being computed in DFT.
@@ -156,7 +150,6 @@ class DatabaseSequence(object):
     def execute(self, recovery=False, env_vars=None):
         """Submits job array files for any of the databases that are ready to
         execute, but which haven't been submitted yet.
-
         Args:
             recovery (bool): when True, submit the script for running recovery
               jobs.
@@ -178,7 +171,6 @@ class DatabaseSequence(object):
     def train_file(self, split):
         """Returns the full path to the XYZ database file that can be
         used for training.
-
         Args:
             split (str): name of the split to use.
         """
@@ -187,7 +179,6 @@ class DatabaseSequence(object):
     def holdout_file(self, split):
         """Returns the full path to the XYZ database file that can be
         used to validate the potential fit.
-
         Args:
             split (str): name of the split to use.
         """
@@ -196,7 +187,6 @@ class DatabaseSequence(object):
     def super_file(self, split):
         """Returns the full path to the XYZ database file that can be
         used to *super* validate the potential fit.
-
         Args:
             split (str): name of the split to use.
         """
@@ -212,14 +202,12 @@ class DatabaseSequence(object):
     def _split(self, name, recalc=0):
         """Splits the total available data in all databases into a training and holdout
         set.
-
         Args:
             name (str): name of the split to perform.
             recalc (int): when non-zero, re-split the data and overwrite any
               existing *.xyz files. This parameter decreases as
               rewrites proceed down the stack. To re-calculate
               lower-level XYZ files, increase this value.
-
         """
         train_file = self.train_file(name)
         holdout_file = self.holdout_file(name)
@@ -321,12 +309,10 @@ class DatabaseSequence(object):
     def setup(self, rerun=False):
         """Sets up the database collection by generating the POTCAR file and
         initializing any databases that haven't already been initialized.
-
         .. note:: The db setup functions are setup to only execute once, and then
            only if their dependencies have completed their calculations. This
            method can, therefore, be safely called repeatedly between different
            terminal sessions.
-
         Args:
             rerun (bool): when True, recreate the folders even if they
               already exist. 
@@ -338,7 +324,6 @@ class DatabaseSequence(object):
 
 class SequenceRepeater(object):
     """Repeats sequences of database steps across a parameter grid.
-
     Args:
         name (str): name of the configuration that this database sequence is
           operating for.
@@ -351,7 +336,6 @@ class SequenceRepeater(object):
           database steps to setup.
         splits (dict): keys are split names; values are `float` *training*
           percentages to use.
-
     Attributes:
         atoms (quippy.atoms.Atoms): a single atomic configuration from
           which many others may be derived using MD, phonon
@@ -371,6 +355,7 @@ class SequenceRepeater(object):
         self.poscar = path.join(root, poscar)
         self.atoms = Atoms(self.poscar, format="POSCAR")
         self.kfile = path.join(parent.kpathdir, "{0}.json".format(self.name))
+        self.steps = steps
 
         self._kpath = None
         """tuple: result of querying the materialscloud.org special path
@@ -380,7 +365,6 @@ class SequenceRepeater(object):
         
         if niterations is not None:
             from matdb.utility import obj_update
-            
             for i, repeater in enumerate(niterations):
                 nname = None
                 isteps = copy(steps)
@@ -404,7 +388,6 @@ class SequenceRepeater(object):
     def kpath(self):
         """Returns the materialscloud.org special path in k-space for the seed
         configuration of this database.
-
         Returns:
             tuple: result of querying the materialscloud.org special path
             service. First term is a list of special point labels; second is the
@@ -431,7 +414,6 @@ class SequenceRepeater(object):
     def recover(self, rerun=False):
         """Runs recovery on each step in the sequence to determine which configs failed
         and then create a jobfile to requeue them for compute.
-
         Args:
             rerun (bool): when True, recreate the jobfile even if it
               already exists.
@@ -442,7 +424,6 @@ class SequenceRepeater(object):
     def status(self, busy=False):
         """Prints a status message for each step in the sequence relative
         to VASP execution status.
-
         Args:
             busy (bool): when True, print a list of the configurations that are
               still busy being computed in DFT.
@@ -453,7 +434,6 @@ class SequenceRepeater(object):
     def execute(self, recovery=False, env_vars=None):
         """Submits job array files for any of steps in the sequence that are ready to
         execute, but which haven't been submitted yet.
-
         Args:
             recovery (bool): when True, submit the script for running recovery
               jobs.
@@ -466,7 +446,6 @@ class SequenceRepeater(object):
     def split(self, recalc=0):
         """Splits the total available data in each step's databases into a training and
         holdout set.
-
         Args:
             recalc (int): when non-zero, re-split the data and overwrite any
               existing *.xyz files. This parameter decreases as
@@ -486,7 +465,6 @@ class SequenceRepeater(object):
     def setup(self, rerun=False):
         """Sets up the each step's database in the sequence in order. If an
         earlier step is not ready yet, the next item in the step won't setup.
-
         Args:
             rerun (bool): when True, recreate the folders even if they
               already exist. 
@@ -497,13 +475,11 @@ class SequenceRepeater(object):
 class Controller(object):
     """Implements methods for tying a configuration dictionary (in
     YAML format) to instances of various databases.
-
     Args:
         config (str): name of the YML file (without the .yml) that
           specifies all information for constructing the set of databases.
         tmpdir (str): path to a temporary directory to use for the
           database. This is for unit testing purposes.
-
     Attributes:
         specs (dict): the parsed settings from the YAML configuration file.
         collections (dict): keys are configuration names listed in attribute
@@ -536,8 +512,8 @@ class Controller(object):
         self.plotdir = path.join(self.root, "plots")
         self.kpathdir = path.join(self.root, "kpaths")
         self.title = self.specs["title"]
-        self.collections = {}
-        self.legacy = {}
+        self.seeded = {}
+        self.seedless = {}
         self.species = [s for s in self.specs["species"]]
         self.potcars = self.specs.get("potcars", {})
         self.incar = self.specs.get("incar", {})
@@ -558,12 +534,12 @@ class Controller(object):
                 #root; this is mainly for unit tests.
                 cpspec["folder"] = relpath(cpspec["folder"])
                 del cpspec["legacy"]
-                self.legacy[cpspec["name"]] = LegacyDatabase(**cpspec)
+                self.seedless[cpspec["name"]] = LegacyDatabase(**cpspec)
             else:
                 for cspec in self.specs["configs"]:
                     name, poscar = cspec["name"], cspec["poscar"]
-                    if name not in self.collections:
-                        self.collections[name] = {}
+                    if name not in self.seeded:
+                        self.seeded[name] = {}
 
                     if ("configs" in dbspec) and (cspec["name"] not in dbspec["configs"]):
                         continue
@@ -572,7 +548,7 @@ class Controller(object):
                     seq = SequenceRepeater(dbname, poscar, self.root, self,
                                            steps, dbspec.get("niterations"),
                                            self.specs.get("splits"))
-                    self.collections[name][dbspec["name"]] = seq
+                    self.seeded[name][dbspec["name"]] = seq
 
         from os import mkdir
         if not path.isdir(self.plotdir):
@@ -598,7 +574,6 @@ class Controller(object):
     def ifiltered(self, cfilter=None, dfilter=None):
         """Returns a *filtered* generator over sequences in the config collections of
         this object.
-
         Args:
             cfilter (list): of `str` patterns to match against *configuration*
               names. This limits which configs are returned.
@@ -606,7 +581,7 @@ class Controller(object):
               names. This limits which databases sequences are returned.
         """
         from fnmatch import fnmatch
-        for name, coll in self.collections.items():
+        for name, coll in self.seeded.items():
             if cfilter is None or any(fnmatch(name, c) for c in cfilter):
                 for dbn, seq in coll.items():
                     if dfilter is None or any(fnmatch(dbn, d) for d in dfilter):
@@ -616,25 +591,19 @@ class Controller(object):
         """Finds a list of database steps that match the given pattern. The
         pattern is formed using `config.dbname-suffix.step`. `*` can be used as
         a wildcard for any portion of the '.'-separated path.
-
         .. note:: Actually, an :func:`~fnmatch.fnmatch` pattern can be used.
-
         Args:
             pattern (str): fnmatch pattern that follows the convention of the DB
               key.
-
         Examples:
         
             Get all the dynamical matrix databases for the `Pd`
             configuration. The example assumes that the database name is
             `phonon` and that it includes a dynamical matrix step.
-
             >>> Pd = Controller("Pd.yml")
             >>> Pd.find("Pd.phonon*.dynmatrix")
-
             Get all the database sequences for liquids across all configurations in
             the database.
-
             >>> CdWO4 = Controller("CdWO4.yml")
             >>> CdWO4.find("*.liquid*")
         """
@@ -650,9 +619,9 @@ class Controller(object):
         else:
             #We must be searching legacy databases; match the pattern against
             #those.
-            return [li for ln, li in self.legacy.items() if fnmatch(ln, pattern)]
+            return [li for ln, li in self.seedless.items() if fnmatch(ln, pattern)]
         
-        colls = [v for k, v in self.collections.items() if fnmatch(k, config)]
+        colls = [v for k, v in self.seeded.items() if fnmatch(k, config)]
 
         #For databases without repeaters, there is no suffix.
         if '-' in parent:
@@ -676,7 +645,7 @@ class Controller(object):
 
         if config == '*':
             #Add all the possible legacy databases.
-            result.extend([li for ln, li in self.legacy.items()
+            result.extend([li for ln, li in self.seedless.items()
                            if fnmatch(ln, config)])
                     
         return result
@@ -685,7 +654,7 @@ class Controller(object):
         """Compiles a list of all steps in this set of databases.
         """
         result = []
-        for config, coll in self.collections.items():
+        for config, coll in self.seeded.items():
             for repeater in coll.values():
                 for parent, seq in repeater.sequences.items():
                     for step in seq.steps:
@@ -697,7 +666,7 @@ class Controller(object):
         """Compiles a list of all sequences in this set of databases.
         """
         result = []
-        for config, coll in self.collections.items():
+        for config, coll in self.seeded.items():
             for repeater in coll.values():
                 result.extend(repeater.sequences.keys())
 
@@ -714,7 +683,7 @@ class Controller(object):
             config, parent = key.split('.')
             db = None
             
-        coll = self.collections[config]
+        coll = self.seeded[config]
         if '-' in parent:
             dbname, suffix = parent.split('-')
         else:
@@ -728,7 +697,6 @@ class Controller(object):
                         
     def setup(self, rerun=False, cfilter=None, dfilter=None):
         """Sets up each of configuration's databases.
-
         Args:
             rerun (bool): when True, recreate the folders even if they
               already exist.
@@ -742,7 +710,6 @@ class Controller(object):
 
     def cleanup(self, cfilter=None, dfilter=None):
         """Runs cleanup on each of the configuration's databases.
-
         Args:
             cfilter (list): of `str` patterns to match against *configuration*
               names. This limits which configs are returned.
@@ -754,7 +721,6 @@ class Controller(object):
 
     def execute(self, recovery=False, cfilter=None, dfilter=None, env_vars=None):
         """Submits job array scripts for each database collection.
-
         Args:
             recovery (bool): when True, submit the script for running recovery
               jobs.
@@ -771,7 +737,6 @@ class Controller(object):
     def recover(self, rerun=False, cfilter=None, dfilter=None):
         """Runs recovery on this database to determine which configs failed and
         then create a jobfile to requeue them for compute.
-
         Args:
             rerun (bool): when True, recreate the jobfile even if it
               already exists. 
@@ -787,7 +752,6 @@ class Controller(object):
     def status(self, busy=False, cfilter=None, dfilter=None):
         """Prints status messages for each of the configuration's
         databases.
-
         Args:
             busy (bool): when True, print a list of the configurations that are
               still busy being computed in DFT.
@@ -833,13 +797,12 @@ class Controller(object):
             if len(potcars) == len(self.species):
                 from matdb.utility import cat
                 cat(potcars, target)
-            else:
+            else: #pragma: no cover
                 msg.err("Couldn't create POTCAR for system.")
 
     def split(self, recalc=0, cfilter=None, dfilter=None):
         """Splits the total available data in all databases into a training and holdout
         set.
-
         Args:
             recalc (int): when non-zero, re-split the data and overwrite any
               existing *.xyz files. This parameter decreases as
