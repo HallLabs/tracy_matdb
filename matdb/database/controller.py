@@ -512,8 +512,8 @@ class Controller(object):
         self.plotdir = path.join(self.root, "plots")
         self.kpathdir = path.join(self.root, "kpaths")
         self.title = self.specs["title"]
-        self.collections = {}
-        self.legacy = {}
+        self.seeded = {}
+        self.seedless = {}
         self.species = [s for s in self.specs["species"]]
         self.potcars = self.specs.get("potcars", {})
         self.incar = self.specs.get("incar", {})
@@ -534,12 +534,12 @@ class Controller(object):
                 #root; this is mainly for unit tests.
                 cpspec["folder"] = relpath(cpspec["folder"])
                 del cpspec["legacy"]
-                self.legacy[cpspec["name"]] = LegacyDatabase(**cpspec)
+                self.seedless[cpspec["name"]] = LegacyDatabase(**cpspec)
             else:
                 for cspec in self.specs["configs"]:
                     name, poscar = cspec["name"], cspec["poscar"]
-                    if name not in self.collections:
-                        self.collections[name] = {}
+                    if name not in self.seeded:
+                        self.seeded[name] = {}
 
                     if ("configs" in dbspec) and (cspec["name"] not in dbspec["configs"]):
                         continue
@@ -548,7 +548,7 @@ class Controller(object):
                     seq = SequenceRepeater(dbname, poscar, self.root, self,
                                            steps, dbspec.get("niterations"),
                                            self.specs.get("splits"))
-                    self.collections[name][dbspec["name"]] = seq
+                    self.seeded[name][dbspec["name"]] = seq
 
         from os import mkdir
         if not path.isdir(self.plotdir):
@@ -581,7 +581,7 @@ class Controller(object):
               names. This limits which databases sequences are returned.
         """
         from fnmatch import fnmatch
-        for name, coll in self.collections.items():
+        for name, coll in self.seeded.items():
             if cfilter is None or any(fnmatch(name, c) for c in cfilter):
                 for dbn, seq in coll.items():
                     if dfilter is None or any(fnmatch(dbn, d) for d in dfilter):
@@ -619,9 +619,9 @@ class Controller(object):
         else:
             #We must be searching legacy databases; match the pattern against
             #those.
-            return [li for ln, li in self.legacy.items() if fnmatch(ln, pattern)]
+            return [li for ln, li in self.seedless.items() if fnmatch(ln, pattern)]
         
-        colls = [v for k, v in self.collections.items() if fnmatch(k, config)]
+        colls = [v for k, v in self.seeded.items() if fnmatch(k, config)]
 
         #For databases without repeaters, there is no suffix.
         if '-' in parent:
@@ -645,7 +645,7 @@ class Controller(object):
 
         if config == '*':
             #Add all the possible legacy databases.
-            result.extend([li for ln, li in self.legacy.items()
+            result.extend([li for ln, li in self.seedless.items()
                            if fnmatch(ln, config)])
                     
         return result
@@ -654,7 +654,7 @@ class Controller(object):
         """Compiles a list of all steps in this set of databases.
         """
         result = []
-        for config, coll in self.collections.items():
+        for config, coll in self.seeded.items():
             for repeater in coll.values():
                 for parent, seq in repeater.sequences.items():
                     for step in seq.steps:
@@ -666,7 +666,7 @@ class Controller(object):
         """Compiles a list of all sequences in this set of databases.
         """
         result = []
-        for config, coll in self.collections.items():
+        for config, coll in self.seeded.items():
             for repeater in coll.values():
                 result.extend(repeater.sequences.keys())
 
@@ -683,7 +683,7 @@ class Controller(object):
             config, parent = key.split('.')
             db = None
             
-        coll = self.collections[config]
+        coll = self.seeded[config]
         if '-' in parent:
             dbname, suffix = parent.split('-')
         else:
