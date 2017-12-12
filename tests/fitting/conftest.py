@@ -10,7 +10,7 @@ def Pd_db(tmpdir):
     from matdb.database.controller import Controller
     from os import mkdir
 
-    target = relpath("./tests/Pd/matdb.yaml")
+    target = relpath("./tests/Pd/matdb")
     dbdir = str(tmpdir.join("pd_db"))
     mkdir(dbdir)
     

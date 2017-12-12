@@ -159,7 +159,7 @@ class DynMatrix(Database):
             sargs = ["phonopy", '--dim="{}"'.format(DIM),
                      '--qpoints="0 0 0"', "--writedm"]
             xres = execute(sargs, self.phonodir, venv=True)
-            if not path.isfile(qpoints):
+            if not path.isfile(qpoints): #pragma: no cover
                 msg.err("could not calculate phonon bands; see errors.")
 
             if len(xres["error"]) > 0:
@@ -188,7 +188,7 @@ class DynMatrix(Database):
                     result["eigvecs"] = eigvecs
                     break
 
-            if len(result) < 3:
+            if len(result) < 3: #pragma: no cover
                 msg.err("Could not extract dynamical matrix from qpoints.yaml "
                         "file...")
                 return
@@ -210,7 +210,7 @@ class DynMatrix(Database):
         if self._bands is None:
             from matdb.phonons import from_yaml
             byaml = path.join(self.phonodir, "band.yaml")
-            return from_yaml(byaml)
+            self._bands = from_yaml(byaml)
         return self._bands
 
     @property
@@ -262,7 +262,8 @@ class DynMatrix(Database):
         from matdb.utility import execute
         sargs = ["phonopy", "-p", "band.conf", "-s"]
         xres = execute(sargs, self.phonodir, venv=True)
-        if not path.isfile(bandfile):
+
+        if not path.isfile(bandfile): #pragma: no cover
             msg.err("could not calculate phonon bands; see errors.")
 
         if len(xres["error"]) > 0:
@@ -293,7 +294,7 @@ class DynMatrix(Database):
         from matdb.utility import execute
         sargs = ["phonopy", "-p", "dos.conf", "-s"]
         xres = execute(sargs, self.phonodir, venv=True)
-        if not path.isfile(dosfile):
+        if not path.isfile(dosfile): #pragma: no cover
             msg.err("could not calculate the DOS; see errors.")
 
         if len(xres["error"]) > 0:
@@ -315,7 +316,7 @@ class DynMatrix(Database):
         vaspruns = []
         for i, folder in self.configs.items():
             vasprun = path.join(folder, "vasprun.xml")
-            if not path.isfile(vasprun):
+            if not path.isfile(vasprun): #pragma: no cover
                 msg.err("vasprun.xml does not exist for {}.".format(folder))
             else:
                 vaspruns.append(vasprun)
@@ -325,7 +326,7 @@ class DynMatrix(Database):
             sargs = ["phonopy", "-f"] + vaspruns
             xres = execute(sargs, self.phonodir, venv=True)
 
-        if not path.isfile(fsets):
+        if not path.isfile(fsets):#pragma: no cover
             msg.err("Couldn't create the FORCE_SETS:")
         if len(xres["error"]) > 0:
             msg.std(''.join(xres["error"]))
@@ -478,7 +479,8 @@ def modulate_atoms(db):
     :class:`DynMatrix` instance.
 
     Args:
-        db (Database): database with parameters needed to module the atoms.
+        db (Database): database with parameters needed to module the
+            atoms, (Calibration or Modulation databases).
     """
     #Generating the modulation file. We need to sample the DOS in order to
     #compute that correctly.
@@ -516,8 +518,8 @@ def modulate_atoms(db):
     #Make sure that phonopy actually produced files; otherwise show the output
     #(phonopy doesn't write to stderr, only stdout).
     testmod = path.join(db.base.phonodir, "MPOSCAR-001")
-    if not path.isfile(testmod):
-        msg.err(testmod["output"])
+    if not path.isfile(testmod):#pragma: no cover
+        msg.err(xres["output"])
             
 class Calibration(Database):
     """Represents a set of modulated sub-configurations of differing amplitude,

@@ -1,11 +1,11 @@
 """Tests the controller and database collection objects methods
-directly. These tests rely on the `./tests/Si` directory, which has the model
+directly. These tests rely on the `./tests/Pd` directory, which has the model
 outputs that temporary directories will be compared to.
 """
 import numpy as np
 from os import path
 import pytest
-from matdb.utility import reporoot
+from matdb.utility import reporoot, relpath
     
 def _mimic_vasp(folder, xroot):
     """Copies a `vasprun.xml` and `OUTCAR ` output files from the given folder into
@@ -39,9 +39,9 @@ def _mimic_vasp(folder, xroot):
 def Pd(tmpdir):
     from matdb.utility import relpath
     from matdb.database.controller import Controller
-    from os import mkdir
+    from os import mkdir, symlink, remove
 
-    target = relpath("./tests/Pd/matdb.yaml")
+    target = relpath("./tests/Pd/matdb")
     dbdir = str(tmpdir.join("pd_db"))
     mkdir(dbdir)
     
@@ -50,7 +50,10 @@ def Pd(tmpdir):
     from shutil import copy
     POSCAR = relpath("./tests/Pd/POSCAR")
     copy(POSCAR, dbdir)
+    symlink("{}.yml".format(target),"matdb.yml")
     
+    result = Controller("matdb", dbdir)
+    remove("matdb.yml")
     result = Controller(target, dbdir)
     return result
 
@@ -71,7 +74,7 @@ def dynPd(Pd):
 
     return Pd
 
-@pytest.mark.skip()
+# @pytest.mark.skip()
 def test_Pd_phonplot(dynPd, tmpdir):
     """Tests the plotting of phonon bands for supercell convergence test in Pd.
     """
@@ -165,14 +168,17 @@ def test_Pd_modulation(dynPd):
     dbfolder = path.join(dynPd.root, "Pd.modulate")
     compare_tree(dbfolder, folders)    
     
-@pytest.mark.skip()    
+# @pytest.mark.skip()    
 def test_Pd_dynmatrix(Pd):
-    """Tests the `niterations` functionality on simple Pd.
+    """Tests the `niterations` functionality and some of the standard
+    methods of the class on simple Pd.
+
     """
     Pd.setup()
         
     #Test the status, we should have some folder ready to execute.
     Pd.status()
+    Pd.status(busy=True)
 
     #Test execution command; this uses stubs for all of the commands that would
     #be executed.
@@ -233,14 +239,38 @@ def test_Pd_dynmatrix(Pd):
     for rkey in okay:
         assert path.isfile(path.join(Pd[rkey].root, "phonopy", "FORCE_SETS"))
         assert path.isfile(path.join(Pd[rkey].root, "phonopy", "total_dos.dat"))
+    
+def test_split(Pd):
+    """Tests the splitting logic and that the ids from original
+    randomization are saved correctly.
+    """
+    from os import remove, path, symlink
+    
+    Pd.setup()
+    Pd["Pd.phonon-4"]._split("A")
+    remove(path.join(Pd["Pd.phonon-4"].root,"A-super.xyz"))
+    Pd["Pd.phonon-4"]._split("A")
 
-# def test_split():
-#     """Tests the splitting logic and that the ids from original
-#     randomization are saved correctly.
-#     """
-#     from cPickle import load
-#     with open("PdAg50/ids.pkl", 'rb') as f:
-#         d = load(f)
-#     assert d["Nsuper"]+d["Nhold"]+d["Ntrain"] == d["Ntot"]
-#     assert np.round(d["Nsuper"]/float(d["Nhold"]), 2) == 0.33
-#     assert np.round((d["Nsuper"] + d["Nhold"])/float(d["Ntrain"])) == 0.33
+    POSCAR = relpath("./tests/Pd/POSCAR")
+    output = path.join(Pd["Pd.phonon-4"].root,"output.xyz")
+    symlink(POSCAR,output)
+    list(Pd["Pd.phonon-4"].isteps)[0][1].configs = {"1":Pd["Pd.phonon-4"].root,"2":''}
+    remove(path.join(Pd["Pd.phonon-4"].root,"A-super.xyz"))
+    remove(path.join(Pd["Pd.phonon-4"].root,"A-ids.pkl"))
+    Pd["Pd.phonon-4"]._split("A")
+    remove(output)
+
+    Pd.split()
+
+def test_SequenceRepeater(Pd):
+    """Tests the initialization of the squence repeater.
+    """
+
+    from matdb.database.controller import SequenceRepeater
+    root = Pd["Pd.phonon-4"].root
+    POSCAR = relpath("./tests/Pd/POSCAR")
+    temp = SequenceRepeater("temp",POSCAR,root,Pd,[{'phonopy': {'dim': [2, 2, 2]}, 'kpoints':
+                                             {'mindistance': 30}, 'dosmesh': [10, 10, 10],
+                                             'type': 'phonon.DynMatrix',
+                                             'bandmesh': [13, 13, 13]}],
+                     niterations=[{'phonopy.dim': [0, 1, 1, 1, 0, 1, 1, 1, 0]}])

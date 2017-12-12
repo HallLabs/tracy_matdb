@@ -8,6 +8,8 @@ helpful in deciding how to proceed with a GAP fit.
 import pytest
 import quippy
 from os import path
+import matplotlib.pyplot as plt
+
 def test_generate(tmpdir):
     """Tests generation of all plots supported by the potential plotter.
     """
@@ -33,3 +35,4 @@ def test_generate(tmpdir):
 
     for fname in files:
         assert path.isfile(path.join(folder, fname))
+    plt.close('all')

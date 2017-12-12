@@ -21,9 +21,10 @@ def kpath(poscar):
     """
     import requests
     files = { "structurefile": open(path.abspath(path.expanduser(poscar)), 'rb') }
-    data = { "fileformat": "vasp" }
+    data = { "fileformat": "vasp-ase" }
     url = "http://www.materialscloud.org/tools/seekpath/process_structure/"
     r = requests.post(url, data=data, files=files)
+    
 
     from bs4 import BeautifulSoup
     parsed_html = BeautifulSoup(r.text, "html5lib")
