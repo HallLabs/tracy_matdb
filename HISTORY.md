@@ -1,5 +1,13 @@
 # Revision History for `matdb`
 
+## Revision 0.0.7
+
+- Renamed the databases to be groups and the `matdb/database/basic.py`
+  `Database` class to be `Group`.
+- Renamed the classes in `matdb/database/controller.py`,
+  changed`DatabaseSequence` to just `Sequence` and `SequenceRepeater`
+  to `Repeater`.
+
 ## Revision 0.0.6
 
 - Replaced self.collections with self.seeded in `matdb/database/controller.py`.

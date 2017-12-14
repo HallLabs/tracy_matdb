@@ -1,7 +1,7 @@
-"""Database of configurations that is created by displacing a given
+"""Group of configurations that is created by displacing a given
 unit cell along phonon modes using the eigenvectors.
 """
-from .basic import Database
+from .basic import Group
 from matdb import msg
 from os import path
 import numpy as np
@@ -42,7 +42,7 @@ def _parsed_kpath(poscar):
 
     return (labels, band)
 
-class DynMatrix(Database):
+class DynMatrix(Group):
     """Sets up the displacement calculations needed to construct the dynamical
     matrix. The dynamical matrix is required by :class:`Modulation` to
     create the individual modulations.
@@ -52,7 +52,7 @@ class DynMatrix(Database):
           displaced to generate the database.
         root (str): path to the folder where the database directories will
           be stored.
-        parent (matdb.database.controller.DatabaseSequence): parent sequence
+        parent (matdb.database.controller.Sequence): parent sequence
           to which this database belongs.
         incar (dict): specify additional settings for the INCAR file (i.e.,
           differing from, or in addition to those in the global set).
@@ -69,7 +69,7 @@ class DynMatrix(Database):
           calculating the phonon density-of-states.
 
     .. note:: Additional attributes are also exposed by the super class
-      :class:`Database`.
+      :class:`Group`.
 
     Attributes:
         name (str): name of this database type relative to the over database
@@ -479,7 +479,7 @@ def modulate_atoms(db):
     :class:`DynMatrix` instance.
 
     Args:
-        db (Database): database with parameters needed to module the
+        db (Group): database with parameters needed to module the
             atoms, (Calibration or Modulation databases).
     """
     #Generating the modulation file. We need to sample the DOS in order to
@@ -521,17 +521,17 @@ def modulate_atoms(db):
     if not path.isfile(testmod):#pragma: no cover
         msg.err(xres["output"])
             
-class Calibration(Database):
+class Calibration(Group):
     """Represents a set of modulated sub-configurations of differing amplitude,
     used to determine the maximum modulation amplitude where the force is still
-    in the linear regime.
+    in the linear regime .
 
     Args:
         atoms (quippy.atoms.Atoms): seed configuration that will be
           displaced to generate the database.
         root (str): path to the folder where the database directories will
           be stored.
-        parent (matdb.database.controller.DatabaseSequence): parent sequence
+        parent (matdb.database.controller.Sequence): parent sequence
           to which this database belongs.
         incar (dict): specify additional settings for the INCAR file (i.e.,
           differing from, or in addition to those in the global set).
@@ -544,7 +544,7 @@ class Calibration(Database):
           calibrating.
 
     .. note:: Additional attributes are also exposed by the super class
-      :class:`Database`.
+      :class:`Group`.
 
     Attributes:
         name (str): name of this database type relative to the over database
@@ -706,7 +706,7 @@ class Calibration(Database):
         else:
             raise NotImplementedError("Automatic calibration not configured.")
             
-class Modulation(Database):
+class Modulation(Group):
     """Represents a set of displaced configurations where atoms are
     moved, within a supercell, according to phonon eigenmodes.
 
@@ -715,7 +715,7 @@ class Modulation(Database):
           displaced to generate the database.
         root (str): path to the folder where the database directories will
           be stored.
-        parent (matdb.database.controller.DatabaseSequence): parent collection
+        parent (matdb.database.controller.Sequence): parent collection
           to which this database belongs.
         incar (dict): specify additional settings for the INCAR file (i.e.,
           differing from, or in addition to those in the global set).
@@ -733,7 +733,7 @@ class Modulation(Database):
           configuration's phonon spectrum.
 
     .. note:: Additional attributes are also exposed by the super class
-      :class:`Database`.
+      :class:`Group`.
 
     Attributes:
         sampling (str): on of ['uniform', 'sample', 'top'], where the method

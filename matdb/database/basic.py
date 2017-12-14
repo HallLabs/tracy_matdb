@@ -1,4 +1,4 @@
-"""Abstract base class for creating and interacting with a database of
+"""Abstract base class for creating and interacting with a database group of
 configurations for machine learning materials.
 """
 from os import path
@@ -71,13 +71,12 @@ def can_cleanup(folder):
         else:
             return False
         
-class Database(object):
+class Group(object):
     """Represents a collection of material configurations (varying in
     structure and composition) from which a machine learning model can
     be created. Includes logic for generating the DFT directories that
     need to be run as well as extracting the relevant data from such
     computations.
-
     Args:
         atoms (quippy.atoms.Atoms): a single atomic configuration from
           which many others may be derived using MD, phonon
@@ -95,7 +94,6 @@ class Database(object):
         prefix (str): sub-sampled configurations will be stored using integer
           ids after this prefix; for example `S.1`, `S.2`, etc.
         nconfigs (int): number of displaced configurations to create.
-
     Attributes:
         atoms (quippy.atoms.Atoms): a single atomic configuration from
           which many others may be derived using MD, phonon
@@ -175,7 +173,6 @@ class Database(object):
     def execute(self, dryrun=False, recovery=False, env_vars=None):
         """Submits the job script for each of the folders in this
         database if they are ready to run.
-
         Args:
             dryrun (bool): when True, simulate the submission without
               actually submitting.
@@ -183,11 +180,11 @@ class Database(object):
               jobs.
             env_vars (dict): of environment variables to set before calling the
               execution. The variables will be set back after execution.
-
         Returns:
             bool: True if the submission generated a job id
             (considered successful).
         """
+
         jobfile = "recovery.sh" if recovery else "jobfile.sh"
         if not path.isfile(path.join(self.root, jobfile)):
             return False
@@ -225,7 +222,6 @@ class Database(object):
     def PRECALC(self, rewrite=False):
         """Creates the INCAR file using the default settings plus any extras
         that were passed in to this database.
-
         Args:
             rewrite (bool): when True, overwrite any existing PRECALC with the
               latest settings.
@@ -247,7 +243,6 @@ class Database(object):
     def INCAR(self, rewrite=False):
         """Creates the INCAR file using the default settings plus any extras
         that were passed in to this database.
-
         Args:
             rewrite (bool): when True, overwrite any existing INCAR with the
               latest settings.
@@ -270,7 +265,6 @@ class Database(object):
         """Compiles a list of all DFT runs that didn't complete and compiles the
         `failures` file. Creates a jobfile to re-run the failed
         folders only.
-
         Args:
             rerun (bool): when True, recreate the jobfile even if it
               already exists. 
@@ -279,7 +273,7 @@ class Database(object):
         failed = [k for k, v in detail["done"].items() if not v]
         identity = "{0}|{1}".format(self.parent.name, self.name)
         xpath = path.join(self.root, "failures")
-        
+
         if len(failed) > 0:
             #Only write a failures file if we had failures.
             with open(xpath, 'w') as f:
@@ -289,7 +283,7 @@ class Database(object):
             msg.info(imsg.format(identity, len(failed)))
         else:
             msg.okay("{0}: no failures.".format(identity))
-        
+
         #Only create a jobfile if there were actually failures
         if len(failed) > 0:
             self.jobfile(rerun, recovery=True)
@@ -305,7 +299,6 @@ class Database(object):
     def jobfile(self, rerun=False, recovery=False):
         """Creates the job array file to run each of the sub-configurations in
         this database.
-
         Args:
             rerun (bool): when True, recreate the jobfile even if it
               already exists. 
@@ -351,7 +344,6 @@ class Database(object):
                     
     def create(self, atoms, cid=None, rewrite=False, sort=None):
         """Creates a folder within this database in which VASP may be run.
-
         Args:
             atoms (quippy.atoms.Atoms): atomic configuration to run.
             cid (int): integer configuration id; if not specified, defaults to
@@ -402,9 +394,7 @@ class Database(object):
     def ready(self):
         """Determines if this database has been completely initialized *and* has
         all its computations' results ready.
-
         .. note:: This method should be overloaded by a sub-class.
-
         Raises:
             NotImplementedError: this method is intended to be overloaded by a
             sub-class.
@@ -415,7 +405,6 @@ class Database(object):
     def setup(self):
         """Creates all the necessary folders for sub-configurations of the seed
         atomic configuration, preparatory to DFT computations.
-
         .. note:: This method should be overloaded by a sub-class, which also
           calls this method.
         """
@@ -437,7 +426,6 @@ class Database(object):
     def status(self, print_msg=True):
         """Returns a status message for statistics of sub-configuration execution
         with VASP.
-
         Args:
             print_msg (bool): when True, return a text message with aggregate status
               information; otherwise, return a dict of the numbers involved
@@ -492,7 +480,6 @@ class Database(object):
             recalc=False, combine=False):
         """Creates an XYZ file for each of the sub-sampled configurations in this
         database.
-
         Args:
             filename (str): name of the XYZ file to create; this is created in
               each sub-sampled configurations directory.
@@ -504,7 +491,6 @@ class Database(object):
               exist. 
             combine (bool): when True, combine all the sub-configuration XYZ
               files into a single, giant XYZ file.
-
         Returns:
             bool: True if the number of xyz files created equals the number of
             configurations in the database, which means that the database is

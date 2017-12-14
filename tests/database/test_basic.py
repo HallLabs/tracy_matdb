@@ -12,7 +12,7 @@ def Pd_f(request):
     seed configuration, the linked to database tests the failurs or False
     staments for the basic Database.
     """
-    from matdb.database.basic import Database
+    from matdb.database.basic import Group
 
     POSCAR = relpath("./tests/Pd/POSCAR")
     from quippy.atoms import Atoms
@@ -26,17 +26,17 @@ def Pd_f(request):
     parent = None
     root = relpath("./tests/data/Pd/basic_fail")
 
-    Pd_db = Database(datoms,incar,kpoints,execution,root,parent,nconfigs=3,prefix="N")
-    Pd_db = Database(datoms,incar,kpoints,execution,root,parent,nconfigs=3)
+    Pd_db = Group(datoms,incar,kpoints,execution,root,parent,nconfigs=3,prefix="N")
+    Pd_db = Group(datoms,incar,kpoints,execution,root,parent,nconfigs=3)
 
     return Pd_db
 
 @pytest.fixture(scope="module", autouse=True)
 def Pd_p(request):
-    """Returns a :class:`matdb.database.basic.Database` using Pd as a
+    """Returns a :class:`matdb.database.basic.Group` using Pd as a
     seed configuration.
     """
-    from matdb.database.basic import Database
+    from matdb.database.basic import Group
 
     POSCAR = relpath("./tests/Pd/POSCAR")
     from quippy.atoms import Atoms
@@ -50,7 +50,7 @@ def Pd_p(request):
     parent = None
     root = relpath("./tests/data/Pd/basic_pass")
 
-    Pd_db = Database(datoms,incar,kpoints,execution,root,parent,nconfigs=3)
+    Pd_db = Group(datoms,incar,kpoints,execution,root,parent,nconfigs=3)
 
     return Pd_db
 
@@ -87,7 +87,7 @@ def test_can_cleanup(Pd_f):
     assert not Pd_f.cleanup()
     
 def test_execution_fails(Pd_f):
-    """ Tests of the basic Database execution related subroutines that should 
+    """ Tests of the basic Group execution related subroutines that should 
     return False or don't require a completed database.
     """
     from os import remove, path
@@ -107,7 +107,7 @@ def test_execution_fails(Pd_f):
     remove(jobfile)
         
 def test_execution(Pd_p):
-    """ Tests of the basic Database execution related subroutines.
+    """ Tests of the basic Group execution related subroutines.
     """
     from os import remove
     

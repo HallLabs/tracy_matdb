@@ -1,11 +1,11 @@
-"""Database of configurations that is created from an enumerated list of structures.
+"""Group of configurations that is created from an enumerated list of structures.
 """
-from .basic import Database
+from .basic import Group
 from matdb import msg
 from os import path
 import numpy as np
 
-class EnumDatabase(Database):
+class EnumGroup(Group):
     """Sets up the calculations for a random sampling of structures from
     an enumerated list.
 
@@ -30,7 +30,7 @@ class EnumDatabase(Database):
         seed (hashable): a seed to feed to the random number generator.
 
     .. note:: Additional attributes are also exposed by the super class
-      :class:`Database`.
+      :class:`Group`.
 
     Attributes:
         name (str): name of this database type relative to the over database
@@ -55,7 +55,7 @@ class EnumDatabase(Database):
                  arrows = None, eps=None, nconfigs=None, species=None, name="enum", seed=None):
 
         self.name = name
-        super(EnumDatabase, self).__init__(atoms,incar,kpoints,execution,
+        super(EnumGroup, self).__init__(atoms,incar,kpoints,execution,
                                            path.join(root,self.name),
                                            parent,"E",nconfigs=None)
         self.nconfigs = nconfigs
@@ -191,7 +191,7 @@ class EnumDatabase(Database):
         if not self.ready():
             return False
 
-        if not super(EnumDatabase, self).cleanup():
+        if not super(EnumGroup, self).cleanup():
             return False
         
         return True
@@ -249,7 +249,7 @@ class EnumDatabase(Database):
         """
         from os import chdir, system, getcwd
         from glob import glob
-        folders_ok = super(EnumDatabase, self).setup()
+        folders_ok = super(EnumGroup, self).setup()
         if folders_ok and not rerun:
             return
 

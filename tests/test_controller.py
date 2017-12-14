@@ -262,14 +262,14 @@ def test_split(Pd):
 
     Pd.split()
 
-def test_SequenceRepeater(Pd):
+def test_Repeater(Pd):
     """Tests the initialization of the squence repeater.
     """
 
-    from matdb.database.controller import SequenceRepeater
+    from matdb.database.controller import Repeater
     root = Pd["Pd.phonon-4"].root
     POSCAR = relpath("./tests/Pd/POSCAR")
-    temp = SequenceRepeater("temp",POSCAR,root,Pd,[{'phonopy': {'dim': [2, 2, 2]}, 'kpoints':
+    temp = Repeater("temp",POSCAR,root,Pd,[{'phonopy': {'dim': [2, 2, 2]}, 'kpoints':
                                              {'mindistance': 30}, 'dosmesh': [10, 10, 10],
                                              'type': 'phonon.DynMatrix',
                                              'bandmesh': [13, 13, 13]}],

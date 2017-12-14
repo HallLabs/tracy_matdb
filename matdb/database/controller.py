@@ -6,15 +6,15 @@ from matdb import msg
 import numpy as np
 import six
 
-class DatabaseSequence(object):
-    """Represents a sequence of databases (all inheriting from :class:`Database`)
-    that are all related be the atomic configuration that they model.
+class Sequence(object):
+    """Represents a sequence of groups that form a database (all inheriting from 
+    :class:`Group`) that are all related be the atomic configuration that they model.
     .. note:: See the list of attributes below which correspond to the sections
       in the YAML database specification file.
     Args:
         name (str): name of the configuration that this database sequence is
           operating for.
-        repeater (SequenceRepeater): repeater for a set of sequences that all
+        repeater (Repeater): repeater for a set of sequences that all
           share the same root `atoms` object.
         root (str): root directory in which all other database sequences for
           the configurations in the same specification will be stored.
@@ -162,7 +162,7 @@ class DatabaseSequence(object):
                 ready = (db.ready() or db.execute(recovery=recovery,
                                                   env_vars=env_vars))
             if not ready:
-                imsg = ("Database {}.{} is not ready to execute yet, or is "
+                imsg = ("Group {}.{} is not ready to execute yet, or is "
                         "already executing. Done.")
                 msg.info(imsg.format(self.name, dbname))
                 break
@@ -301,7 +301,7 @@ class DatabaseSequence(object):
         """
         for dbname, db in self.isteps:
             if not db.cleanup():
-                imsg = "Database {}:{} is not ready yet. Done."
+                imsg = "Group {}:{} is not ready yet. Done."
                 msg.info(imsg.format(self.name, dbname))
                 break
         msg.blank()
@@ -322,7 +322,7 @@ class DatabaseSequence(object):
             db.setup(rerun)
         msg.blank()
 
-class SequenceRepeater(object):
+class Repeater(object):
     """Repeats sequences of database steps across a parameter grid.
     Args:
         name (str): name of the configuration that this database sequence is
@@ -378,10 +378,10 @@ class SequenceRepeater(object):
                 if nname is None:
                     nname = self.name + "-{0:d}".format(i)
 
-                iobj = DatabaseSequence(nname, self, root, parent, isteps, splits)
+                iobj = Sequence(nname, self, root, parent, isteps, splits)
                 self.sequences[nname] = iobj
         else:
-            single = DatabaseSequence(name, self, root, parent, steps, splits)
+            single = Sequence(name, self, root, parent, steps, splits)
             self.sequences[name] = single
 
     @property
@@ -545,7 +545,7 @@ class Controller(object):
                         continue
                     dbname = '.'.join((name, dbspec["name"]))
                     steps = dbspec["steps"]
-                    seq = SequenceRepeater(dbname, poscar, self.root, self,
+                    seq = Repeater(dbname, poscar, self.root, self,
                                            steps, dbspec.get("niterations"),
                                            self.specs.get("splits"))
                     self.seeded[name][dbspec["name"]] = seq
