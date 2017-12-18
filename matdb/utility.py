@@ -504,3 +504,171 @@ def getattrs(obj, chain):
 reporoot = _get_reporoot()
 """The absolute path to the repo root on the local machine.
 """
+
+def slicer(obj, args):
+    """Slices the object along the path defined in args.
+    
+    Args:
+        obj (iterable): an object to be sliced or divided.
+        args (iterable): the locations that the slices should be at.
+    """
+    from itertools import islice
+    from msg import err
+    if not isinstance(args,(list,tuple)):
+        err("The slicer args must be a list or a tuple.")
+        return
+    result = []
+    if len(args)%2==0:
+        for a in range(0,len(args),2):
+            for b, c in islice(((args[a],args[a+1]),),0,None,2):
+                result.extend(obj[slice(b,c)])
+    else:
+        err("Could not parse slice {} without start and stop values.".format(args))
+    return result
+
+def _py_execute(module, function, params):
+    """Executes the specified function by importing it and then using `eval` on
+    the exist parameter string given.
+
+    Args:
+        module (str): FQDN of the module in which `function` resides.
+        function (str): name of the callable in `module` to execute.
+        params (str): exact parameter string (including parentheses) to pass to
+          the function call with `eval`.
+    """
+    from importlib import import_module
+    module = import_module(module)
+    call = getattr(module, function)
+
+    xstr = "call{}".format(params)
+    return eval(xstr)
+
+def special_values(vs, seed=None):
+    """Converts the specified special value string into its python
+    representation. We allow the following "special" directives for
+    parameter values:
+
+    1. "linspace(start, stop, length)" calls the :func:`numpy.linspace` with the
+       given parameters to produce the list of values for the grid search.
+    2. "logspace(start, stop, length)" calls :func:`numpy.logspace` to produce
+       the parameter list.
+    3. "range(start, stop, step)" creates a range of numbers using the built-in
+       python `range` iterator. It will have type `list`.
+    4. "random:{id}(\*\*params)" draws samples from one of the distributions on
+       :class:`numpy.random.RandomState`. `id` should be one of the instance
+       methods for that distribution and `\*\*params` should be the exact python
+       code you would pass to the method call.
+    5. "distr:{id}(\*\*params)" draws samples from a discrete/continuous
+       distribution in `scipy.stats`. `id` should be one of the distribution
+       names in that module (which has a `rvs` method); `\*\*params` should be the
+       exact python code would pass to the object constructor.
+
+    Args:
+        vs (str): special value string.
+
+    """
+    if vs is None or not isinstance(vs, string_types):
+        return vs
+    
+    sdict = {
+        "linspace": ("numpy", "linspace"),
+        "logspace": ("numpy", "logspace"),
+        "range": ("numpy", "arange"),
+        "random:" : ("numpy.random", None),
+        "distr:" : ("scipy.stats", None)
+    }
+
+    #We allow for |nogs| to be appended if the person is just specifying weights
+    #for each input value (for example).
+    v = vs.replace("|nogs|", "")
+    
+    for k, f in sdict.items():
+        if k in v:
+            module, function = f
+            rest = v[len(k):]
+            if function is not None:
+                result = _py_execute(module, function, rest)
+            else:
+                #We still need to determine the name of the callable.
+                first = rest.index('(')
+                caller = rest[:first]
+                if k == "random:":
+                    from numpy.random import RandomState
+                    rs = RandomState(seed)
+                    d = getattr(rs, caller)
+                    result = eval("d{}".format(rest[first:]))
+                elif k == "distr:":
+                    result = _py_execute(module, caller, rest[first:])
+            break
+    else:
+        result = v    
+        
+    return result
+
+import collections
+
+def flatten_dict(d):
+    """Flattens a nested dictionary.
+
+    Args:
+        d (dict): a dictionary.
+    """
+    items = []
+    for k, v in d.items():
+        if isinstance(v, collections.MutableMapping):
+            items.extend(flatten_dict(v).items())
+        else:
+            items.append((k, v))
+    return dict(items)
+
+def special_functions(sf,values):
+    """Converts the specified function value string into its python
+    representation and evaluates it for each item in the values list. 
+    We allow the following "special" directives for parameter values:
+
+    1. "linalg:{id}" 'id' is an operation to be performed on a matrix 
+        from the numpy.linalg package.
+    2. "math:{id}" 'id' is an operation from the math package.
+    3. "numpy:{id}" 'id' is any operation from numpy.
+
+    Args:
+        sf (str): special function string.
+        values (list): a list that the function is to be applied to.
+
+    .. note:: the value returned by the special function must be an integer or a float.
+    """
+    from msg import err
+    import numpy as np
+    if sf is None or not isinstance(sf, string_types):
+        err("The special function must be a string.")
+        return False
+    if not isinstance(values,list):
+        err("The values that the special function is to be applied to must be a list.")
+        return False
+    
+    sdict = {
+        "linalg:": "numpy.linalg",
+        "math:": "math",
+        "numpy:": "numpy",
+    }
+
+    result = []
+    
+    from importlib import import_module
+    for k in sdict:
+        if k in sf:
+            module = import_module(sdict[k])
+            funct = sf.split(":")[1]
+            call = getattr(module, funct)
+            if k == "linalg:":
+                temp = [np.diag(v) if len(v)==3 else np.array(v).reshape(3,3)
+                        for v in values]
+            else:
+                temp = values
+            result = np.round(map(call,temp),1)
+            break
+    else:
+        result = False
+        
+    return result
+    
