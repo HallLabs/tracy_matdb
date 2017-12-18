@@ -142,6 +142,9 @@ def test_special_functions():
 
     assert np.allclose([1,8],special_functions("linalg:det",[[1,0,0,0,1,0,0,0,1],[2,2,2]]))
     assert np.allclose([3,6],special_functions("numpy:sum",[[1,0,0,0,1,0,0,0,1],[2,2,2]]))
-    assert not special_functions(None,None)
-    assert not special_functions("stuff",None)
-    assert not special_functions("stuff",[1,2])
+    with pytest.raises(ValueError):
+        special_functions(None,None)
+    with pytest.raises(ValueError):
+        special_functions("stuff",None)
+    with pytest.raises(ValueError):
+        special_functions("stuff",[1,2])

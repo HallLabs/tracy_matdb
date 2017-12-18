@@ -513,9 +513,8 @@ def slicer(obj, args):
         args (iterable): the locations that the slices should be at.
     """
     from itertools import islice
-    from msg import err
     if not isinstance(args,(list,tuple)):
-        err("The slicer args must be a list or a tuple.")
+        msg.err("The slicer args must be a list or a tuple.")
         return
     result = []
     if len(args)%2==0:
@@ -523,7 +522,7 @@ def slicer(obj, args):
             for b, c in islice(((args[a],args[a+1]),),0,None,2):
                 result.extend(obj[slice(b,c)])
     else:
-        err("Could not parse slice {} without start and stop values.".format(args))
+        msg.err("Could not parse slice {} without start and stop values.".format(args))
     return result
 
 def _py_execute(module, function, params):
@@ -637,14 +636,11 @@ def special_functions(sf,values):
 
     .. note:: the value returned by the special function must be an integer or a float.
     """
-    from msg import err
     import numpy as np
     if sf is None or not isinstance(sf, string_types):
-        err("The special function must be a string.")
-        return False
+        raise ValueError("The special function must be a string.")
     if not isinstance(values,list):
-        err("The values that the special function is to be applied to must be a list.")
-        return False
+        raise ValueError("The values that the special function is to be applied to must be a list.")
     
     sdict = {
         "linalg:": "numpy.linalg",
@@ -668,7 +664,7 @@ def special_functions(sf,values):
             result = np.round(map(call,temp),1)
             break
     else:
-        result = False
+        raise ValueError
         
     return result
     
