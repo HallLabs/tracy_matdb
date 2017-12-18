@@ -8,7 +8,9 @@
   changed`DatabaseSequence` to just `Sequence` and `SequenceRepeater`
   to `Repeater`.
 - Added the new subroutiens (`flatten_dict`,`special_values`,`special_functions`,
-  'slicer', and `_py_exectue`) to `matdb/utilit.py` that are needed for the refactor.
+  `slicer`, `is_number` and `_py_exectue`) to `matdb/utilit.py` that are needed
+  for the refactor.
+- Implemented the ParametrGrid class in `matdb/database/controller.py`.
 
 ## Revision 0.0.6
 

@@ -668,3 +668,24 @@ def special_functions(sf,values):
         
     return result
     
+def is_number(s):
+    """Determines if the given string is a number.
+    
+    Args:
+        s (str): the string to checke.
+    """
+    
+    try:
+        float(s)
+        return True
+    except ValueError:
+        pass
+ 
+    try:
+        import unicodedata
+        unicodedata.numeric(s)
+        return True
+    except (TypeError, ValueError):
+        pass
+ 
+    return False

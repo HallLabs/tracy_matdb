@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """Tests the utility functions.
 """
 import pytest
@@ -119,7 +120,6 @@ def test_special_values():
     assert isinstance(special_values("distr:alpha(0,10)"),
                       scipy.stats._distn_infrastructure.rv_frozen)
 
-
 def test_flatten_dict():
     """Tests the flattening of a dictionary.
     """
@@ -148,3 +148,16 @@ def test_special_functions():
         special_functions("stuff",None)
     with pytest.raises(ValueError):
         special_functions("stuff",[1,2])
+
+def test_is_number():
+    """Tests the is_number function.
+    """
+    from matdb.utility import is_number
+    import sys
+    
+    assert is_number('1.6')
+    if sys.version_info >= (3, 0):    
+        assert is_number('٥')
+    else:
+        assert is_number(u'٥')
+    assert not is_number('str')
