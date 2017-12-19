@@ -278,7 +278,7 @@ class Database(object):
             #pointers; then add in the keyword arguments that are missing.
             cpspec = dbspec.copy()
             del cpspec["type"]
-            cpspec["atoms"] = dbspec["seed"]
+            cpspec["atoms"] = ParameterGrid(cpspec)
             del cpspec["seed"]
             cpspec["root"] = self.root
             cpspec["parent"] = self
@@ -288,11 +288,6 @@ class Database(object):
             for k in list(cpspec.keys()):
                 if isinstance(cpspec[k], dict) and self.config in cpspec[k]:
                     cpspec[k] = cpspec[k][self.config]
-
-            for k in dbspec.keys():
-                if k[-1] == '*':
-                    del cpspec[k]
-                    cpspec[k[0:-1]] = ParameterGrid(dbspec[k])
             
             import pudb
             pudb.set_trace()
