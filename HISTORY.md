@@ -11,6 +11,8 @@
   `slicer`, `is_number` and `_py_exectue`) to `matdb/utilit.py` that are needed
   for the refactor.
 - Implemented the ParametrGrid class in `matdb/database/controller.py`.
+- Added struct_enum.out files for the gss search for `fcc`, `bcc`,
+  `sc`, and `hcp` structures.
 
 ## Revision 0.0.6
 
