@@ -41,16 +41,7 @@ class AsyncCalculator(object):
         pass
 
     @abc.abstractmethod
-    def execute(self, folder):
-        """Executes the calculator in the specified folder.
-
-        Args:
-            folder (str): path to the folder in which to run the executable.
-        """
-        pass
-
-    @abc.abstractmethod
-    def create(self, folder):
+    def create(self, folder, rewrite=False):
         """Creates all necessary input files for the calculator's executable.
 
         Args:
@@ -59,22 +50,22 @@ class AsyncCalculator(object):
         pass
 
     @abc.abstractmethod
-    def xyz(self, folder, filename="output.xyz",
-            properties=["species", "pos", "z", "ref_force"],
-            parameters=["ref_energy", "ref_virial"],
-            recalc=False):
-        """Generates an extended XYZ file for the output in the specified folder
+    def convert(self, folder, filename="output.xyz", fmt="xyz",
+                properties=["species", "pos", "z", "ref_force"],
+                parameters=["ref_energy", "ref_virial"],
+                recalc=False):
+        """Converts the output from the calculation to a new format.
 
         Args:
             folder (str): path to the folder in which the executable was run.
-            filename (str): name of the XYZ file to create; this is created in
-              each sub-sampled configurations directory.
+            filename (str): name of the file/object to create; this is created in
+              each sub-sampled configurations directory/group.
             properties (list): of `str` *atom* property names (such as position,
-              force, Z, etc.) to include in the XYZ file.
+              force, Z, etc.) to include in the output.
             parameters (list): of `str` *configuration* paramater names (such as
               energy, stress, etc.).
-            recalc (bool): when True, re-create the XYZ files, even if they already
-              exist. 
+            recalc (bool): when True, re-create the files/objects, even if they
+              already exist. 
         """
         pass
 
