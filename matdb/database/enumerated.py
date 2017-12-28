@@ -5,7 +5,7 @@ from matdb import msg
 from os import path
 import numpy as np
 
-class EnumGroup(Group):
+class Enumerated(Group):
     """Sets up the calculations for a random sampling of structures from
     an enumerated list.
 
@@ -50,9 +50,10 @@ class EnumGroup(Group):
        basis (list): the atomic basis for the system.
 
     """
-    def __init__(self, atoms=None, root=None, controller=None, parent=None, incar={},
-                 kpoints={}, execution={}, sizes=None, basis=None, lattice=None, concs=None,
-                 arrows = None, eps=None, nconfigs=None, species=None, name="enum", seed=None):
+    def __init__(self, atoms=None, root=None, controller=None, parent=None, execution={},
+                 sizes=None, basis=None, lattice=None, concs=None,
+                 arrows = None, eps=None, nconfigs=None, species=None, name="enum",
+                 rseed=None):
 
         self.name = name
         super(EnumGroup, self).__init__(atoms,incar,kpoints,execution,

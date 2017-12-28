@@ -232,8 +232,6 @@ class Database(object):
         parent (Controller): instance controlling multiple configurations.
     """
     def __init__(self, name, root, parent, steps, splits):
-        import pudb
-        pudb.set_trace()
         self.name = name
         self.config = name.split('.')[0]
         self.root = root
@@ -255,6 +253,7 @@ class Database(object):
         """
 
         from collections import OrderedDict
+        from os import mkdir
         self.steps = OrderedDict()
         for dbspec in steps:
             if isinstance(dbspec, six.string_types):
@@ -263,8 +262,10 @@ class Database(object):
                 instance = self.parent[dbspec]
                 self.steps[instance.name] = instance
                 continue
-                
+
             modname, clsname = dbspec["type"].split('.')
+            if not path.isdir(path.join(self.root,clsname)):
+                mkdir(path.join(self.root,clsname))
             fqdn = "matdb.database.{}".format(modname)
             module = import_module(fqdn)
             if not hasattr(module, clsname):# pragma: no cover
@@ -279,7 +280,6 @@ class Database(object):
             cpspec = dbspec.copy()
             del cpspec["type"]
             cpspec["atoms"] = ParameterGrid(cpspec)
-            del cpspec["seed"]
             cpspec["root"] = self.root
             cpspec["parent"] = self
 
@@ -540,8 +540,6 @@ class Controller(object):
           potentials after fitting.
     """
     def __init__(self, config, tmpdir=None):
-        import pudb
-        pudb.set_trace()
         from matdb.io import read
         self.config = path.expanduser(path.abspath(config))
         if path.isabs(config):
@@ -572,9 +570,7 @@ class Controller(object):
         # the sequences.
         from matdb.database.legacy import LegacyDatabase
         for dbspec in self.specs.get("databases", []):
-            seedless_types = ["legacy","enumerated"]
-            test = [i in dbspec for i in seedless_types]
-            if any(test):
+            if dbspec.get("legacy", False):
                 cpspec = dbspec.copy()
                 cpspec["root"] = self.root
                 cpspec["controller"] = self
@@ -582,23 +578,19 @@ class Controller(object):
                 #We allow the user to specify the folder relative to repository
                 #root; this is mainly for unit tests.
                 cpspec["folder"] = relpath(cpspec["folder"])
-                del cpspec[seedless_types[test.index(True)]]
-                ## Fix this latter
+                del cpspec["legacy"]
                 self.seedless[cpspec["name"]] = LegacyDatabase(**cpspec)
-                ## Fix this latter
             else:
-                for cspec in self.specs["configs"]:
-                    name, poscar = cspec["name"], cspec["poscar"]
-                    if name not in self.seeded:
-                        self.seeded[name] = {}
+                dbname = dbspec["name"]
+                if dbname not in self.seeded:
+                    self.seeded[dbname] = {}
 
-                    if ("configs" in dbspec) and (cspec["name"] not in dbspec["configs"]):
-                        continue
-                    dbname = dbspec["name"]
-                    steps = dbspec["steps"]
-                    db = Database(dbname, self.root, self,
-                                  steps, self.specs.get("splits"))
-                    self.seeded[name][dbspec["name"]] = db
+                if ("configs" in dbspec) and (cspec["name"] not in dbspec["configs"]):
+                    continue
+                steps = dbspec["steps"]
+                db = Database(dbname, self.root, self,
+                              steps, self.specs.get("splits"))
+                self.seeded[name][dbspec["name"]] = db
 
         from os import mkdir
         if not path.isdir(self.plotdir):

@@ -43,6 +43,7 @@ def _parsed_kpath(poscar):
     return (labels, band)
 
 class DynMatrix(Group):
+
     """Sets up the displacement calculations needed to construct the dynamical
     matrix. The dynamical matrix is required by :class:`Modulation` to
     create the individual modulations.
@@ -82,13 +83,12 @@ class DynMatrix(Group):
         dosmesh (list): mesh for calculating the phonon density-of-states.
 
     """
-    def __init__(self, atoms=None, root=None, parent=None,
-                 kpoints={}, incar={}, phonopy={}, execution={},
-                 name="dynmatrix", bandmesh=None, dosmesh=None):
+    def __init__(self, atoms=None, root=None, parent=None, seed=None, calculator=None, 
+                 phonopy={}, name="dynmatrix", bandmesh=None, dosmesh=None):
         self.name = name
-        super(DynMatrix, self).__init__(atoms, incar, kpoints, execution,
-                                        path.join(root, self.name),
-                                        parent, "W", nconfigs=None)
+        super(DynMatrix, self).__init__(path.join(root, self.name), parent, "W",
+                                        atoms=atoms, calculator=calculator, nconfigs=None,
+                                        config_type=None,seed=seed)
         self.supercell = phonopy["dim"]
         self.bandmesh = bandmesh
         self.dosmesh = dosmesh
@@ -159,11 +159,11 @@ class DynMatrix(Group):
             sargs = ["phonopy", '--dim="{}"'.format(DIM),
                      '--qpoints="0 0 0"', "--writedm"]
             xres = execute(sargs, self.phonodir, venv=True)
+            #Make sure that phonopy actually produced files; otherwise show the output
+            #(phonopy doesn't write to stderr, only stdout).
             if not path.isfile(qpoints): #pragma: no cover
-                msg.err("could not calculate phonon bands; see errors.")
-
-            if len(xres["error"]) > 0:
                 msg.std(''.join(xres["error"]))
+                msg.err("could not calculate phonon bands; see errors.")
 
         if path.isfile(qpoints):
             import yaml
@@ -294,11 +294,11 @@ class DynMatrix(Group):
         from matdb.utility import execute
         sargs = ["phonopy", "-p", "dos.conf", "-s"]
         xres = execute(sargs, self.phonodir, venv=True)
+        #Make sure that phonopy actually produced files; otherwise show the output
+        #(phonopy doesn't write to stderr, only stdout).
         if not path.isfile(dosfile): #pragma: no cover
-            msg.err("could not calculate the DOS; see errors.")
-
-        if len(xres["error"]) > 0:
             msg.std(''.join(xres["error"]))
+            msg.err("could not calculate the DOS; see errors.")
             
     def calc_forcesets(self, recalc=False):
         """Extracts the force sets from the displacement calculations.
@@ -326,10 +326,11 @@ class DynMatrix(Group):
             sargs = ["phonopy", "-f"] + vaspruns
             xres = execute(sargs, self.phonodir, venv=True)
 
+        #Make sure that phonopy actually produced files; otherwise show the output
+        #(phonopy doesn't write to stderr, only stdout).
         if not path.isfile(fsets):#pragma: no cover
-            msg.err("Couldn't create the FORCE_SETS:")
-        if len(xres["error"]) > 0:
             msg.std(''.join(xres["error"]))
+            msg.err("Couldn't create the FORCE_SETS:")
             
     def setup(self, rerun=False):
         """Displaces the seed configuration preparatory to calculating the force
@@ -757,8 +758,8 @@ class Modulation(Group):
     confname = "modulate.conf"
 
     def __init__(self, atoms=None, root=None, parent=None,
-                 kpoints={}, incar={}, phonons={}, execution={}, nconfigs=100,
-                 calibrate=True, amplitude=None, sampling="uniform",
+                 phonons={}, nconfigs=100, calibrate=True,
+                 amplitude=None, sampling="uniform",
                  name="modulations", dynmat="dynmatrix",
                  calibrator="calib", config_type="ph"):
         self.name = name
@@ -792,12 +793,15 @@ class Modulation(Group):
         """Determines if this database is finished calculating by testing the
         existence of the xyz database file in the root folder.
         """
+        import pudb
+        pudb.set_trace()
         target = path.join(self.root, "output.xyz")
         result = False
         if path.isfile(target):
             from matdb.utility import linecount
             #We add +2 for the parameter line and the number of atoms.
-            lpconfig = self.base.atoms.n * np.product(self.base.supercell) + 2
+            #This doesn't work as advertised (it's off by a factor). debug after refactor.
+            lpconfig = self.base.atoms.n * np.linalg.det(np.array(self.base.supercell).reshape(3,3)) + 2
             nlines = linecount(target)
             nconfigs = nlines/lpconfig
             result = nconfigs  == len(self.configs)

@@ -2,11 +2,12 @@
 
 ## Revision 0.0.7
 
+- Enabled looping over the parameters in the Parameter Grid in
+  `matdb/database/basic.py`.
 - Renamed the databases to be groups and the `matdb/database/basic.py`
   `Database` class to be `Group`.
 - Renamed the classes in `matdb/database/controller.py`,
-  changed`DatabaseSequence` to just `Sequence` and `SequenceRepeater`
-  to `Repeater`.
+  changed`DatabaseSequence` to just `Sequence` and removed `SequenceRepeater`.
 - Added the new subroutiens (`flatten_dict`,`special_values`,`special_functions`,
   `slicer`, `is_number` and `_py_exectue`) to `matdb/utilit.py` that are needed
   for the refactor.

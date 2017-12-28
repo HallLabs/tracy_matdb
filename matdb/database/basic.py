@@ -1,8 +1,9 @@
 """Abstract base class for creating and interacting with a database group of
 configurations for machine learning materials.
 """
-from os import path
+from os import path, mkdir
 from matdb import msg
+import abc
 
 def can_execute(folder):
     """Returns True if the specified folder is ready to execute VASP
@@ -82,12 +83,14 @@ class Group(object):
           array batch file.
         root (str): full path to the root directory that this database will live
           in.
-        database (matdb.database.controller.Database): the database that this 
+        parent (matdb.database.controller.Database): the database that this 
           group of calculations belong to.
         prefix (str): sub-sampled configurations will be stored using integer
           ids after this prefix; for example `S.1`, `S.2`, etc.
         nconfigs (int): number of displaced configurations to create.
-        config_type(str): the type of configuration.
+        config_type (str): the type of configuration.
+        calculator (dict): a dictionary containing the information for
+          the calculator object.
         atoms (optional, quippy.atoms.Atoms): a single atomic configuration from
           which many others may be derived using MD, phonon
           displacements, etc.
@@ -105,24 +108,80 @@ class Group(object):
         prefix (str): sub-sampled configurations will be stored using integer
           ids after this prefix; for example `S.1`, `S.2`, etc.
         nconfigs (int): number of displaced configurations to create.
+
     """
-    def __init__(self, root, database, prefix, config_type, atoms=None, nconfigs=None):
-    # def __init__(self, atoms, incar, kpoints, execution, root, parent,
-    #              prefix='S', nconfigs=100, config_type=None):
-        if atoms is not None and isinstance(atoms, ParameterGrid):
-            if isinstance(atoms, six.string_types):
-                #Do an fnmatch
-                pass
-            else:
-                #Create a group object for each config in the list using the repeater
-                pass
-        self.atoms = atoms
-        self.root = root
-        from os import path, mkdir
-        if not path.isdir(self.root):
-            mkdir(self.root)
-            
+    def __init__(self, root=None, parent=None, prefix='S', atoms=None,
+                 nconfigs=None, calculator=None, seed=None, db_name=None,
+                 config_type=None):
+        from collections import OrderedDict
+        from quippy.atoms import Atoms
+        from os import path
+        
         self.parent = parent
+        import pudb
+        pudb.set_trace()
+        self.previous = None 
+        self.dependent = None
+        self._get_adjacent(db_name)
+        self.allatoms = {}
+        if seed is not None:
+            self.seeded = True
+        else:
+            self.seeded = False
+
+        self.seeds = seed
+        self.sequences = OrderedDict()
+        if self.seeded:
+            n_seeds = 1
+            for this_seed in seed:
+                this_atoms = Atoms(path.join(this_seed,"POSCAR"),format="POSCAR")
+                this_root = path.join(root,"seed-{}".format(n_seeds))
+                if not path.isdir(this_root):
+                    mkdir(this_root)
+                if atoms is not None and isinstance(atoms, ParameterGrid):
+                    if len(atoms)==1:
+                        self.sequences["seed-{}".format(n_seeds)] = Group(root=this_root,
+                                                                          parent=parent,
+                                                                          prefix=prefix,
+                                                                          atoms=this_atoms,
+                                                                          db_name=db_name,
+                                                                          calculator=calculator)
+                    else:
+                        for params in atoms:
+                            this_root = path.join(this_root,atoms.to_str(params))
+                            if not path.isdir(this_root):
+                                mkdir(this_root)
+                            self.sequence["seed-{}_".format(n_seeds)+
+                                          atoms.to_str(params)] = Group(root=this_root,
+                                                                        parent=parent,
+                                                                        prefix=prefix,
+                                                                        atoms=this_atoms,
+                                                                        db_name=db_name,
+                                                                        calculator=calculator)
+                elif atoms is not None and isinstance(atoms,Atoms):
+                    self.atoms = atoms
+        else:
+            if atoms is not None and isinstance(atoms, ParameterGrid):
+                if len(atoms)==1:
+                    self.sequences["single"] = Group(root=this_root,parent=parent,
+                                                     prefix=prefix,atoms=this_atoms,
+                                                     db_name=db_name,calculator=calculator)
+                else:
+                    for params in atoms:
+                        this_root = path.join(root,atoms.to_str(params))
+                        if not path.isdir(this_root):
+                            mkdir(this_root)
+                        self.sequence[atoms.to_str(params)] = Group(root=this_root,parent=parent,
+                                                                    prefix=prefix,
+                                                                    atoms=this_atoms,
+                                                                    db_name=db_name,
+                                                                    calculator=calculator)
+            elif atoms is not None and isinstance(atoms,Atoms):
+                self.atoms = atoms
+            
+        self.calc = getattr(module, calculator["name"])
+        self.calcargs = calculator.pop("name",None)
+        self.root = root            
         self.prefix = prefix
         self.nconfigs = nconfigs
         self.config_type = config_type
@@ -148,23 +207,49 @@ class Group(object):
                     #The folder name doesn't follow our convention.
                     pass
 
+    @abc.abstractproperty
+    def rset(self):
+        pass
+
+    def _get_adjacent(self,db_name):
+        """Sets the database group instance of the previouse and dependent
+        databases in the sequence if they exists.
+
+        """
+        for name, instance in self.parent.steps:
+            if name == db_name:
+                self.previous = prev 
+            elif self.previous is not None:
+                self.dependent = instance
+                break
+            else:
+                prev = instance
+        
     def is_executing(self):
         """Returns True if the database DFT calculations are in process of being
         executed.
         """
-        outcars = False
-        for f in self.configs.values():
-            outcar = path.join(f, "OUTCAR")
-            if path.isfile(outcar):
-                outcars = outcars or True
+        if not bool(self.sequences):            
+            outcars = False
+            for f in self.configs.values():
+                outcar = path.join(f, "OUTCAR")
+                if path.isfile(outcar):
+                    outcars = outcars or True
 
-        busy = False
-        for f in self.configs.values():
-            if not can_cleanup(f):
-                busy = True
-                break
+            busy = False
+            for f in self.configs.values():
+                if not can_cleanup(f):
+                    busy = True
+                    break
+            result = outcars and busy
             
-        return outcars and busy
+        else:
+            executing = []
+            for name, instance in self.sequences:
+                executin.append(instance.is_executing())
+            result = all(executing)
+            
+        return result
             
     def execute(self, dryrun=False, recovery=False, env_vars=None):
         """Submits the job script for each of the folders in this
@@ -181,81 +266,47 @@ class Group(object):
             (considered successful).
         """
 
-        jobfile = "recovery.sh" if recovery else "jobfile.sh"
-        if not path.isfile(path.join(self.root, jobfile)):
-            return False
-
-        if not recovery:
-            executors = {f: can_execute(f) for f in self.configs.values()}
-            if not all(executors.values()):
+        if not bool(self.sequences):
+            jobfile = "recovery.sh" if recovery else "jobfile.sh"
+            if not path.isfile(path.join(self.root, jobfile)):
                 return False
 
-            #We also need to check that we haven't already submitted this job. If
-            #the OUTCAR file exists, then we don't want to resubmit.
-            for f in self.configs.values():
-                outcar = path.join(f, "OUTCAR")
-                if path.isfile(outcar):
+            if not recovery:
+                executors = {f: can_execute(f) for f in self.configs.values()}
+                if not all(executors.values()):
                     return False
+
+                #We also need to check that we haven't already submitted this job. If
+                #the OUTCAR file exists, then we don't want to resubmit.
+                for f in self.configs.values():
+                    outcar = path.join(f, "OUTCAR")
+                    if path.isfile(outcar):
+                        return False
         
-        # We must have what we need to execute. Compile the command
-        # and submit.
-        from matdb.utility import execute
-        cargs = ["sbatch", jobfile]
-        if dryrun:
-            from matdb.msg import okay
-            okay("Executed {} in {}".format(' '.join(cargs), self.root))
-            return True
+            # We must have what we need to execute. Compile the command
+            # and submit.
+            from matdb.utility import execute
+            cargs = ["sbatch", jobfile]
+            if dryrun:
+                from matdb.msg import okay
+                okay("Executed {} in {}".format(' '.join(cargs), self.root))
+                return True
+            else:
+                xres = execute(cargs, self.root, env_vars=env_vars)
+
+            if len(xres["output"]) > 0 and "Submitted" in xres["output"][0]:
+                from matdb.msg import okay
+                okay("{}: {}".format(self.root, xres["output"][0].strip()))
+                return True
+            else:
+                return False
+
         else:
-            xres = execute(cargs, self.root, env_vars=env_vars)
-
-        if len(xres["output"]) > 0 and "Submitted" in xres["output"][0]:
-            from matdb.msg import okay
-            okay("{}: {}".format(self.root, xres["output"][0].strip()))
-            return True
-        else:
-            return False
-            
-    def PRECALC(self, rewrite=False):
-        """Creates the INCAR file using the default settings plus any extras
-        that were passed in to this database.
-        Args:
-            rewrite (bool): when True, overwrite any existing PRECALC with the
-              latest settings.
-        """
-        from os import path
-        target = path.join(self.root, "PRECALC")
-
-        if rewrite or not path.isfile(target):
-            with open(target, 'w') as f:
-                for k, v in self.parent.kpoints.items():
-                    #Skip any keywords that are overridden by the
-                    #local database settings.
-                    if k not in self.kpoints:
-                        f.write("{}={}\n".format(k.upper(), v))
-
-                for k, v in self.kpoints.items():
-                    f.write("{}={}\n".format(k.upper(), v))        
-            
-    def INCAR(self, rewrite=False):
-        """Creates the INCAR file using the default settings plus any extras
-        that were passed in to this database.
-        Args:
-            rewrite (bool): when True, overwrite any existing INCAR with the
-              latest settings.
-        """
-        from os import path
-        target = path.join(self.root, "INCAR")
-
-        if rewrite or not path.isfile(target):
-            with open(target, 'w') as f:
-                for k, v in self.parent.incar.items():
-                    #Skip any keywords that are overridden by the
-                    #local database settings.
-                    if k not in self.incar:
-                        f.write("{}={}\n".format(k.upper(), v))
-
-                for k, v in self.incar.items():
-                    f.write("{}={}\n".format(k.upper(), v))
+            already_executed = []
+            for path, instance in self.sequences:
+                already_executed.append(instance.execute(dryrun=dryrun, recovery=recover,
+                                                env_vars=env_vars))
+            return all(already_executed)
 
     def recover(self, rerun=False):
         """Compiles a list of all DFT runs that didn't complete and compiles the
@@ -265,32 +316,37 @@ class Group(object):
             rerun (bool): when True, recreate the jobfile even if it
               already exists. 
         """
-        detail = self.status(False)
-        failed = [k for k, v in detail["done"].items() if not v]
-        identity = "{0}|{1}".format(self.parent.name, self.name)
-        xpath = path.join(self.root, "failures")
 
-        if len(failed) > 0:
-            #Only write a failures file if we had failures.
-            with open(xpath, 'w') as f:
-                f.write('\n'.join(failed))
+        if not bool(self.sequences):
+            detail = self.status(False)
+            failed = [k for k, v in detail["done"].items() if not v]
+            identity = "{0}|{1}".format(self.parent.name, self.name)
+            xpath = path.join(self.root, "failures")
 
-            imsg = "{0}: queued {1:d} configs for recovery."
-            msg.info(imsg.format(identity, len(failed)))
+            if len(failed) > 0:
+                #Only write a failures file if we had failures.
+                with open(xpath, 'w') as f:
+                    f.write('\n'.join(failed))
+
+                imsg = "{0}: queued {1:d} configs for recovery."
+                msg.info(imsg.format(identity, len(failed)))
+            else:
+                msg.okay("{0}: no failures.".format(identity))
+                
+            #Only create a jobfile if there were actually failures
+            if len(failed) > 0:
+                self.jobfile(rerun, recovery=True)
+            else:
+                #Delete any existing recovery files from previous failures.
+                from os import remove
+                jobfile = path.join(self.root, "recovery.sh")
+                if path.isfile(jobfile):
+                    remove(jobfile)
+                if path.isfile(xpath):
+                    remove(xpath)
         else:
-            msg.okay("{0}: no failures.".format(identity))
-
-        #Only create a jobfile if there were actually failures
-        if len(failed) > 0:
-            self.jobfile(rerun, recovery=True)
-        else:
-            #Delete any existing recovery files from previous failures.
-            from os import remove
-            jobfile = path.join(self.root, "recovery.sh")
-            if path.isfile(jobfile):
-                remove(jobfile)
-            if path.isfile(xpath):
-                remove(xpath)
+            for path, instance in self.sequences:
+                instance.recover(rerun=rerun)
                     
     def jobfile(self, rerun=False, recovery=False):
         """Creates the job array file to run each of the sub-configurations in
@@ -302,41 +358,46 @@ class Group(object):
               recovery jobs for those that have previously failed. This uses a
               different template and execution path.
         """
-        from os import path
-        if recovery:
-            from matdb.utility import linecount
-            target = path.join(self.root, "recovery.sh")
-            xpath = path.join(self.root, "failures")
-            asize = linecount(xpath)
-        else:
-            target = path.join(self.root, "jobfile.sh")
-            xpath = path.join(self.root, "{}.".format(self.prefix))
-            asize = len(self.configs)
+
+        if not bool(self.sequences):
+            from os import path
+            if recovery:
+                from matdb.utility import linecount
+                target = path.join(self.root, "recovery.sh")
+                xpath = path.join(self.root, "failures")
+                asize = linecount(xpath)
+            else:
+                target = path.join(self.root, "jobfile.sh")
+                xpath = path.join(self.root, "{}.".format(self.prefix))
+                asize = len(self.configs)
             
-        if path.isfile(target) and not rerun:
-            return
+            if path.isfile(target) and not rerun:
+                return
         
-        # We use the global execution parameters and then any updates
-        # locally. We need to add the execution directory (including prefix) and
-        # the number of jobs in the array.
-        settings = self.parent.execution.copy()
-        settings.update(self.execution.items())
-
-        settings["execution_path"] = xpath
-        settings["array_size"] = asize
-
-        if "array_limit" in settings and asize < settings["array_limit"]:
-            del settings["array_limit"]
-
-        from jinja2 import Environment, PackageLoader
-        env = Environment(loader=PackageLoader('matdb', 'templates'))
-        if recovery:
-            template = env.get_template(settings["template"].replace("array", "recovery"))
-        else:
-            template = env.get_template(settings["template"])
+            # We use the global execution parameters and then any updates
+            # locally. We need to add the execution directory (including prefix) and
+            # the number of jobs in the array.
+            settings = self.parent.execution.copy()
+            settings.update(self.execution.items())
             
-        with open(target, 'w') as f:
-            f.write(template.render(**settings))
+            settings["execution_path"] = xpath
+            settings["array_size"] = asize
+            
+            if "array_limit" in settings and asize < settings["array_limit"]:
+                del settings["array_limit"]
+
+            from jinja2 import Environment, PackageLoader
+            env = Environment(loader=PackageLoader('matdb', 'templates'))
+            if recovery:
+                template = env.get_template(settings["template"].replace("array", "recovery"))
+            else:
+                template = env.get_template(settings["template"])
+            
+            with open(target, 'w') as f:
+                f.write(template.render(**settings))
+        else:
+            for path, instance in self.sequences:
+                instance.jobfile(rerun=rerun, recovery=recovery)
                     
     def create(self, atoms, cid=None, rewrite=False, sort=None):
         """Creates a folder within this database in which VASP may be run.
@@ -349,43 +410,34 @@ class Group(object):
             sort (bool): when True, sort the atoms by type so that
               supercell writes work correctly.
         """
-        if cid is None:
-            cid = len(self.configs) + 1
 
-        from os import path, mkdir
-        target = path.join(self.root, "{}.{}".format(self.prefix, cid))
-        if not path.isdir(target):
-            mkdir(target)
+        if not bool(self.sequences):
+            if cid is None:
+                cid = len(self.configs) + 1
 
-        #Now, just generate the POSCAR file.
-        from ase.io import write
-        write(path.join(target, "POSCAR"), atoms, "vasp", sort=sort)
+            from os import path, mkdir
+            target = path.join(self.root, "{}.{}".format(self.prefix, cid))
+            if not path.isdir(target):
+                mkdir(target)
 
-        #Create symbolic links to the INCAR and POTCAR files that we need. INCAR
-        #is stored locally for each database type (in `self.root`) while the
-        #POTCAR is for the entire system and lives two directories up.
-        from matdb.utility import symlink, execute
-        #Make sure that the INCAR and PRECALC for this database has been created
-        #already.
-        self.INCAR(rewrite)
-        INCAR = path.join(target, "INCAR")
-        symlink(INCAR, path.join(self.root, "INCAR"))
-        POTCAR = path.join(target, "POTCAR")
-        symlink(POTCAR, path.join(self.parent.parent.root, "POTCAR"))
+            #Create symbolic links to the INCAR and POTCAR files that we need. INCAR
+            #is stored locally for each database type (in `self.root`) while the
+            #POTCAR is for the entire system and lives two directories up.
+            from matdb.utility import symlink, execute
+            #Make sure that the INCAR and PRECALC for this database has been created
+            #already.
+            atoms.set_calculator(self.calc(**self.calcargs))
+            POTCAR = path.join(target, "POTCAR")
+            symlink(POTCAR, path.join(self.parent.parent.root, "POTCAR"))
 
-        if "matdb" not in self.kpoints:
-            self.PRECALC(rewrite)
-            PRECALC = path.join(target, "PRECALC")
-            symlink(PRECALC, path.join(self.root, "PRECALC"))
-            execute(["getKPoints"], target)
+            #Finally, store the configuration for this folder.
+            self.configs[cid] = target
         else:
-            from matdb.kpoints import custom
-            custom(self.root, self.kpoints["matdb"], self.atoms)
-            KPOINTS = path.join(target, "KPOINTS")
-            symlink(KPOINTS, path.join(self.root, "KPOINTS"))            
-        
-        #Finally, store the configuration for this folder.
-        self.configs[cid] = target
+            for path, instance in self.sequences:
+                instance.create(instance.atoms,cid=cid, rewrite=rewrite, sort=sort)
+                for config, target in instance.configs:
+                    self.config[path+"_"+str(config)] = target
+                    self.allatoms[path+"_"+str(config)] = instance.atoms
 
     def ready(self):
         """Determines if this database has been completely initialized *and* has
@@ -404,20 +456,30 @@ class Group(object):
         .. note:: This method should be overloaded by a sub-class, which also
           calls this method.
         """
-        #Test to see if we have already set the database up.
-        confok = False
-        if (len(self.configs) == self.nconfigs or
-            len(self.configs) > 0 and self.nconfigs is None):
-            imsg = "The {} database has already been setup."
-            msg.info(imsg.format(self.name), 2)
-            confok = True
 
-        #Don't run setup if the program is currently executing.
-        xok = False
-        if self.is_executing():
-            xok = True
+        if not bool(self.sequences):
+            #Test to see if we have already set the database up.
+            confok = False
+            if (len(self.configs) == self.nconfigs or
+                len(self.configs) > 0 and self.nconfigs is None):
+                imsg = "The {} database has already been setup."
+                msg.info(imsg.format(self.name), 2)
+                confok = True
+
+            #Don't run setup if the program is currently executing.
+            xok = False
+            if self.is_executing():
+                xok = True
+
+            result = confox or xok
+
+        else:
+            already_setup = []
+            for path, instance in self.sequences:
+                already_setup.append(instance.setup())
+            result = all(already_setup)
             
-        return confok or xok
+        return result
             
     def status(self, print_msg=True):
         """Returns a status message for statistics of sub-configuration execution
@@ -520,162 +582,4 @@ class Group(object):
             files (list): of `str` files in each sub-sampled folder to include
               in the archive.
         """
-        parts = []
-        for fname in files:
-            parts.append("{}.*/{}".format(self.prefix, fname))
-
-        targs = ["tar", "-cvzf", filename, ' '.join(parts)]
-        from matdb.utility import execute
-        execute(targs, self.root)
-
-class Repeater(object):
-    """Repeats sequences of database steps across a parameter grid.
-    Args:
-        name (str): name of the configuration that this database sequence is
-          operating for.
-        poscar (str): name of the POSCAR file in `root` to extract atomic
-          configuration information from.
-        root (str): root directory in which all other database sequences for
-          the configurations in the same specification will be stored.
-        parent (Group): instance controlling multiple configurations.
-        steps (list): of `dict` describing the kinds of sub-configuration
-          database steps to setup.
-        splits (dict): keys are split names; values are `float` *training*
-          percentages to use.
-    Attributes:
-        atoms (quippy.atoms.Atoms): a single atomic configuration from
-          which many others may be derived using MD, phonon
-          displacements, etc.
-        poscar (str): path to the POSCAR file for the seed configuration that
-          all sequences in this repeater will use.
-        kfile (str): path to the kpath.json cached file for this repeater.        
-    """
-    def __init__(self, name, poscar, root, parent, steps, niterations=None,
-                 splits=None):
-        from collections import OrderedDict
-        from copy import copy
-        from quippy.atoms import Atoms
-        
-        self.name = name
-        self.sequences = OrderedDict()
-        self.poscar = path.join(root, poscar)
-        self.atoms = Atoms(self.poscar, format="POSCAR")
-        self.kfile = path.join(parent.kpathdir, "{0}.json".format(self.name))
-        self.steps = steps
-
-        self._kpath = None
-        """tuple: result of querying the materialscloud.org special path
-        service. First term is a list of special point labels; second is the
-        list of points corresponding to those labels.
-        """
-        
-        if niterations is not None:
-            from matdb.utility import obj_update
-            for i, repeater in enumerate(niterations):
-                nname = None
-                isteps = copy(steps)
-                for k, v in repeater.items():
-                    if k == "suffix":
-                        nname = self.name + v
-                        continue
-                    
-                    obj_update(isteps, k, v, False)
-                    
-                if nname is None:
-                    nname = self.name + "-{0:d}".format(i)
-
-                iobj = Sequence(nname, self, root, parent, isteps, splits)
-                self.sequences[nname] = iobj
-        else:
-            single = Sequence(name, self, root, parent, steps, splits)
-            self.sequences[name] = single
-
-    @property
-    def kpath(self):
-        """Returns the materialscloud.org special path in k-space for the seed
-        configuration of this database.
-        Returns:
-            tuple: result of querying the materialscloud.org special path
-            service. First term is a list of special point labels; second is the
-            list of points corresponding to those labels.
-        """
-        if self._kpath is None:
-            import json
-            #We use some caching here so that we don't have to keep querying the
-            #server and waiting for an identical response.
-            if path.isfile(self.kfile):
-                with open(self.kfile) as f:
-                    kdict = json.load(f)
-            else:
-                from .phonon import _parsed_kpath
-                labels, band = _parsed_kpath(self.poscar)
-                kdict = {"labels": labels, "band": band}
-                with open(self.kfile, 'w') as f:
-                    json.dump(kdict, f)
-            
-            self._kpath = (kdict["labels"], kdict["band"])
-            
-        return self._kpath
-            
-    def recover(self, rerun=False):
-        """Runs recovery on each step in the sequence to determine which configs failed
-        and then create a jobfile to requeue them for compute.
-        Args:
-            rerun (bool): when True, recreate the jobfile even if it
-              already exists.
-        """
-        for db in self.sequences.values():
-            db.recover(rerun)
-
-    def status(self, busy=False):
-        """Prints a status message for each step in the sequence relative
-        to VASP execution status.
-        Args:
-            busy (bool): when True, print a list of the configurations that are
-              still busy being computed in DFT.
-        """
-        for db in self.sequences.values():
-            db.status(busy)
-
-    def execute(self, recovery=False, env_vars=None):
-        """Submits job array files for any of steps in the sequence that are ready to
-        execute, but which haven't been submitted yet.
-        Args:
-            recovery (bool): when True, submit the script for running recovery
-              jobs.
-            env_vars (dict): of environment variables to set before calling the
-              execution. The variables will be set back after execution.
-        """
-        for db in self.sequences.values():
-            db.execute(recovery, env_vars=env_vars)
-
-    def split(self, recalc=0):
-        """Splits the total available data in each step's databases into a training and
-        holdout set.
-        Args:
-            recalc (int): when non-zero, re-split the data and overwrite any
-              existing *.xyz files. This parameter decreases as
-              rewrites proceed down the stack. To re-calculate
-              lower-level XYZ files, increase this value.
-        """
-        for db in self.sequences.values():
-            nrecalc = recalc - (0 if len(self.steps) == 0 else 1)
-            db.split(nrecalc)
-
-    def cleanup(self):
-        """Runs the cleanup methods of each step's databases in the sequence.
-        """
-        for db in self.sequences.values():
-            db.cleanup()
-
-    def setup(self, rerun=False):
-        """Sets up the each step's database in the sequence in order. If an
-        earlier step is not ready yet, the next item in the step won't setup.
-        Args:
-            rerun (bool): when True, recreate the folders even if they
-              already exist. 
-        """
-        for db in self.sequences.values():
-            db.setup(rerun)
-            
-        
+        self.calc.tarball()
