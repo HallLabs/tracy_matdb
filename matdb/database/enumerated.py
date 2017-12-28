@@ -12,7 +12,7 @@ class Enumerated(Group):
     Args:
         root (str): path to the folder where the database directories will
           be stored.
-        parent (matdb.database.controller.DatabaseCollection): parent collection
+        parent (matdb.database.controller.Database): parent collection
           to which this database belongs.
         incar (dict): specify additional settings for the INCAR file (i.e.,
           differing from, or in addition to those in the global set).
@@ -50,23 +50,30 @@ class Enumerated(Group):
        basis (list): the atomic basis for the system.
 
     """
-    def __init__(self, atoms=None, root=None, controller=None, parent=None, execution={},
+    def __init__(self, atoms=None, root=None, parent=None, execution={},
                  sizes=None, basis=None, lattice=None, concs=None,
                  arrows = None, eps=None, nconfigs=None, species=None, name="enum",
-                 rseed=None):
+                 rseed=None, calculator=None):
 
         self.name = name
-        super(EnumGroup, self).__init__(atoms,incar,kpoints,execution,
-                                           path.join(root,self.name),
-                                           parent,"E",nconfigs=None)
+        self.sequence = {}
+        super(Enumerated, self).__init__(path.join(root,"Enumerated"), parent,
+                                         "E", nconfigs=None, atoms=atoms,
+                                         db_name="Enumerated", calculator=calculator)
         self.nconfigs = nconfigs
-        if eps is None:
+        
+    def _parse_params(params):
+        """Parses the parameter dictionary.
+        """
+
+        if "eps" not in params:
             self.eps = 10**(-3)
         else:
-            self.eps = eps
+            self.eps = params["eps"]
             
         #determine the lattice.
-        if isinstance(lattice,str):
+        if "lattice" in params and isinstance(params["lattice"],str):
+            lattice = params["lattice"]
             if lattice.lower() == "fcc":
                 self.lattice = [[0.5,0.5,0],[0.5,0,0.5],[0,0.5,0.5]]
             elif lattice.lower() == "bcc":
@@ -79,22 +86,24 @@ class Enumerated(Group):
                 msg.err("The lattice type {} is unsupported. Please enter your lattice vectors "
                         "as a 3x3 matrix with the vectors as rows in the config file "
                         "(i.e. [a1,a2,a3]).".format(lattice))
-        elif isinstance(lattice,list):
+        elif "lattice" in params and isinstance(params["lattice"],list):
+            lattice = params["lattice"]
             if len(lattice) == 3 and len(lattice[0]) == 3:
                 self.lattice = lattice
             else: 
                 msg.err("The lattice vectors must be a 3x3 matrix with the vectors as rows.")
         else:
             msg.err("The lattice vectors must either be a string of 'sc', 'fcc', 'hcp', 'bcc', "
-                    "or a 3x3 matrix with the vectors a rows, not {}".format(lattice))
+                    "or a 3x3 matrix with the vectors a rows.")
 
-        if isinstance(basis,list):
+        if "basis" in params and isinstance(params["basis"],list):
+            basis = params["basis"]
             if len(basis[0]) == 3:
                 self.basis = basis
             else:
                 msg.err("The atomic basis must be a list of lists that is nx3 where n is "
                         "the number of atoms in the basis.")
-        elif basis is None:
+        elif "basis" not in params:
             if lattice.lower() != "hcp":
                 self.basis = [[0,0,0]]
             else:
@@ -103,7 +112,8 @@ class Enumerated(Group):
             msg.err("The atomic basis must be a list of lists that is nx3 where n is "
                     "the number of atoms in the basis or left blank.")
 
-        if isinstance(species,list):
+        if "species" in params and isinstance(params["species"],list):
+            species = params["species"]
             self.knary = len(species)
             if len(self.knary) == 1:
                 self.species = [species[0],species[0]]
@@ -113,48 +123,56 @@ class Enumerated(Group):
             msg.err("The species must be a list of atomic elements.")
             
 
-        if concs is not None and len(concs) == len(species):
+        if "concs" in params and len(params["concs"]) == len(species):
+            concs = params["concs"]
             if len(concs[0]) == 3:
                 self.concs = concs
                 self.conc_res = True
             else:
                 msg.err("The concetrations must be a nx3 list.")
-        elif concs is None:
+        elif "concs" not in params:
             self.concs = concs
             self.conc_res = False
         else:
             msg.err("The number of species and the concentrations must be have the "
                     "same length.")
 
-        if arrows is not None and len(arrows) == len(species):
+        if "arrows" in params and len(params["arrows"]) == len(species):
+            arrows = params["arrows"]
             if isinstance(arrows[0],(int,float)) and arrows[0]<=1:
                 self.arrows = arrows
                 self.arrow_res = False
             else :
                 msg.err("The arrows must be a list of values <= 1.")
-        elif arrows is None:
+        elif arrows not in params:
             self.arrows = arrows
             self.arrow_res = False
         else:
             msg.err("The number of species and arrow concentrations must have the "
                     "same length.")
-            
-        if len(sizes)==1 and isinstance(sizes,list):
-            self.min_size = 1
-            self.max_size = sizes[0]
-        elif len(sizes)==2 and isinstance(sizes,list):
-            self.min_size = sizes[0]
-            self.max_size = sizes[1]
-        else:
-            raise ValueError("The sizes specified must be a list of 1 or 2 values."
-                             "If one value then it must be the largest cell size to include,"
-                             "i.e., [32]. If 2 values then it the first value is the smallest "
-                             "and the second value is the largest cell size to include, "
-                             "i.e., [10,12].")
 
-        self.seed = seed
-        self.incar = incar
-                
+        if "sizes" in params:
+            sizes = params["sizes"]
+            if len(sizes)==1 and isinstance(sizes,list):
+                self.min_size = 1
+                self.max_size = sizes[0]
+            elif len(sizes)==2 and isinstance(sizes,list):
+                self.min_size = sizes[0]
+                self.max_size = sizes[1]
+            else:
+                raise ValueError("The sizes specified must be a list of 1 or 2 values."
+                                 "If one value then it must be the largest cell size to include,"
+                                 "i.e., [32]. If 2 values then it the first value is the smallest "
+                                 "and the second value is the largest cell size to include, "
+                                 "i.e., [10,12].")
+        else:
+            raise ValueError("The sizes must be specified")
+
+        if "rseed" in params:
+            self.rseed = params["rseed"]
+        else:
+            self.rseed = None
+        
     def ready(self):
         """Returns True if this database has finished its computations and is
         ready to be used.
@@ -192,7 +210,7 @@ class Enumerated(Group):
         if not self.ready():
             return False
 
-        if not super(EnumGroup, self).cleanup():
+        if not super(Enumerated, self).cleanup():
             return False
         
         return True
@@ -250,7 +268,7 @@ class Enumerated(Group):
         """
         from os import chdir, system, getcwd
         from glob import glob
-        folders_ok = super(EnumGroup, self).setup()
+        folders_ok = super(Enumerated, self).setup()
         if folders_ok and not rerun:
             return
 
@@ -259,42 +277,44 @@ class Enumerated(Group):
             return
 
         if not folders_ok:
-            # We need to determine how many configurations from each
-            # lattice type to include.
-            sub_nconfigs = [self.nconfigs//3]*3
-            if sum(sub_nconfigs) != self.nconfigs:
-                sub_nconfigs[0] += (self.nconfigs-sum(sub_nconfigs))
+            for seq in self.sequence:
+                self._parse_params(seq.read_params())
+                # We need to determine how many configurations from each
+                # lattice type to include.
+                sub_nconfigs = [self.nconfigs//3]*3
+                if sum(sub_nconfigs) != self.nconfigs:
+                    sub_nconfigs[0] += (self.nconfigs-sum(sub_nconfigs))
 
-            # For each lattice type we need to construct a lattice.in
-            # file then run phenum so that each system gets the
-            # correct number of configurations.
-            current = getcwd()
-            chdir(self.root)
-            dind = 0
-            self._build_lattice_file(lattices[i])
-            outfile = "-outfile enum.out"
-            dist = "all {}".format(sub_nconfigs[i])
-            this_sys = "-species {}".format(" ".join(self.species))
-            # Perform the enumeration.
-            if self.seed is None:
-                system("enumeration.py -enum -distribution {0} {1}".format(dist,outfile))
-            else:
-                system("enumeration.py -enum -distribution {0} {1} -seed {2}".format(dist,outfile,self.seed))
+                # For each lattice type we need to construct a lattice.in
+                # file then run phenum so that each system gets the
+                # correct number of configurations.
+                current = getcwd()
+                chdir(seq.root)
+                dind = 0
+                self._build_lattice_file(lattices[i])
+                outfile = "-outfile enum.out"
+                dist = "all {}".format(sub_nconfigs[i])
+                this_sys = "-species {}".format(" ".join(self.species))
+                # Perform the enumeration.
+                if self.rseed is None:
+                    system("enumeration.py -enum -distribution {0} {1}".format(dist,outfile))
+                else:
+                    system("enumeration.py -enum -distribution {0} {1} -seed {2}".format(dist,outfile,self.seed))
                     
-            system("rm polya* enum.in")
-            # extract the POSCARS
-            system("makeStr.py all -input enum.out.{0} {1}".format(lattices[i],this_sys))
+                system("rm polya* enum.in")
+                # extract the POSCARS
+                system("makeStr.py all -input enum.out.{0} {1}".format(lattices[i],this_sys))
 
-            # Now we need to 
-            from quippy.atoms import Atoms
-            for dposcar in glob("vasp.*"):
-                datoms = Atoms(dposcar,format="POSCAR")
-                self.create(datoms,cid=dind)
-                dind += 1
+                # Now we need to 
+                from quippy.atoms import Atoms
+                for dposcar in glob("vasp.*"):
+                    datoms = Atoms(dposcar,format="POSCAR")
+                    seq.create(datoms,cid=dind)
+                    dind += 1
                     
-            chdir(current)
+                chdir(current)
 
-        # Last of all, create the job file to execute the job array.
-        self.jobfile(rerun)
+            # Last of all, create the job file to execute the job array.
+            self.jobfile(rerun)
             
 

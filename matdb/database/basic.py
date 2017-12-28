@@ -3,7 +3,9 @@ configurations for machine learning materials.
 """
 from os import path, mkdir
 from matdb import msg
+from .controller import ParameterGrid
 import abc
+import json
 
 def can_execute(folder):
     """Returns True if the specified folder is ready to execute VASP
@@ -112,14 +114,12 @@ class Group(object):
     """
     def __init__(self, root=None, parent=None, prefix='S', atoms=None,
                  nconfigs=None, calculator=None, seed=None, db_name=None,
-                 config_type=None):
+                 config_type=None, parameters=None):
         from collections import OrderedDict
         from quippy.atoms import Atoms
         from os import path
         
         self.parent = parent
-        import pudb
-        pudb.set_trace()
         self.previous = None 
         self.dependent = None
         self._get_adjacent(db_name)
@@ -162,30 +162,29 @@ class Group(object):
                     self.atoms = atoms
         else:
             if atoms is not None and isinstance(atoms, ParameterGrid):
-                if len(atoms)==1:
-                    self.sequences["single"] = Group(root=this_root,parent=parent,
-                                                     prefix=prefix,atoms=this_atoms,
-                                                     db_name=db_name,calculator=calculator)
-                else:
-                    for params in atoms:
-                        this_root = path.join(root,atoms.to_str(params))
-                        if not path.isdir(this_root):
-                            mkdir(this_root)
-                        self.sequence[atoms.to_str(params)] = Group(root=this_root,parent=parent,
-                                                                    prefix=prefix,
-                                                                    atoms=this_atoms,
-                                                                    db_name=db_name,
-                                                                    calculator=calculator)
+                for params in atoms:
+                    this_root = path.join(root,atoms.to_str(params))
+                    if not path.isdir(this_root):
+                        mkdir(this_root)
+                    self.sequence[atoms.to_str(params)] = Group(root=this_root,parent=parent,
+                                                                prefix=prefix,
+                                                                db_name=db_name,
+                                                                calculator=calculator,
+                                                                parameters=atoms[params])
             elif atoms is not None and isinstance(atoms,Atoms):
                 self.atoms = atoms
-            
-        self.calc = getattr(module, calculator["name"])
-        self.calcargs = calculator.pop("name",None)
+            else:
+                self.atoms = None
+
+        # self.calc = getattr(module, calculator["name"])
+        # self.calcargs = calculator.pop("name",None)
         self.root = root            
         self.prefix = prefix
         self.nconfigs = nconfigs
         self.config_type = config_type
         self._nsuccess = 0
+        if parameters is not None:
+            self._write_params(parameters)
         """int: number of configurations whose output files were successfully
         converted to XYZ format. Should be equal to :attr:`nconfigs` if the
         database is complete.
@@ -211,6 +210,23 @@ class Group(object):
     def rset(self):
         pass
 
+    def _write_params(self,params):
+        """Writes the parameters for this set of calculations to a json file.
+        """
+
+        with open(path.join(self.root,"params.json"),"w+") as f:
+            json.dump(params,f)
+
+    def read_params(self):
+        """Reads the parameters for this set of calculations from a json file.
+        """
+        target = path.join(self.root,"params.json")
+        if path.isfile(target):
+            with open(target,"r") as f:
+                return json.load(f)
+        else:
+            return None
+            
     def _get_adjacent(self,db_name):
         """Sets the database group instance of the previouse and dependent
         databases in the sequence if they exists.
@@ -471,7 +487,7 @@ class Group(object):
             if self.is_executing():
                 xok = True
 
-            result = confox or xok
+            result = confok or xok
 
         else:
             already_setup = []

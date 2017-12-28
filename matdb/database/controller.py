@@ -10,15 +10,12 @@ import collections
 
 def db_pgrid(options, ignore_=None):
     """Creates a parameter grid over the specified options for the database.
-
     .. note:: This function treats keys that end in `*` specially. When the key
       ends in `*`, the values in the specified list contribute to the cartesian
       product.
-
     Args:
         options (dict): key-value pairs to iterate across.
         ignore_ (list): of `str` keys to ignore in the options dict.
-
     Returns:
         tuple: `(grid, keys, suffix_grid)` where grid is a list of 
         tuples with a value for each key in `options`, keys is a liste of 
@@ -74,7 +71,6 @@ class ParameterGrid(collections.MutableSet):
     Values are the suffixes of the combinations of parameters as tuples:
     e.g. (8, "dog", 1.2) for "dim", "animal", "temperature"
     ({"animal*": ["dog", "cat", "cow"], "dim*": [[],[],[]], "temperature": 1.2})
-
     Args:
         params (dict): the paramaters needed to build the database.
     
@@ -144,7 +140,6 @@ class ParameterGrid(collections.MutableSet):
 
     def add(self, key,value):
         """Adds key to the set if it is not already in the set.
-
         Args:
             key (tuple): Anything that could be added to the set.
             value (tuple): The actual values that the suffix's 
@@ -160,7 +155,6 @@ class ParameterGrid(collections.MutableSet):
 
     def discard(self, key):
         """Removes the key from the set.
-
         Args:
             key (tuple): An element of the set.
         """        
@@ -179,7 +173,6 @@ class ParameterGrid(collections.MutableSet):
 
     def pop(self, key):
         """Removes an element from the set.
-
         Args:
             key (tuple): An element of the set.
         """
@@ -280,6 +273,12 @@ class Database(object):
             cpspec = dbspec.copy()
             del cpspec["type"]
             cpspec["atoms"] = ParameterGrid(cpspec)
+            for k in list(cpspec.keys()):
+                if "suffix" in k:
+                    del cpspec[k]
+                elif "*" == k[-1]:
+                    cpspec[k[:-1]] = None
+                    del cpspec[k]
             cpspec["root"] = self.root
             cpspec["parent"] = self
 
@@ -289,15 +288,9 @@ class Database(object):
                 if isinstance(cpspec[k], dict) and self.config in cpspec[k]:
                     cpspec[k] = cpspec[k][self.config]
             
-            import pudb
-            pudb.set_trace()
             instance = cls(**cpspec)
             self.steps[instance.name] = instance
 
-        ## Fix this latter
-        if self.steps[0] is not seeded:
-            raise ValueError()
-            
     @property
     def isteps(self):
         """Returns a generator over steps in this sequence. The generator yields
@@ -557,8 +550,8 @@ class Controller(object):
         self.plotdir = path.join(self.root, "plots")
         self.kpathdir = path.join(self.root, "kpaths")
         self.title = self.specs["title"]
-        self.seedless = {}
-        self.seeded = {}
+        self.legacy = {}
+        self.collections = {}
         self.species = [s for s in self.specs["species"]]
         self.potcars = self.specs.get("potcars", {})
         self.incar = self.specs.get("incar", {})
@@ -579,18 +572,15 @@ class Controller(object):
                 #root; this is mainly for unit tests.
                 cpspec["folder"] = relpath(cpspec["folder"])
                 del cpspec["legacy"]
-                self.seedless[cpspec["name"]] = LegacyDatabase(**cpspec)
+                self.legacy[cpspec["name"]] = LegacyDatabase(**cpspec)
             else:
                 dbname = dbspec["name"]
-                if dbname not in self.seeded:
-                    self.seeded[dbname] = {}
-
-                if ("configs" in dbspec) and (cspec["name"] not in dbspec["configs"]):
-                    continue
+                if dbname not in self.collections:
+                    self.collections[dbname] = {}
                 steps = dbspec["steps"]
                 db = Database(dbname, self.root, self,
                               steps, self.specs.get("splits"))
-                self.seeded[name][dbspec["name"]] = db
+                self.collections[dbname][dbspec["name"]] = db
 
         from os import mkdir
         if not path.isdir(self.plotdir):

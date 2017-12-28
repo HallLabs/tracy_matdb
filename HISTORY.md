@@ -2,6 +2,12 @@
 
 ## Revision 0.0.7
 
+- Implemented the full Enumerated database for the new workflow.
+- Added new functions to the `matdb/database/basic.py` `Group` class
+  that allow the parameters passed to the function as part of a
+  parameter grid to be saved to a json file in the folder in which the
+  group with those parameters will be executed. Also added a function
+  that allows the saved parameters to be read back in.
 - Enabled looping over the parameters in the Parameter Grid in
   `matdb/database/basic.py`.
 - Renamed the databases to be groups and the `matdb/database/basic.py`
