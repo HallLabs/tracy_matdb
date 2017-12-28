@@ -613,7 +613,7 @@ class Controller(object):
               names. This limits which databases sequences are returned.
         """
         from fnmatch import fnmatch
-        for name, coll in self.seeded.items():
+        for name, coll in self.collections.items():
             if cfilter is None or any(fnmatch(name, c) for c in cfilter):
                 for dbn, seq in coll.items():
                     if dfilter is None or any(fnmatch(dbn, d) for d in dfilter):
@@ -651,9 +651,9 @@ class Controller(object):
         else:
             #We must be searching legacy databases; match the pattern against
             #those.
-            return [li for ln, li in self.seedless.items() if fnmatch(ln, pattern)]
+            return [li for ln, li in self.legacy.items() if fnmatch(ln, pattern)]
         
-        colls = [v for k, v in self.seeded.items() if fnmatch(k, config)]
+        colls = [v for k, v in self.collections.items() if fnmatch(k, config)]
 
         #For databases without repeaters, there is no suffix.
         if '-' in parent:
@@ -665,7 +665,7 @@ class Controller(object):
         for coll in colls:
             dbs = [dbi for dbn, dbi in coll.items() if fnmatch(dbn, dbname)]
             for dbi in dbs:
-                seqs = [seqi for seqn, seqi in dbi.sequences.items()
+                seqs = [seqi for seqn, seqi in dbi.items()
                         if fnmatch(seqn, '.'.join((config, parent)))]
 
                 if db is not None:
@@ -677,7 +677,7 @@ class Controller(object):
 
         if config == '*':
             #Add all the possible legacy databases.
-            result.extend([li for ln, li in self.seedless.items()
+            result.extend([li for ln, li in self.legacy.items()
                            if fnmatch(ln, config)])
                     
         return result
@@ -686,7 +686,7 @@ class Controller(object):
         """Compiles a list of all steps in this set of databases.
         """
         result = []
-        for config, coll in self.seeded.items():
+        for config, coll in self.collection.items():
             for repeater in coll.values():
                 for parent, seq in repeater.sequences.items():
                     for step in seq.steps:
@@ -698,7 +698,7 @@ class Controller(object):
         """Compiles a list of all sequences in this set of databases.
         """
         result = []
-        for config, coll in self.seeded.items():
+        for config, coll in self.collections.items():
             for repeater in coll.values():
                 result.extend(repeater.sequences.keys())
 
@@ -715,7 +715,7 @@ class Controller(object):
             config, parent = key.split('.')
             db = None
             
-        coll = self.seeded[config]
+        coll = self.collections[config]
         if '-' in parent:
             dbname, suffix = parent.split('-')
         else:
