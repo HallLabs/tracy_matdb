@@ -62,7 +62,7 @@ class Enumerated(Group):
                                          "E", nconfigs=None, atoms=atoms,
                                          db_name="Enumerated", calculator=calculator)
         self.nconfigs = nconfigs
-        
+        self.execution = execution 
         if eps is not None:
             self.eps = 10**(-3)
         else:
@@ -363,17 +363,17 @@ class Enumerated(Group):
                 # correct number of configurations.
                 current = getcwd()
                 chdir(self.sequence[seq].root)
-                dind = 0
+                dind = 1
                 self._build_lattice_file(self.sequence[seq].root)
                 outfile = "-outfile enum.out"
                 dist = "all {}".format(self.nconfigs)
                 this_sys = "-species {}".format(" ".join(self.species))
                 # Perform the enumeration.
                 if self.rseed is None:
-                    system("enumeration.py -enum -distribution {0} {1}".format(dist,outfile))
+                    system("enumeration.py -enum -super -distribution {0} {1}".format(dist,outfile))
                 else:
-                    system("enumeration.py -enum -distribution {0} {1} -seed {2}".format(dist,outfile,self.rseed))
-                    
+                    system("enumeration.py -enum -super -distribution {0} {1} -seed {2}".format(dist,outfile,self.rseed))
+
                 system("rm polya* enum.in")
                 # extract the POSCARS
                 system("makeStr.py all -input enum.out {0}".format(this_sys))
@@ -382,12 +382,10 @@ class Enumerated(Group):
                 from quippy.atoms import Atoms
                 for dposcar in glob("vasp.*"):
                     datoms = Atoms(dposcar,format="POSCAR")
-                    seq.create(datoms,cid=dind)
+                    self.sequence[seq].create(datoms,cid=dind)
                     dind += 1
-                    
+                system("rm vasp.*")
                 chdir(current)
 
             # Last of all, create the job file to execute the job array.
             self.jobfile(rerun)
-            
-

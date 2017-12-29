@@ -114,7 +114,7 @@ class Group(object):
     """
     def __init__(self, root=None, parent=None, prefix='S', atoms=None,
                  nconfigs=None, calculator=None, seed=None, db_name=None,
-                 config_type=None, parameters=None):
+                 config_type=None, parameters=None, execution={}):
         from collections import OrderedDict
         from quippy.atoms import Atoms
         from os import path
@@ -124,13 +124,14 @@ class Group(object):
         self.dependent = None
         self._get_adjacent(db_name)
         self.allatoms = {}
+        self.execution = execution
         if seed is not None:
             self.seeded = True
         else:
             self.seeded = False
 
         self.seeds = seed
-        self.sequences = OrderedDict()
+        self.sequence = OrderedDict()
         if self.seeded:
             n_seeds = 1
             for this_seed in seed:
@@ -238,7 +239,7 @@ class Group(object):
         """Returns True if the database DFT calculations are in process of being
         executed.
         """
-        if not bool(self.sequences):            
+        if not bool(self.sequence):            
             outcars = False
             for f in self.configs.values():
                 outcar = path.join(f, "OUTCAR")
@@ -254,8 +255,8 @@ class Group(object):
             
         else:
             executing = []
-            for name, instance in self.sequences:
-                executin.append(instance.is_executing())
+            for seq in self.sequence:
+                executin.append(self.sequence[seq].is_executing())
             result = all(executing)
             
         return result
@@ -275,7 +276,7 @@ class Group(object):
             (considered successful).
         """
 
-        if not bool(self.sequences):
+        if not bool(self.sequence):
             jobfile = "recovery.sh" if recovery else "jobfile.sh"
             if not path.isfile(path.join(self.root, jobfile)):
                 return False
@@ -312,9 +313,10 @@ class Group(object):
 
         else:
             already_executed = []
-            for path, instance in self.sequences:
-                already_executed.append(instance.execute(dryrun=dryrun, recovery=recover,
-                                                env_vars=env_vars))
+            for seq in self.sequence:
+                already_executed.append(self.sequence[seq].execute(dryrun=dryrun,
+                                                                   recovery=recover,
+                                                                   env_vars=env_vars))
             return all(already_executed)
 
     def recover(self, rerun=False):
@@ -326,7 +328,7 @@ class Group(object):
               already exists. 
         """
 
-        if not bool(self.sequences):
+        if not bool(self.sequence):
             detail = self.status(False)
             failed = [k for k, v in detail["done"].items() if not v]
             identity = "{0}|{1}".format(self.parent.name, self.name)
@@ -354,8 +356,8 @@ class Group(object):
                 if path.isfile(xpath):
                     remove(xpath)
         else:
-            for path, instance in self.sequences:
-                instance.recover(rerun=rerun)
+            for seq in self.sequence:
+                self.sequence[seq].recover(rerun=rerun)
                     
     def jobfile(self, rerun=False, recovery=False):
         """Creates the job array file to run each of the sub-configurations in
@@ -368,7 +370,7 @@ class Group(object):
               different template and execution path.
         """
 
-        if not bool(self.sequences):
+        if not bool(self.sequence):
             from os import path
             if recovery:
                 from matdb.utility import linecount
@@ -405,8 +407,8 @@ class Group(object):
             with open(target, 'w') as f:
                 f.write(template.render(**settings))
         else:
-            for path, instance in self.sequences:
-                instance.jobfile(rerun=rerun, recovery=recovery)
+            for seq in self.sequence:
+                self.sequence[seq].jobfile(rerun=rerun, recovery=recovery)
                     
     def create(self, atoms, cid=None, rewrite=False, sort=None):
         """Creates a folder within this database in which VASP may be run.
@@ -420,7 +422,7 @@ class Group(object):
               supercell writes work correctly.
         """
 
-        if not bool(self.sequences):
+        if not bool(self.sequence):
             if cid is None:
                 cid = len(self.configs) + 1
 
@@ -435,18 +437,18 @@ class Group(object):
             from matdb.utility import symlink, execute
             #Make sure that the INCAR and PRECALC for this database has been created
             #already.
-            atoms.set_calculator(self.calc(**self.calcargs))
+            # atoms.set_calculator(self.calc(**self.calcargs))
             POTCAR = path.join(target, "POTCAR")
             symlink(POTCAR, path.join(self.parent.parent.root, "POTCAR"))
 
             #Finally, store the configuration for this folder.
             self.configs[cid] = target
         else:
-            for path, instance in self.sequences:
-                instance.create(instance.atoms,cid=cid, rewrite=rewrite, sort=sort)
-                for config, target in instance.configs:
+            for seq in self.sequence:
+                self.sequence[seq].create(instance.atoms,cid=cid, rewrite=rewrite, sort=sort)
+                for config, target in self.sequence[seq].configs:
                     self.config[path+"_"+str(config)] = target
-                    self.allatoms[path+"_"+str(config)] = instance.atoms
+                    self.allatoms[path+"_"+str(config)] = self.sequence[seq].atoms
 
     def ready(self):
         """Determines if this database has been completely initialized *and* has
@@ -466,7 +468,7 @@ class Group(object):
           calls this method.
         """
 
-        if not bool(self.sequences):
+        if not bool(self.sequence):
             #Test to see if we have already set the database up.
             confok = False
             if (len(self.configs) == self.nconfigs or
@@ -484,8 +486,8 @@ class Group(object):
 
         else:
             already_setup = []
-            for path, instance in self.sequences:
-                already_setup.append(instance.setup())
+            for seq in self.sequence:
+                already_setup.append(self.sequence[seq].setup())
             result = all(already_setup)
             
         return result
