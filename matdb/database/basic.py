@@ -139,25 +139,18 @@ class Group(object):
                 if not path.isdir(this_root):
                     mkdir(this_root)
                 if atoms is not None and isinstance(atoms, ParameterGrid):
-                    if len(atoms)==1:
-                        self.sequences["seed-{}".format(n_seeds)] = Group(root=this_root,
-                                                                          parent=parent,
-                                                                          prefix=prefix,
-                                                                          atoms=this_atoms,
-                                                                          db_name=db_name,
-                                                                          calculator=calculator)
-                    else:
-                        for params in atoms:
-                            this_root = path.join(this_root,atoms.to_str(params))
-                            if not path.isdir(this_root):
-                                mkdir(this_root)
-                            self.sequence["seed-{}_".format(n_seeds)+
-                                          atoms.to_str(params)] = Group(root=this_root,
-                                                                        parent=parent,
-                                                                        prefix=prefix,
-                                                                        atoms=this_atoms,
-                                                                        db_name=db_name,
-                                                                        calculator=calculator)
+                    for params in atoms:
+                        this_root = path.join(this_root,atoms.to_str(params))
+                        if not path.isdir(this_root):
+                            mkdir(this_root)
+                        self.sequence["seed-{}_".format(n_seeds)+
+                                      atoms.to_str(params)] = Group(root=this_root,
+                                                                    parent=parent,
+                                                                    prefix=prefix,
+                                                                    atoms=this_atoms,
+                                                                    db_name=db_name,
+                                                                    calculator=calculator,
+                                                                    parameters=atoms[params])
                 elif atoms is not None and isinstance(atoms,Atoms):
                     self.atoms = atoms
         else:

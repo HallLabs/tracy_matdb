@@ -149,7 +149,7 @@ class ParameterGrid(collections.MutableSet):
             end = self.end
             curr = end[1]
             curr[2] = end[1] = self.map[key] = [key, curr, end]
-            self.values[key] = value
+            self.values[key] = dict(zip(self.keys,value))
         else:
             msg.warn("The key {} already exists in the set, ignoring addition.".format(key))
 
