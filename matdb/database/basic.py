@@ -135,13 +135,13 @@ class Group(object):
         if self.seeded:
             n_seeds = 1
             for this_seed in seed:
-                this_atoms = Atoms(path.join(this_seed,"POSCAR"),format="POSCAR")
-                this_root = path.join(root,"seed-{}".format(n_seeds))
-                if not path.isdir(this_root):
-                    mkdir(this_root)
+                this_atoms = Atoms(path.join(this_seed),format="POSCAR")
+                seed_root = path.join(root,"seed-{}".format(n_seeds))
+                if not path.isdir(seed_root):
+                    mkdir(seed_root)
                 if atoms is not None and isinstance(atoms, ParameterGrid):
                     for params in atoms:
-                        this_root = path.join(this_root,atoms.to_str(params))
+                        this_root = path.join(seed_root,atoms.to_str(params))
                         if not path.isdir(this_root):
                             mkdir(this_root)
                         self.sequence["seed-{}_".format(n_seeds)+

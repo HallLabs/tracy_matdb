@@ -5,8 +5,81 @@ from os import path
 from matdb import msg
 import numpy as np
 import six
-
 import collections
+from glob import glob
+
+def parse_seeds(root,seeds,rseed=None):
+    """Finds the full path to the seed files for this system.
+
+    Args:
+        root (str): the root directory for the databes.
+        seeds (str or list of str): the seeds for the database that 
+            need to be parsed and have the root folder found.
+        rseed (optional): the seed for the random generator if used.
+    
+    Returns:
+        seed_files (list): a list of the seed files for the database.
+    """
+    from matdb.utility import special_values
+    from itertools import product
+    
+    if isinstance(seeds,six.string_types):
+        seeds = [seeds]
+
+    svals = ["linspace", "logspace", "range", "random:", "distr:", "["]
+
+    seed_files = []
+    for seed in seeds:
+        # if there is a '/' in the seed then this is a path to the
+        # seed file configuration, otherwise we assume the user put
+        # the seed file in the `seed` directory in root.
+        if len(seed.split("/")) > 1:
+            this_seeds = []
+            seed_path = root
+            for segment in seed.split("/"):
+                test_vals = [k in segment for k in svals]
+                if any(test_vals):
+                    val = svals[test_vals.index(True)]
+                    temp = segment[:segment.index(val)]
+                    this_level = ["{0}{1}".format(temp,i) for i in
+                                  special_values(segment[segment.inedx(val):],seed=rseed)]
+                elif "*" in to_parse:
+                    if len(res) >=1:
+                        this_level = []
+                        for t_path in res:
+                            this_level.extend(glob(path.join(seed_path,t_path,segment)))
+                    else:
+                        this_level = glob(path.join(seed_path,segment))
+                else:
+                    this_level = [segment]
+                if len(res) >= 1:
+                    this_seeds.extend([path.join(*i) for i in product(this_seeds,this_level)])
+                else:
+                    this_seeds.extend(this_level)                    
+
+        else:
+            seed_path = path.join(root,"seed")
+            to_parse = seed
+            test_vals = [k in to_parse for k in svals]
+            if any(test_vals):
+                val = svals[test_vals.index(True)]
+                temp_seed = seed[:seed.index(val)]
+                this_seeds = ["{0}{1}".format(temp_seed,i) for i in special_values(seed[seed.inedx(val):],seed=rseed)]
+            elif "*" in to_parse:
+                this_seeds = glob(path.join(seed_path,to_parse))
+            else:
+                this_seeds = [to_parse]
+
+        for ts in this_seeds:
+            t_seed = path.join(seed_path,ts)
+            if path.isfile(t_seed):
+                seed_files.append(t_seed)
+            else:
+                msg.err("The seed file {} could not be found.".format(t_seed))
+
+        return seed_files
+    
+    
 
 def db_pgrid(options, ignore_=None):
     """Creates a parameter grid over the specified options for the database.
@@ -272,6 +345,12 @@ class Database(object):
             #pointers; then add in the keyword arguments that are missing.
             cpspec = dbspec.copy()
             del cpspec["type"]
+            if "seed" in cpspec and cpspec["seed"] is not None:
+                cpspec["seed"] = parse_seeds(root,cpspec["seed"])
+            elif "seed*" in cpspec and cpspec["seed*"] is not None:
+                cpspec["seed"] = parse_seeds(root,cpspec["seed*"])
+                del cpspec["seed*"]
+                
             cpspec["atoms"] = ParameterGrid(cpspec)
             for k in list(cpspec.keys()):
                 if "suffix" in k:

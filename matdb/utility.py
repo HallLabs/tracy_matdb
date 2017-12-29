@@ -574,7 +574,8 @@ def special_values(vs, seed=None):
         "logspace": ("numpy", "logspace"),
         "range": ("numpy", "arange"),
         "random:" : ("numpy.random", None),
-        "distr:" : ("scipy.stats", None)
+        "distr:" : ("scipy.stats", None),
+        "[": ("slicer",None)
     }
 
     #We allow for |nogs| to be appended if the person is just specifying weights
@@ -598,6 +599,9 @@ def special_values(vs, seed=None):
                     result = eval("d{}".format(rest[first:]))
                 elif k == "distr:":
                     result = _py_execute(module, caller, rest[first:])
+                elif k== "[":
+                    temp = eval(v)
+                    result = slicer(range(1,max(temp)),temp)
             break
     else:
         result = v    

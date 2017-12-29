@@ -2,6 +2,8 @@
 
 ## Revision 0.0.7
 
+- Implented the functions needed to indentify the seed configurations
+  for seeded databases.
 - Implemented the full Enumerated database for the new workflow.
 - Added new functions to the `matdb/database/basic.py` `Group` class
   that allow the parameters passed to the function as part of a
