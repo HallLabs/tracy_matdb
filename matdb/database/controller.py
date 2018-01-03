@@ -161,6 +161,7 @@ class ParameterGrid(collections.MutableSet):
         self.map = {}                   # key --> [key, prev, next]
         self.keys = names 
         self.values = {}
+        self.params = params
         for i, v in zip(ids,items):
             self.add(i,v)
 
@@ -211,6 +212,37 @@ class ParameterGrid(collections.MutableSet):
     def __getitem__(self,key):
         return self.values[key]
 
+    def _make_values_dict(self,value):
+        """Creates the full dict of paramaters for this instance of the parametr grid.
+        """
+
+        for dkey in self.params.keys():
+            if "suffix" in dkey:
+                self.params.pop(dkey)
+            elif isinstance(self.params[dkey],dict):
+                for ckey in self.params[dkey].keys():
+                    if "suffix" in ckey:
+                        self.params[dkey].pop(ckey)
+
+        count = 0
+        for key in self.keys:
+            if "{}*".format(key) in self.params:
+                self.params[key] = value[count]
+                self.params.pop("{}*".format(key))
+                count += 1
+            elif key in self.params:
+                self.params[key] = value[count]
+                count += 1
+            else:
+                for dkey in self.params.keys():
+                    if "{}*".format(key) in self.params[dkey]:
+                        self.params[dkey][key] = value[count]
+                        self.params[dkey].pop("{}*".format(key))
+                        count += 1
+                    elif key in self.params[dkey]:
+                        self.params[dkey][key] = value[count]
+                        count += 1
+
     def add(self, key,value):
         """Adds key to the set if it is not already in the set.
         Args:
@@ -222,7 +254,8 @@ class ParameterGrid(collections.MutableSet):
             end = self.end
             curr = end[1]
             curr[2] = end[1] = self.map[key] = [key, curr, end]
-            self.values[key] = dict(zip(self.keys,value))
+            self._make_values_dict(value)
+            self.values[key] = self.params
         else:
             msg.warn("The key {} already exists in the set, ignoring addition.".format(key))
 
@@ -350,8 +383,8 @@ class Database(object):
             elif "seed*" in cpspec and cpspec["seed*"] is not None:
                 cpspec["seed"] = parse_seeds(root,cpspec["seed*"])
                 del cpspec["seed*"]
-                
-            cpspec["atoms"] = ParameterGrid(cpspec)
+
+            cpspec["atoms"] = ParameterGrid(cpspec.copy())
             for k in list(cpspec.keys()):
                 if "suffix" in k:
                     del cpspec[k]

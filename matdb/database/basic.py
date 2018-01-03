@@ -5,7 +5,8 @@ from os import path, mkdir
 from matdb import msg
 from .controller import ParameterGrid
 import abc
-import json
+import pickle
+import datetime
 
 def can_execute(folder):
     """Returns True if the specified folder is ready to execute VASP
@@ -118,13 +119,14 @@ class Group(object):
         from collections import OrderedDict
         from quippy.atoms import Atoms
         from os import path
-        
+
         self.parent = parent
-        self.previous = None 
-        self.dependent = None
-        self._get_adjacent(db_name)
         self.allatoms = {}
         self.execution = execution
+        if parameters is not None:
+            self.params = parameters
+        else:
+            self.params = None
         if seed is not None:
             self.seeded = True
         else:
@@ -170,15 +172,18 @@ class Group(object):
             else:
                 self.atoms = None
 
-        # self.calc = getattr(module, calculator["name"])
-        # self.calcargs = calculator.pop("name",None)
+        # from importlib import import_module
+        # modname, clsname = calculator["name"].split('.')
+        # fqdn = "matdb.calculator.{}".format(modname)
+        # module = import_module(fqdn)
+        self.calc = getattr(module, clsname)
+        self.calcargs = calculator.pop("name",None)
         self.root = root            
         self.prefix = prefix
         self.nconfigs = nconfigs
         self.config_type = config_type
         self._nsuccess = 0
-        if parameters is not None:
-            self._write_params(parameters)
+        self._db_name = db_name
         """int: number of configurations whose output files were successfully
         converted to XYZ format. Should be equal to :attr:`nconfigs` if the
         database is complete.
@@ -203,37 +208,26 @@ class Group(object):
     @abc.abstractproperty
     def rset(self):
         pass
-
-    def _write_params(self,params):
-        """Writes the parameters for this set of calculations to a json file.
-        """
-
-        with open(path.join(self.root,"params.json"),"w+") as f:
-            json.dump(params,f)
-
-    def read_params(self):
-        """Reads the parameters for this set of calculations from a json file.
-        """
-        target = path.join(self.root,"params.json")
-        if path.isfile(target):
-            with open(target,"r") as f:
-                return json.load(f)
-        else:
-            return None
             
-    def _get_adjacent(self,db_name):
-        """Sets the database group instance of the previouse and dependent
-        databases in the sequence if they exists.
-
+    def prev(self):
+        """Finds the previous group in the database.
         """
-        for name, instance in self.parent.steps:
-            if name == db_name:
-                self.previous = prev 
-            elif self.previous is not None:
-                self.dependent = instance
-                break
-            else:
-                prev = instance
+        keylist = self.parent.steps.keys()
+        for i, v in enumerate(keylist):
+            if v == self._db_name and i!=0:
+                return self.parent.steps[keylist[i-1]]
+
+        return None
+
+    def dep(self):
+        """Finds the next, or dependent, group in the databes.
+        """
+        keylist = self.parent.steps.keys()
+        for i, v in enumerate(keylist):
+            if v == self._db_name and i!=(len(keylist)-1):
+                return self.parent.steps[keylist[i+1]]
+
+        return None
         
     def is_executing(self):
         """Returns True if the database DFT calculations are in process of being
@@ -437,7 +431,7 @@ class Group(object):
             from matdb.utility import symlink, execute
             #Make sure that the INCAR and PRECALC for this database has been created
             #already.
-            # atoms.set_calculator(self.calc(**self.calcargs))
+            self.atoms.set_calculator(self.calc(**self.calcargs))
             POTCAR = path.join(target, "POTCAR")
             symlink(POTCAR, path.join(self.parent.parent.root, "POTCAR"))
 
@@ -483,12 +477,16 @@ class Group(object):
                 xok = True
 
             result = confok or xok
+            with open(path.join(self.root,"compute.pkl"),"w+") as f:
+                pickle.dump({"params":self.params,"date":datetime.datetime.now(),
+                           "uuid":None},f)
 
         else:
             already_setup = []
             for seq in self.sequence:
                 already_setup.append(self.sequence[seq].setup())
             result = all(already_setup)
+            
             
         return result
             
