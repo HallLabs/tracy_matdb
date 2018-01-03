@@ -6,7 +6,7 @@ from matdb import msg
 from .controller import ParameterGrid
 import abc
 import pickle
-import datetime
+from uuid import uuid4
 
 def can_execute(folder):
     """Returns True if the specified folder is ready to execute VASP
@@ -172,12 +172,13 @@ class Group(object):
             else:
                 self.atoms = None
 
-        # from importlib import import_module
-        # modname, clsname = calculator["name"].split('.')
-        # fqdn = "matdb.calculator.{}".format(modname)
-        # module = import_module(fqdn)
+        from importlib import import_module
+        c_calc = calculator.copy()
+        modname, clsname = c_calc["name"].split('.')
+        fqdn = "matdb.calculators.{}".format(modname)
+        module = import_module(fqdn)
         self.calc = getattr(module, clsname)
-        self.calcargs = calculator.pop("name",None)
+        self.calcargs = c_calc.pop("name",None)
         self.root = root            
         self.prefix = prefix
         self.nconfigs = nconfigs
@@ -195,6 +196,8 @@ class Group(object):
         from os import path
         from matdb.utility import chdir
         self.configs = {}
+        self.uuid = uuid4()
+        self.sub_uuids = {}
 
         with chdir(self.root):
             for folder in glob("{}.*".format(prefix)):
@@ -417,6 +420,7 @@ class Group(object):
         """
 
         if not bool(self.sequence):
+            uid = uuid4()
             if cid is None:
                 cid = len(self.configs) + 1
 
@@ -431,12 +435,13 @@ class Group(object):
             from matdb.utility import symlink, execute
             #Make sure that the INCAR and PRECALC for this database has been created
             #already.
-            self.atoms.set_calculator(self.calc(**self.calcargs))
+            # self.atoms.set_calculator(self.calc(**self.calcargs))
             POTCAR = path.join(target, "POTCAR")
             symlink(POTCAR, path.join(self.parent.parent.root, "POTCAR"))
 
             #Finally, store the configuration for this folder.
             self.configs[cid] = target
+            self.sub_uuids[uid] = target
         else:
             for seq in self.sequence:
                 self.sequence[seq].create(instance.atoms,cid=cid, rewrite=rewrite, sort=sort)
@@ -461,8 +466,9 @@ class Group(object):
         .. note:: This method should be overloaded by a sub-class, which also
           calls this method.
         """
-
+        
         if not bool(self.sequence):
+            import datetime
             #Test to see if we have already set the database up.
             confok = False
             if (len(self.configs) == self.nconfigs or
@@ -479,7 +485,7 @@ class Group(object):
             result = confok or xok
             with open(path.join(self.root,"compute.pkl"),"w+") as f:
                 pickle.dump({"params":self.params,"date":datetime.datetime.now(),
-                           "uuid":None},f)
+                             "uuid":self.uuid},f)
 
         else:
             already_setup = []
@@ -541,47 +547,6 @@ class Group(object):
         cleanups = [can_cleanup(f) for f in self.configs.values()]
         return all(cleanups)
     
-    def xyz(self, filename="output.xyz",
-            properties=["species", "pos", "z", "dft_force"],
-            parameters=["dft_energy", "dft_virial"],
-            recalc=False, combine=False):
-        """Creates an XYZ file for each of the sub-sampled configurations in this
-        database.
-        Args:
-            filename (str): name of the XYZ file to create; this is created in
-              each sub-sampled configurations directory.
-            properties (list): of `str` *atom* property names (such as position,
-              force, Z, etc.) to include in the XYZ file.
-            parameters (list): of `str` *configuration* paramater names (such as
-              energy, stress, etc.).
-            recalc (bool): when True, re-create the XYZ files, even if they already
-              exist. 
-            combine (bool): when True, combine all the sub-configuration XYZ
-              files into a single, giant XYZ file.
-        Returns:
-            bool: True if the number of xyz files created equals the number of
-            configurations in the database, which means that the database is
-            fully calculated in a usable way.
-        """
-        from matdb.io import vasp_to_xyz
-        from tqdm import tqdm
-        created = []
-        for i, folder in tqdm(self.configs.items()):
-            if vasp_to_xyz(folder, filename, recalc, properties, parameters,
-                           self.config_type):
-                outpath = path.join(folder, filename)
-                created.append(outpath)
-                
-        self._nsuccess = len(created)
-        
-        #Finally, combine all of them together into a single
-        if combine:
-            from matdb.utility import cat
-            dboutpath = path.join(self.root, filename)
-            cat(created, dboutpath)
-        
-        return len(created) == len(self.configs)
-
     def tarball(self, filename="output.tar.gz", files=["OUTCAR"]):
         """Creates a zipped tar archive that contains each of the specified
         files in sub-sampled configurations' output folders.
