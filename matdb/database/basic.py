@@ -21,6 +21,43 @@ def atoms_to_json(atoms, folder):
         folder (str): path to the folder to write the file in.
     """
     db = ase.db.connect(path.join(folder, "atoms.json"))
+    #We need to extract out the additional parameters that a quippy.Atoms object
+    #can have, but which are not supported by ASE.
+    handled = ["id", "volume", "magmom", "age", "energy", "mass", "formula",
+               "user", "charge", "unique_id", "fmax"]
+    data = {}
+    for param, value in atoms.params.items():
+        if param not in handled:
+            data[param] = value
+
+    props = []
+    for prop, value in atoms.properties.items():
+        if prop not in ["force"]:
+            data[prop] = value
+            props.append(prop)
+    data["propnames"] = props
+            
+    db.write(atoms, data=data)
+
+def atoms_from_json(folder):
+    """Retrieves a :class:`quippy.Atoms` object from JSON in the specified
+    folder.
+
+    Args:
+        folder (str): path to the folder that has the `atoms.json` file.
+    """
+    db = ase.db.connect(path.join(folder, "atoms.json"))
+    atoms = db.get_atoms(attach_calculator=True)
+
+    props = atoms.data.propnames
+    for prop in props:
+        atoms.properties[prop] = np.array(atoms.data[prop])
+
+    for param in atoms.data:
+        if param not in props:
+            atoms.params[param] = atoms.data[param]
+
+    return atoms
 
 class Group(object):
     """Represents a collection of material configurations (varying in
@@ -523,4 +560,7 @@ class Group(object):
     def cleanup(self):
         """Creates a JSON file for each atoms object in the group.
         """
-        pass
+        for cid, folder in self.configs.items():
+            atoms = self.config_atoms[cid]
+            atoms.calculator.cleanup()
+            atoms_to_json(atoms, folder)
