@@ -1,4 +1,11 @@
 import warnings
+class abstractstatic(staticmethod):
+    __slots__ = ()
+    def __init__(self, function):
+        super(abstractstatic, self).__init__(function)
+        function.__isabstractmethod__ = True
+    __isabstractmethod__ = True
+    
 def deprecated(func):
     """This is a decorator which can be used to mark functions
     as deprecated. It will result in a warning being emitted
