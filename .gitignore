@@ -1,8 +1,12 @@
+# Mac Stuff
+.DS_Store
+
 # Emacs
 *#*
 
 # databases
 db*
+notebooks/*.dat
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
