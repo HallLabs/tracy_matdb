@@ -50,22 +50,12 @@ class AsyncCalculator(object):
         pass
 
     @abc.abstractmethod
-    def convert(self, folder, filename="output.xyz", fmt="xyz",
-                properties=["species", "pos", "z", "ref_force"],
-                parameters=["ref_energy", "ref_virial"],
-                recalc=False):
-        """Converts the output from the calculation to a new format.
+    def cleanup(self, folder):
+        """Extracts results from completed calculations and sets them on the
+        :class:`ase.Atoms` object.
 
         Args:
             folder (str): path to the folder in which the executable was run.
-            filename (str): name of the file/object to create; this is created in
-              each sub-sampled configurations directory/group.
-            properties (list): of `str` *atom* property names (such as position,
-              force, Z, etc.) to include in the output.
-            parameters (list): of `str` *configuration* paramater names (such as
-              energy, stress, etc.).
-            recalc (bool): when True, re-create the files/objects, even if they
-              already exist. 
         """
         pass
 
@@ -119,25 +109,5 @@ class SyncCalculator(object):
 
         Args:
             atoms (quippy.Atoms): config to initialize for.
-        """
-        pass
-
-    @abc.abstractmethod
-    def xyz(self, atoms, filename="output.xyz",
-            properties=["species", "pos", "z", "ref_force"],
-            parameters=["ref_energy", "ref_virial"],
-            recalc=False):
-        """Generates an extended XYZ file for the specified configuration.
-
-        Args:
-            atoms (quippy.Atoms): configuration to generate XYZ file for.
-            filename (str): name of the XYZ file to create; this is created in
-              each sub-sampled configurations directory.
-            properties (list): of `str` *atom* property names (such as position,
-              force, Z, etc.) to include in the XYZ file.
-            parameters (list): of `str` *configuration* paramater names (such as
-              energy, stress, etc.).
-            recalc (bool): when True, re-create the XYZ files, even if they already
-              exist. 
         """
         pass
