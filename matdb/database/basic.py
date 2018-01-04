@@ -11,6 +11,8 @@ from matdb import calculators
 from contextlib import contextmanager
 import ase.db
 from uuid import uuid4
+import numpy as np
+import quippy
 
 def atoms_to_json(atoms, folder):
     """Exports the specified atoms object, with its calculator's parameters, to
@@ -21,6 +23,55 @@ def atoms_to_json(atoms, folder):
         folder (str): path to the folder to write the file in.
     """
     db = ase.db.connect(path.join(folder, "atoms.json"))
+    #We need to extract out the additional parameters that a quippy.Atoms object
+    #can have, but which are not supported by ASE.
+    handled = ["id", "volume", "magmom", "age", "mass", "formula",
+               "user", "charge", "unique_id", "fmax"]
+    data = {}
+    for param, value in atoms.params.items():
+        if param not in handled:
+            data[param] = value
+
+    props = []
+    for prop, value in atoms.properties.items():
+        if prop not in ["pos", "species", "Z", "n_neighb", "map_shift"]:
+            data[prop] = value
+            props.append(prop)
+    data["propnames"] = props
+
+    db.write(atoms, data=data)
+
+def atoms_from_json(folder):
+    """Retrieves a :class:`quippy.Atoms` object from JSON in the specified
+    folder.
+
+    Args:
+        folder (str): path to the folder that has the `atoms.json` file.
+    """
+    db = ase.db.connect(path.join(folder, "atoms.json"))
+    row = db.get()
+    atoms = quippy.Atoms()
+    _atoms = row.toatoms()
+    atoms.copy_from(_atoms)
+
+    props = row.data.propnames
+    for prop in props:
+        atoms.properties[prop] = np.array(row.data[prop])
+
+    for param in row.data:
+        if param not in props:
+            atoms.params[param] = row.data[param]
+
+    calcargs = row.get('calculator_parameters', {})
+    calculator = getattr(calculators, row.calculator.title())
+    #We have to coerce all unicode strings into standard strings for
+    #interoperability with the Fortran in QUIP.
+    if row.calculator == "quip":
+        caster = lambda a: str(a) if isinstance(a, unicode) else a
+        calcargs["calcargs"] = list(map(caster, calcargs["calcargs"]))
+    atoms.calc = calculator(atoms, folder, **calcargs)
+            
+    return atoms
 
 class Group(object):
     """Represents a collection of material configurations (varying in
@@ -63,7 +114,7 @@ class Group(object):
 
     """
     def __init__(self, root=None, parent=None, prefix='S', atoms=None,
-                 nconfigs=None, calculator=None, seed=None, db_name=None,
+                 nconfigs=None, calculator=None, seeds=None, db_name=None,
                  config_type=None, parameters=None, execution={}):
         from collections import OrderedDict
         from quippy.atoms import Atoms
@@ -77,13 +128,13 @@ class Group(object):
             self.params = None
 
         self.is_seed_explicit = None
-        if seed is not None:
-            self.is_seed_explicit = isinstance(seed, list)
+        if seeds is not None:
+            self.is_seed_explicit = isinstance(seeds, list)
 
         self.seeds = None
-        if isinstance(seed, list):
+        if isinstance(seeds, list):
             self.seeds = []
-            for atomspec in seed:
+            for atomspec in seeds:
                 fmt, pattern = atomspec.split(':')
                 for apath in self.parent.controller.relpaths(pattern):
                     self.seeds.append((apath, fmt))
@@ -137,7 +188,9 @@ class Group(object):
             else:
                 self.atoms = None
 
-        self.calc = getattr(calculators, calculator["name"])
+        self.calc = None
+        if calculator is not None:
+            self.calc = getattr(calculators, calculator["name"])
         self.calcargs = calculator
         self.root = root            
         self.prefix = prefix
@@ -523,4 +576,7 @@ class Group(object):
     def cleanup(self):
         """Creates a JSON file for each atoms object in the group.
         """
-        pass
+        for cid, folder in self.configs.items():
+            atoms = self.config_atoms[cid]
+            atoms.calculator.cleanup()
+            atoms_to_json(atoms, folder)
