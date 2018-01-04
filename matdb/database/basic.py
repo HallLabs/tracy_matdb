@@ -23,7 +23,7 @@ def atoms_to_json(atoms, folder):
     db = ase.db.connect(path.join(folder, "atoms.json"))
     #We need to extract out the additional parameters that a quippy.Atoms object
     #can have, but which are not supported by ASE.
-    handled = ["id", "volume", "magmom", "age", "energy", "mass", "formula",
+    handled = ["id", "volume", "magmom", "age", "mass", "formula",
                "user", "charge", "unique_id", "fmax"]
     data = {}
     for param, value in atoms.params.items():
@@ -32,7 +32,7 @@ def atoms_to_json(atoms, folder):
 
     props = []
     for prop, value in atoms.properties.items():
-        if prop not in ["force"]:
+        if prop not in ["pos", "species", "Z", "n_neighb", "map_shift"]:
             data[prop] = value
             props.append(prop)
     data["propnames"] = props
@@ -100,7 +100,7 @@ class Group(object):
 
     """
     def __init__(self, root=None, parent=None, prefix='S', atoms=None,
-                 nconfigs=None, calculator=None, seed=None, db_name=None,
+                 nconfigs=None, calculator=None, seeds=None, db_name=None,
                  config_type=None, parameters=None, execution={}):
         from collections import OrderedDict
         from quippy.atoms import Atoms
@@ -114,13 +114,13 @@ class Group(object):
             self.params = None
 
         self.is_seed_explicit = None
-        if seed is not None:
-            self.is_seed_explicit = isinstance(seed, list)
+        if seeds is not None:
+            self.is_seed_explicit = isinstance(seeds, list)
 
         self.seeds = None
-        if isinstance(seed, list):
+        if isinstance(seeds, list):
             self.seeds = []
-            for atomspec in seed:
+            for atomspec in seeds:
                 fmt, pattern = atomspec.split(':')
                 for apath in self.parent.controller.relpaths(pattern):
                     self.seeds.append((apath, fmt))
@@ -174,7 +174,9 @@ class Group(object):
             else:
                 self.atoms = None
 
-        self.calc = getattr(calculators, calculator["name"])
+        self.calc = None
+        if calculator is not None:
+            self.calc = getattr(calculators, calculator["name"])
         self.calcargs = calculator
         self.root = root            
         self.prefix = prefix
