@@ -11,6 +11,8 @@ from matdb import calculators
 from contextlib import contextmanager
 import ase.db
 from uuid import uuid4
+import numpy as np
+import quippy
 
 def atoms_to_json(atoms, folder):
     """Exports the specified atoms object, with its calculator's parameters, to
@@ -36,7 +38,7 @@ def atoms_to_json(atoms, folder):
             data[prop] = value
             props.append(prop)
     data["propnames"] = props
-            
+
     db.write(atoms, data=data)
 
 def atoms_from_json(folder):
@@ -47,16 +49,28 @@ def atoms_from_json(folder):
         folder (str): path to the folder that has the `atoms.json` file.
     """
     db = ase.db.connect(path.join(folder, "atoms.json"))
-    atoms = db.get_atoms(attach_calculator=True)
+    row = db.get()
+    atoms = quippy.Atoms()
+    _atoms = row.toatoms()
+    atoms.copy_from(_atoms)
 
-    props = atoms.data.propnames
+    props = row.data.propnames
     for prop in props:
-        atoms.properties[prop] = np.array(atoms.data[prop])
+        atoms.properties[prop] = np.array(row.data[prop])
 
-    for param in atoms.data:
+    for param in row.data:
         if param not in props:
-            atoms.params[param] = atoms.data[param]
+            atoms.params[param] = row.data[param]
 
+    calcargs = row.get('calculator_parameters', {})
+    calculator = getattr(calculators, row.calculator.title())
+    #We have to coerce all unicode strings into standard strings for
+    #interoperability with the Fortran in QUIP.
+    if row.calculator == "quip":
+        caster = lambda a: str(a) if isinstance(a, unicode) else a
+        calcargs["calcargs"] = list(map(caster, calcargs["calcargs"]))
+    atoms.calc = calculator(atoms, folder, **calcargs)
+            
     return atoms
 
 class Group(object):

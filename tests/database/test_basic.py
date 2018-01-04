@@ -13,12 +13,13 @@ def test_json(tmpdir):
     JSON and then restored.
     """
     from matdb.database.basic import atoms_to_json, atoms_from_json
+    from matdb.calculators import Quip
     target = str(tmpdir.join("database_tojson"))
     if not path.isdir(target):
         mkdir(target)
 
     atSi = quippy.diamond(5.43,14)
-    potSW = quippy.Potential("IP SW")
+    potSW = Quip(atSi, target, ["IP SW"])
     atSi.set_calculator(potSW)
     potSW.calc(atSi, energy=True, force=True, virial=True)
     atSi.properties["rand"] = np.random.randint(0, 100, 8)
@@ -27,7 +28,13 @@ def test_json(tmpdir):
     atoms_to_json(atSi, target)
     atR = atoms_from_json(target)
 
-    assert atR == atSi
+    assert atR.energy == atSi.energy
+    assert isinstance(atR, quippy.Atoms)
+    assert np.allclose(atR.force, atSi.force)
+    assert np.allclose(atR.virial, atSi.virial)
+    assert atR.hessian_1 == atSi.hessian_1
+    assert np.allclose(atR.properties["rand"], atSi.properties["rand"])
+    assert np.allclose(atR.pos, atSi.pos)
 
 @pytest.fixture(scope="module", autouse=True)
 def Pd_f(request):
