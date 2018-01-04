@@ -9,6 +9,7 @@ import pickle
 import datetime
 from matdb import calculators
 from contextlib import contextmanager
+from uuid import uuid4
 
 class Group(object):
     """Represents a collection of material configurations (varying in
@@ -146,7 +147,9 @@ class Group(object):
         from matdb.utility import chdir
         self.configs = {}
         self.config_atoms = {}
-        
+        self.uuid = uuid4()
+        self.sub_uuids = {}
+
         with chdir(self.root):
             for folder in glob("{}.*".format(prefix)):
                 try:
@@ -361,6 +364,7 @@ class Group(object):
         """
 
         if not bool(self.sequence):
+            uid = uuid4()
             if cid is None:
                 cid = len(self.configs) + 1
 
@@ -375,6 +379,7 @@ class Group(object):
             #Finally, store the configuration for this folder.
             self.configs[cid] = target
             self.config_atoms[cid] = atoms
+            self.sub_uuids[uid] = target
         else:
             for seqkey, group in self.sequence.items():
                 group.create(group.atoms, cid=cid, rewrite=rewrite, sort=sort)
@@ -484,6 +489,7 @@ class Group(object):
         cleanups = [a.calculator.can_cleanup() for a in self.config_atoms.values()]
         return all(cleanups)
     
+
     def tarball(self, filename="output.tar.gz"):
         """Creates a zipped tar archive that contains each of the specified
         files in sub-sampled configurations' output folders.
