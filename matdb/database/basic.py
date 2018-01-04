@@ -502,3 +502,8 @@ class Group(object):
         else:
             for group in self.sequence.values():
                 group.tarball(filename)
+
+    def cleanup(self):
+        """Creates a JSON file for each atoms object in the group.
+        """
+        pass
