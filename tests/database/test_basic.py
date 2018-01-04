@@ -2,8 +2,32 @@
 inherit.
 """
 import pytest
+from os import path, mkdir
 from matdb.utility import relpath
 from matdb.database import basic
+import quippy
+import numpy as np
+
+def test_json(tmpdir):
+    """Tests whether an atoms object with calculated parameters can be saved to
+    JSON and then restored.
+    """
+    from matdb.database.basic import atoms_to_json, atoms_from_json
+    target = str(tmpdir.join("database_tojson"))
+    if not path.isdir(target):
+        mkdir(target)
+
+    atSi = quippy.diamond(5.43,14)
+    potSW = quippy.Potential("IP SW")
+    atSi.set_calculator(potSW)
+    potSW.calc(atSi, energy=True, force=True, virial=True)
+    atSi.properties["rand"] = np.random.randint(0, 100, 8)
+    atSi.params["hessian_1"] = np.random.random()
+    
+    atoms_to_json(atSi, target)
+    atR = atoms_from_json(target)
+
+    assert atR == atSi
 
 @pytest.fixture(scope="module", autouse=True)
 def Pd_f(request):
@@ -26,9 +50,13 @@ def Pd_f(request):
     parent = None
     root = relpath("./tests/data/Pd/basic_fail")
 
-    Pd_db = Group(datoms,incar,kpoints,execution,root,parent,nconfigs=3,prefix="N")
-    Pd_db = Group(datoms,incar,kpoints,execution,root,parent,nconfigs=3)
-
+    calcargs = incar.copy()
+    calcargs["name"] = "Vasp"
+    calcargs["kpoints"] = kpoints    
+    Pd_db = Group(root, parent, atoms=datoms, execution=execution,
+                  nconfigs=3, prefix="N", calculator=calcargs)
+    Pd_db = Group(root, parent, atoms=datoms, execution=execution,
+                  nconfigs=3, calculator=calcargs)
     return Pd_db
 
 @pytest.fixture(scope="module", autouse=True)
@@ -50,8 +78,11 @@ def Pd_p(request):
     parent = None
     root = relpath("./tests/data/Pd/basic_pass")
 
-    Pd_db = Group(datoms,incar,kpoints,execution,root,parent,nconfigs=3)
-
+    calculator=incar.copy()
+    calculator["name"] = "Vasp"
+    calculator["kpoints"] = kpoints
+    Pd_db = Group(root, parent, atoms=datoms, execution=execution,
+                  nconfigs=3, calculator=calculator)
     return Pd_db
 
 def test_can_execute():
