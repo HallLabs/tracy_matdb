@@ -1,5 +1,28 @@
 # Revision History for `matdb`
 
+## Revision 0.0.7
+
+- Implented the functions needed to indentify the seed configurations
+  for seeded databases.
+- Implemented the full Enumerated database for the new workflow.
+- Added new functions to the `matdb/database/basic.py` `Group` class
+  that allow the parameters passed to the function as part of a
+  parameter grid to be saved to a json file in the folder in which the
+  group with those parameters will be executed. Also added a function
+  that allows the saved parameters to be read back in.
+- Enabled looping over the parameters in the Parameter Grid in
+  `matdb/database/basic.py`.
+- Renamed the databases to be groups and the `matdb/database/basic.py`
+  `Database` class to be `Group`.
+- Renamed the classes in `matdb/database/controller.py`,
+  changed`DatabaseSequence` to just `Sequence` and removed `SequenceRepeater`.
+- Added the new subroutiens (`flatten_dict`,`special_values`,`special_functions`,
+  `slicer`, `is_number` and `_py_exectue`) to `matdb/utilit.py` that are needed
+  for the refactor.
+- Implemented the ParametrGrid class in `matdb/database/controller.py`.
+- Added struct_enum.out files for the gss search for `fcc`, `bcc`,
+  `sc`, and `hcp` structures.
+
 ## Revision 0.0.6
 
 - Replaced self.collections with self.seeded in `matdb/database/controller.py`.

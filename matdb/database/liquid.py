@@ -1,10 +1,10 @@
-"""Class for generating and interacting with a database of
+"""Class for generating and interacting with a group of
 configurations generated from liquid-temperature molecular dynamics.
 """
-from .basic import Database
+from .basic import Group
 from os import path
 
-class LiquidDatabase(Database):
+class LiquidGroup(Group):
     """Represents a sub-sampled molecular dynamics run created at a
     liquid transition temperature.
 
@@ -23,7 +23,7 @@ class LiquidDatabase(Database):
           templates in this database.
 
     .. note:: Additional attributes are also exposed by the super class
-      :class:`Database`.
+      :class:`Group`.
 
     Attributes:
         name (str): name of this database type relative to the over database
@@ -34,7 +34,7 @@ class LiquidDatabase(Database):
                  kpoints={}, execution={}, nconfigs=None, mdbase="md",
                  name="liquid"):
         self.name = name
-        super(LiquidDatabase, self).__init__(atoms, incar, kpoints, execution,
+        super(LiquidGroup, self).__init__(atoms, incar, kpoints, execution,
                                              path.join(root, self.name),
                                              parent, "L", nconfigs=nconfigs)
         self.mdbase = self.parent.databases[mdbase]
@@ -59,7 +59,7 @@ class LiquidDatabase(Database):
         if not self.mdbase.ready():
             return
         
-        if not super(LiquidDatabase, self).cleanup():
+        if not super(LiquidGroup, self).cleanup():
             return
         
         return self.xyz(config_type="liq")
@@ -75,7 +75,7 @@ class LiquidDatabase(Database):
         if not self.mdbase.ready():
             return
     
-        folders_ok = super(LiquidDatabase, self).setup()
+        folders_ok = super(LiquidGroup, self).setup()
         if folders_ok and not rerun:
             return
 

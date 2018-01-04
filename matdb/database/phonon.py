@@ -1,7 +1,7 @@
-"""Database of configurations that is created by displacing a given
+"""Group of configurations that is created by displacing a given
 unit cell along phonon modes using the eigenvectors.
 """
-from .basic import Database
+from .basic import Group
 from matdb import msg
 from os import path
 import numpy as np
@@ -42,7 +42,8 @@ def _parsed_kpath(poscar):
 
     return (labels, band)
 
-class DynMatrix(Database):
+class DynMatrix(Group):
+
     """Sets up the displacement calculations needed to construct the dynamical
     matrix. The dynamical matrix is required by :class:`Modulation` to
     create the individual modulations.
@@ -52,7 +53,7 @@ class DynMatrix(Database):
           displaced to generate the database.
         root (str): path to the folder where the database directories will
           be stored.
-        parent (matdb.database.controller.DatabaseSequence): parent sequence
+        parent (matdb.database.controller.Sequence): parent sequence
           to which this database belongs.
         incar (dict): specify additional settings for the INCAR file (i.e.,
           differing from, or in addition to those in the global set).
@@ -69,7 +70,7 @@ class DynMatrix(Database):
           calculating the phonon density-of-states.
 
     .. note:: Additional attributes are also exposed by the super class
-      :class:`Database`.
+      :class:`Group`.
 
     Attributes:
         name (str): name of this database type relative to the over database
@@ -82,13 +83,12 @@ class DynMatrix(Database):
         dosmesh (list): mesh for calculating the phonon density-of-states.
 
     """
-    def __init__(self, atoms=None, root=None, parent=None,
-                 kpoints={}, incar={}, phonopy={}, execution={},
-                 name="dynmatrix", bandmesh=None, dosmesh=None):
+    def __init__(self, atoms=None, root=None, parent=None, seed=None, calculator=None, 
+                 phonopy={}, name="dynmatrix", bandmesh=None, dosmesh=None):
         self.name = name
-        super(DynMatrix, self).__init__(atoms, incar, kpoints, execution,
-                                        path.join(root, self.name),
-                                        parent, "W", nconfigs=None)
+        super(DynMatrix, self).__init__(path.join(root, self.name), parent, "W",
+                                        atoms=atoms, calculator=calculator, nconfigs=None,
+                                        config_type=None,seed=seed)
         self.supercell = phonopy["dim"]
         self.bandmesh = bandmesh
         self.dosmesh = dosmesh
@@ -159,11 +159,11 @@ class DynMatrix(Database):
             sargs = ["phonopy", '--dim="{}"'.format(DIM),
                      '--qpoints="0 0 0"', "--writedm"]
             xres = execute(sargs, self.phonodir, venv=True)
+            #Make sure that phonopy actually produced files; otherwise show the output
+            #(phonopy doesn't write to stderr, only stdout).
             if not path.isfile(qpoints): #pragma: no cover
-                msg.err("could not calculate phonon bands; see errors.")
-
-            if len(xres["error"]) > 0:
                 msg.std(''.join(xres["error"]))
+                msg.err("could not calculate phonon bands; see errors.")
 
         if path.isfile(qpoints):
             import yaml
@@ -294,11 +294,11 @@ class DynMatrix(Database):
         from matdb.utility import execute
         sargs = ["phonopy", "-p", "dos.conf", "-s"]
         xres = execute(sargs, self.phonodir, venv=True)
+        #Make sure that phonopy actually produced files; otherwise show the output
+        #(phonopy doesn't write to stderr, only stdout).
         if not path.isfile(dosfile): #pragma: no cover
-            msg.err("could not calculate the DOS; see errors.")
-
-        if len(xres["error"]) > 0:
             msg.std(''.join(xres["error"]))
+            msg.err("could not calculate the DOS; see errors.")
             
     def calc_forcesets(self, recalc=False):
         """Extracts the force sets from the displacement calculations.
@@ -326,10 +326,11 @@ class DynMatrix(Database):
             sargs = ["phonopy", "-f"] + vaspruns
             xres = execute(sargs, self.phonodir, venv=True)
 
+        #Make sure that phonopy actually produced files; otherwise show the output
+        #(phonopy doesn't write to stderr, only stdout).
         if not path.isfile(fsets):#pragma: no cover
-            msg.err("Couldn't create the FORCE_SETS:")
-        if len(xres["error"]) > 0:
             msg.std(''.join(xres["error"]))
+            msg.err("Couldn't create the FORCE_SETS:")
             
     def setup(self, rerun=False):
         """Displaces the seed configuration preparatory to calculating the force
@@ -479,7 +480,7 @@ def modulate_atoms(db):
     :class:`DynMatrix` instance.
 
     Args:
-        db (Database): database with parameters needed to module the
+        db (Group): database with parameters needed to module the
             atoms, (Calibration or Modulation databases).
     """
     #Generating the modulation file. We need to sample the DOS in order to
@@ -521,17 +522,17 @@ def modulate_atoms(db):
     if not path.isfile(testmod):#pragma: no cover
         msg.err(xres["output"])
             
-class Calibration(Database):
+class Calibration(Group):
     """Represents a set of modulated sub-configurations of differing amplitude,
     used to determine the maximum modulation amplitude where the force is still
-    in the linear regime.
+    in the linear regime .
 
     Args:
         atoms (quippy.atoms.Atoms): seed configuration that will be
           displaced to generate the database.
         root (str): path to the folder where the database directories will
           be stored.
-        parent (matdb.database.controller.DatabaseSequence): parent sequence
+        parent (matdb.database.controller.Sequence): parent sequence
           to which this database belongs.
         incar (dict): specify additional settings for the INCAR file (i.e.,
           differing from, or in addition to those in the global set).
@@ -544,7 +545,7 @@ class Calibration(Database):
           calibrating.
 
     .. note:: Additional attributes are also exposed by the super class
-      :class:`Database`.
+      :class:`Group`.
 
     Attributes:
         name (str): name of this database type relative to the over database
@@ -706,7 +707,7 @@ class Calibration(Database):
         else:
             raise NotImplementedError("Automatic calibration not configured.")
             
-class Modulation(Database):
+class Modulation(Group):
     """Represents a set of displaced configurations where atoms are
     moved, within a supercell, according to phonon eigenmodes.
 
@@ -715,7 +716,7 @@ class Modulation(Database):
           displaced to generate the database.
         root (str): path to the folder where the database directories will
           be stored.
-        parent (matdb.database.controller.DatabaseSequence): parent collection
+        parent (matdb.database.controller.Sequence): parent collection
           to which this database belongs.
         incar (dict): specify additional settings for the INCAR file (i.e.,
           differing from, or in addition to those in the global set).
@@ -733,7 +734,7 @@ class Modulation(Database):
           configuration's phonon spectrum.
 
     .. note:: Additional attributes are also exposed by the super class
-      :class:`Database`.
+      :class:`Group`.
 
     Attributes:
         sampling (str): on of ['uniform', 'sample', 'top'], where the method
@@ -757,8 +758,8 @@ class Modulation(Database):
     confname = "modulate.conf"
 
     def __init__(self, atoms=None, root=None, parent=None,
-                 kpoints={}, incar={}, phonons={}, execution={}, nconfigs=100,
-                 calibrate=True, amplitude=None, sampling="uniform",
+                 phonons={}, nconfigs=100, calibrate=True,
+                 amplitude=None, sampling="uniform",
                  name="modulations", dynmat="dynmatrix",
                  calibrator="calib", config_type="ph"):
         self.name = name
@@ -792,12 +793,15 @@ class Modulation(Database):
         """Determines if this database is finished calculating by testing the
         existence of the xyz database file in the root folder.
         """
+        import pudb
+        pudb.set_trace()
         target = path.join(self.root, "output.xyz")
         result = False
         if path.isfile(target):
             from matdb.utility import linecount
             #We add +2 for the parameter line and the number of atoms.
-            lpconfig = self.base.atoms.n * np.product(self.base.supercell) + 2
+            #This doesn't work as advertised (it's off by a factor). debug after refactor.
+            lpconfig = self.base.atoms.n * np.linalg.det(np.array(self.base.supercell).reshape(3,3)) + 2
             nlines = linecount(target)
             nconfigs = nlines/lpconfig
             result = nconfigs  == len(self.configs)

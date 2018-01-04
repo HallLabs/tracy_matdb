@@ -1,12 +1,12 @@
 """Class for generating MD runs that can be subsampled to generate
 databases of configurations.
 """
-from .basic import Database
+from .basic import Group
 from matdb import msg
 from os import path
 import numpy as np
 
-class DynamicsDatabase(Database):
+class DynamicsGroup(Group):
     """Represents a molecular dynamics run created at a specific
     temperature.
 
@@ -25,7 +25,7 @@ class DynamicsDatabase(Database):
           templates in this database.
 
     .. note:: Additional attributes are also exposed by the super class
-      :class:`Database`.
+      :class:`Group`.
 
     Attributes:
         name (str): name of this database type relative to the over database
@@ -38,7 +38,7 @@ class DynamicsDatabase(Database):
                  samplerate=100, strains=None, tstart=None, tend=None,
                  supercell=None, name="md"):
         self.name = name
-        super(DynamicsDatabase, self).__init__(atoms, incar, kpoints, execution,
+        super(DynamicsGroup, self).__init__(atoms, incar, kpoints, execution,
                                                path.join(root, self.name),
                                                parent, "D", nconfigs=None)
         self.samplerate = samplerate
@@ -242,7 +242,7 @@ class DynamicsDatabase(Database):
             rerun (bool): when True, recreate the folders even if they
               already exist. 
         """
-        folders_ok = super(DynamicsDatabase, self).setup()
+        folders_ok = super(DynamicsGroup, self).setup()
         if folders_ok and not rerun:
             return
 

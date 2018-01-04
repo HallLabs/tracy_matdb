@@ -4,7 +4,7 @@
 # Bulk or surface?
 bulk
 # List the primitive cell's lattice vectors
-{%- for vecs in lattice %}
+{%- for vec in lattice %}
 {{ vec }}
 {%- endfor %}
 # number of atomic species in the cell
