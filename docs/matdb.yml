@@ -20,8 +20,8 @@ root: '~/compute/AgPd'
 configs:
   # - name: 'Pd'
   #   poscar: 'POSCAR-Pd'
-  - name: 'PdAg25'
-    poscar: 'POSCAR-25'
+  - name: 'PdAg*'
+    poscar: 'POSCAR-*'
   - name: 'PdAg50'
     poscar: 'POSCAR-50'
   - name: 'PdAg75'
@@ -57,7 +57,7 @@ execution:
   partition: 'physics'
   array_limit: 150
   modules_load: ["mpi/..", "mkl/.."]
-  preamble: >
+  preamble: |
     module load mpi/.....
   exec_path: 'vasp46s'
 # Next, we include a list of all the databases we want to create. A
@@ -66,77 +66,96 @@ execution:
 databases:
   #The PhononBase class generates the dynamical matrix that is needed
   #by PhononDatabase.
-  - type: 'phonon.PhononDFT'
-    kpoints:
-      mindistance: 30
-    phonons:
-      dim: [2, 2, 2]
-      mp: [20, 20, 20]
-  - type: 'phonon.PhononDatabase'
+  - name: 'phonon'
+    steps:
+      - type: "phonon.DynMatrix"
+        #name: "dynmatrix"
+        kpoints:
+          mindistance: 30
+        phonopy:
+          dim: [2, 2, 2]
+    niterations:
+      - phonopy.dim: [2,2,3]
+        suffix: "-223" #Defaults to 0, 1, 2, etc.
+      - phonopy.dim: [3,2,3]
+        suffix: "-323"
+      - ...
+
+train:
+  data:
+    - 'PdAg*.phonon-223.modulation'
+    - 'phonon-323.modulation'
+    - 'phonon*'
+      
+  - type: "phonon.Modulation"
+    #name: "modulation"
     nconfigs: 100
-    sampling: 'uniform'
+    
+    sampling:
+      method: 'uniform'
+      phondos-mesh: [10,10,10]
     calibrate: 6
-    phonons:
+    bandcalc:
       dim: [2, 2, 2]
       mesh: [13, 13, 13]
     amplitude:
       PdAg25: 12
       PdAg50: 15
       PdAg75: 18
-  - type: 'md.DynamicsDatabase'
-    nsteps: 10
-    samplerate: 100
-    strains: [3, -3]
-    tstart:
-      PdAg25: 2766
-      PdAg50: 3063
-      PdAg75: 3360
-    tend:
-      PdAg25: 2766
-      PdAg50: 3063
-      PdAg75: 3360
-    execution:
-      time: 90
-      ntasks: 8
-      mem_per_cpu: 1
-      job_name: 'AgPd MD'
+  # - type: 'md.DynamicsDatabase'
+  #   nsteps: 10
+  #   samplerate: 100
+  #   strains: [3, -3]
+  #   tstart:
+  #     PdAg25: 2766
+  #     PdAg50: 3063
+  #     PdAg75: 3360
+  #   tend:
+  #     PdAg25: 2766
+  #     PdAg50: 3063
+  #     PdAg75: 3360
+  #   execution:
+  #     time: 90
+  #     ntasks: 8
+  #     mem_per_cpu: 1
+  #     job_name: 'AgPd MD'
    #Choose how much of the data to use for training and which potentials
    #will be generated.
-   training:
-     configs: ['PdAg25', 'PdAg50', 'PdAg75']
-     #Execution for the training is *separate* from the database
-     #execution, which is listed as if it applied to all the
-     #sub-sections.
-     execution:
-       template: 'run_teachsparse_ml.sh'
-       time: 10
-       ntasks: 8
-       mem_per_cpu: 5
-       job_name: 'AgPd GAP'
-     #Amount of data to use for *training*. Only applies to the case
-     #where we use full configuration database for training (i.e., not
-     #the Hessian fitting).
-     split: 0.5
-     #This keyword signals that we want to do the hessian fitting. If it
-     #isn't present, the fitting defaults to using all the available
-     #configurations. If this *and* split are both present, this takes
-     #priority.
-     #hessian_delta: 0.01
-     gap: ['2body', '3body', 'soap']
-     2body:
-       cutoff: 6.0
-       cutoff_transition_width: 1.0
-       n_sparse: 20
-     3body:
-       cutoff: 3.5
-       cutoff_transition_width: 0.5
-       n_sparse: 200
-     soap:
-       l_max: 12
-       n_max: 12
-       cutoff: 5.0
-       n_sparse: 200
-       #For SOAP only, sparse_method=file can be specified in which case
-       #sparse points are manually generated for the fit using randomized
-       #sub-configurations of the seed configurations, equally weighted.
-       sparse_method: 'file'
+training:
+  configs: ['PdAg25', 'PdAg50', 'PdAg75']
+  #Execution for the training is *separate* from the database
+  #execution, which is listed as if it applied to all the
+  #sub-sections.
+  execution:
+    template: 'run_teachsparse_ml.sh'
+    time: 10
+    ntasks: 8
+    mem_per_cpu: 5
+    job_name: 'AgPd GAP'
+  #Amount of data to use for *training*. Only applies to the case
+  #where we use full configuration database for training (i.e., not
+  #the Hessian fitting).
+  split: 0.5
+  #This keyword signals that we want to do the hessian fitting. If it
+  #isn't present, the fitting defaults to using all the available
+  #configurations. If this *and* split are both present, this takes
+  #priority.
+  #hessian_delta: 0.01
+  gap: ['2body', '3body', 'soap']
+  2body:
+    cutoff: 6.0
+    cutoff_transition_width: 1.0
+    n_sparse: 20
+  3body:
+    cutoff: 3.5
+    cutoff_transition_width: 0.5
+    n_sparse: 200
+  soap:
+    l_max: 12
+    n_max: 12
+    cutoff: 5.0
+    n_sparse: 200
+    #For SOAP only, sparse_method=file can be specified in which case
+    #sparse points are manually generated for the fit using randomized
+    #sub-configurations of the seed configurations, equally weighted.
+    sparse_method: 'file'
