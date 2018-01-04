@@ -7,8 +7,9 @@ import numpy as np
 import six
 import collections
 from glob import glob
+from uuid import uuid4
 
-def parse_seeds(root,seeds,rseed=None):
+def parse_path(root,seeds,rseed=None):
     """Finds the full path to the seed files for this system.
 
     Args:
@@ -23,9 +24,6 @@ def parse_seeds(root,seeds,rseed=None):
     from matdb.utility import special_values
     from itertools import product
     
-    if isinstance(seeds,six.string_types):
-        seeds = [seeds]
-
     svals = ["linspace", "logspace", "range", "random:", "distr:", "["]
 
     seed_files = []
@@ -133,6 +131,8 @@ def db_pgrid(options, ignore_=None):
             
     suffix_grid = list(product(*suffix_values))
     grid = list(product(*values))
+    if grid == [()]:
+        grid = []
     
     if len(grid) != len(suffix_grid): #pragma: no cover
         msg.err("The grid and the suffix grid don't match.")
@@ -355,6 +355,7 @@ class Database(object):
         from os import mkdir
         self.steps = OrderedDict()
         for dbspec in steps:
+            uuid = uuid4()
             if isinstance(dbspec, six.string_types):
                 #This is a reference to an existing database instance that was
                 #defined previously.
@@ -378,12 +379,7 @@ class Database(object):
             #pointers; then add in the keyword arguments that are missing.
             cpspec = dbspec.copy()
             del cpspec["type"]
-            if "seed" in cpspec and cpspec["seed"] is not None:
-                cpspec["seed"] = parse_seeds(root,cpspec["seed"])
-            elif "seed*" in cpspec and cpspec["seed*"] is not None:
-                cpspec["seed"] = parse_seeds(root,cpspec["seed*"])
-                del cpspec["seed*"]
-
+            
             cpspec["atoms"] = ParameterGrid(cpspec.copy())
             for k in list(cpspec.keys()):
                 if "suffix" in k:
@@ -505,7 +501,7 @@ class Database(object):
         Args:
             name (str): name of the split to perform.
             recalc (int): when non-zero, re-split the data and overwrite any
-              existing *.xyz files. This parameter decreases as
+              existing files. This parameter decreases as
               rewrites proceed down the stack. To re-calculate
               lower-level XYZ files, increase this value.
         """
@@ -670,6 +666,7 @@ class Controller(object):
         self.kpoints = self.specs.get("kpoints", {})
         self.execution = self.specs.get("execution", {})
         self.venv = self.specs.get("venv")
+        self.random_seed = self.specs.get("random seed")
 
         # We need to split out the databases by user-given name to create
         # the sequences.
@@ -731,9 +728,19 @@ class Controller(object):
                     if dfilter is None or any(fnmatch(dbn, d) for d in dfilter):
                         yield (dbn, seq)
 
+    def relpaths(self, pattern):
+        """Finds the relative paths for the seed configurations within the databases that 
+        match to the pattern.
+
+        Args:
+            pattern (str): the pattern to match.
+        """
+        
+        return parse_path(self.root,pattern,rseed=self.random_seed)
+    
     def find(self, pattern):
-        """Finds a list of database steps that match the given pattern. The
-        pattern is formed using `config.dbname-suffix.step`. `*` can be used as
+        """Finds a list of database steps that match the given pattern or uuid. The
+        pattern is formed using `dbtype.dbname.config.step-suffix`. `*` can be used as
         a wildcard for any portion of the '.'-separated path.
         .. note:: Actually, an :func:`~fnmatch.fnmatch` pattern can be used.
         Args:
@@ -745,7 +752,7 @@ class Controller(object):
             configuration. The example assumes that the database name is
             `phonon` and that it includes a dynamical matrix step.
             >>> Pd = Controller("Pd.yml")
-            >>> Pd.find("Pd.phonon*.dynmatrix")
+            >>> Pd.find("DynMatrix.phonon.Pd.*")
             Get all the database sequences for liquids across all configurations in
             the database.
             >>> CdWO4 = Controller("CdWO4.yml")
@@ -756,9 +763,9 @@ class Controller(object):
         
         from fnmatch import fnmatch
         if pattern.count('.') == 2:
-            config, parent, db = pattern.split('.')
+            parent, db, config = pattern.split('.')
         elif pattern.count('.') == 1:
-            config, parent = pattern.split('.')
+            parent, config = pattern.split('.')
             db = None
         else:
             #We must be searching legacy databases; match the pattern against
