@@ -7,80 +7,16 @@ from .controller import ParameterGrid
 import abc
 import pickle
 import datetime
+from matdb import calculators
+from contextlib import contextmanager
 
-def can_execute(folder):
-    """Returns True if the specified folder is ready to execute VASP
-    in.
-    """
-    if not path.isdir(folder):
-        return False
-    
-    from os import stat
-    required = ["INCAR", "POSCAR", "KPOINTS", "POTCAR"]
-    present = {}
-    for rfile in required:
-        target = path.join(folder, rfile)
-        sizeok = stat(target).st_size > 25
-        present[rfile] = path.isfile(target) and sizeok
-
-    if not all(present.values()):
-        from matdb.msg import info
-        for f, ok in present.items():
-            if not ok:
-                info("{} not present for VASP execution.".format(f), 2)
-    return all(present.values())
-
-def can_cleanup(folder):
-    """Returns True if the specified VASP folder has completed
-    executing and the results are available for use.
-    """
-    if not path.isdir(folder):
-        return False
-    
-    #If we can extract a final total energy from the OUTCAR file, we
-    #consider the calculation to be finished.
-    outcar = path.join(folder, "OUTCAR")
-    if not path.isfile(outcar):
-        return False
-
-    import mmap
-    line = None
-    with open(outcar, 'r') as f:
-        # memory-map the file, size 0 means whole file
-        m = mmap.mmap(f.fileno(), 0, prot=mmap.PROT_READ)  
-        i = m.rfind('free  energy')
-        if i > 0:
-            # seek to the location and get the rest of the line.
-            m.seek(i)
-            line = m.readline()
-
-    if line is not None and "TOTEN" in line:
-        return True
-    else:
-        #For some of the calibration tests, it is possible that an error was
-        #raised because the ions are too close together. That still counts as
-        #finishing, we just don't have output.
-        line = None
-        with open(outcar, 'r') as f:
-            # memory-map the file, size 0 means whole file
-            m = mmap.mmap(f.fileno(), 0, prot=mmap.PROT_READ)  
-            i = m.rfind('free  energy')
-            if i > 0:
-                # seek to the location and get the rest of the line.
-                m.seek(i)
-                line = m.readline()
-
-        if line is not None and "Error" in line:
-            return True
-        else:
-            return False
-        
 class Group(object):
     """Represents a collection of material configurations (varying in
     structure and composition) from which a machine learning model can
     be created. Includes logic for generating the DFT directories that
     need to be run as well as extracting the relevant data from such
     computations.
+
     Args:
         execution (dict): key-value pairs of settings for the supercomputer job
           array batch file.
@@ -97,6 +33,7 @@ class Group(object):
         atoms (optional, quippy.atoms.Atoms): a single atomic configuration from
           which many others may be derived using MD, phonon
           displacements, etc.
+
     Attributes:
         atoms (quippy.atoms.Atoms): a single atomic configuration from
           which many others may be derived using MD, phonon
@@ -121,39 +58,55 @@ class Group(object):
         from os import path
 
         self.parent = parent
-        self.allatoms = {}
         self.execution = execution
         if parameters is not None:
             self.params = parameters
         else:
             self.params = None
-        if seed is not None:
-            self.seeded = True
-        else:
-            self.seeded = False
 
-        self.seeds = seed
+        self.is_seed_explicit = None
+        if seed is not None:
+            self.is_seed_explicit = isinstance(seed, list)
+
+        self.seeds = None
+        if isinstance(seed, list):
+            self.seeds = []
+            for atomspec in seed:
+                fmt, pattern = atomspec.split(':')
+                for apath in self.parent.controller.relpaths(pattern):
+                    self.seeds.append((apath, fmt))
+                    
+        elif seeds is not None:
+            self.seeds = [(a.copy(), None) for a in self.prev.rset]
+                                  
         self.sequence = OrderedDict()
-        if self.seeded:
-            n_seeds = 1
-            for this_seed in seed:
-                this_atoms = Atoms(path.join(this_seed),format="POSCAR")
-                seed_root = path.join(root,"seed-{}".format(n_seeds))
+        if self.seeds is not None:
+            for n_seeds, (seedpath, seedfmt) in enumerate(self.seeds):
+                if self.is_seed_explicit:
+                    this_atoms = seedpath
+                    seedname = "seed-{}".format(n_seeds)
+                else:
+                    this_atoms = Atoms(seedpath, format=seedfmt)
+                    seedname = path.basename(this_seed)
+                seed_root = path.join(root, seedname)
+                    
                 if not path.isdir(seed_root):
                     mkdir(seed_root)
+                                        
                 if atoms is not None and isinstance(atoms, ParameterGrid):
                     for params in atoms:
-                        this_root = path.join(seed_root,atoms.to_str(params))
+                        pkey = "{0}/{1}".format(seedname, atoms.to_str(params))
+                        this_root = path.join(seed_root, pkey)
                         if not path.isdir(this_root):
                             mkdir(this_root)
-                        self.sequence["seed-{}_".format(n_seeds)+
-                                      atoms.to_str(params)] = Group(root=this_root,
-                                                                    parent=parent,
-                                                                    prefix=prefix,
-                                                                    atoms=this_atoms,
-                                                                    db_name=db_name,
-                                                                    calculator=calculator,
-                                                                    parameters=atoms[params])
+                        self.sequence[pkey] = Group(root=this_root,
+                                                    parent=parent,
+                                                    prefix=prefix,
+                                                    atoms=this_atoms,
+                                                    db_name=db_name,
+                                                    calculator=calculator,
+                                                    parameters=atoms[params])
+                        
                 elif atoms is not None and isinstance(atoms,Atoms):
                     self.atoms = atoms
         else:
@@ -167,27 +120,24 @@ class Group(object):
                                                                 db_name=db_name,
                                                                 calculator=calculator,
                                                                 parameters=atoms[params])
-            elif atoms is not None and isinstance(atoms,Atoms):
+            elif atoms is not None and isinstance(atoms, Atoms):
                 self.atoms = atoms
             else:
                 self.atoms = None
 
-        # from importlib import import_module
-        # modname, clsname = calculator["name"].split('.')
-        # fqdn = "matdb.calculator.{}".format(modname)
-        # module = import_module(fqdn)
-        self.calc = getattr(module, clsname)
-        self.calcargs = calculator.pop("name",None)
+        self.calc = getattr(calculators, calculator["name"])
+        self.calcargs = calculator
         self.root = root            
         self.prefix = prefix
         self.nconfigs = nconfigs
         self.config_type = config_type
+        
         self._nsuccess = 0
-        self._db_name = db_name
         """int: number of configurations whose output files were successfully
         converted to XYZ format. Should be equal to :attr:`nconfigs` if the
         database is complete.
         """
+        self._db_name = db_name
         
         #Try and load existing folders that match the prefix into the configs
         #list.
@@ -195,12 +145,14 @@ class Group(object):
         from os import path
         from matdb.utility import chdir
         self.configs = {}
-
+        self.config_atoms = {}
+        
         with chdir(self.root):
             for folder in glob("{}.*".format(prefix)):
                 try:
                     cid = int(folder.split('.')[1])
                     self.configs[cid] = path.join(self.root, folder)
+                    self.config_atoms[cid] = self.calc.from_folder(self.configs[cid]).atoms
                 except:
                     #The folder name doesn't follow our convention.
                     pass
@@ -217,8 +169,6 @@ class Group(object):
             if v == self._db_name and i!=0:
                 return self.parent.steps[keylist[i-1]]
 
-        return None
-
     def dep(self):
         """Finds the next, or dependent, group in the databes.
         """
@@ -226,34 +176,24 @@ class Group(object):
         for i, v in enumerate(keylist):
             if v == self._db_name and i!=(len(keylist)-1):
                 return self.parent.steps[keylist[i+1]]
-
-        return None
         
     def is_executing(self):
         """Returns True if the database DFT calculations are in process of being
         executed.
         """
-        if not bool(self.sequence):            
-            outcars = False
-            for f in self.configs.values():
-                outcar = path.join(f, "OUTCAR")
-                if path.isfile(outcar):
-                    outcars = outcars or True
-
-            busy = False
-            for f in self.configs.values():
-                if not can_cleanup(f):
-                    busy = True
-                    break
-            result = outcars and busy
-            
+        if len(self.sequence) == 0:
+            is_executing = False
+            for atoms in self.config_atoms:
+                is_executing = atoms.calculator.is_executing()
+                if is_executing:
+                    break                
         else:
             executing = []
             for seq in self.sequence:
-                executin.append(self.sequence[seq].is_executing())
-            result = all(executing)
+                executing.append(self.sequence[seq].is_executing())
+            is_executing = all(executing)
             
-        return result
+        return is_executing
             
     def execute(self, dryrun=False, recovery=False, env_vars=None):
         """Submits the job script for each of the folders in this
@@ -270,25 +210,29 @@ class Group(object):
             (considered successful).
         """
 
-        if not bool(self.sequence):
+        if len(self.sequence) == 0:
             jobfile = "recovery.sh" if recovery else "jobfile.sh"
             if not path.isfile(path.join(self.root, jobfile)):
                 return False
 
             if not recovery:
-                executors = {f: can_execute(f) for f in self.configs.values()}
-                if not all(executors.values()):
+                if not all(a.calculator.can_execute()
+                           for a in self.config_atoms.values()):
                     return False
 
-                #We also need to check that we haven't already submitted this job. If
-                #the OUTCAR file exists, then we don't want to resubmit.
-                for f in self.configs.values():
-                    outcar = path.join(f, "OUTCAR")
-                    if path.isfile(outcar):
-                        return False
+                #We also need to check that we haven't already submitted this
+                #job. Check to see if it is executing.
+                if any(a.calculator.is_executing()
+                       for a in self.config_atoms.values()):
+                    return False
+
+                #Make sure that the calculation isn't complete.
+                if any(a.calculator.can_cleanup()
+                       for a in self.config_atoms.values()):
+                    return False                
         
-            # We must have what we need to execute. Compile the command
-            # and submit.
+            # We must have what we need to execute. Compile the command and
+            # submit.
             from matdb.utility import execute
             cargs = ["sbatch", jobfile]
             if dryrun:
@@ -322,10 +266,10 @@ class Group(object):
               already exists. 
         """
 
-        if not bool(self.sequence):
+        if len(self.sequence) == 0:
             detail = self.status(False)
             failed = [k for k, v in detail["done"].items() if not v]
-            identity = "{0}|{1}".format(self.parent.name, self.name)
+            identity = "{0}|{1}".format(self._db_name, self.name)
             xpath = path.join(self.root, "failures")
 
             if len(failed) > 0:
@@ -364,8 +308,7 @@ class Group(object):
               different template and execution path.
         """
 
-        if not bool(self.sequence):
-            from os import path
+        if len(self.sequence) == 0:
             if recovery:
                 from matdb.utility import linecount
                 target = path.join(self.root, "recovery.sh")
@@ -405,7 +348,8 @@ class Group(object):
                 self.sequence[seq].jobfile(rerun=rerun, recovery=recovery)
                     
     def create(self, atoms, cid=None, rewrite=False, sort=None):
-        """Creates a folder within this database in which VASP may be run.
+        """Creates a folder within this group to calculate properties.
+
         Args:
             atoms (quippy.atoms.Atoms): atomic configuration to run.
             cid (int): integer configuration id; if not specified, defaults to
@@ -425,24 +369,15 @@ class Group(object):
             if not path.isdir(target):
                 mkdir(target)
 
-            #Create symbolic links to the INCAR and POTCAR files that we need. INCAR
-            #is stored locally for each database type (in `self.root`) while the
-            #POTCAR is for the entire system and lives two directories up.
-            from matdb.utility import symlink, execute
-            #Make sure that the INCAR and PRECALC for this database has been created
-            #already.
-            self.atoms.set_calculator(self.calc(**self.calcargs))
-            POTCAR = path.join(target, "POTCAR")
-            symlink(POTCAR, path.join(self.parent.parent.root, "POTCAR"))
+            calc = self.calc(atoms, target, **self.calcargs)
+            calc.create()
 
             #Finally, store the configuration for this folder.
             self.configs[cid] = target
+            self.config_atoms[cid] = atoms
         else:
-            for seq in self.sequence:
-                self.sequence[seq].create(instance.atoms,cid=cid, rewrite=rewrite, sort=sort)
-                for config, target in self.sequence[seq].configs:
-                    self.config[path+"_"+str(config)] = target
-                    self.allatoms[path+"_"+str(config)] = self.sequence[seq].atoms
+            for seqkey, group in self.sequence.items():
+                group.create(group.atoms, cid=cid, rewrite=rewrite, sort=sort)
 
     def ready(self):
         """Determines if this database has been completely initialized *and* has
@@ -454,15 +389,12 @@ class Group(object):
         """
         raise NotImplementedError("Method `ready` must be overloaded by a "
                                   "sub-class.")        
-        
-    def setup(self):
-        """Creates all the necessary folders for sub-configurations of the seed
-        atomic configuration, preparatory to DFT computations.
-        .. note:: This method should be overloaded by a sub-class, which also
-          calls this method.
-        """
 
-        if not bool(self.sequence):
+    def is_setup(self):
+        """Determines if all the necessary folders for sub-configurations of the seed
+        atomic configuration exist.
+        """        
+        if len(self.sequence) == 0:
             #Test to see if we have already set the database up.
             confok = False
             if (len(self.configs) == self.nconfigs or
@@ -477,22 +409,27 @@ class Group(object):
                 xok = True
 
             result = confok or xok
-            with open(path.join(self.root,"compute.pkl"),"w+") as f:
-                pickle.dump({"params":self.params,"date":datetime.datetime.now(),
-                           "uuid":None},f)
-
         else:
             already_setup = []
             for seq in self.sequence:
                 already_setup.append(self.sequence[seq].setup())
             result = all(already_setup)
-            
-            
+
         return result
             
+    @contextmanager
+    def setup(self):
+        ok = self.is_setup()
+        yield ok
+        if not ok and self.is_setup():
+            with open(path.join(self.root,"compute.pkl"),"w+") as f:
+                pickle.dump({"params":self.params,"date":datetime.datetime.now(),
+                             "uuid":None},f)
+            
     def status(self, print_msg=True):
-        """Returns a status message for statistics of sub-configuration execution
-        with VASP.
+        """Returns a status message for statistics of sub-configuration
+        execution.
+
         Args:
             print_msg (bool): when True, return a text message with aggregate status
               information; otherwise, return a dict of the numbers involved
@@ -501,9 +438,15 @@ class Group(object):
         from tqdm import tqdm
         ready = {}
         done = {}
-        for f in tqdm(self.configs.values()):
-            ready[f] = can_execute(f)
-            done[f] = can_cleanup(f)
+
+        allatoms = self.config_atoms.values().copy()
+        if len(self.sequence) > 0:
+            for group in self.sequence.values():
+                allatoms.update(group.config_atoms.values())
+                
+        for a in tqdm(allatoms):
+            ready[f] = a.calculator.can_execute()
+            done[f] = a.calculator.can_cleanup()
         
         rdata, ddata = cnz(ready.values()), cnz(done.values())
         N = len(self.configs)        
@@ -527,8 +470,8 @@ class Group(object):
                 "busy": is_busy
             }
         
-    def cleanup(self):
-        """Runs post-DFT execution routines to clean-up the database. This super class
+    def can_cleanup(self):
+        """Runs post-execution routines to clean-up the calculations. This super class
         implementation only checks that each of the sub-config directories has
         the necessary files needed for cleanup.
         """
@@ -538,57 +481,24 @@ class Group(object):
             #otherwise we aren't ready to go.
             return False
         
-        cleanups = [can_cleanup(f) for f in self.configs.values()]
+        cleanups = [a.calculator.can_cleanup() for a in self.config_atoms.values()]
         return all(cleanups)
     
-    def xyz(self, filename="output.xyz",
-            properties=["species", "pos", "z", "dft_force"],
-            parameters=["dft_energy", "dft_virial"],
-            recalc=False, combine=False):
-        """Creates an XYZ file for each of the sub-sampled configurations in this
-        database.
-        Args:
-            filename (str): name of the XYZ file to create; this is created in
-              each sub-sampled configurations directory.
-            properties (list): of `str` *atom* property names (such as position,
-              force, Z, etc.) to include in the XYZ file.
-            parameters (list): of `str` *configuration* paramater names (such as
-              energy, stress, etc.).
-            recalc (bool): when True, re-create the XYZ files, even if they already
-              exist. 
-            combine (bool): when True, combine all the sub-configuration XYZ
-              files into a single, giant XYZ file.
-        Returns:
-            bool: True if the number of xyz files created equals the number of
-            configurations in the database, which means that the database is
-            fully calculated in a usable way.
-        """
-        from matdb.io import vasp_to_xyz
-        from tqdm import tqdm
-        created = []
-        for i, folder in tqdm(self.configs.items()):
-            if vasp_to_xyz(folder, filename, recalc, properties, parameters,
-                           self.config_type):
-                outpath = path.join(folder, filename)
-                created.append(outpath)
-                
-        self._nsuccess = len(created)
-        
-        #Finally, combine all of them together into a single
-        if combine:
-            from matdb.utility import cat
-            dboutpath = path.join(self.root, filename)
-            cat(created, dboutpath)
-        
-        return len(created) == len(self.configs)
-
-    def tarball(self, filename="output.tar.gz", files=["OUTCAR"]):
+    def tarball(self, filename="output.tar.gz"):
         """Creates a zipped tar archive that contains each of the specified
         files in sub-sampled configurations' output folders.
         
         Args:
             filename (str): name of the zipped archive to create.
-            files (list): of `str` files in each sub-sampled folder to include
-              in the archive.
         """
-        self.calc.tarball()
+        if len(self.sequence) == 0:
+            parts = []
+            for fname in self.calc.tarball:
+                parts.append("{}.*/{}".format(self.prefix, fname))
+
+            targs = ["tar", "-cvzf", filename, ' '.join(parts)]
+            from matdb.utility import execute
+            execute(targs, self.root)
+        else:
+            for group in self.sequence.values():
+                group.tarball(filename)
