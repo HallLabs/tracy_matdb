@@ -163,7 +163,6 @@ class Enumerated(Group):
     def _update_params(self,params):
         """Parses the parameter dictionary.
         """
-
         if "eps" not in params:
             self.eps = 10**(-3)
         else:
@@ -213,7 +212,7 @@ class Enumerated(Group):
         if "species" in params and isinstance(params["species"],list):
             species = params["species"]
             self.knary = len(species)
-            if len(self.knary) == 1:
+            if self.knary == 1:
                 self.species = [species[0],species[0]]
             else:
                 self.species = species
@@ -355,7 +354,7 @@ class Enumerated(Group):
 
         if not folders_ok:
             for seq in self.sequence:
-                self._update_params(self.sequence[seq].read_params())
+                self._update_params(self.sequence[seq].params)
                 # We need to determine how many configurations from each
                 # lattice type to include.
                 # For each lattice type we need to construct a lattice.in

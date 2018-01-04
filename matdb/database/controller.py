@@ -400,7 +400,7 @@ class Database(object):
                 if isinstance(cpspec[k], dict) and self.config in cpspec[k]:
                     cpspec[k] = cpspec[k][self.config]
             
-            instance = cls(**cpspec)
+            instance = cls(calculator=parent.specs["calculator"],**cpspec)
             self.steps[instance.name] = instance
 
     @property

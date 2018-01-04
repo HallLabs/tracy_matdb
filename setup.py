@@ -41,7 +41,7 @@ setup(name='matdb',
           "mpld3",
           "phenum"
       ],
-      packages=['matdb', 'matdb.database', 'matdb.fitting'],
+      packages=['matdb', 'matdb.database', 'matdb.fitting','matdb.calculators'],
       scripts=['matdb/scripts/matdb_build.py',
                'matdb/scripts/matdb_plot.py',
                'matdb/scripts/matdb_train.py',
