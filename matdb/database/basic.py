@@ -9,7 +9,18 @@ import pickle
 import datetime
 from matdb import calculators
 from contextlib import contextmanager
+import ase.db
 from uuid import uuid4
+
+def atoms_to_json(atoms, folder):
+    """Exports the specified atoms object, with its calculator's parameters, to
+    a `atoms.json` file.
+
+    Args:
+        atoms (quippy.Atoms): configuration to write to JSON.
+        folder (str): path to the folder to write the file in.
+    """
+    db = ase.db.connect(path.join(folder, "atoms.json"))
 
 class Group(object):
     """Represents a collection of material configurations (varying in
