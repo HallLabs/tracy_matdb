@@ -2,12 +2,20 @@
 implement. 
 """
 import abc
+from matdb.base import abstractstatic
 
 class AsyncCalculator(object):
     """Represents a calculator such as :class:`ase.Calculator` that can be run
     in multiple stages to compute properties (such as in a distributed or HCP
     environment).
     """
+    __metaclass__ = abc.ABCMeta
+    @abstractstatic
+    def from_folder(folder):
+        """Reconstructs the calculator class attached to an atoms object from a folder.
+        """
+        pass
+    
     @abc.abstractmethod
     def can_execute(self, folder):
         """Returns `True` if the specified folder is ready to execute using the
@@ -65,7 +73,7 @@ class SyncCalculator(object):
     or HCP environment).
     """
     @abc.abstractmethod
-    def can_execute(self, atoms):
+    def can_execute(self):
         """Returns `True` if this calculation can calculate properties for the
         specified atoms object.
 
@@ -75,7 +83,7 @@ class SyncCalculator(object):
         pass
 
     @abc.abstractmethod
-    def can_cleanup(self, atoms):
+    def can_cleanup(self):
         """Returns True if the specified atoms object has completed executing and the
         results are available for use.
 
@@ -85,7 +93,7 @@ class SyncCalculator(object):
         pass
 
     @abc.abstractmethod
-    def is_executing(self, atoms):
+    def is_executing(self):
         """Returns True if the specified config is in process of executing.
 
         Args:
@@ -94,20 +102,10 @@ class SyncCalculator(object):
         pass
 
     @abc.abstractmethod
-    def execute(self, atoms):
-        """Executes the calculator for the specified configuration.
+    def create(self, rewrite=False):
+        """Creates all necessary input files for the calculator's executable.
 
         Args:
-            atoms (quippy.Atoms): config to execute calculations for.
-        """
-        pass
-
-    @abc.abstractmethod
-    def create(self, atoms):
-        """Initializes the calculator for the specified atoms object if
-        necessary.
-
-        Args:
-            atoms (quippy.Atoms): config to initialize for.
+            folder (str): path to the folder in which to create input files.
         """
         pass
