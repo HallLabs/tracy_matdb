@@ -364,13 +364,9 @@ class Database(object):
             cpspec = dbspec.copy()
             del cpspec["type"]
             
-            cpspec["atoms"] = ParameterGrid(cpspec.copy())
-            for k in list(cpspec.keys()):
-                if "suffix" in k:
-                    del cpspec[k]
-                elif "*" == k[-1]:
-                    cpspec[k[:-1]] = None
-                    del cpspec[k]
+            cpspec["pgrid"] = ParameterGrid(cpspec.copy())
+            if len(cpspec["pgrid"]) ==0:
+                cpspec["parameters"] = cpspec.copy()
             cpspec["root"] = self.root
             cpspec["parent"] = self
 
