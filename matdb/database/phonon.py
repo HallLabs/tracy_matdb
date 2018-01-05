@@ -331,7 +331,7 @@ class DynMatrix(Group):
         if not path.isfile(fsets):#pragma: no cover
             msg.std(''.join(xres["error"]))
             msg.err("Couldn't create the FORCE_SETS:")
-            
+
     def setup(self, rerun=False):
         """Displaces the seed configuration preparatory to calculating the force
         sets for phonon spectra.
@@ -339,11 +339,17 @@ class DynMatrix(Group):
         Args:
             rerun (bool): when True, recreate the folders even if they
               already exist. 
-        """
-        folders_ok = super(DynMatrix, self).setup()
-        if folders_ok and not rerun:
-            return
+        """        
+        super(DynMatrix, self).setup(self._setup_configs, rerun)
+            
+    def _setup_configs(self, rerun):
+        """Displaces the seed configuration preparatory to calculating the force
+        sets for phonon spectra.
 
+        Args:
+            rerun (bool): when True, recreate the folders even if they
+              already exist. 
+        """        
         #We also don't want to setup again if we have the results already.
         if self.ready():
             return
