@@ -160,7 +160,7 @@ class Group(object):
         else:
             if pgrid is not None and len(pgrid) >0:
                 for params in pgrid:
-                    this_root = path.join(root,atoms.to_str(params))
+                    this_root = path.join(root,params.to_str(params))
                     if not path.isdir(this_root):
                         mkdir(this_root)
                     self.sequence[atoms.to_str(params)] = Group(root=this_root,parent=parent,
@@ -168,7 +168,7 @@ class Group(object):
                                                                 db_name=db_name,
                                                                 calculator=calculator,
                                                                 seeds = seeds,
-                                                                parameters=atoms[params])
+                                                                parameters=pgrid[params])
             else:
                 self.atoms = seeds
                 self.params = parameters
