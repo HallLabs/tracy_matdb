@@ -24,8 +24,6 @@ def parse_path(root,seeds,rseed=None):
     from matdb.utility import special_values
     from itertools import product
     
-    svals = ["linspace", "logspace", "range", "random:", "distr:", "["]
-
     seed_files = []
     for seed in seeds:
         # if there is a '/' in the seed then this is a path to the
@@ -35,14 +33,8 @@ def parse_path(root,seeds,rseed=None):
             this_seeds = []
             seed_path = root
             for segment in seed.split("/"):
-                test_vals = [k in segment for k in svals]
-                if any(test_vals):
-                    val = svals[test_vals.index(True)]
-                    temp = segment[:segment.index(val)]
-                    this_level = ["{0}{1}".format(temp,i) for i in
-                                  special_values(segment[segment.inedx(val):],seed=rseed)]
-                elif "*" in to_parse:
-                    if len(res) >=1:
+                if "*" in segment:
+                    if len(this_seeds) >=1:
                         this_level = []
                         for t_path in res:
                             this_level.extend(glob(path.join(seed_path,t_path,segment)))
@@ -50,7 +42,7 @@ def parse_path(root,seeds,rseed=None):
                         this_level = glob(path.join(seed_path,segment))
                 else:
                     this_level = [segment]
-                if len(res) >= 1:
+                if len(this_seeds) >= 1:
                     this_seeds.extend([path.join(*i) for i in product(this_seeds,this_level)])
                 else:
                     this_seeds.extend(this_level)                    
@@ -58,12 +50,7 @@ def parse_path(root,seeds,rseed=None):
         else:
             seed_path = path.join(root,"seed")
             to_parse = seed
-            test_vals = [k in to_parse for k in svals]
-            if any(test_vals):
-                val = svals[test_vals.index(True)]
-                temp_seed = seed[:seed.index(val)]
-                this_seeds = ["{0}{1}".format(temp_seed,i) for i in special_values(seed[seed.inedx(val):],seed=rseed)]
-            elif "*" in to_parse:
+            if "*" in to_parse:
                 this_seeds = glob(path.join(seed_path,to_parse))
             else:
                 this_seeds = [to_parse]
@@ -76,8 +63,6 @@ def parse_path(root,seeds,rseed=None):
                 msg.err("The seed file {} could not be found.".format(t_seed))
 
         return seed_files
-    
-    
 
 def db_pgrid(options, ignore_=None):
     """Creates a parameter grid over the specified options for the database.
@@ -355,7 +340,6 @@ class Database(object):
         from os import mkdir
         self.steps = OrderedDict()
         for dbspec in steps:
-            uuid = uuid4()
             if isinstance(dbspec, six.string_types):
                 #This is a reference to an existing database instance that was
                 #defined previously.
@@ -532,10 +516,10 @@ class Database(object):
             subconfs = {}
             fi = 0
             for dbname, db in self.isteps:
-                if len(db.configs) == 0:
+                if len(db.rset) == 0 or not db.trainable:
                     continue
                     
-                for configpath in db.configs.values():
+                for configpath in db.rset.values():
                     subconfs[fi] = configpath
                     fi += 1
                         
@@ -549,6 +533,7 @@ class Database(object):
             #We need to save these ids so that we don't mess up the statistics on
             #the training and validation sets.
             data = {
+                "uuid": uuid4()
                 "subconfs": subconfs,
                 "ids": ids,
                 "Ntrain": Ntrain,
