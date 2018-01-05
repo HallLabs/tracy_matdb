@@ -69,9 +69,11 @@ def db_pgrid(options, ignore_=None):
     .. note:: This function treats keys that end in `*` specially. When the key
       ends in `*`, the values in the specified list contribute to the cartesian
       product.
+
     Args:
         options (dict): key-value pairs to iterate across.
         ignore_ (list): of `str` keys to ignore in the options dict.
+
     Returns:
         tuple: `(grid, keys, suffix_grid)` where grid is a list of 
         tuples with a value for each key in `options`, keys is a liste of 
@@ -83,10 +85,10 @@ def db_pgrid(options, ignore_=None):
     from operator import itemgetter
     from matdb.utility import special_values
 
-    ignore = ["root","atoms","parent"]
+    ignore = ["root", "atoms", "parent"]
     if ignore_ is not None:
-        for i in ignore_:
-            ignore.append(i)
+        ignore.extend(ignore_)
+
     #Sort the dict so that we get the same ordering of parameters in the
     #product.
     params = OrderedDict(sorted(options.items(), key=itemgetter(0)))
@@ -125,6 +127,74 @@ def db_pgrid(options, ignore_=None):
         msg.err("The grid and the suffix grid don't match.")
         
     return (grid, keys, suffix_grid)
+
+def is_nested(d):
+    for k, v in d.items():
+        if k[-1] == '*':
+            return True
+        elif isinstance(v, dict) and is_nested(v):
+            return True
+
+    return False
+
+from matdb.utility import special_functions
+def get_suffix(d, k, index, values):
+    """Returns the suffix for the specified key in the dictionary that
+    is creating a parameter grid.
+    """
+    nk = k[0:-1]
+    suffix = "{0}_suffix".format(nk)
+    ssuff = suffix + '*'
+    
+    if suffix in d and (isinstance(d[suffix], dict) or ':' in d[suffix]):
+        keyval = special_functions(d[suffix], values)
+    elif suffix in d and isinstance(suffix, six.string_types):
+        keyval = d[suffix].format(values)
+    elif ssuff in d:
+        keyval = d[ssuff][index]
+    else:
+        keyval = index
+    
+    if isinstance(keyval, float):
+        return "{0}-{1:.2f}".format(nk[:3], keyval)
+    else:
+        return "{0}-{1}".format(nk[:3], keyval)
+
+def update(d, suffices=None):
+    dcopy = d.copy()
+    stack = [(dcopy, None)]
+    result = {}
+    
+    if suffices is None:
+        suffices = {k: v for k, v in d.items() if "suffix" in k[-8:]}
+        for k in suffices:
+            del dcopy[k]
+        
+    while len(stack) > 0:
+        oned, nsuffix = stack.pop()
+        for k, v in oned.items():
+            if k[-1] == '*':
+                nk = k[0:-1]
+                    
+                for ival, value in enumerate(v):
+                    suffix = get_suffix(suffices, k, ival, value)
+                    dc = oned.copy()
+                    del dc[k]
+                    dc[nk] = value
+                    stack.append((dc, suffix))
+                break
+            elif isinstance(v, dict) and is_nested(v):
+                blowup = update(v, suffices)
+                for rsuffix, entry in blowup.items():
+                    dc = oned.copy()
+                    dc[k] = entry
+                    compsuffix = rsuffix if nsuffix is None else '-'.join(map(str, (nsuffix, rsuffix)))
+                    stack.append((dc, compsuffix))
+                break
+        else:
+            result[nsuffix] = oned
+            
+    return result
 
 class ParameterGrid(collections.MutableSet):
     """An ordered list of the paramater combinations for the database. 
@@ -196,41 +266,42 @@ class ParameterGrid(collections.MutableSet):
     def __contains__(self, key):
         return key in self.map
 
-    def __getitem__(self,key):
+    def __getitem__(self, key):
         return self.values[key]
 
-    def _make_values_dict(self,value):
+    def _make_values_dict(self, value):
         """Creates the full dict of paramaters for this instance of the parametr grid.
         """
-
-        for dkey in self.params.keys():
+        params = self.params.copy()
+        for dkey in params.keys():
             if "suffix" in dkey:
-                self.params.pop(dkey)
-            elif isinstance(self.params[dkey],dict):
-                for ckey in self.params[dkey].keys():
+                params.pop(dkey)
+            elif isinstance(params[dkey],dict):
+                for ckey in params[dkey].keys():
                     if "suffix" in ckey:
-                        self.params[dkey].pop(ckey)
+                        params[dkey].pop(ckey)
 
         count = 0
         for key in self.keys:
-            if "{}*".format(key) in self.params:
-                self.params[key] = value[count]
-                self.params.pop("{}*".format(key))
+            if "{}*".format(key) in params:
+                params[key] = value[count]
+                params.pop("{}*".format(key))
                 count += 1
-            elif key in self.params:
-                self.params[key] = value[count]
+            elif key in params:
+                params[key] = value[count]
                 count += 1
             else:
-                for dkey in self.params.keys():
-                    if "{}*".format(key) in self.params[dkey]:
-                        self.params[dkey][key] = value[count]
-                        self.params[dkey].pop("{}*".format(key))
+                for dkey in params.keys():
+                    if "{}*".format(key) in params[dkey]:
+                        params[dkey][key] = value[count]
+                        params[dkey].pop("{}*".format(key))
                         count += 1
-                    elif key in self.params[dkey]:
-                        self.params[dkey][key] = value[count]
+                    elif key in params[dkey]:
+                        params[dkey][key] = value[count]
                         count += 1
-
-    def add(self, key,value):
+        return params
+                        
+    def add(self, key, value):
         """Adds key to the set if it is not already in the set.
         Args:
             key (tuple): Anything that could be added to the set.
@@ -241,8 +312,7 @@ class ParameterGrid(collections.MutableSet):
             end = self.end
             curr = end[1]
             curr[2] = end[1] = self.map[key] = [key, curr, end]
-            self._make_values_dict(value)
-            self.values[key] = self.params
+            self.values[key] = self._make_values_dict(value)
         else:
             msg.warn("The key {} already exists in the set, ignoring addition.".format(key))
 
