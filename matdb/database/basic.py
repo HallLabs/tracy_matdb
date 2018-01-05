@@ -508,17 +508,20 @@ class Group(object):
         return result
             
     def setup(self, db_setup, rerun =False):
-        if len(self.sequence) == 0 and self.prev.can_cleanup():
-            ok = self.is_setup()
-            if ok and not rerun:
-                return
-            db_setup(rerun)
-            with open(path.join(self.root,"compute.pkl"),"w+") as f:
-                pickle.dump({"params":self.params,"date":datetime.datetime.now(),
+        if self.prev is None or (self.prev is not None and self.prev.can_cleanup()):
+            if len(self.sequence) == 0:
+                ok = self.is_setup()
+                if ok and not rerun:
+                    return
+                db_setup(rerun)
+                with open(path.join(self.root,"compute.pkl"),"w+") as f:
+                    pickle.dump({"params":self.params,"date":datetime.datetime.now(),
                                  "uuid":self.uuid},f)
+            else:
+                for group in self.sequence.values():
+                    group.setup(db_setup,rerun=rerun)
         else:
-            for group in self.sequence.values():
-                group.setup(db_setup,rerun=rerun)        
+            return False                    
             
     def status(self, print_msg=True):
         """Returns a status message for statistics of sub-configuration
