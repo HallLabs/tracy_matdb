@@ -119,6 +119,7 @@ class Group(object):
         from os import path
 
         self.index = {}
+        self.root = root            
         self._read_index()
         self.parent = parent
         self.execution = execution
@@ -159,7 +160,7 @@ class Group(object):
                                                 pgrid=pgrid)
         else:
             if pgrid is not None and len(pgrid) >0:
-                for param- in pgrid:
+                for params in pgrid:
                     this_root = path.join(root,pgrid.to_str(params))
                     if not path.isdir(this_root):
                         mkdir(this_root)
@@ -177,9 +178,10 @@ class Group(object):
         if calculator is not None:
             self.calc = getattr(calculators, calculator["name"])
         self.calcargs = calculator
-        self.root = root            
         self.prefix = prefix
         self.nconfigs = nconfigs
+        if self.params is not None and "nconfigs" in self.params:
+            self.nconfigs = self.params["nconfigs"]
         self.config_type = config_type
         
         self._nsuccess = 0
@@ -254,7 +256,8 @@ class Group(object):
         if path.isfile(path.join(self.root,"index.json")):
             with open(path.join(self.root,"index.json"),"r") as f:
                 self.index = json.load(f)
-        
+                
+    @property  
     def prev(self):
         """Finds the previous group in the database.
         """
@@ -262,7 +265,8 @@ class Group(object):
         for i, v in enumerate(keylist):
             if v == self._db_name and i!=0:
                 return self.parent.steps[keylist[i-1]]
-
+            
+    @property
     def dep(self):
         """Finds the next, or dependent, group in the databes.
         """
@@ -461,6 +465,8 @@ class Group(object):
             if not path.isdir(target):
                 mkdir(target)
 
+            import pudb
+            pudb.set_trace()
             calc = self.calc(atoms, target, **self.calcargs)
             calc.create()
 
@@ -469,7 +475,7 @@ class Group(object):
             self.config_atoms[cid] = atoms
         else:
             for group in self.sequence.values():
-                group.create(group.atoms, cid=cid, rewrite=rewrite, sort=sort)
+                group.create(atoms, cid=cid, rewrite=rewrite, sort=sort)
 
     def ready(self):
         """Determines if this database has been completely initialized *and* has
@@ -502,12 +508,21 @@ class Group(object):
 
             result = confok or xok
         else:
-            already_setup = [group.setup() for group in self.sequence.values()]
+            already_setup = [group.is_setup() for group in self.sequence.values()]
             result = all(already_setup)
 
         return result
             
     def setup(self, db_setup, rerun =False):
+        """Performs the setup of the database using the `db_setup` function
+        passed in by the specific group instance.
+        
+        Args:
+            db_setup (function): a function that will perform the setup for each
+                group independently.
+            rerun (bool): default value is False.
+        """
+
         if self.prev is None or (self.prev is not None and self.prev.can_cleanup()):
             if len(self.sequence) == 0:
                 ok = self.is_setup()
