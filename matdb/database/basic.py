@@ -508,7 +508,7 @@ class Group(object):
         return result
             
     def setup(self, db_setup, rerun =False):
-        if len(self.sequence) == 0:
+        if len(self.sequence) == 0 and self.prev.can_cleanup():
             ok = self.is_setup()
             if ok and not rerun:
                 return
