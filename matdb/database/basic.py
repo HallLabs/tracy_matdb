@@ -13,11 +13,11 @@ import ase.db
 from uuid import uuid4
 import numpy as np
 import quippy
+import six 
 
 def atoms_to_json(atoms, folder):
     """Exports the specified atoms object, with its calculator's parameters, to
     a `atoms.json` file.
-
     Args:
         atoms (quippy.Atoms): configuration to write to JSON.
         folder (str): path to the folder to write the file in.
@@ -44,7 +44,6 @@ def atoms_to_json(atoms, folder):
 def atoms_from_json(folder):
     """Retrieves a :class:`quippy.Atoms` object from JSON in the specified
     folder.
-
     Args:
         folder (str): path to the folder that has the `atoms.json` file.
     """
@@ -79,7 +78,6 @@ class Group(object):
     be created. Includes logic for generating the DFT directories that
     need to be run as well as extracting the relevant data from such
     computations.
-
     Args:
         execution (dict): key-value pairs of settings for the supercomputer job
           array batch file.
@@ -93,10 +91,10 @@ class Group(object):
         config_type (str): the type of configuration.
         calculator (dict): a dictionary containing the information for
           the calculator object.
-        atoms (optional, quippy.atoms.Atoms): a single atomic configuration from
-          which many others may be derived using MD, phonon
-          displacements, etc.
-
+       trainable (bool): True if the groups configs will be used for traning.
+       pgrid (ParamaterGrid): The ParameterGrid for the database.
+       seeds (list, str, quippy.Atoms): The location of the files that will be
+          read into to make the atoms object or an atoms object.
     Attributes:
         atoms (quippy.atoms.Atoms): a single atomic configuration from
           which many others may be derived using MD, phonon
@@ -111,90 +109,79 @@ class Group(object):
         prefix (str): sub-sampled configurations will be stored using integer
           ids after this prefix; for example `S.1`, `S.2`, etc.
         nconfigs (int): number of displaced configurations to create.
-
     """
-    def __init__(self, root=None, parent=None, prefix='S', atoms=None,
+    seeded = False
+    def __init__(self, root=None, parent=None, prefix='S', pgrid = None,
                  nconfigs=None, calculator=None, seeds=None, db_name=None,
-                 config_type=None, parameters=None, execution={}):
+                 config_type=None, parameters=None, execution={}, trainable=False):
         from collections import OrderedDict
         from quippy.atoms import Atoms
         from os import path
 
+        self.index = {}
+        self.root = root            
+        self._read_index()
         self.parent = parent
         self.execution = execution
-        if parameters is not None:
-            self.params = parameters
-        else:
-            self.params = None
-
-        self.is_seed_explicit = None
+        self.params = None
+        self.atoms = None
+        
+        self._trainable = trainable
+        self.is_seed_listed = None
         if seeds is not None:
-            self.is_seed_explicit = isinstance(seeds, list)
+            self.is_seed_listed = isinstance(seeds, (list,six.string_types))
 
         self.seeds = None
-        if isinstance(seeds, list):
-            self.seeds = []
+        if self.is_seed_listed:
+            self.seeds = OrderedDict()
             for atomspec in seeds:
                 fmt, pattern = atomspec.split(':')
                 for apath in self.parent.controller.relpaths(pattern):
-                    self.seeds.append((apath, fmt))
+                    self.seeds[path.basename(apath)] = Atoms(apath,format=fmt)
                     
-        elif seeds is not None:
-            self.seeds = [(a.copy(), None) for a in self.prev.rset]
-                                  
+        elif seeds is None and self.seeded:
+            self.seeds = OrderedDict()
+            for n_seeds, a in enumerate(self.prev.rset):
+                seedname = "seed-{}".format(n_seeds)
+                self.seeds[seedname] = a.copy()            
+        
         self.sequence = OrderedDict()
         if self.seeds is not None:
-            for n_seeds, (seedpath, seedfmt) in enumerate(self.seeds):
-                if self.is_seed_explicit:
-                    this_atoms = seedpath
-                    seedname = "seed-{}".format(n_seeds)
-                else:
-                    this_atoms = Atoms(seedpath, format=seedfmt)
-                    seedname = path.basename(this_seed)
-                seed_root = path.join(root, seedname)
-                    
+            for seedname, at_seed in self.seeds.items():
+                seed_root = path.join(root, seedname)                    
                 if not path.isdir(seed_root):
-                    mkdir(seed_root)
-                                        
-                if atoms is not None and isinstance(atoms, ParameterGrid):
-                    for params in atoms:
-                        pkey = "{0}/{1}".format(seedname, atoms.to_str(params))
-                        this_root = path.join(seed_root, pkey)
-                        if not path.isdir(this_root):
-                            mkdir(this_root)
-                        self.sequence[pkey] = Group(root=this_root,
-                                                    parent=parent,
-                                                    prefix=prefix,
-                                                    atoms=this_atoms,
-                                                    db_name=db_name,
-                                                    calculator=calculator,
-                                                    parameters=atoms[params])
-                        
-                elif atoms is not None and isinstance(atoms,Atoms):
-                    self.atoms = atoms
+                    mkdir(seed_root)                                        
+                self.sequence[seedname] = Group(root=this_root,
+                                                parent=parent,
+                                                prefix=prefix,
+                                                seeds=at_seed,
+                                                db_name=db_name,
+                                                calculator=calculator,
+                                                pgrid=pgrid)
         else:
-            if atoms is not None and isinstance(atoms, ParameterGrid):
-                for params in atoms:
-                    this_root = path.join(root,atoms.to_str(params))
+            if pgrid is not None and len(pgrid) >0:
+                for params in pgrid:
+                    this_root = path.join(root,pgrid.to_str(params))
                     if not path.isdir(this_root):
                         mkdir(this_root)
-                    self.sequence[atoms.to_str(params)] = Group(root=this_root,parent=parent,
+                    self.sequence[pgrid.to_str(params)] = Group(root=this_root,parent=parent,
                                                                 prefix=prefix,
                                                                 db_name=db_name,
                                                                 calculator=calculator,
-                                                                parameters=atoms[params])
-            elif atoms is not None and isinstance(atoms, Atoms):
-                self.atoms = atoms
+                                                                seeds = seeds,
+                                                                parameters=pgrid[params])
             else:
-                self.atoms = None
-
+                self.atoms = seeds
+                self.params = parameters
+                
         self.calc = None
         if calculator is not None:
             self.calc = getattr(calculators, calculator["name"])
         self.calcargs = calculator
-        self.root = root            
         self.prefix = prefix
         self.nconfigs = nconfigs
+        if self.params is not None and "nconfigs" in self.params:
+            self.nconfigs = self.params["nconfigs"]
         self.config_type = config_type
         
         self._nsuccess = 0
@@ -212,22 +199,65 @@ class Group(object):
         self.configs = {}
         self.config_atoms = {}
         self.uuid = uuid4()
-        self.sub_uuids = {}
 
         with chdir(self.root):
             for folder in glob("{}.*".format(prefix)):
                 try:
                     cid = int(folder.split('.')[1])
                     self.configs[cid] = path.join(self.root, folder)
-                    self.config_atoms[cid] = self.calc.from_folder(self.configs[cid]).atoms
+                    self.config_atoms[cid] = atoms_from_json(self.configs[cid])
                 except:
                     #The folder name doesn't follow our convention.
                     pass
 
+    @property
+    def trainable(self):
+        """Determines if the group configs should be used for training.
+        """
+        if self.dep is None:
+            return True
+        else:
+            return self._trainable
+
+    @abc.abstractproperty
+    def fitting_configs(self):
+        """Returns a :class:`quippy.AtomsList` for all configs in this group.
+        """
+        pass
+    
     @abc.abstractproperty
     def rset(self):
+        """Saves the rset for the group and all sequences of the group.
+        """
         pass
+
+    def save_pkl(self, obj, file_name, rel_path=None):
+        """Saves the obj passed to the correct location on the path.
+        
+        Args:
+            obj (dict): The dictionary to be written to file.
+            file_name (str): the file name to be save too.
+            rel_path (str): the relative path from self.root that the file will be saved to.
+        """
+        f_path = path.join(self.root,rel_path,file_name) if rel_path is not None else path.join(self.root,file_name)
+        with open(f_path,"w+") as f:
+            pickle.dum(obj,f)
             
+    def save_index(self):
+        """Writes the unique index for each of the configs to file along with
+        the relative path to the atoms.json file        
+        """
+        with open(path.join(self.root,"index.json"),"w+") as f:
+            json.dump(self.index,f)
+    
+    def _read_index(self):
+        """Reads in the index from the index.json file if it exists.
+        """
+        if path.isfile(path.join(self.root,"index.json")):
+            with open(path.join(self.root,"index.json"),"r") as f:
+                self.index = json.load(f)
+                
+    @property  
     def prev(self):
         """Finds the previous group in the database.
         """
@@ -235,7 +265,8 @@ class Group(object):
         for i, v in enumerate(keylist):
             if v == self._db_name and i!=0:
                 return self.parent.steps[keylist[i-1]]
-
+            
+    @property
     def dep(self):
         """Finds the next, or dependent, group in the databes.
         """
@@ -255,9 +286,7 @@ class Group(object):
                 if is_executing:
                     break                
         else:
-            executing = []
-            for seq in self.sequence:
-                executing.append(self.sequence[seq].is_executing())
+            executing = [group.is_executing() for group in self.sequence.values()]
             is_executing = all(executing)
             
         return is_executing
@@ -318,10 +347,10 @@ class Group(object):
 
         else:
             already_executed = []
-            for seq in self.sequence:
-                already_executed.append(self.sequence[seq].execute(dryrun=dryrun,
-                                                                   recovery=recover,
-                                                                   env_vars=env_vars))
+            for group in self.sequence.values():
+                already_executed.append(group.execute(dryrun=dryrun,
+                                                      recovery=recover,
+                                                      env_vars=env_vars))
             return all(already_executed)
 
     def recover(self, rerun=False):
@@ -361,8 +390,8 @@ class Group(object):
                 if path.isfile(xpath):
                     remove(xpath)
         else:
-            for seq in self.sequence:
-                self.sequence[seq].recover(rerun=rerun)
+            for group in self.sequence.values():
+                group.recover(rerun=rerun)
                     
     def jobfile(self, rerun=False, recovery=False):
         """Creates the job array file to run each of the sub-configurations in
@@ -411,12 +440,11 @@ class Group(object):
             with open(target, 'w') as f:
                 f.write(template.render(**settings))
         else:
-            for seq in self.sequence:
-                self.sequence[seq].jobfile(rerun=rerun, recovery=recovery)
+            for group in self.sequence.values():
+                group.jobfile(rerun=rerun, recovery=recovery)
                     
     def create(self, atoms, cid=None, rewrite=False, sort=None):
         """Creates a folder within this group to calculate properties.
-
         Args:
             atoms (quippy.atoms.Atoms): atomic configuration to run.
             cid (int): integer configuration id; if not specified, defaults to
@@ -427,7 +455,7 @@ class Group(object):
               supercell writes work correctly.
         """
 
-        if not bool(self.sequence):
+        if len(self.sequence)==0:
             uid = uuid4()
             if cid is None:
                 cid = len(self.configs) + 1
@@ -437,16 +465,17 @@ class Group(object):
             if not path.isdir(target):
                 mkdir(target)
 
+            import pudb
+            pudb.set_trace()
             calc = self.calc(atoms, target, **self.calcargs)
             calc.create()
 
             #Finally, store the configuration for this folder.
             self.configs[cid] = target
             self.config_atoms[cid] = atoms
-            self.sub_uuids[uid] = target
         else:
-            for seqkey, group in self.sequence.items():
-                group.create(group.atoms, cid=cid, rewrite=rewrite, sort=sort)
+            for group in self.sequence.values():
+                group.create(atoms, cid=cid, rewrite=rewrite, sort=sort)
 
     def ready(self):
         """Determines if this database has been completely initialized *and* has
@@ -479,26 +508,39 @@ class Group(object):
 
             result = confok or xok
         else:
-            already_setup = []
-            for seq in self.sequence:
-                already_setup.append(self.sequence[seq].setup())
+            already_setup = [group.is_setup() for group in self.sequence.values()]
             result = all(already_setup)
 
         return result
             
-    @contextmanager
-    def setup(self):
-        ok = self.is_setup()
-        yield ok
-        if not ok and self.is_setup():
-            with open(path.join(self.root,"compute.pkl"),"w+") as f:
-                pickle.dump({"params":self.params,"date":datetime.datetime.now(),
-                             "uuid":None},f)
+    def setup(self, db_setup, rerun =False):
+        """Performs the setup of the database using the `db_setup` function
+        passed in by the specific group instance.
+        
+        Args:
+            db_setup (function): a function that will perform the setup for each
+                group independently.
+            rerun (bool): default value is False.
+        """
+
+        if self.prev is None or (self.prev is not None and self.prev.can_cleanup()):
+            if len(self.sequence) == 0:
+                ok = self.is_setup()
+                if ok and not rerun:
+                    return
+                db_setup(rerun)
+                with open(path.join(self.root,"compute.pkl"),"w+") as f:
+                    pickle.dump({"params":self.params,"date":datetime.datetime.now(),
+                                 "uuid":self.uuid},f)
+            else:
+                for group in self.sequence.values():
+                    group.setup(db_setup,rerun=rerun)
+        else:
+            return False                    
             
     def status(self, print_msg=True):
         """Returns a status message for statistics of sub-configuration
         execution.
-
         Args:
             print_msg (bool): when True, return a text message with aggregate status
               information; otherwise, return a dict of the numbers involved
@@ -544,15 +586,17 @@ class Group(object):
         implementation only checks that each of the sub-config directories has
         the necessary files needed for cleanup.
         """
-        if (len(self.configs) != self.nconfigs and
-            self.nconfigs is not None):
-            #We need to have at least one folder for each config;
-            #otherwise we aren't ready to go.
-            return False
+        if len(self.sequence) == 0:
+            if (len(self.configs) != self.nconfigs and
+                self.nconfigs is not None):
+                #We need to have at least one folder for each config;
+                #otherwise we aren't ready to go.
+                return False
         
-        cleanups = [a.calculator.can_cleanup() for a in self.config_atoms.values()]
+            cleanups = [a.calculator.can_cleanup() for a in self.config_atoms.values()]
+        else: 
+            cleanups = [group.can_cleanup() for group in self.sequence.values()]
         return all(cleanups)
-    
 
     def tarball(self, filename="output.tar.gz"):
         """Creates a zipped tar archive that contains each of the specified
@@ -576,7 +620,16 @@ class Group(object):
     def cleanup(self):
         """Creates a JSON file for each atoms object in the group.
         """
-        for cid, folder in self.configs.items():
-            atoms = self.config_atoms[cid]
-            atoms.calculator.cleanup()
-            atoms_to_json(atoms, folder)
+        if len(self.sequence) == 0 and self.can_cleanup():
+            for cid, folder in self.configs.items():
+                atoms = self.config_atoms[cid]
+                if hasattr(atoms, calc):
+                    atoms.calc.cleanup()
+                atoms_to_json(atoms, folder)
+
+        else:
+            for group in self.sequence.values():
+                group.cleanup()
+
+        if self.can_cleanup():
+            self.save_index()
