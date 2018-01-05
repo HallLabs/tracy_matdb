@@ -732,14 +732,12 @@ class Controller(object):
                         yield (dbn, seq)
 
     def find(self, pattern):
-        """Finds a list of database steps that match the given pattern. The
-        pattern is formed using `config.dbname-suffix.step`. `*` can be used as
-        a wildcard for any portion of the '.'-separated path.
+        """Finds a list of :class:`matdb.database.basic.Group` that match the given
+        pattern. The pattern is formed using `group.dbname[[.seed].params]`. `*`
+        can be used as a wildcard for any portion of the '.'-separated path.
         .. note:: Actually, an :func:`~fnmatch.fnmatch` pattern can be used.
-        Args:
-            pattern (str): fnmatch pattern that follows the convention of the DB
-              key.
-        Examples:
+        Args: pattern (str): fnmatch pattern that follows the convention of the
+        DB key.  Examples:
         
             Get all the dynamical matrix databases for the `Pd`
             configuration. The example assumes that the database name is
@@ -750,6 +748,7 @@ class Controller(object):
             the database.
             >>> CdWO4 = Controller("CdWO4.yml")
             >>> CdWO4.find("*.liquid*")
+
         """
         if pattern == '*':
             return self.find('*.*')
