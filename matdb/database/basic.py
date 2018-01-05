@@ -451,7 +451,7 @@ class Group(object):
               supercell writes work correctly.
         """
 
-        if len(self..sequence)==0:
+        if len(self.sequence)==0:
             uid = uuid4()
             if cid is None:
                 cid = len(self.configs) + 1

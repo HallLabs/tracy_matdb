@@ -366,7 +366,7 @@ class Database(object):
             
             cpspec["pgrid"] = ParameterGrid(cpspec.copy())
             if len(cpspec["pgrid"]) ==0:
-                cpspec["parameters"] = cpspec.copy()
+                cpspec["parameters"] = cpspec["pgrid"].params
             cpspec["root"] = self.root
             cpspec["parent"] = self
 
@@ -529,7 +529,7 @@ class Database(object):
             #We need to save these ids so that we don't mess up the statistics on
             #the training and validation sets.
             data = {
-                "uuid": uuid4()
+                "uuid": uuid4(),
                 "subconfs": subconfs,
                 "ids": ids,
                 "Ntrain": Ntrain,
