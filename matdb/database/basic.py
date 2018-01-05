@@ -158,7 +158,7 @@ class Group(object):
                                                 calculator=calculator,
                                                 pgrid=pgrid)
         else:
-            if pgrid is not None:
+            if pgrid is not None and len(pgrid) >0:
                 for params in pgrid:
                     this_root = path.join(root,atoms.to_str(params))
                     if not path.isdir(this_root):
