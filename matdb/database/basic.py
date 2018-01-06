@@ -105,6 +105,7 @@ class Group(object):
         pgrid (ParamaterGrid): The ParameterGrid for the database.
         seeds (list, str, quippy.Atoms): The location of the files that will be
           read into to make the atoms object or an atoms object.
+       cls (subclass): the subclass of :class:`Group`.
 
     Attributes:
         atoms (quippy.atoms.Atoms): a single atomic configuration from
@@ -122,16 +123,15 @@ class Group(object):
         nconfigs (int): number of displaced configurations to create.
     """
     seeded = False
-    def __init__(self, root=None, parent=None, prefix='S', pgrid=None,
+    def __init__(self, cls=None, root=None, parent=None, prefix='S', pgrid=None,
                  nconfigs=None, calculator=None, seeds=None, db_name=None,
-                 config_type=None, parameters=None, execution={}, trainable=False):
+                 config_type=None, execution={}, trainable=False):
         self.root = root
         self.index = {}
         self._read_index()
 
         self.parent = parent
         self.execution = execution
-        self.params = None
         self.atoms = None
         
         self._trainable = trainable
@@ -157,35 +157,42 @@ class Group(object):
                 #where it is simply an Atoms object, the copy performs the same
                 #function.
                 self.seeds[seedname] = a.copy()            
-        
+
+        grpargs = dict(parent=self, prefix=prefix, db_name=db_name,
+                       nconfigs=nconfigs, trainable=trainable,
+                       execution=execution, config_type=config_type,
+                       calculator=calculator)
+                
         self.sequence = OrderedDict()
         if self.seeds is not None:
             for seedname, at_seed in self.seeds.items():
                 seed_root = path.join(root, seedname)                    
                 if not path.isdir(seed_root):
-                    mkdir(seed_root)                                        
-                self.sequence[seedname] = Group(root=this_root,
-                                                parent=self,
-                                                prefix=prefix,
-                                                seeds=at_seed,
-                                                db_name=db_name,
-                                                calculator=calculator,
-                                                pgrid=pgrid)
+                    mkdir(seed_root)
+
+                clsargs = grpargs.copy()
+                clsargs["root"] = seed_root
+                clsargs["seeds"] = at_seed
+                clsargs["pgrid"] = pgrid
+                if cls is None:
+                    msg.err("The Group must have a class to have seeds.")
+                self.sequence[seedname] = cls(**clsargs)
         else:
             if pgrid is not None and len(pgrid) >0:
                 for params in pgrid:
                     this_root = path.join(root,pgrid.to_str(params))
                     if not path.isdir(this_root):
                         mkdir(this_root)
-                    self.sequence[pgrid.to_str(params)] = Group(root=this_root, parent=self,
-                                                                prefix=prefix,
-                                                                db_name=db_name,
-                                                                calculator=calculator,
-                                                                seeds=seeds,
-                                                                parameters=pgrid[params])
+                        
+                    clsargs = grpargs.copy()
+                    clsargs.update(pgrid[params])
+                    clsargs["root"] = this_root
+                    clsargs["seeds"] = seeds
+                    if cls is None:
+                        msg.err("The Group must have a class to have a parameter grid.")
+                    self.sequence[pgrid.to_str(params)] = cls(**clsargs)
             else:
                 self.atoms = seeds
-                self.params = parameters
                 
         self.calc = None
         if calculator is not None:
@@ -193,8 +200,6 @@ class Group(object):
         self.calcargs = calculator
         self.prefix = prefix
         self.nconfigs = nconfigs
-        if self.params is not None and "nconfigs" in self.params:
-            self.nconfigs = self.params["nconfigs"]
         self.config_type = config_type
         
         self._nsuccess = 0
@@ -593,8 +598,7 @@ class Group(object):
                     return
                 db_setup(rerun)
                 with open(path.join(self.root,"compute.pkl"),"w+") as f:
-                    pickle.dump({"params":self.params,"date":datetime.datetime.now(),
-                                 "uuid":self.uuid},f)
+                    pickle.dump({"date":datetime.datetime.now(),"uuid":self.uuid},f)
             else:
                 for group in self.sequence.values():
                     group.setup(db_setup,rerun=rerun)

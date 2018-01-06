@@ -610,20 +610,6 @@ def special_values(vs, seed=None):
 
 import collections
 
-def flatten_dict(d):
-    """Flattens a nested dictionary.
-
-    Args:
-        d (dict): a dictionary.
-    """
-    items = []
-    for k, v in d.items():
-        if isinstance(v, collections.MutableMapping):
-            items.extend(flatten_dict(v).items())
-        else:
-            items.append((k, v))
-    return dict(items)
-
 def special_functions(sf,values):
     """Converts the specified function value string into its python
     representation and evaluates it for each item in the values list. 
@@ -642,9 +628,7 @@ def special_functions(sf,values):
     """
     import numpy as np
     import math
-    from importlib import import_module
-    
-    if sf is None or not isinstance(sf, (string_types, dict)):
+    if sf is None or not isinstance(sf, (string_types,dict)):
         raise ValueError("The special function must be a string.")
     
     sdict = {
@@ -667,9 +651,7 @@ def special_functions(sf,values):
         arg = values
         
     call = getattr(sdict[modname], func)
-    result = call(arg)
-        
-    return result
+    return call(arg)
     
 def is_number(s):
     """Determines if the given string is a number.
