@@ -209,7 +209,7 @@ class DynMatrix(Group):
         """
         from matdb import calculators
         from inspect import getmodule
-        cls = getattr(matdb, calcargs["name"])
+        cls = getattr(calculators, calcargs["name"])
         try:
             mod = getmodule(cls)
             if hasattr(mod, "phonon_defaults"):

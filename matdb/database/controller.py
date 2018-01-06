@@ -294,8 +294,7 @@ class Database(object):
             from os import mkdir
             mkdir(self.root)
 
-        parrefs = ["species", "potcars", "incar", "kpoints", "execution",
-                   "plotdir"]
+        parrefs = ["species", "execution", "plotdir", "calculator"]
         for ref in parrefs:
             setattr(self, ref, getattr(parent, ref))
         self.parent = parent
@@ -351,8 +350,8 @@ class Database(object):
             for k in list(cpspec.keys()):
                 if isinstance(cpspec[k], dict) and self.config in cpspec[k]:
                     cpspec[k] = cpspec[k][self.config]
-            
-            instance = cls(calculator=parent.specs["calculator"],**cpspec)
+
+            instance = cls(**cpspec)
             self.steps[instance.name] = instance
 
     @property
@@ -583,6 +582,7 @@ class Controller(object):
           specifies all information for constructing the set of databases.
         tmpdir (str): path to a temporary directory to use for the
           database. This is for unit testing purposes.
+
     Attributes:
         specs (dict): the parsed settings from the YAML configuration file.
         collections (dict): keys are configuration names listed in attribute
@@ -615,10 +615,8 @@ class Controller(object):
         self.legacy = {}
         self.collections = {}
         self.species = [s for s in self.specs["species"]]
-        self.potcars = self.specs.get("potcars", {})
-        self.incar = self.specs.get("incar", {})
-        self.kpoints = self.specs.get("kpoints", {})
         self.execution = self.specs.get("execution", {})
+        self.calculator = self.specs.get("calculator", {})
         self.venv = self.specs.get("venv")
         self.random_seed = self.specs.get("random seed")
 

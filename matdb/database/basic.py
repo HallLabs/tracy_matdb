@@ -319,7 +319,7 @@ class Group(object):
         """
         keylist = self.database.steps.keys()
         for i, v in enumerate(keylist):
-            if v == self._db_name and i!=0:
+            if v == self.name and i!=0:
                 return self.database.steps[keylist[i-1]]
             
     @property
@@ -328,7 +328,7 @@ class Group(object):
         """
         keylist = self.database.steps.keys()
         for i, v in enumerate(keylist):
-            if v == self._db_name and i!=(len(keylist)-1):
+            if v == self.name and i!=(len(keylist)-1):
                 return self.database.steps[keylist[i+1]]
         
     def is_executing(self):
