@@ -11,7 +11,6 @@ from uuid import uuid4
 
 def parse_path(root,seeds,rseed=None):
     """Finds the full path to the seed files for this system.
-
     Args:
         root (str): the root directory for the databes.
         seeds (str or list of str): the seeds for the database that 
@@ -63,72 +62,13 @@ def parse_path(root,seeds,rseed=None):
                 msg.err("The seed file {} could not be found.".format(t_seed))
 
         return seed_files
-
-def db_pgrid(options, ignore_=None):
-    """Creates a parameter grid over the specified options for the database.
-    .. note:: This function treats keys that end in `*` specially. When the key
-      ends in `*`, the values in the specified list contribute to the cartesian
-      product.
+    
+def is_nested(d):
+    """Determines if a dictoinary is nested, i.e. contains another dictionary.
 
     Args:
-        options (dict): key-value pairs to iterate across.
-        ignore_ (list): of `str` keys to ignore in the options dict.
-
-    Returns:
-        tuple: `(grid, keys, suffix_grid)` where grid is a list of 
-        tuples with a value for each key in `options`, keys is a liste of 
-        the keys in the order they appear in the tuples, suffix_grid is the 
-        list of the suffix compinations for the grids.
+        d (dict): dictionary to test.
     """
-    from itertools import product
-    from collections import OrderedDict
-    from operator import itemgetter
-    from matdb.utility import special_values
-
-    ignore = ["root", "atoms", "parent"]
-    if ignore_ is not None:
-        ignore.extend(ignore_)
-
-    #Sort the dict so that we get the same ordering of parameters in the
-    #product.
-    params = OrderedDict(sorted(options.items(), key=itemgetter(0)))
-    values = []
-    keys = []
-    suffix_keys = []
-    suffix_values = []
-    for k, v in params.items():
-        if (ignore is not None and k in ignore or "_suffix" in k) or "*" not in k:
-            continue
-
-        values.append(v)
-        keys.append(k.strip('*'))
-        suff_k = "{0}_suffix*".format(k.strip('*'))
-        if suff_k in params:
-            suffix_values.append([float(i) if isinstance(i,(int,float)) else i for i in params[suff_k]])
-        elif suff_k.strip('*') in params:
-            try:
-                from matdb.utility import special_functions
-                suffix_values.append([float(i) for i in special_functions(params[suff_k.strip('*')],v)])
-            except:
-                msg.warn("The {} function is not supported. Using the default suffix.".format(params[suff_k.strip('*')]))
-                suffix_values.append([float(i) for i in range(1,len(v)+1)])
-        else:
-            suffix_values.append([float(i) for i in range(1,len(v)+1)])
-        suffix_keys.append(suff_k.strip('*'))
-            
-    suffix_grid = list(product(*suffix_values))
-    grid = list(product(*values))
-    if grid == [()]:
-        grid = []
-    if suffix_grid == [()]:
-        suffix_grid = []
-
-    if len(grid) != len(suffix_grid): #pragma: no cover
-        msg.err("The grid and the suffix grid don't match.")
-        
-    return (grid, keys, suffix_grid)
-
-def is_nested(d):
     for k, v in d.items():
         if k[-1] == '*':
             return True
@@ -137,11 +77,17 @@ def is_nested(d):
 
     return False
 
-from matdb.utility import special_functions
 def get_suffix(d, k, index, values):
     """Returns the suffix for the specified key in the dictionary that
     is creating a parameter grid.
+
+    Args:
+        d (dict): the dictionary being turned into a grid.
+        k (str): the key in the dictionary.
+        index (int): the index for the value (gets used as the default suffix).
+        values (str, list, float): the value for the parameter.
     """
+    from matdb.utility import special_functions
     nk = k[0:-1]
     suffix = "{0}_suffix".format(nk)
     ssuff = suffix + '*'
@@ -160,7 +106,19 @@ def get_suffix(d, k, index, values):
     else:
         return "{0}-{1}".format(nk[:3], keyval)
 
-def update(d, suffices=None):
+def get_grid(d, suffices=None):
+    """Recursively generates a grid of parameters from the dictionary of parameters
+    that has duplicates or wildcars in it. 
+    
+    Args:
+       d (dict): the dictionary to be turned into a grid.
+       suffices (list): an optional list of suffices.
+    
+    Returns:
+       A dictionary of (key: value) where the key is the suffix string for
+       the parameters and the value are the exact parameters for each
+       entry in the grid.
+    """
     dcopy = d.copy()
     stack = [(dcopy, None)]
     result = {}
@@ -169,23 +127,30 @@ def update(d, suffices=None):
         suffices = {k: v for k, v in d.items() if "suffix" in k[-8:]}
         for k in suffices:
             del dcopy[k]
+    else:
+        for k,v in d.items():
+            if "suffix" in k[-8:]:
+                suffices[k] = v
+        for k in suffices:
+            if k in dcopy:
+                del dcopy[k]            
         
     while len(stack) > 0:
         oned, nsuffix = stack.pop()
-        for k, v in oned.items():
+        for k, v in sorted(oned.items()):
             if k[-1] == '*':
-                nk = k[0:-1]
-                    
+                nk = k[0:-1]                    
                 for ival, value in enumerate(v):
                     suffix = get_suffix(suffices, k, ival, value)
                     dc = oned.copy()
                     del dc[k]
                     dc[nk] = value
-                    stack.append((dc, suffix))
+                    compsuffix = suffix if nsuffix is None else '-'.join(map(str, (nsuffix, suffix)))
+                    stack.append((dc, compsuffix))
                 break
             elif isinstance(v, dict) and is_nested(v):
-                blowup = update(v, suffices)
-                for rsuffix, entry in blowup.items():
+                blowup = get_grid(v, suffices)
+                for rsuffix, entry in sorted(blowup.items()):
                     dc = oned.copy()
                     dc[k] = entry
                     compsuffix = rsuffix if nsuffix is None else '-'.join(map(str, (nsuffix, rsuffix)))
@@ -210,55 +175,18 @@ class ParameterGrid(collections.MutableSet):
         keys (list): the `str` names of the different parameters in the database.
     """
     def __init__(self, params):
-        from matdb.utility import flatten_dict
-        (items,names,ids) = db_pgrid(flatten_dict(params))
+        for k in ["root","parent","atoms"]:
+            if k in params:
+                params.pop(k)
+        grid = get_grid(params)
         #add these items to the set.
         self.end = end = [] 
         end += [None, end, end]         # sentinel node for doubly linked list
         self.map = {}                   # key --> [key, prev, next]
-        self.keys = names 
         self.values = {}
         self.params = params
-        for i, v in zip(ids,items):
+        for i, v in grid.items():
             self.add(i,v)
-
-    def to_str(self, key):
-        """Converts the tuple into a folder name with the 
-        parameter name and value truncated and converted to 
-        the correct format.
-        
-        Args:
-            key (tuple): the key to be converted.
-            
-        Returns:
-            folder (str): the name of the folder.
-        """
-        from matdb.utility import is_number
-        
-        temp = []
-        for n,i in zip(self.keys,key):
-            if is_number(i) and i.is_integer():
-                t_i = str(int(i))
-            else:
-                t_i = str(i)
-            temp.append("-".join([n[:4],t_i]))
-        folder = "-".join(temp)
-        
-        return folder
-        
-    def from_str(self, folder):
-        """Converts the folder name back to it's original format.
-        
-        Args:
-            folder (str): the folder name to be converted.
-            
-        Returns:
-            key (tuple): the tuple the folder was made from.
-        """
-        from matdb.utility import is_number
-        temp = folder.strip().split("-")
-        key = tuple([float(i) if is_number(i) else i for i in temp[1::2]])
-        return key        
             
     def __len__(self):
         return len(self.map)
@@ -268,38 +196,6 @@ class ParameterGrid(collections.MutableSet):
 
     def __getitem__(self, key):
         return self.values[key]
-
-    def _make_values_dict(self, value):
-        """Creates the full dict of paramaters for this instance of the parametr grid.
-        """
-        params = self.params.copy()
-        for dkey in params.keys():
-            if "suffix" in dkey:
-                params.pop(dkey)
-            elif isinstance(params[dkey],dict):
-                for ckey in params[dkey].keys():
-                    if "suffix" in ckey:
-                        params[dkey].pop(ckey)
-
-        count = 0
-        for key in self.keys:
-            if "{}*".format(key) in params:
-                params[key] = value[count]
-                params.pop("{}*".format(key))
-                count += 1
-            elif key in params:
-                params[key] = value[count]
-                count += 1
-            else:
-                for dkey in params.keys():
-                    if "{}*".format(key) in params[dkey]:
-                        params[dkey][key] = value[count]
-                        params[dkey].pop("{}*".format(key))
-                        count += 1
-                    elif key in params[dkey]:
-                        params[dkey][key] = value[count]
-                        count += 1
-        return params
                         
     def add(self, key, value):
         """Adds key to the set if it is not already in the set.
@@ -312,7 +208,7 @@ class ParameterGrid(collections.MutableSet):
             end = self.end
             curr = end[1]
             curr[2] = end[1] = self.map[key] = [key, curr, end]
-            self.values[key] = self._make_values_dict(value)
+            self.values[key] = value
         else:
             msg.warn("The key {} already exists in the set, ignoring addition.".format(key))
 
@@ -791,7 +687,6 @@ class Controller(object):
     def relpaths(self, pattern):
         """Finds the relative paths for the seed configurations within the databases that 
         match to the pattern.
-
         Args:
             pattern (str): the pattern to match.
         """
@@ -802,7 +697,6 @@ class Controller(object):
         """Finds a list of :class:`matdb.database.basic.Group` that match the given
         pattern. The pattern is formed using `group.dbname[[.seed].params]`. `*`
         can be used as a wildcard for any portion of the '.'-separated path.
-
         .. note:: Actually, an :func:`~fnmatch.fnmatch` pattern can be used.
         Args: pattern (str): fnmatch pattern that follows the convention of the
         DB key.  Examples:
@@ -816,7 +710,6 @@ class Controller(object):
             the database.
             >>> CdWO4 = Controller("CdWO4.yml")
             >>> CdWO4.find("*.liquid*")
-
         """
         if pattern == '*':
             return self.find('*.*')
