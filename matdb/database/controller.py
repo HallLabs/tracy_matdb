@@ -695,8 +695,6 @@ class Controller(object):
           :class:`~matdb.database.legacy.LegacyDatabase`.
         plotdir (str): path to the directory to store plots in for all
           databases.
-        kpathdir (str): path to the directory where cached k-paths are stored
-          for root configurations.
         venv (str): name of a virtual environment to activate for plotting
           potentials after fitting.
     """
@@ -716,7 +714,6 @@ class Controller(object):
             self.root = tmpdir
             
         self.plotdir = path.join(self.root, "plots")
-        self.kpathdir = path.join(self.root, "kpaths")
         self.title = self.specs["title"]
         self.legacy = {}
         self.collections = {}
@@ -754,8 +751,6 @@ class Controller(object):
         from os import mkdir
         if not path.isdir(self.plotdir):
             mkdir(self.plotdir)
-        if not path.isdir(self.kpathdir):
-            mkdir(self.kpathdir)
             
         #Extract the POTCAR that all the databases are going to use. TODO: pure
         #elements can't use this POTCAR, so we have to copy the single POTCAR
