@@ -2,18 +2,21 @@
 configurations for machine learning materials.
 """
 from os import path, mkdir
-from matdb import msg
-from .controller import ParameterGrid
 import abc
 import pickle
 import datetime
-from matdb import calculators
 from contextlib import contextmanager
 import ase.db
 from uuid import uuid4
 import numpy as np
 import quippy
 import six 
+from collections import OrderedDict
+from quippy.atoms import Atoms
+
+from matdb import msg
+from .controller import ParameterGrid
+from matdb import calculators
 
 def atoms_to_json(atoms, folder):
     """Exports the specified atoms object, with its calculator's parameters, to
@@ -91,10 +94,11 @@ class Group(object):
         config_type (str): the type of configuration.
         calculator (dict): a dictionary containing the information for
           the calculator object.
-       trainable (bool): True if the groups configs will be used for traning.
-       pgrid (ParamaterGrid): The ParameterGrid for the database.
-       seeds (list, str, quippy.Atoms): The location of the files that will be
+        trainable (bool): True if the groups configs will be used for traning.
+        pgrid (ParamaterGrid): The ParameterGrid for the database.
+        seeds (list, str, quippy.Atoms): The location of the files that will be
           read into to make the atoms object or an atoms object.
+
     Attributes:
         atoms (quippy.atoms.Atoms): a single atomic configuration from
           which many others may be derived using MD, phonon
@@ -114,12 +118,8 @@ class Group(object):
     def __init__(self, root=None, parent=None, prefix='S', pgrid=None,
                  nconfigs=None, calculator=None, seeds=None, db_name=None,
                  config_type=None, parameters=None, execution={}, trainable=False):
-        from collections import OrderedDict
-        from quippy.atoms import Atoms
-        from os import path
-
+        self.root = root
         self.index = {}
-        self.root = root            
         self._read_index()
         self.parent = parent
         self.execution = execution
@@ -237,13 +237,32 @@ class Group(object):
         """
         pass
 
+    def load_pkl(self, file_name, rel_path=None):
+        """Loads a pickled obj from the specified location on the path.
+        
+        Args:
+            file_name (str): the file name to be save too.
+            rel_path (str): the relative path from self.root that the file will
+              be saved to.
+        """
+        f_path = path.join(self.root, rel_path, file_name) \
+                 if rel_path is not None else path.join(self.root,file_name)
+
+        result = None
+        if path.isfile(f_path):
+            with open(f_path,"r") as f:
+                result = load(f)
+            
+        return result
+    
     def save_pkl(self, obj, file_name, rel_path=None):
         """Saves the obj passed to the correct location on the path.
         
         Args:
             obj (dict): The dictionary to be written to file.
             file_name (str): the file name to be save too.
-            rel_path (str): the relative path from self.root that the file will be saved to.
+            rel_path (str): the relative path from self.root that the file will
+              be saved to. 
         """
         f_path = path.join(self.root, rel_path, file_name) \
                  if rel_path is not None else path.join(self.root,file_name)
@@ -653,6 +672,3 @@ class Group(object):
         else:
             for group in self.sequence.values():
                 group.cleanup()
-
-        if self.can_cleanup():
-            self.save_index()
