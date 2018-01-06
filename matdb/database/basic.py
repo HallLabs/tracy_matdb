@@ -451,7 +451,7 @@ class Group(object):
             for group in self.sequence.values():
                 group.jobfile(rerun=rerun, recovery=recovery)
                     
-    def create(self, atoms, cid=None, rewrite=False, sort=None):
+    def create(self, atoms, cid=None, rewrite=False, sort=None, calcargs=None):
         """Creates a folder within this group to calculate properties.
 
         Args:
@@ -462,6 +462,8 @@ class Group(object):
               latest settings.
             sort (bool): when True, sort the atoms by type so that
               supercell writes work correctly.
+            calcargs (dict): additional config-specific arguments for the
+              calculator that will be created and attached to the atoms object.
 
         Returns:
             int: new integer configuration id if one was auto-assigned.
@@ -477,10 +479,13 @@ class Group(object):
             if not path.isdir(target):
                 mkdir(target)
 
-            import pudb
-            pudb.set_trace()
-            calc = self.calc(atoms, target, **self.calcargs)
+            lcargs = self.calcargs.copy()
+            if calcargs is not None:
+                lcargs.update(calcargs)
+                
+            calc = self.calc(atoms, target, **lcargs)
             calc.create()
+            atoms.set_calculator(calc)
 
             #Finally, store the configuration for this folder.
             self.configs[cid] = target
@@ -642,8 +647,7 @@ class Group(object):
                     continue
                 
                 atoms = self.config_atoms[cid]
-                if hasattr(atoms, calc):
-                    atoms.calc.cleanup()
+                atoms.calc.cleanup()
                 atoms_to_json(atoms, folder)
 
         else:
