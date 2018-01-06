@@ -111,7 +111,7 @@ class Group(object):
         nconfigs (int): number of displaced configurations to create.
     """
     seeded = False
-    def __init__(self, root=None, parent=None, prefix='S', pgrid = None,
+    def __init__(self, root=None, parent=None, prefix='S', pgrid=None,
                  nconfigs=None, calculator=None, seeds=None, db_name=None,
                  config_type=None, parameters=None, execution={}, trainable=False):
         from collections import OrderedDict
@@ -224,6 +224,12 @@ class Group(object):
         """Returns a :class:`quippy.AtomsList` for all configs in this group.
         """
         pass
+
+    @property
+    def rset_file(self):
+        """Returns the full path to the `rset.pkl` file for this group.
+        """
+        return path.join(self.root, "rset.pkl")
     
     @abc.abstractproperty
     def rset(self):
@@ -239,9 +245,11 @@ class Group(object):
             file_name (str): the file name to be save too.
             rel_path (str): the relative path from self.root that the file will be saved to.
         """
-        f_path = path.join(self.root,rel_path,file_name) if rel_path is not None else path.join(self.root,file_name)
+        f_path = path.join(self.root, rel_path, file_name) \
+                 if rel_path is not None else path.join(self.root,file_name)
+        
         with open(f_path,"w+") as f:
-            pickle.dum(obj,f)
+            pickle.dump(obj,f)
             
     def save_index(self):
         """Writes the unique index for each of the configs to file along with
@@ -445,6 +453,7 @@ class Group(object):
                     
     def create(self, atoms, cid=None, rewrite=False, sort=None):
         """Creates a folder within this group to calculate properties.
+
         Args:
             atoms (quippy.atoms.Atoms): atomic configuration to run.
             cid (int): integer configuration id; if not specified, defaults to
@@ -453,6 +462,9 @@ class Group(object):
               latest settings.
             sort (bool): when True, sort the atoms by type so that
               supercell writes work correctly.
+
+        Returns:
+            int: new integer configuration id if one was auto-assigned.
         """
 
         if len(self.sequence)==0:
@@ -473,6 +485,8 @@ class Group(object):
             #Finally, store the configuration for this folder.
             self.configs[cid] = target
             self.config_atoms[cid] = atoms
+            
+            return cid
         else:
             for group in self.sequence.values():
                 group.create(atoms, cid=cid, rewrite=rewrite, sort=sort)
@@ -622,6 +636,11 @@ class Group(object):
         """
         if len(self.sequence) == 0 and self.can_cleanup():
             for cid, folder in self.configs.items():
+                if path.isfile(path.join(folder, "atoms.json")):
+                    #We don't need to recreate the atoms objects if they already
+                    #exist.
+                    continue
+                
                 atoms = self.config_atoms[cid]
                 if hasattr(atoms, calc):
                     atoms.calc.cleanup()
