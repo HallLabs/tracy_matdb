@@ -10,11 +10,6 @@ class AsyncCalculator(object):
     environment).
     """
     __metaclass__ = abc.ABCMeta
-    @abstractstatic
-    def from_folder(folder):
-        """Reconstructs the calculator class attached to an atoms object from a folder.
-        """
-        pass
     
     @abc.abstractmethod
     def can_execute(self, folder):
