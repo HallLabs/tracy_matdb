@@ -43,7 +43,6 @@ def _parsed_kpath(poscar):
     return (labels, band)
 
 class DynMatrix(Group):
-
     """Sets up the displacement calculations needed to construct the dynamical
     matrix. The dynamical matrix is required by :class:`Modulation` to
     create the individual modulations.
@@ -83,12 +82,16 @@ class DynMatrix(Group):
         dosmesh (list): mesh for calculating the phonon density-of-states.
 
     """
-    def __init__(self, atoms=None, root=None, parent=None, seed=None, calculator=None, 
-                 phonopy={}, name="dynmatrix", bandmesh=None, dosmesh=None):
+    def __init__(self, phonopy={}, name="dynmatrix", bandmesh=None,
+                 dosmesh=None, **dbargs):
         self.name = name
-        super(DynMatrix, self).__init__(path.join(root, self.name), parent, "W",
-                                        atoms=atoms, calculator=calculator, nconfigs=None,
-                                        config_type=None,seed=seed)
+        dbargs["prefix"] = "W"
+        #Make sure that we override the global calculator default values with
+        #those settings that we know are needed for good phonon calculations.
+        if "calculator" in dbargs and "name" in dbargs["calculator"]:
+            self._set_calc_defaults(dbargs["calculator"])
+        super(DynMatrix, self).__init__(**dbargs)
+        
         self.supercell = phonopy["dim"]
         self.bandmesh = bandmesh
         self.dosmesh = dosmesh
@@ -102,11 +105,12 @@ class DynMatrix(Group):
         along the paths, and their corresponding distances.
         """
 
-        self._dmatrix = None
+        self._dmatrix = self.load_pkl(self.dynmat_file)
         """dict: with keys ['dynmat', 'eigvals', 'eigvecs'] representing the dynamical
         matrix for the gamma point in the seed configuration along with its
         eigenvalues and eigenvectors.
         """
+        
         
         from os import mkdir
         if not path.isdir(self.phonodir):
@@ -114,26 +118,27 @@ class DynMatrix(Group):
         if not path.isdir(self.phonocache):
             mkdir(self.phonocache)
 
-        self._update_incar()
+    def _set_calc_defaults(self, calcargs):
+        """Sets the default calculator parameters for phonon calculations based
+        on the calculator specified in `calcargs`.
 
-    def _update_incar(self):
-        """Adds the usual settings for the INCAR file when performing
-        frozen-phonon calculations. They are only added if they weren't already
-        specified in the config file.
+        .. warning:: This method mutates the `calcargs` dictionary.
+
+        Args:
+            calcargs (dict): the "calculator" dictionary that is part of the
+              group arguments for db group.
         """
-        usuals = {
-            "encut": 500,
-            "ibrion": -1,
-            "ediff": '1.0e-08',
-            "ialgo": 38,
-            "ismear": 0,
-            "lreal": False,
-            "addgrid": True            
-        }
-        for k, v in usuals.items():
-            if k not in self.incar:
-                self.incar[k] = v
-            
+        from matdb import calculators
+        from inspect import getmodule
+        cls = getattr(matdb, calcargs["name"])
+        try:
+            mod = getmodule(cls)
+            if hasattr(mod, "phonon_defaults"):
+                call = getattr(mod, "phonon_defaults")
+                call(calcargs)
+        except:
+            pass
+
     def ready(self):
         """Returns True if all the phonon calculations have been completed, the
         force sets have been created, and the DOS has been calculated.
@@ -143,6 +148,12 @@ class DynMatrix(Group):
         dosfile = path.join(self.phonodir, "total_dos.dat")
         return path.isfile(dosfile)
 
+    @property
+    def dynmat_file(self):
+        """Returns the full path to the dynamical matrix pickle file.
+        """
+        return path.join(self.root, "dynmat.pkl")
+    
     @property
     def dmatrix(self):
         """Returns the dynamical matrix extracted from the frozen
@@ -194,6 +205,8 @@ class DynMatrix(Group):
                 return
             
             self._dmatrix = result
+            self.save_pkl(result, self.dynmat_file)
+
         return self._dmatrix
     
     @property
