@@ -58,7 +58,7 @@ Operators
 
 """
 from .basic import Group
-from aflow import search, K
+import aflow
 import operator
 from os import path
 import pickle
@@ -115,7 +115,7 @@ def get_kw(kwstr):
     """Returns the :class:`aflow.keywords.Keyword` instance with the specified
     name.
     """
-    return getattr(K, kwstr)
+    return getattr(aflow.K, kwstr)
         
 class Aflow(Group):
     """Represents a group of configurations that are downloaded from AFLOW.
@@ -182,7 +182,10 @@ class Aflow(Group):
 
         self.keywords = {}
         if self.keywords is None:
-            self.keywords = {K.energy_cell: "ref_energy", K.forces: "ref_force"}
+            self.keywords = {
+                aflow.K.energy_cell: "ref_energy",
+                aflow.K.forces: "ref_force"
+            }
 
         self.auids = None
         self._load_auids()
@@ -223,7 +226,7 @@ class Aflow(Group):
         """Constructs the :class:`aflow.control.Query` object for requesting
         data from the server.
         """
-        result = search(self.catalog, self.batch_size)
+        result = aflow.search(self.catalog, self.batch_size)
         for f in self.filters:
             result = result.filter(f)
         result = result.select(*self.select).exclude(*self.exclude)
