@@ -12,7 +12,7 @@ checking for execution readiness, etc.
 from .basic import SyncCalculator
 from os import path
 
-class Aflow(SyncCalculator):
+class AsyncAflow(SyncCalculator):
     """Represents an asynchronous calculator for constructing
     :class:`quippy.Atoms` objects from :class:`aflow.entries.Entry` objects.
 
