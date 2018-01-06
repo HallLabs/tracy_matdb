@@ -198,10 +198,7 @@ class Aflow(Group):
         group. 
         """
         if self.auids is None:
-            if path.isfile(self.auid_file):
-                with open(self.auid_file, 'r') as f:
-                    self.auids = pickle.load(f)
-
+            self.auids = self.load_pkl(self.auid_file)
         return self.auids
                 
     @property
