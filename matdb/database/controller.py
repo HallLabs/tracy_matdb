@@ -227,7 +227,8 @@ class ParameterGrid(collections.MutableSet):
         end = self.end
         curr = end[2]
         while curr is not end:
-            yield curr[0]
+            if curr[0] is not None:
+                yield curr[0]
             curr = curr[2]
 
     def pop(self, key):
