@@ -39,8 +39,12 @@ def atoms_to_json(atoms, folder):
     props = []
     for prop, value in atoms.properties.items():
         if prop not in ["pos", "species", "Z", "n_neighb", "map_shift"]:
-            data[prop] = value
-            props.append(prop)
+            #For Hessian fitting in GAP, we need the eigenvalue parameter and
+            #eigenvector property to have the same name. This introduces a
+            #collision in our scheme here.
+            newname = prop + '_'
+            data[newname] = value
+            props.append(newname)
     data["propnames"] = props
 
     db.write(atoms, data=data)
@@ -59,7 +63,9 @@ def atoms_from_json(folder):
 
     props = row.data.propnames
     for prop in props:
-        atoms.properties[prop] = np.array(row.data[prop])
+        #Undo the extra '_' that we appended to avoid collision between the
+        #parameters and properties when saved to local data object.
+        atoms.properties[prop[0:-1]] = np.array(row.data[prop])
 
     for param in row.data:
         if param not in props:
@@ -131,7 +137,7 @@ class Group(object):
         self._trainable = trainable
         self.is_seed_listed = None
         if seeds is not None:
-            self.is_seed_listed = isinstance(seeds, (list,six.string_types))
+            self.is_seed_listed = isinstance(seeds, (list, six.string_types))
 
         self.seeds = None
         if self.is_seed_listed:
@@ -145,6 +151,11 @@ class Group(object):
             self.seeds = OrderedDict()
             for n_seeds, a in enumerate(self.prev.rset):
                 seedname = "seed-{}".format(n_seeds)
+                #NB! The previous rset may be a dict with an "atoms" key and
+                #additional keys to pass to the group constructor. We copy it to
+                #make sure the original rset doesn't modify. For normal cases
+                #where it is simply an Atoms object, the copy performs the same
+                #function.
                 self.seeds[seedname] = a.copy()            
         
         self.sequence = OrderedDict()
