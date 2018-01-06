@@ -13,8 +13,10 @@ import quippy
 import six 
 from collections import OrderedDict
 from quippy.atoms import Atoms
-
+from glob import glob
+        
 from matdb import msg
+from matdb.utility import chdir
 from .controller import ParameterGrid
 from .controller import Database
 from matdb import calculators
@@ -178,19 +180,19 @@ class Group(object):
                     msg.err("The Group must have a class to have seeds.")
                 self.sequence[seedname] = cls(**clsargs)
         else:
-            if pgrid is not None and len(pgrid) >0:
-                for params in pgrid:
-                    this_root = path.join(root,pgrid.to_str(params))
+            if pgrid is not None and len(pgrid) > 0:
+                for pkey in pgrid:
+                    this_root = path.join(root, pkey)
                     if not path.isdir(this_root):
                         mkdir(this_root)
                         
                     clsargs = grpargs.copy()
-                    clsargs.update(pgrid[params])
+                    clsargs.update(pgrid[pkey])
                     clsargs["root"] = this_root
                     clsargs["seeds"] = seeds
                     if cls is None:
                         msg.err("The Group must have a class to have a parameter grid.")
-                    self.sequence[pgrid.to_str(params)] = cls(**clsargs)
+                    self.sequence[pkey] = cls(**clsargs)
             else:
                 self.atoms = seeds
                 
@@ -211,9 +213,6 @@ class Group(object):
         
         #Try and load existing folders that match the prefix into the configs
         #list.
-        from glob import glob
-        from os import path
-        from matdb.utility import chdir
         self.configs = {}
         self.config_atoms = {}
         self.uuid = uuid4()
