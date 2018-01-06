@@ -610,20 +610,6 @@ def special_values(vs, seed=None):
 
 import collections
 
-def flatten_dict(d):
-    """Flattens a nested dictionary.
-
-    Args:
-        d (dict): a dictionary.
-    """
-    items = []
-    for k, v in d.items():
-        if isinstance(v, collections.MutableMapping):
-            items.extend(flatten_dict(v).items())
-        else:
-            items.append((k, v))
-    return dict(items)
-
 def special_functions(sf,values):
     """Converts the specified function value string into its python
     representation and evaluates it for each item in the values list. 
@@ -641,34 +627,32 @@ def special_functions(sf,values):
     .. note:: the value returned by the special function must be an integer or a float.
     """
     import numpy as np
-    if sf is None or not isinstance(sf, string_types):
+    import math
+    
+    if sf is None or not isinstance(sf, (string_types,dict)):
         raise ValueError("The special function must be a string.")
-    if not isinstance(values,list):
-        raise ValueError("The values that the special function is to be applied to must be a list.")
     
     sdict = {
-        "linalg:": "numpy.linalg",
-        "math:": "math",
-        "numpy:": "numpy",
+        "linalg": np.linalg,
+        "math": math,
+        "numpy": np,
     }
 
-    result = []
-    
-    from importlib import import_module
-    for k in sdict:
-        if k in sf:
-            module = import_module(sdict[k])
-            funct = sf.split(":")[1]
-            call = getattr(module, funct)
-            if k == "linalg:":
-                temp = [np.diag(v) if len(v)==3 else np.array(v).reshape(3,3)
-                        for v in values]
-            else:
-                temp = values
-            result = np.round(map(call,temp),1)
-            break
+    reshape = None
+    if isinstance(sf,dict):
+        modname, func = sf["func"].split(':')
+        reshape = sf["reshape"]
     else:
-        raise ValueError
+        modname, func = sf.split(':')
+
+    if reshape is not None:
+        args = np.reshape(values,reshape)
+    else:
+        args = values
+
+    mod = sdict[modname]
+    call = getattr(mod, func)
+    result = call(args)
         
     return result
     
