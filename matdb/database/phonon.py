@@ -89,13 +89,14 @@ class DynMatrix(Group):
     def __init__(self, phonopy={}, name="dynmatrix", bandmesh=None,
                  dosmesh=None, tolerance=0.1, **dbargs):
         self.name = name
+        self.seeded = True
         dbargs["prefix"] = "W"
         #Make sure that we override the global calculator default values with
         #those settings that we know are needed for good phonon calculations.
         if "calculator" in dbargs and "name" in dbargs["calculator"]:
             self._set_calc_defaults(dbargs["calculator"])
         super(DynMatrix, self).__init__(**dbargs)
-        
+
         self.supercell = phonopy["dim"]
         self.bandmesh = bandmesh
         self.dosmesh = dosmesh
