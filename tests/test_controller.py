@@ -6,7 +6,8 @@ import numpy as np
 from os import path
 import pytest
 from matdb.utility import reporoot, relpath
-    
+import six
+
 def _mimic_vasp(folder, xroot):
     """Copies a `vasprun.xml` and `OUTCAR ` output files from the given folder into
     the execution directory to mimic what VASP would have done.
@@ -35,6 +36,31 @@ def _mimic_vasp(folder, xroot):
                 target = path.join(xpath, name)
                 symlink(target, path.join(folder, dft))
 
+def compare_dicts(dict1,dict2):
+    """Compares two dictionaries to see if they are the same.
+    """
+
+    if sorted(dict1.keys()) != sorted(dict2.keys()):
+        # print(dict1.keys(),dict2.keys())
+        print(len(dict1.keys()),len(dict2.keys()))
+        print([(a,b) for a, b in zip(dict1.keys(),dict2.keys()) if a!=b])
+        return False
+
+    for key in dict1:
+        if isinstance(dict1[key],dict):
+            res = compare_dicts(dict1[key],dict2[key])
+            if not res:
+                return False
+            else:
+                continue
+        if not isinstance(dict1[key],six.string_types) and not np.allclose(dict1[key],dict2[key]):
+            print(dict1[key],dict2[key])
+            return False
+        elif isinstance(dict1[key],six.string_types) and not dict1[key] == dict2[key]:
+            print(dict1[key],dict2[key])
+            return False
+
+    return True
 # @pytest.fixture()
 # def Pd(tmpdir):
 #     from matdb.utility import relpath
@@ -285,93 +311,35 @@ def _mimic_vasp(folder, xroot):
 #                                              'bandmesh': [13, 13, 13]}],
 #                      niterations=[{'phonopy.dim': [0, 1, 1, 1, 0, 1, 1, 1, 0]}])
 
-def test_db_paramgrid():
-    """Tests the construction of the parametr grid for a given database.
-    """
-
-    from matdb.utility import flatten_dict
-    from matdb.database.controller import db_pgrid
-    
-    db_info = {'phonopy': {'dim*': [[2, 2, 2], [0, 1, 1, 1, 0, 1, 1, 1, 0],
-                                    [0, 2, 2, 2, 0, 2, 2, 2, 0], [-2, 2, 2, 2, -2, 2, 2, 2, -2],
-                                    [-1, 1, 1, 1, -1, 1, 1, 1, -1], [3, 3, 3]],
-                           'dim_suffix': 'linalg:det'},
-               'parent':  'controller', 'dosmesh*': [[10, 10, 10],[12,12,12]], 'atoms': 'Pd',
-               'root': '/root/codes/matdb/tests/Pd', 'bandmesh': [13, 13, 13]}
-
-    test = db_pgrid(flatten_dict(db_info))
-    actual = ([([2, 2, 2], [10, 10, 10]), ([2, 2, 2], [12, 12, 12]),
-                   ([0, 1, 1, 1, 0, 1, 1, 1, 0], [10, 10, 10]),
-                   ([0, 1, 1, 1, 0, 1, 1, 1, 0], [12, 12, 12]),
-                   ([0, 2, 2, 2, 0, 2, 2, 2, 0], [10, 10, 10]),
-                   ([0, 2, 2, 2, 0, 2, 2, 2, 0], [12, 12, 12]),
-                   ([-2, 2, 2, 2, -2, 2, 2, 2, -2], [10, 10, 10]),
-                   ([-2, 2, 2, 2, -2, 2, 2, 2, -2], [12, 12, 12]),
-                   ([-1, 1, 1, 1, -1, 1, 1, 1, -1], [10, 10, 10]),
-                   ([-1, 1, 1, 1, -1, 1, 1, 1, -1], [12, 12, 12]),
-                   ([3, 3, 3], [10, 10, 10]),  ([3, 3, 3], [12, 12, 12])],
-                  ['dim', 'dosmesh'],
-                  [(8.0, 1.0), (8.0, 2.0), (2.0, 1.0), (2.0, 2.0), (16.0, 1.0), (16.0, 2.0),
-                   (32.0, 1.0), (32.0, 2.0), (4.0, 1.0), (4.0, 2.0), (27.0, 1.0), (27.0, 2.0)])
-
-    assert test==actual
-
-    db_info = {'phonopy': {'dim*': [[2, 2, 2], [0, 1, 1, 1, 0, 1, 1, 1, 0],
-                                    [0, 2, 2, 2, 0, 2, 2, 2, 0], [-2, 2, 2, 2, -2, 2, 2, 2, -2],
-                                    [-1, 1, 1, 1, -1, 1, 1, 1, -1], [3, 3, 3]],
-                           'dim_suffix': 'linalg:det'},
-               'parent':  'controller', 'dosmesh*': [[10, 10, 10],[12,12,12]],
-               'dosmesh_suffix*':[30,36],'atoms': 'Pd',
-               'root': '/root/codes/matdb/tests/Pd', 'bandmesh': [13, 13, 13]}
-    
-    test = db_pgrid(flatten_dict(db_info))
-    actual = ([([2, 2, 2], [10, 10, 10]), ([2, 2, 2], [12, 12, 12]),
-                   ([0, 1, 1, 1, 0, 1, 1, 1, 0], [10, 10, 10]),
-                   ([0, 1, 1, 1, 0, 1, 1, 1, 0], [12, 12, 12]),
-                   ([0, 2, 2, 2, 0, 2, 2, 2, 0], [10, 10, 10]),
-                   ([0, 2, 2, 2, 0, 2, 2, 2, 0], [12, 12, 12]),
-                   ([-2, 2, 2, 2, -2, 2, 2, 2, -2], [10, 10, 10]),
-                   ([-2, 2, 2, 2, -2, 2, 2, 2, -2], [12, 12, 12]),
-                   ([-1, 1, 1, 1, -1, 1, 1, 1, -1], [10, 10, 10]),
-                   ([-1, 1, 1, 1, -1, 1, 1, 1, -1], [12, 12, 12]),
-                   ([3, 3, 3], [10, 10, 10]),  ([3, 3, 3], [12, 12, 12])],
-                  ['dim', 'dosmesh'],
-                  [(8.0, 30.0), (8.0, 36.0), (2.0, 30.0), (2.0, 36.0), (16.0, 30.0),
-                   (16.0, 36.0), (32.0, 30.0), (32.0, 36.0), (4.0, 30.0), (4.0, 36.0),
-                   (27.0, 30.0), (27.0, 36.0)])
-
-    assert test==actual
-    
-    db_info = {'phonopy': {'dim*': [[2, 2, 2], [0, 1, 1, 1, 0, 1, 1, 1, 0],
-                                    [0, 2, 2, 2, 0, 2, 2, 2, 0], [-2, 2, 2, 2, -2, 2, 2, 2, -2],
-                                    [-1, 1, 1, 1, -1, 1, 1, 1, -1], [3, 3, 3]],
-                           'dim_suffix': 'linalg:det'},
-               'parent':  'controller', 'dosmesh*': [[10, 10, 10],[12,12,12]],
-               'dosmesh_suffix':'random','atoms': 'Pd',
-               'root': '/root/codes/matdb/tests/Pd', 'bandmesh': [13, 13, 13]}
-
-    test = db_pgrid(flatten_dict(db_info),ignore_=["seed"])
-    actual = ([([2, 2, 2], [10, 10, 10]), ([2, 2, 2], [12, 12, 12]),
-                   ([0, 1, 1, 1, 0, 1, 1, 1, 0], [10, 10, 10]),
-                   ([0, 1, 1, 1, 0, 1, 1, 1, 0], [12, 12, 12]),
-                   ([0, 2, 2, 2, 0, 2, 2, 2, 0], [10, 10, 10]),
-                   ([0, 2, 2, 2, 0, 2, 2, 2, 0], [12, 12, 12]),
-                   ([-2, 2, 2, 2, -2, 2, 2, 2, -2], [10, 10, 10]),
-                   ([-2, 2, 2, 2, -2, 2, 2, 2, -2], [12, 12, 12]),
-                   ([-1, 1, 1, 1, -1, 1, 1, 1, -1], [10, 10, 10]),
-                   ([-1, 1, 1, 1, -1, 1, 1, 1, -1], [12, 12, 12]),
-                   ([3, 3, 3], [10, 10, 10]),  ([3, 3, 3], [12, 12, 12])],
-                  ['dim', 'dosmesh'],
-                  [(8.0, 1.0), (8.0, 2.0), (2.0, 1.0), (2.0, 2.0), (16.0, 1.0), (16.0, 2.0),
-                   (32.0, 1.0), (32.0, 2.0), (4.0, 1.0), (4.0, 2.0), (27.0, 1.0), (27.0, 2.0)])
-
-    assert test==actual
-
 def test_ParameterGrid():
     """Tests the creation of a ParamaterGrid and it's functionality.
     """
-
     from matdb.database.controller import ParameterGrid
+
+    db_info = {'phonopy': {'dim*': [[2, 0, 0, 0, 2, 0, 0, 0, 2], [0, 1, 1, 1, 0, 1, 1, 1, 0],
+                                    [0, 2, 2, 2, 0, 2, 2, 2, 0], [-2, 2, 2, 2, -2, 2, 2, 2, -2],
+                                    [-1, 1, 1, 1, -1, 1, 1, 1, -1], [3, 0, 0, 0, 3, 0, 0, 0, 3]],
+                           'dim_suffix': {'func':'linalg:det','reshape':[3,3]}},
+               'parent':  'controller', 'dosmesh*': [[10, 10, 10],[12,12,12]],
+               'dosmesh_suffix*':[30,"tt"],'atoms': 'Pd',
+               'root': '/root/codes/matdb/tests/Pd', 'bandmesh': [13, 13, 13]}
+
+    pgrid = ParameterGrid(db_info)
+
+    assert len(pgrid) == 12
+    assert compare_dicts(pgrid['dos-tt-dim-16.00'],
+                         {'phonopy': {'dim': [0, 2, 2, 2, 0, 2, 2, 2, 0]},
+                          'dosmesh': [12, 12, 12], 'bandmesh': [13, 13, 13]})
+    pgrid.pop('dos-tt-dim-16.00')
+    assert not ('dos-tt-dim-16.00' in pgrid)
+    assert not pgrid == ParameterGrid(db_info)
+
+
+def test_get_grid():
+    """Tests the get_grid method.
+    """
+    from matdb.database.controller import get_grid
+    from numpy import array
     db_info = {"lattice*": ["fcc", "bcc", "hcp"], 
           "calculator": {"encut*": [700, 800, 900]},
           "normal": [1, 2, 3],
@@ -381,168 +349,151 @@ def test_ParameterGrid():
                          "reshape": [3 ,3]},
           "lattice_suffix": "{}"
         }
-    model = {'lat-bcc-dog-0.00-enc-70': {'calculator': {'encut': 700},
+
+    test = get_grid(db_info)
+    model = {'enc-70-dog-0.00-lat-bcc': {'calculator': {'encut': 700},
   'double': {'single': {'dog': [0, 1, 2, 3, 4, 5, 6, 7, 8]}},
   'lattice': 'bcc',
   'normal': [1, 2, 3]},
- 'lat-bcc-dog-0.00-enc-80': {'calculator': {'encut': 800},
+ 'enc-80-dog-0.00-lat-bcc': {'calculator': {'encut': 800},
   'double': {'single': {'dog': [0, 1, 2, 3, 4, 5, 6, 7, 8]}},
   'lattice': 'bcc',
   'normal': [1, 2, 3]},
- 'lat-bcc-dog-0.00-enc-90': {'calculator': {'encut': 900},
+ 'enc-90-dog-0.00-lat-bcc': {'calculator': {'encut': 900},
   'double': {'single': {'dog': [0, 1, 2, 3, 4, 5, 6, 7, 8]}},
   'lattice': 'bcc',
   'normal': [1, 2, 3]},
- 'lat-bcc-dog-18.00-enc-70': {'calculator': {'encut': 700},
+ 'enc-70-dog-18.00-lat-bcc': {'calculator': {'encut': 700},
   'double': {'single': {'dog': [array([9, 0, 0]),
      array([0, 2, 0]),
      array([0, 0, 1])]}},
   'lattice': 'bcc',
   'normal': [1, 2, 3]},
- 'lat-bcc-dog-18.00-enc-80': {'calculator': {'encut': 800},
+ 'enc-80-dog-18.00-lat-bcc': {'calculator': {'encut': 800},
   'double': {'single': {'dog': [array([9, 0, 0]),
      array([0, 2, 0]),
      array([0, 0, 1])]}},
   'lattice': 'bcc',
   'normal': [1, 2, 3]},
- 'lat-bcc-dog-18.00-enc-90': {'calculator': {'encut': 900},
+ 'enc-90-dog-18.00-lat-bcc': {'calculator': {'encut': 900},
   'double': {'single': {'dog': [array([9, 0, 0]),
      array([0, 2, 0]),
      array([0, 0, 1])]}},
   'lattice': 'bcc',
   'normal': [1, 2, 3]},
- 'lat-bcc-dog-24.00-enc-70': {'calculator': {'encut': 700},
+ 'enc-70-dog-24.00-lat-bcc': {'calculator': {'encut': 700},
   'double': {'single': {'dog': [array([3, 0, 0]),
      array([0, 2, 0]),
      array([0, 0, 4])]}},
   'lattice': 'bcc',
   'normal': [1, 2, 3]},
- 'lat-bcc-dog-24.00-enc-80': {'calculator': {'encut': 800},
+ 'enc-80-dog-24.00-lat-bcc': {'calculator': {'encut': 800},
   'double': {'single': {'dog': [array([3, 0, 0]),
      array([0, 2, 0]),
      array([0, 0, 4])]}},
   'lattice': 'bcc',
   'normal': [1, 2, 3]},
- 'lat-bcc-dog-24.00-enc-90': {'calculator': {'encut': 900},
+ 'enc-90-dog-24.00-lat-bcc': {'calculator': {'encut': 900},
   'double': {'single': {'dog': [array([3, 0, 0]),
      array([0, 2, 0]),
      array([0, 0, 4])]}},
   'lattice': 'bcc',
   'normal': [1, 2, 3]},
- 'lat-fcc-dog-0.00-enc-70': {'calculator': {'encut': 700},
+ 'enc-70-dog-0.00-lat-fcc': {'calculator': {'encut': 700},
   'double': {'single': {'dog': [0, 1, 2, 3, 4, 5, 6, 7, 8]}},
   'lattice': 'fcc',
   'normal': [1, 2, 3]},
- 'lat-fcc-dog-0.00-enc-80': {'calculator': {'encut': 800},
+ 'enc-80-dog-0.00-lat-fcc': {'calculator': {'encut': 800},
   'double': {'single': {'dog': [0, 1, 2, 3, 4, 5, 6, 7, 8]}},
   'lattice': 'fcc',
   'normal': [1, 2, 3]},
- 'lat-fcc-dog-0.00-enc-90': {'calculator': {'encut': 900},
+ 'enc-90-dog-0.00-lat-fcc': {'calculator': {'encut': 900},
   'double': {'single': {'dog': [0, 1, 2, 3, 4, 5, 6, 7, 8]}},
   'lattice': 'fcc',
   'normal': [1, 2, 3]},
- 'lat-fcc-dog-18.00-enc-70': {'calculator': {'encut': 700},
+ 'enc-70-dog-18.00-lat-fcc': {'calculator': {'encut': 700},
   'double': {'single': {'dog': [array([9, 0, 0]),
      array([0, 2, 0]),
      array([0, 0, 1])]}},
   'lattice': 'fcc',
   'normal': [1, 2, 3]},
- 'lat-fcc-dog-18.00-enc-80': {'calculator': {'encut': 800},
+ 'enc-80-dog-18.00-lat-fcc': {'calculator': {'encut': 800},
   'double': {'single': {'dog': [array([9, 0, 0]),
      array([0, 2, 0]),
      array([0, 0, 1])]}},
   'lattice': 'fcc',
   'normal': [1, 2, 3]},
- 'lat-fcc-dog-18.00-enc-90': {'calculator': {'encut': 900},
+ 'enc-90-dog-18.00-lat-fcc': {'calculator': {'encut': 900},
   'double': {'single': {'dog': [array([9, 0, 0]),
      array([0, 2, 0]),
      array([0, 0, 1])]}},
   'lattice': 'fcc',
   'normal': [1, 2, 3]},
- 'lat-fcc-dog-24.00-enc-70': {'calculator': {'encut': 700},
+ 'enc-70-dog-24.00-lat-fcc': {'calculator': {'encut': 700},
   'double': {'single': {'dog': [array([3, 0, 0]),
      array([0, 2, 0]),
      array([0, 0, 4])]}},
   'lattice': 'fcc',
   'normal': [1, 2, 3]},
- 'lat-fcc-dog-24.00-enc-80': {'calculator': {'encut': 800},
+ 'enc-80-dog-24.00-lat-fcc': {'calculator': {'encut': 800},
   'double': {'single': {'dog': [array([3, 0, 0]),
      array([0, 2, 0]),
      array([0, 0, 4])]}},
   'lattice': 'fcc',
   'normal': [1, 2, 3]},
- 'lat-fcc-dog-24.00-enc-90': {'calculator': {'encut': 900},
+ 'enc-90-dog-24.00-lat-fcc': {'calculator': {'encut': 900},
   'double': {'single': {'dog': [array([3, 0, 0]),
      array([0, 2, 0]),
      array([0, 0, 4])]}},
   'lattice': 'fcc',
   'normal': [1, 2, 3]},
- 'lat-hcp-dog-0.00-enc-70': {'calculator': {'encut': 700},
+ 'enc-70-dog-0.00-lat-hcp': {'calculator': {'encut': 700},
   'double': {'single': {'dog': [0, 1, 2, 3, 4, 5, 6, 7, 8]}},
   'lattice': 'hcp',
   'normal': [1, 2, 3]},
- 'lat-hcp-dog-0.00-enc-80': {'calculator': {'encut': 800},
+ 'enc-80-dog-0.00-lat-hcp': {'calculator': {'encut': 800},
   'double': {'single': {'dog': [0, 1, 2, 3, 4, 5, 6, 7, 8]}},
   'lattice': 'hcp',
   'normal': [1, 2, 3]},
- 'lat-hcp-dog-0.00-enc-90': {'calculator': {'encut': 900},
+ 'enc-90-dog-0.00-lat-hcp': {'calculator': {'encut': 900},
   'double': {'single': {'dog': [0, 1, 2, 3, 4, 5, 6, 7, 8]}},
   'lattice': 'hcp',
   'normal': [1, 2, 3]},
- 'lat-hcp-dog-18.00-enc-70': {'calculator': {'encut': 700},
+ 'enc-70-dog-18.00-lat-hcp': {'calculator': {'encut': 700},
   'double': {'single': {'dog': [array([9, 0, 0]),
      array([0, 2, 0]),
      array([0, 0, 1])]}},
   'lattice': 'hcp',
   'normal': [1, 2, 3]},
- 'lat-hcp-dog-18.00-enc-80': {'calculator': {'encut': 800},
+ 'enc-80-dog-18.00-lat-hcp': {'calculator': {'encut': 800},
   'double': {'single': {'dog': [array([9, 0, 0]),
      array([0, 2, 0]),
      array([0, 0, 1])]}},
   'lattice': 'hcp',
   'normal': [1, 2, 3]},
- 'lat-hcp-dog-18.00-enc-90': {'calculator': {'encut': 900},
+ 'enc-90-dog-18.00-lat-hcp': {'calculator': {'encut': 900},
   'double': {'single': {'dog': [array([9, 0, 0]),
      array([0, 2, 0]),
      array([0, 0, 1])]}},
   'lattice': 'hcp',
   'normal': [1, 2, 3]},
- 'lat-hcp-dog-24.00-enc-70': {'calculator': {'encut': 700},
+ 'enc-70-dog-24.00-lat-hcp': {'calculator': {'encut': 700},
   'double': {'single': {'dog': [array([3, 0, 0]),
      array([0, 2, 0]),
      array([0, 0, 4])]}},
   'lattice': 'hcp',
   'normal': [1, 2, 3]},
- 'lat-hcp-dog-24.00-enc-80': {'calculator': {'encut': 800},
+ 'enc-80-dog-24.00-lat-hcp': {'calculator': {'encut': 800},
   'double': {'single': {'dog': [array([3, 0, 0]),
      array([0, 2, 0]),
      array([0, 0, 4])]}},
   'lattice': 'hcp',
   'normal': [1, 2, 3]},
- 'lat-hcp-dog-24.00-enc-90': {'calculator': {'encut': 900},
+ 'enc-90-dog-24.00-lat-hcp': {'calculator': {'encut': 900},
   'double': {'single': {'dog': [array([3, 0, 0]),
      array([0, 2, 0]),
      array([0, 0, 4])]}},
   'lattice': 'hcp',
   'normal': [1, 2, 3]}}
-    db_info = {'phonopy': {'dim*': [[2, 2, 2], [0, 1, 1, 1, 0, 1, 1, 1, 0],
-                                    [0, 2, 2, 2, 0, 2, 2, 2, 0], [-2, 2, 2, 2, -2, 2, 2, 2, -2],
-                                    [-1, 1, 1, 1, -1, 1, 1, 1, -1], [3, 3, 3]],
-                           'dim_suffix': 'linalg:det'},
-               'parent':  'controller', 'dosmesh*': [[10, 10, 10],[12,12,12]],
-               'dosmesh_suffix*':[30,"tt"],'atoms': 'Pd',
-               'root': '/root/codes/matdb/tests/Pd', 'bandmesh': [13, 13, 13]}
 
-    pgrid = ParameterGrid(db_info)
-
-    for i in pgrid:
-        folder = pgrid.to_str(i)
-        assert i==pgrid.from_str(folder)
-
-    pgrid.add((8.0,30),())
-    assert len(pgrid) == 12
-    assert pgrid[(8.0,30)] == ([2, 2, 2], [10, 10, 10])
-    pgrid.pop((8.0,30))
-    assert not ((8.0,30) in pgrid)
-    assert not pgrid == ParameterGrid(db_info)
-    assert pgrid == [(8.0, 'tt'), (2.0, 30), (2.0, 'tt'), (16.0, 30), (16.0, 'tt'), (32.0, 30), (32.0, 'tt'), (4.0, 30), (4.0, 'tt'), (27.0, 30), (27.0, 'tt')]
+    assert compare_dicts(test,model)
