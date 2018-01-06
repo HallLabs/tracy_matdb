@@ -19,6 +19,30 @@ from matdb.calculators.basic import AsyncCalculator
 from matdb import msg
 from matdb.kpoints import custom as write_kpoints
 
+def phonon_defaults(d):
+    """Adds the usual settings for the INCAR file when performing frozen-phonon
+    calculations to `d`. They are only added if they weren't already specified
+    in the config file.
+
+    .. warning:: This method mutates `d`.
+
+    Args:
+        d (dict): "calculator" dictionary to updated arguments for.
+    """
+    assert d["name"] == "Vasp"
+    usuals = {
+        "encut": 500,
+        "ibrion": -1,
+        "ediff": '1.0e-08',
+        "ialgo": 38,
+        "ismear": 0,
+        "lreal": False,
+        "addgrid": True            
+    }
+    for k, v in usuals.items():
+        if k not in d:
+            d[k] = v
+
 class AsyncVasp(Vasp, AsyncCalculator):
     """Represents a calculator that can compute material properties with VASP,
     but which can do so asynchronously.
