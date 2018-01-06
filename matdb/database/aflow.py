@@ -154,12 +154,13 @@ class Aflow(Group):
                  orderby=None, exclude=None, name="aflow", limit=None,
                  keywords=None, **dbargs):
         self.name = name
+        dbargs["prefix"] = 'A'
+        dbargs["calculator"] = {"name": "Aflow"}
+        super(Aflow, self).__init__(**dbargs)
+        
         self.catalog = catalog
         self.batch_size = batch_size
         self.limit = limit
-        
-        dbargs["prefix"] = 'A'
-        super(Aflow, self).__init__(**dbargs)
         
         self.filters = []
         if filters is not None:
@@ -267,8 +268,8 @@ class Aflow(Group):
                 #This creates the folder and configures the atoms object in the
                 #group. However, it does *not* create `atoms.json`, which
                 #happens only when cleanup is called.
-                atoms = entry.atoms(quippy=True, keywords=self.keywords)
-                cid = self.create(atoms)
+                atoms = entry.atoms(quippy=True, keywords=self.keywords)                
+                cid = self.create(atoms, entry=entry)
                 self.index[auid] = self.configs[cid]
         finally:
             self.save_index()
