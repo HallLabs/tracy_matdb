@@ -101,15 +101,14 @@ def kfilter(dsl):
             op, kw = dsl
             assert op in operators
             kword = get_kw(kw)
-            return op(kword)
+            return operators[op](kword)
         
         elif len(dsl) == 3:
             #Has an operator and an argument.
-            l, op, r = dsl
+            l, op, right = dsl
             assert op in operators
             left = get_kw(l)
-            right = get_kw(r)
-            return op(left, right)
+            return operators[op](left, right)
 
 def get_kw(kwstr):
     """Returns the :class:`aflow.keywords.Keyword` instance with the specified
