@@ -16,6 +16,7 @@ from quippy.atoms import Atoms
 
 from matdb import msg
 from .controller import ParameterGrid
+from .controller import Database
 from matdb import calculators
 
 def atoms_to_json(atoms, folder):
@@ -121,6 +122,7 @@ class Group(object):
         self.root = root
         self.index = {}
         self._read_index()
+
         self.parent = parent
         self.execution = execution
         self.params = None
@@ -136,7 +138,7 @@ class Group(object):
             self.seeds = OrderedDict()
             for atomspec in seeds:
                 fmt, pattern = atomspec.split(':')
-                for apath in self.parent.controller.relpaths(pattern):
+                for apath in self.database.controller.relpaths(pattern):
                     self.seeds[path.basename(apath)] = Atoms(apath,format=fmt)
                     
         elif seeds is None and self.seeded:
@@ -152,7 +154,7 @@ class Group(object):
                 if not path.isdir(seed_root):
                     mkdir(seed_root)                                        
                 self.sequence[seedname] = Group(root=this_root,
-                                                parent=parent,
+                                                parent=self,
                                                 prefix=prefix,
                                                 seeds=at_seed,
                                                 db_name=db_name,
@@ -164,11 +166,11 @@ class Group(object):
                     this_root = path.join(root,pgrid.to_str(params))
                     if not path.isdir(this_root):
                         mkdir(this_root)
-                    self.sequence[pgrid.to_str(params)] = Group(root=this_root,parent=parent,
+                    self.sequence[pgrid.to_str(params)] = Group(root=this_root, parent=self,
                                                                 prefix=prefix,
                                                                 db_name=db_name,
                                                                 calculator=calculator,
-                                                                seeds = seeds,
+                                                                seeds=seeds,
                                                                 parameters=pgrid[params])
             else:
                 self.atoms = seeds
@@ -210,6 +212,18 @@ class Group(object):
                     #The folder name doesn't follow our convention.
                     pass
 
+    @property
+    def database(self):
+        """Returns the parent :class:`matdb.database.controller.Database` instance for
+        this group, irrespective of how deep it is in the recursive stack.
+        """
+        if isinstance(self.parent, Database):
+            return self.parent
+        elif isinstance(self.parent, Group):
+            return self.parent.database
+        else:
+            return None
+                
     @property
     def trainable(self):
         """Determines if the group configs should be used for training.
@@ -288,19 +302,19 @@ class Group(object):
     def prev(self):
         """Finds the previous group in the database.
         """
-        keylist = self.parent.steps.keys()
+        keylist = self.database.steps.keys()
         for i, v in enumerate(keylist):
             if v == self._db_name and i!=0:
-                return self.parent.steps[keylist[i-1]]
+                return self.database.steps[keylist[i-1]]
             
     @property
     def dep(self):
         """Finds the next, or dependent, group in the databes.
         """
-        keylist = self.parent.steps.keys()
+        keylist = self.database.steps.keys()
         for i, v in enumerate(keylist):
             if v == self._db_name and i!=(len(keylist)-1):
-                return self.parent.steps[keylist[i+1]]
+                return self.database.steps[keylist[i+1]]
         
     def is_executing(self):
         """Returns True if the database DFT calculations are in process of being
@@ -448,7 +462,7 @@ class Group(object):
             # We use the global execution parameters and then any updates
             # locally. We need to add the execution directory (including prefix) and
             # the number of jobs in the array.
-            settings = self.parent.execution.copy()
+            settings = self.database.execution.copy()
             settings.update(self.execution.items())
             
             settings["execution_path"] = xpath
