@@ -120,34 +120,16 @@ def test_special_values():
     assert isinstance(special_values("distr:alpha(0,10)"),
                       scipy.stats._distn_infrastructure.rv_frozen)
 
-def test_flatten_dict():
-    """Tests the flattening of a dictionary.
-    """
-    from matdb.utility import flatten_dict
-    
-    dict1 = {"a":[1,0],"b":[2,0],"c":1.6}
-    dict2 = flatten_dict(dict1)
-    
-    assert compare_dicts(dict1,dict2)
-
-    dict1 = {"a":{"d":[1,0],"e":0},"b":[2,0],"c":2.5}
-    dict2 = flatten_dict(dict1)
-    dict1 = {"d":[1,0],"e":0,"b":[2,0],"c":2.5}
-
 def test_special_functions():
     """Tests the special function evaluation.
     """
 
     from matdb.utility import special_functions
 
-    assert np.allclose([1,8],special_functions("linalg:det",[[1,0,0,0,1,0,0,0,1],[2,2,2]]))
-    assert np.allclose([3,6],special_functions("numpy:sum",[[1,0,0,0,1,0,0,0,1],[2,2,2]]))
+    assert np.allclose(1,special_functions({"func":"linalg:det","reshape":(3,3)},[1,0,0,0,1,0,0,0,1]))
+    assert np.allclose(3,special_functions("numpy:sum",[1,0,0,0,1,0,0,0,1]))
     with pytest.raises(ValueError):
         special_functions(None,None)
-    with pytest.raises(ValueError):
-        special_functions("stuff",None)
-    with pytest.raises(ValueError):
-        special_functions("stuff",[1,2])
 
 def test_is_number():
     """Tests the is_number function.
