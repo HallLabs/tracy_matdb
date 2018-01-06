@@ -1,10 +1,11 @@
 """Group of configurations that is created by displacing a given
 unit cell along phonon modes using the eigenvectors.
 """
-from .basic import Group
 from matdb import msg
 from os import path
 import numpy as np
+from operator import itemgetter
+from .basic import Group
 
 def _parsed_kpath(poscar):
     """Gets the special path in the BZ for the structure with the specified
@@ -67,6 +68,9 @@ class DynMatrix(Group):
         dosmesh (list): of `int`; number of splits in each reciprocal
           lattice vector according to Monkhorst-Pack scheme. Used for
           calculating the phonon density-of-states.
+        tolerance (float): maximum difference in integrated total DOS that may
+          exist for a calculation to be considered "good enough". This is used
+          when selecting the "best" calculation from a parameter grid.
 
     .. note:: Additional attributes are also exposed by the super class
       :class:`Group`.
@@ -83,7 +87,7 @@ class DynMatrix(Group):
 
     """
     def __init__(self, phonopy={}, name="dynmatrix", bandmesh=None,
-                 dosmesh=None, **dbargs):
+                 dosmesh=None, tolerance=0.1, **dbargs):
         self.name = name
         dbargs["prefix"] = "W"
         #Make sure that we override the global calculator default values with
@@ -95,9 +99,11 @@ class DynMatrix(Group):
         self.supercell = phonopy["dim"]
         self.bandmesh = bandmesh
         self.dosmesh = dosmesh
+        self.tolerance = tolerance
         self.phonodir = path.join(self.root, "phonopy")
         self.phonocache = path.join(self.root, "phoncache")
-        
+        self.kpathdir = path.join(self.root, "kpaths")
+
         self._bands = None
         """dict: keys are ['q', 'w', 'path', 'Q'], values are the distance along
         the special path (scalar), phonon frequencies at that distance (vector,
@@ -110,14 +116,86 @@ class DynMatrix(Group):
         matrix for the gamma point in the seed configuration along with its
         eigenvalues and eigenvectors.
         """
-        
-        
+                
         from os import mkdir
         if not path.isdir(self.phonodir):
             mkdir(self.phonodir)
         if not path.isdir(self.phonocache):
             mkdir(self.phonocache)
+        if not path.isdir(self.kpathdir):
+            mkdir(self.kpathdir)
 
+    def _best_bands(self):
+        """Returns the name of the band collection that has the smallest *converged*
+        phonon bands. This is accomplished by assuming that the largest supercell is
+        the "correct" answer, and comparing the total DOS. If the comparitive error
+        is within `tolerance`, then it is acceptable. The smallest acceptable
+        supercell's key is returned.
+
+        Returns:
+            str: the key in the group's sequence that has the smallest acceptable
+            supercell size.
+        """
+        #Find the cell size and DOS for each calculation in the sequence.
+        sizes = {k: np.det(np.reshape(np.array(d.supercell), (3, 3)))
+                 for k, d in self.sequence.items()}
+        dos = {k: np.readtxt(d.dos_file)
+               for k, d in self.sequence.items()}
+
+        #Find the calculation with the largest cell size and grab its DOS.
+        maxkey, maxval = max(sizes.items(), key=itemgetter(1))
+        maxdos = dos[maxkey]
+
+        ok = {}
+        for k, d in self.sequence.items():
+            if k == maxkey:
+                continue
+            assert dos[k].shape == maxdos.shape()
+            diff = np.sum(np.abs(dos[k][:,1]-maxdos[:,1]))
+            if diff < self.tolerance:
+                ok[k] = sizes[k]
+
+        #Now, choose the supercell with the smallest cell size, if one
+        #exists. Otherwise warn the user that either the tolerance was too low, or
+        #that the calculation may not be converged.
+        if len(ok) > 0:
+            minkey, minval = min(ok.items(), key=itemgetter(1))
+        else:
+            msg.warn("DynMatrix calculation may not be converged. Your tolerance "
+                     "may be too high. Returning the largest supercell by default.")
+            minkey = maxkey
+
+        return minkey
+            
+    @property
+    def rset(self):
+        """Constructs the dynamical matrix for the *best* convergence parameters
+        in this group and it's possible sub-sequences.
+
+        Returns:
+            dict: keys are `atoms` and `dynmat`; values are the atoms object and
+            its dynamical matrix respectively.
+        """
+        if len(self.sequence) == 0:
+            #We are at the bottom of the stack; calculate the dynamical matrix
+            #and return it with the atoms object it corresponds to.
+            return [{
+                "atoms": self.atoms,
+                "dynmat": self.dynmat
+            }]
+        else:
+            #Check where we are in the stack. If we are just below the database,
+            #then we want to return a list of dynamical matrices and atoms
+            #objects. If we are not, then we must a parameter grid of sequences
+            #to select from.
+            if isinstance(self.parent, DynMatrix):
+                #We have many dynamical matrices to choose from. We need to decide
+                #what "best" means and then return that one.
+                bestkey = self._best_bands()
+                return self.sequence[bestkey].rset
+            else:
+                return [p.rset for p in self.sequence.values()]
+            
     def _set_calc_defaults(self, calcargs):
         """Sets the default calculator parameters for phonon calculations based
         on the calculator specified in `calcargs`.
@@ -139,14 +217,23 @@ class DynMatrix(Group):
         except:
             pass
 
+    @property
+    def dos_file(self):
+        """Returns the full path to file that contains the total DOS for the
+        phonons.
+        """
+        return path.join(self.phonodir, "total_dos.dat")
+    
     def ready(self):
         """Returns True if all the phonon calculations have been completed, the
         force sets have been created, and the DOS has been calculated.
         """
-        #If the DOS has been calculated, then all the other steps must have
-        #completed correctly.
-        dosfile = path.join(self.phonodir, "total_dos.dat")
-        return path.isfile(dosfile)
+        if len(self.sequence) == 0:
+            #If the DOS has been calculated, then all the other steps must have
+            #completed correctly.
+            return path.isfile(self.dos_file)
+        else:
+            return all(p.ready() for p in self.sequence.values())
 
     @property
     def dynmat_file(self):
@@ -236,7 +323,15 @@ class DynMatrix(Group):
             service. First term is a list of special point labels; second is the
             list of points corresponding to those labels.
         """
-        return self.parent.repeater.kpath
+        from .controller import Database
+        from .basic import Group
+        
+        if isinstance(self.parent, Database):
+            #We actually need to build the kpath file and save it to disk. All
+            #the nested Group instances will use the same kpath.
+            pass
+        elif isinstance(self.parent, DynMatrix):
+            return self.parent.kpath
     
     def calc_bands(self, recalc=False):
         """Calculates the bands at the special points given by the
