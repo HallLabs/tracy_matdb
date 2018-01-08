@@ -24,6 +24,7 @@ class Enumerated(Group):
         rattle (float): the amount to rattle the atoms by.
         keep_supers (bool): True if the superperiodic cells are to be kept in the
             enumerated list.
+        displace (float): the amount to displace atoms with arrows.
 
     .. note:: Additional attributes are also exposed by the super class
       :class:`Group`.
@@ -45,7 +46,8 @@ class Enumerated(Group):
     """
     def __init__(self, sizes=None, basis=None, lattice=None, concs=None,
                  arrows = None, eps=None, species=None, name="enum",
-                 rattle=None, rseed=None, keep_supers=None, **dbargs):
+                 rattle=None, rseed=None, keep_supers=None, displace=None,
+                 **dbargs):
         self.name = name
         dbargs['prefix'] = "E"
         dbargs['cls'] = Enumerated
@@ -70,6 +72,11 @@ class Enumerated(Group):
             self.keep_supers = False
         else:
             self.keep_supers = keep_supers
+            
+        if displace is None:
+            self.displace = 0.0
+        else:
+            self.displace = displace
         
         if sizes is not None and len(sizes)==1 and isinstance(sizes,list):
             self.min_size = 1
@@ -348,20 +355,22 @@ class Enumerated(Group):
         
         _enum_out({"input":"enum.in","outfile":"enum.out",
                    "seed":self.rseed if self.rseed is None else self.rseed+dind,
-                   "lattice":"lattice.in","distribution":["all",self.nconfigs-dind],
-                   "super":self.keep_supers})
+                   "lattice":"lattice.in","distribution":["all",str(self.nconfigs-dind)],
+                   "super":self.keep_supers,"sizes":None,"savedist":None,"filter":None,
+                   "acceptrate":None})
 
         remove("enum.in")
         [remove(f) for f in listdir('.') if f.startswith("polya.")]
         # extract the POSCARS
-        euids = _make_structures({"structures":"all","input":"enum.out",
-                                  "species":self.species,"rattle":self.rattle},
-                                 return_euids=True)
+        euids = _make_structures({"structures":None,"input":"enum.out",
+                                  "species":self.species,"rattle":self.rattle,
+                                  "mink":"t","outfile":"vasp.{}","displace":self.displace}
+                                 ,return_euids=True)
 
         # Now we need to 
         from quippy.atoms import Atoms
         for count, dposcar in enumerate(glob("vasp.*")):
-            if euids[count] not in self.euids:
+            if self.euids is None or (self.euids is not None and euids[count] not in self.euids):
                 dind += 1
                 datoms = Atoms(dposcar,format="POSCAR")
                 self.create(datoms,cid=dind)
