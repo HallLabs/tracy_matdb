@@ -76,7 +76,7 @@ def _mueller(target,atoms):
     precalc = path.join(target,"PRECALC")
     with open(precalc,"w+") as f:
         f.write("INCLUDEGAMMA=AUTO
-MINDISTANCE=30")
+MINDISTANCE=40")
     cur_dir = getcwd()
     chdir(target)
     system("getKPoints")
