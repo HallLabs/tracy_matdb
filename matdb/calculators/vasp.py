@@ -67,6 +67,7 @@ class AsyncVasp(Vasp, AsyncCalculator):
     def __init__(self, atoms, folder, *args, **kwargs):
         self.folder = path.abspath(path.expanduser(folder))
         self.kpoints = kwargs.pop("kpoints")
+        self.atoms = atoms
         super(AsyncVasp, self).__init__(*args, **kwargs)
         if not path.isdir(self.folder):
             mkdir(self.folder)
@@ -77,7 +78,7 @@ class AsyncVasp(Vasp, AsyncCalculator):
         built-in routines.
         """
         from ase.io.vasp import write_vasp
-        write_vasp(join(directory, 'POSCAR'),
+        write_vasp(path.join(directory, 'POSCAR'),
                    self.atoms_sorted,
                    symbol_count=self.symbol_count)
         self.write_incar(atoms, directory=directory)
@@ -154,7 +155,7 @@ class AsyncVasp(Vasp, AsyncCalculator):
             rewrite (bool): when True, overwrite any existing files with the
               latest settings.
         """
-        self.write_input(atoms, self.folder)
+        self.write_input(self.atoms, self.folder)
 
     def cleanup(self, folder):
         """Extracts results from completed calculations and sets them on the
