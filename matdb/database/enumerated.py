@@ -367,10 +367,12 @@ class Enumerated(Group):
                                   "mink":"t","outfile":"vasp.{}","displace":self.displace}
                                  ,return_euids=True)
 
-        # Now we need to 
+        # Now we need to create the folder for each system we've enumerated
+        if self.euids is None:
+            self.euids = []
         from quippy.atoms import Atoms
         for count, dposcar in enumerate(glob("vasp.*")):
-            if self.euids is None or (self.euids is not None and euids[count] not in self.euids):
+            if euids[count] not in self.euids:
                 dind += 1
                 datoms = Atoms(dposcar,format="POSCAR")
                 self.create(datoms,cid=dind)

@@ -75,8 +75,8 @@ def _mueller(target,atoms):
 
     precalc = path.join(target,"PRECALC")
     with open(precalc,"w+") as f:
-        f.write("INCLUDEGAMMA=AUTO
-MINDISTANCE=40")
+        f.write("INCLUDEGAMMA=AUTO \n"
+                "MINDISTANCE=40")
     cur_dir = getcwd()
     chdir(target)
     system("getKPoints")
@@ -94,7 +94,7 @@ def custom(target, key, atoms=None):
         atoms (quippy.Atoms): atoms object to generate KPOINTS for.
     """
     select = {
-        "gamma": _gamma_only
+        "gamma": _gamma_only,
         "mueller": _mueller
     }
     if key in select:
