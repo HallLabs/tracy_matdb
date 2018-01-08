@@ -316,8 +316,6 @@ class Database(object):
                 continue
 
             modname, clsname = dbspec["type"].split('.')
-            if not path.isdir(path.join(self.root,clsname)):
-                mkdir(path.join(self.root,clsname))
             fqdn = "matdb.database.{}".format(modname)
             module = import_module(fqdn)
             if not hasattr(module, clsname):# pragma: no cover

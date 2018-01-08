@@ -141,6 +141,9 @@ class Group(object):
         else:
             self.root = root
             
+        if not path.isdir(self.root):
+            mkdir(self.root)
+            
         self.index = {}
         self._read_index()
 
@@ -262,6 +265,7 @@ class Group(object):
                 #make sure the original rset doesn't modify. For normal cases
                 #where it is simply an Atoms object, the copy performs the same
                 #function.
+                print(a)
                 self.seeds[seedname] = a.copy()
                 
     @property
@@ -317,7 +321,7 @@ class Group(object):
         result = None
         if path.isfile(f_path):
             with open(f_path,"r") as f:
-                result = load(f)
+                result = pickle.load(f)
             
         return result
     
@@ -375,7 +379,7 @@ class Group(object):
         if len(self.sequence) == 0:
             is_executing = False
             for atoms in self.config_atoms:
-                is_executing = atoms.calculator.is_executing()
+                is_executing = atoms.calc.is_executing()
                 if is_executing:
                     break                
         else:
@@ -405,18 +409,18 @@ class Group(object):
                 return False
 
             if not recovery:
-                if not all(a.calculator.can_execute()
+                if not all(a.calc.can_execute()
                            for a in self.config_atoms.values()):
                     return False
 
                 #We also need to check that we haven't already submitted this
                 #job. Check to see if it is executing.
-                if any(a.calculator.is_executing()
+                if any(a.calc.is_executing()
                        for a in self.config_atoms.values()):
                     return False
 
                 #Make sure that the calculation isn't complete.
-                if any(a.calculator.can_cleanup()
+                if any(a.calc.can_cleanup()
                        for a in self.config_atoms.values()):
                     return False                
         
@@ -663,8 +667,8 @@ class Group(object):
                 allatoms.update(group.config_atoms.values())
                 
         for a in tqdm(allatoms):
-            ready[f] = a.calculator.can_execute()
-            done[f] = a.calculator.can_cleanup()
+            ready[f] = a.calc.can_execute()
+            done[f] = a.calc.can_cleanup()
         
         rdata, ddata = cnz(ready.values()), cnz(done.values())
         N = len(self.configs)        
@@ -700,7 +704,7 @@ class Group(object):
                 #otherwise we aren't ready to go.
                 return False
         
-            cleanups = [a.calculator.can_cleanup() for a in self.config_atoms.values()]
+            cleanups = [a.calc.can_cleanup() for a in self.config_atoms.values()]
         else: 
             cleanups = [group.can_cleanup() for group in self.sequence.values()]
         return all(cleanups)
