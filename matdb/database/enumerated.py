@@ -2,7 +2,7 @@
 """
 from .basic import Group
 from matdb import msg
-from os import path, getcwd, chdir, remove, listdir
+from os import path, getcwd, chdir, remove, listdir, mkdir
 import numpy as np
 from six import string_types
 
@@ -51,6 +51,10 @@ class Enumerated(Group):
         self.name = name
         dbargs['prefix'] = "E"
         dbargs['cls'] = Enumerated
+        if "Enum" not in dbargs['root']:
+            mkdir("Enum")
+            chdir("Enum")
+            dbargs['root'] = path.join(dbargs['root'],"Enum")
         super(Enumerated, self).__init__(**dbargs)
         
         if eps is not None:
