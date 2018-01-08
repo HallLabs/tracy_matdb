@@ -146,7 +146,8 @@ class Group(object):
             
         self.index = {}
         self._read_index()
-
+        
+        self.cls = cls
         self.parent = parent
         self.execution = execution
         self.atoms = None
@@ -221,9 +222,9 @@ class Group(object):
                 clsargs["root"] = seed_root
                 clsargs["seeds"] = at_seed
                 clsargs["pgrid"] = self.pgrid
-                if cls is None:
+                if self.cls is None:
                     msg.err("The Group must have a class to have seeds.")
-                self.sequence[seedname] = cls(**clsargs)
+                self.sequence[seedname] = self.cls(**clsargs)
         else:
             if self.pgrid is not None and len(self.pgrid) > 0:
                 for pkey in self.pgrid:
@@ -235,9 +236,9 @@ class Group(object):
                     clsargs.update(self.pgrid[pkey])
                     clsargs["root"] = this_root
                     clsargs["seeds"] = self._seed
-                    if cls is None:
+                    if self.cls is None:
                         msg.err("The Group must have a class to have a parameter grid.")
-                    self.sequence[pkey] = cls(**clsargs)
+                    self.sequence[pkey] = self.cls(**clsargs)
             else:
                 self.atoms = self._seed
                 
