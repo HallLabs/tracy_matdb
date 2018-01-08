@@ -161,9 +161,11 @@ class Group(object):
                 
         self.sequence = OrderedDict()                
         self.calc = None
+        self.calcargs = self.database.calculator.copy()
         if calculator is not None:
-            self.calc = getattr(calculators, calculator["name"])
-        self.calcargs = calculator
+            self.calcargs.update(calculator)
+        self.calc = getattr(calculators, self.calcargs["name"])
+
         self.prefix = prefix
         self.nconfigs = nconfigs
         self.config_type = config_type
