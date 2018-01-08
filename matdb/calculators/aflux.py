@@ -9,8 +9,10 @@ checking for execution readiness, etc.
   requires correlating the AFLOW keywords with the physical quantities that the
   calculator can produce.
 """
-from .basic import SyncCalculator
 from os import path
+import pickle
+
+from .basic import SyncCalculator
 
 class AsyncAflow(SyncCalculator):
     """Represents an asynchronous calculator for constructing
@@ -42,7 +44,7 @@ class AsyncAflow(SyncCalculator):
         """Returns the full path to the pkl file that represents the cached
         :class:`aflow.entries.Entry` object.
         """
-        return path.join(folder, "entry.pkl")
+        return path.join(self.folder, "entry.pkl")
         
     def can_execute(self):
         """Returns `True` if the specified folder is ready to execute using the
