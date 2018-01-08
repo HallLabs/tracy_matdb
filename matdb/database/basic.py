@@ -107,7 +107,7 @@ class Group(object):
         pgrid (ParamaterGrid): The ParameterGrid for the database.
         seeds (list, str, quippy.Atoms): The location of the files that will be
           read into to make the atoms object or an atoms object.
-       cls (subclass): the subclass of :class:`Group`.
+        cls (subclass): the subclass of :class:`Group`.
 
     Attributes:
         atoms (quippy.atoms.Atoms): a single atomic configuration from
@@ -123,6 +123,9 @@ class Group(object):
         prefix (str): sub-sampled configurations will be stored using integer
           ids after this prefix; for example `S.1`, `S.2`, etc.
         nconfigs (int): number of displaced configurations to create.
+        pgrid (ParamaterGrid): The ParameterGrid for the database.
+        grpargs (dict): default arguments to construct the new groups; will
+          be overridden by any parameter grid specs.
     """
     seeded = False
     def __init__(self, cls=None, root=None, parent=None, prefix='S', pgrid=None,
@@ -142,60 +145,23 @@ class Group(object):
             self.is_seed_listed = isinstance(seeds, (list, six.string_types))
 
         self.seeds = None
-        if self.is_seed_listed:
-            self.seeds = OrderedDict()
-            for atomspec in seeds:
-                fmt, pattern = atomspec.split(':')
-                for apath in self.database.controller.relpaths(pattern):
-                    self.seeds[path.basename(apath)] = Atoms(apath,format=fmt)
-                    
-        elif seeds is None and self.seeded:
-            self.seeds = OrderedDict()
-            for n_seeds, a in enumerate(self.prev.rset):
-                seedname = "seed-{}".format(n_seeds)
-                #NB! The previous rset may be a dict with an "atoms" key and
-                #additional keys to pass to the group constructor. We copy it to
-                #make sure the original rset doesn't modify. For normal cases
-                #where it is simply an Atoms object, the copy performs the same
-                #function.
-                self.seeds[seedname] = a.copy()            
-
-        grpargs = dict(parent=self, prefix=prefix, db_name=db_name,
-                       nconfigs=nconfigs, trainable=trainable,
-                       execution=execution, config_type=config_type,
-                       calculator=calculator)
+        self.pgrid = pgrid
+        self._seed = seeds
+        """list, str, quippy.Atoms: The location of the files that will be
+        read into to make the atoms object or an atoms object. This is the
+        parameter that was passed as the seed for the group constructor; for
+        recursive constructions, it starts as a list of seed patterns, which
+        gets expanded into individual seeds, which may then be coupled to
+        parameter grid specs.
+        """
+        
+        self._expand_seeds(seeds)
+        self.grpargs = dict(parent=self, prefix=prefix, db_name=db_name,
+                            nconfigs=nconfigs, trainable=trainable,
+                            execution=execution, config_type=config_type,
+                            calculator=calculator)
                 
-        self.sequence = OrderedDict()
-        if self.seeds is not None:
-            for seedname, at_seed in self.seeds.items():
-                seed_root = path.join(root, seedname)                    
-                if not path.isdir(seed_root):
-                    mkdir(seed_root)
-
-                clsargs = grpargs.copy()
-                clsargs["root"] = seed_root
-                clsargs["seeds"] = at_seed
-                clsargs["pgrid"] = pgrid
-                if cls is None:
-                    msg.err("The Group must have a class to have seeds.")
-                self.sequence[seedname] = cls(**clsargs)
-        else:
-            if pgrid is not None and len(pgrid) > 0:
-                for pkey in pgrid:
-                    this_root = path.join(root, pkey)
-                    if not path.isdir(this_root):
-                        mkdir(this_root)
-                        
-                    clsargs = grpargs.copy()
-                    clsargs.update(pgrid[pkey])
-                    clsargs["root"] = this_root
-                    clsargs["seeds"] = seeds
-                    if cls is None:
-                        msg.err("The Group must have a class to have a parameter grid.")
-                    self.sequence[pkey] = cls(**clsargs)
-            else:
-                self.atoms = seeds
-                
+        self.sequence = OrderedDict()                
         self.calc = None
         if calculator is not None:
             self.calc = getattr(calculators, calculator["name"])
@@ -227,6 +193,67 @@ class Group(object):
                     #The folder name doesn't follow our convention.
                     pass
 
+    def _expand_sequence(self):
+        """Recursively expands the nested groups to populate :attr:`sequence`.
+
+        Args:
+        """
+        if self.seeds is not None:
+            for seedname, at_seed in self.seeds.items():
+                seed_root = path.join(self.root, seedname)                    
+                if not path.isdir(seed_root):
+                    mkdir(seed_root)
+
+                clsargs = self.grpargs.copy()
+                clsargs["root"] = seed_root
+                clsargs["seeds"] = at_seed
+                clsargs["pgrid"] = self.pgrid
+                if cls is None:
+                    msg.err("The Group must have a class to have seeds.")
+                self.sequence[seedname] = cls(**clsargs)
+        else:
+            if self.pgrid is not None and len(self.pgrid) > 0:
+                for pkey in self.pgrid:
+                    this_root = path.join(self.root, pkey)
+                    if not path.isdir(this_root):
+                        mkdir(this_root)
+                        
+                    clsargs = self.grpargs.copy()
+                    clsargs.update(self.pgrid[pkey])
+                    clsargs["root"] = this_root
+                    clsargs["seeds"] = self._seed
+                    if cls is None:
+                        msg.err("The Group must have a class to have a parameter grid.")
+                    self.sequence[pkey] = cls(**clsargs)
+            else:
+                self.atoms = self._seed
+                
+    def _expand_seeds(self, seeds):
+        """Expands explicitly listed seed wildcard patterns to populate the
+        :attr:`seeds` dict.
+
+        Args:
+            seeds (list, str, quippy.Atoms): The location of the files that will be
+              read into to make the atoms object or an atoms object.
+        """
+        if self.is_seed_listed:
+            self.seeds = OrderedDict()
+            for atomspec in seeds:
+                fmt, pattern = atomspec.split(':')
+                for apath in self.database.controller.relpaths(pattern):
+                    self.seeds[path.basename(apath)] = Atoms(apath, format=fmt)
+                    
+        elif seeds is None and self.seeded:
+            self.seeds = OrderedDict()
+            for n_seeds, a in enumerate(self.prev.rset):
+                seedname = "seed-{}".format(n_seeds)
+                #NB! The previous rset may be a dict with an "atoms" key and
+                #additional keys to pass to the group constructor. We copy it to
+                #make sure the original rset doesn't modify. For normal cases
+                #where it is simply an Atoms object, the copy performs the same
+                #function.
+                self.seeds[seedname] = a.copy()
+                
     @property
     def database(self):
         """Returns the parent :class:`matdb.database.controller.Database` instance for
