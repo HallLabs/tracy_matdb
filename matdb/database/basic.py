@@ -616,8 +616,12 @@ class Group(object):
                 group independently.
             rerun (bool): default value is False.
         """
-
-        if self.prev is None or (self.prev is not None and self.prev.can_cleanup()):
+        if self.prev is None or self.prev.can_cleanup():
+            #Before we attempt to setup the folders, we first need to construct
+            #the recursive sequence groups. This cannot happen until the
+            #previous group in the database is ready, which is why it happens
+            #here rather than in __init__.
+            _expand_sequence
             if len(self.sequence) == 0:
                 ok = self.is_setup()
                 if ok and not rerun:
