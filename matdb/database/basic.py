@@ -14,7 +14,8 @@ import six
 from collections import OrderedDict
 from quippy.atoms import Atoms
 from glob import glob
-        
+import json
+
 from matdb import msg
 from matdb.utility import chdir
 from .controller import ParameterGrid
@@ -129,9 +130,17 @@ class Group(object):
     """
     seeded = False
     def __init__(self, cls=None, root=None, parent=None, prefix='S', pgrid=None,
-                 nconfigs=None, calculator=None, seeds=None, db_name=None,
+                 nconfigs=None, calculator=None, seeds=None,
                  config_type=None, execution={}, trainable=False):
-        self.root = root
+        if isinstance(parent, Database):
+            #Because we allow the user to override the name of the group, we
+            #have to expand our root to use that name over here. However, for
+            #recursively nested groups, we use the root passed in because it
+            #already includes the relevant suffixes, etc.
+            self.root = path.join(root, self.name)
+        else:
+            self.root = root
+            
         self.index = {}
         self._read_index()
 
@@ -154,10 +163,9 @@ class Group(object):
         gets expanded into individual seeds, which may then be coupled to
         parameter grid specs.
         """
-        self.grpargs = dict(parent=self, prefix=prefix, db_name=db_name,
-                            nconfigs=nconfigs, trainable=trainable,
-                            execution=execution, config_type=config_type,
-                            calculator=calculator)
+        self.grpargs = dict(parent=self, prefix=prefix, nconfigs=nconfigs,
+                            trainable=trainable, execution=execution,
+                            config_type=config_type, calculator=calculator)
                 
         self.sequence = OrderedDict()                
         self.calc = None
@@ -175,7 +183,7 @@ class Group(object):
         converted to XYZ format. Should be equal to :attr:`nconfigs` if the
         database is complete.
         """
-        self._db_name = db_name
+        self._db_name = self.database.name
         
         #Try and load existing folders that match the prefix into the configs
         #list.
@@ -623,7 +631,7 @@ class Group(object):
             #the recursive sequence groups. This cannot happen until the
             #previous group in the database is ready, which is why it happens
             #here rather than in __init__.
-            _expand_sequence
+            self._expand_sequence()
             if len(self.sequence) == 0:
                 ok = self.is_setup()
                 if ok and not rerun:
