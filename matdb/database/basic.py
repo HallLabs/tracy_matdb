@@ -646,7 +646,7 @@ class Group(object):
                     pickle.dump({"date":datetime.datetime.now(),"uuid":self.uuid},f)
             else:
                 for group in self.sequence.values():
-                    group.setup(db_setup,rerun=rerun)
+                    group.setup(rerun=rerun)
         else:
             return False                    
             
