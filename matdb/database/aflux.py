@@ -128,7 +128,6 @@ class Aflow(Group):
         orderby (dict): with keys `keyword` and `reverse` specifying an optional
           keyword to order the result by.
         exclude (list): of `str` keywords to exclude from the result.
-        limit (int): maximum number of entries to retrieve from the database.
         keywords (dict): keys are keyword obects accessible from `aflow.K`;
           values are desired `str` names in the parameters dictionary of the
           atoms object. See :meth:`aflow.entries.Entry.atoms`.
@@ -145,13 +144,12 @@ class Aflow(Group):
         reverse (bool): when True, reverse the ordering of the results.
         exclude (list): of :class:`aflow.keywords.Keyword` to exclude from the
           result.
-        limit (int): maximum number of entries to retrieve from the database.
         auids (list): of `str` ids from AFLOW database that are the latest
           result from executing the query.
     """
     def __init__(self, catalog=None, batch_size=100, filters=None, select=None,
-                 orderby=None, exclude=None, name="aflow", limit=None,
-                 keywords=None, **dbargs):
+                 orderby=None, exclude=None, name="aflow", keywords=None,
+                 **dbargs):
         self.name = name
         dbargs["prefix"] = 'A'
         dbargs["calculator"] = {"name": "Aflow"}
@@ -159,7 +157,6 @@ class Aflow(Group):
         
         self.catalog = catalog
         self.batch_size = batch_size
-        self.limit = limit
         
         self.filters = []
         if filters is not None:
@@ -202,16 +199,39 @@ class Aflow(Group):
         if self.auids is None:
             self.auids = self.load_pkl(self.auid_file)
         return self.auids
-                
+
+    @property
+    def atoms_paths(self):
+        """Returns a list of full paths to the folders that have `atoms.json` objects
+        for the latest result set.
+        """
+        result = []
+        for auid in self.auids:
+            folder = self.index[auid]
+            target = path.join(folder, "atoms.json")
+            if path.isfile(target):
+                result.append(folder)
+    
+        return result
+    
     @property
     def rset(self):
-        return [self.index[a] for a in self.auids]
+        """Returns a :class:`quippy.AtomsList`, one for each config in the
+        latest result set.
+        """
+        from matdb.database.basic import atoms_from_json
+        result = quippy.AtomsList()
+        for apath in self.atoms_paths:
+            result.append(atoms_from_json(apath))
+        return result
 
     def ready(self):
         """Determines if all the AFLOW configurations specified in the query
         have been downloaded and saved yet.
         """
-        return len(self.auids) == self.nconfigs
+        #We need to count the number of `atoms.json` files that we have
+        #corresponding to the auids in the list.
+        return len(self.atoms_paths) == self.nconfigs
 
     def setup(self, rerun=False):
         """Executes the query against the AFLOW database and downloads the
@@ -232,8 +252,8 @@ class Aflow(Group):
         if self.orderby:
             result = result.orderby(self.orderby, self.reverse)
 
-        if self.limit:
-            return result[0:self.limit]
+        if self.nconfigs:
+            return result[0:self.nconfigs]
         else:
             return result
     
@@ -258,7 +278,7 @@ class Aflow(Group):
             for entry in tqdm(query):
                 #No matter what, we need to make sure that we store the auid for
                 #the latest query result set.
-                auids.append(entry)
+                auids.append(entry.auid)
                 #If the auid is in the index, it has already been downloaded
                 #before and has its own folder.
                 if entry.auid in self.index:
@@ -269,7 +289,7 @@ class Aflow(Group):
                 #happens only when cleanup is called.
                 atoms = entry.atoms(quippy=True, keywords=self.keywords)                
                 cid = self.create(atoms, calcargs={"entry": entry})
-                self.index[auid] = self.configs[cid]
+                self.index[entry.auid] = self.configs[cid]
         finally:
             self.save_index()
 
