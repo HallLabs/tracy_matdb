@@ -12,9 +12,10 @@ class Hessian(Group):
           eigenvals.
     """
     def __init__(self, name="hessian", **dbargs):
+        self.name = name
         self.seeded = True
         dbargs["prefix"] = 'H'
-        super(Aflow, self).__init__(**dbargs)
+        super(Hessian, self).__init__(**dbargs)
 
     @property
     def rset(self):

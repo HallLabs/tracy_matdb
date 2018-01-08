@@ -233,7 +233,7 @@ class Aflow(Group):
             result = result.orderby(self.orderby, self.reverse)
 
         if self.limit:
-            return result[0:limit]
+            return result[0:self.limit]
         else:
             return result
     
@@ -268,7 +268,7 @@ class Aflow(Group):
                 #group. However, it does *not* create `atoms.json`, which
                 #happens only when cleanup is called.
                 atoms = entry.atoms(quippy=True, keywords=self.keywords)                
-                cid = self.create(atoms, entry=entry)
+                cid = self.create(atoms, calcargs={"entry": entry})
                 self.index[auid] = self.configs[cid]
         finally:
             self.save_index()

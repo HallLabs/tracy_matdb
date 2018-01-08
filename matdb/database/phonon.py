@@ -93,8 +93,12 @@ class DynMatrix(Group):
         dbargs["prefix"] = "W"
         #Make sure that we override the global calculator default values with
         #those settings that we know are needed for good phonon calculations.
+        calcargs = dbargs["parent"].calculator.copy()
         if "calculator" in dbargs and "name" in dbargs["calculator"]:
-            self._set_calc_defaults(dbargs["calculator"])
+            calcargs.update(dbargs["calculator"])
+            self._set_calc_defaults(calcargs)
+            dbargs["calculator"] = calcargs
+            
         super(DynMatrix, self).__init__(**dbargs)
 
         self.supercell = phonopy["dim"]
