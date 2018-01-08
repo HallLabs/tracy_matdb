@@ -177,6 +177,7 @@ class Group(object):
         if calculator is not None:
             self.calcargs.update(calculator)
         self.calc = getattr(calculators, self.calcargs["name"])
+        del self.calcargs["name"]
 
         self.prefix = prefix
         self.nconfigs = nconfigs
