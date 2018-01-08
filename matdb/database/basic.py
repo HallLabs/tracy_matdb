@@ -154,8 +154,6 @@ class Group(object):
         gets expanded into individual seeds, which may then be coupled to
         parameter grid specs.
         """
-        
-        self._expand_seeds(seeds)
         self.grpargs = dict(parent=self, prefix=prefix, db_name=db_name,
                             nconfigs=nconfigs, trainable=trainable,
                             execution=execution, config_type=config_type,
@@ -198,6 +196,8 @@ class Group(object):
 
         Args:
         """
+        self._expand_seeds(self._seed)
+        
         if self.seeds is not None:
             for seedname, at_seed in self.seeds.items():
                 seed_root = path.join(self.root, seedname)                    
