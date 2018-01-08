@@ -2,7 +2,7 @@
 have an appropriate special path in the BZ. `matdb` interfaces with
 `materialscloud.org` to extract their recommended path in the BZ.
 """
-from os import path
+from os import path, getcwd, chdir, system
 import numpy as np
 
 def kpath(poscar):
@@ -64,6 +64,24 @@ rec ! in units of the reciprocal lattice vector
 0 0 0 1 ! 3 coordinates and weight
 """)
 
+def _mueller(target,atoms):
+    """Gets the Mueller style k-points from Mueller's server.
+    
+    Args:
+        target(str): path to the directory to create the KPOINTS file.
+        rmin (float): the cutoff for the k-point density by Mueller's
+            metric.
+    """
+
+    precalc = path.join(target,"PRECALC")
+    with open(precalc,"w+") as f:
+        f.write("INCLUDEGAMMA=AUTO
+MINDISTANCE=30")
+    cur_dir = getcwd()
+    chdir(target)
+    system("getKPoints")
+    chdir(cur_dir)
+       
 def custom(target, key, atoms=None):
     """Creates the KPOINT file with the specified custom configuration
     in `target`.
@@ -77,6 +95,7 @@ def custom(target, key, atoms=None):
     """
     select = {
         "gamma": _gamma_only
+        "mueller": _mueller
     }
     if key in select:
         select[key](target, atoms)
