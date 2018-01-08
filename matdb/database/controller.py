@@ -141,7 +141,7 @@ def get_grid(d, suffices=None):
             if k[-1] == '*':
                 nk = k[0:-1]                    
                 for ival, value in enumerate(v):
-                    suffix = get_suffix(suffices, k, ival, value)
+                    suffix = get_suffix(suffices, k, ival+1, value)
                     dc = oned.copy()
                     del dc[k]
                     dc[nk] = value
