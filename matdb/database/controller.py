@@ -649,6 +649,7 @@ class Controller(object):
         #elements can't use this POTCAR, so we have to copy the single POTCAR
         #directly for those databases; update the create().
         if "potcars" in self.specs:
+            self.potcars = self.specs["potcars"]
             self.POTCAR()
 
         #If the controller is going to train any potentials, we also need to 
