@@ -82,13 +82,35 @@ class AsyncVasp(Vasp, AsyncCalculator):
                    self.atoms_sorted,
                    symbol_count=self.symbol_count)
         self.write_incar(atoms, directory=directory)
-        self.write_potcar(directory=directory)
+        self._write_potcar(directory=directory)
         if self.kpoints is not None:
             write_kpoints(directory, self.kpoints, self.atoms)
         else:
             self.write_kpoints(directory=directory)
         self.write_sort_file(directory=directory)
-        
+
+    def _write_potcar(self,directory='./'):
+        """Makes a symbolic link between the main POTCAR file for the database
+        and the folder VASP will execute in."""
+
+        from matdb.utility import symlink, relpath
+        from os import listdir
+        # We need to find the parent POTCAR to symlink to.
+        # This is inelegant and should be revisited later.
+        temp_path = '/'
+        POTCAR = None
+        for step in directory.split('/'):
+            if step == '':
+                continue
+            temp_path = path.join(temp_path,step)
+            if path.isfile(path.join(temp_path,"POTCAR")):
+                POTCAR = path.join(temp_path,"POTCAR")
+                break
+        if POTCAR is None:
+            msg.err("Couldn't finde the primary POTCAR on the path")
+        #link to the POTCAR file.
+        symlink(path.join(directory,"POTCAR"),POTCAR)        
+
     def can_execute(self, folder):
         """Returns True if the specified folder is ready to execute VASP
         in.
