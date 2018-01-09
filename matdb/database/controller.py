@@ -615,6 +615,9 @@ class Controller(object):
         self.species = [s for s in self.specs["species"]]
         self.execution = self.specs.get("execution", {})
         self.calculator = self.specs.get("calculator", {})
+        if "Vasp" in self.calculator["name"]:
+            from os import environ
+            environ["VASP_PP_PATH"] = relpath(path.expanduser(self.specs["potcars"]["directory"]))
         self.venv = self.specs.get("venv")
         self.random_seed = self.specs.get("random seed")
 
