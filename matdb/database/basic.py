@@ -380,8 +380,8 @@ class Group(object):
         """
         if len(self.sequence) == 0:
             is_executing = False
-            for atoms in self.config_atoms.values():
-                is_executing = atoms.calc.is_executing()
+            for i, atoms in self.config_atoms.items():
+                is_executing = atoms.calc.is_executing(self.configs[i])
                 if is_executing:
                     break                
         else:
