@@ -52,9 +52,10 @@ class Enumerated(Group):
         dbargs['prefix'] = "E"
         dbargs['cls'] = Enumerated
         if "Enum" not in dbargs['root']:
-            mkdir("Enum")
-            chdir("Enum")
-            dbargs['root'] = path.join(dbargs['root'],"Enum")
+            new_root =path.join(dbargs['root'],"Enum")
+            if not path.isdir(new_root):
+                mkdir(new_root)
+            dbargs['root'] = new_root
         super(Enumerated, self).__init__(**dbargs)
         
         if eps is not None:
