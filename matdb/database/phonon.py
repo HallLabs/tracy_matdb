@@ -608,7 +608,7 @@ def modulate_atoms(db):
     qvecs = sample_dos(dosfile, sampling=db.sampling, nfreqs=db.nconfigs)
     conffile = path.join(db.base.phonodir, db.confname)
 
-    modstr = [' '.join(map(str, db.phonons["dim"]))]
+    modstr = [' '.join(map(str, db.base.supercell))]
     for iq, (bandi, qvec) in enumerate(qvecs):
         mstr = "{0:.7f} {1:.7f} {2:.7f} {3:d} {4:.7f} {5:.7f}"
         if hasattr(db, "_amplitudes"):
@@ -621,6 +621,7 @@ def modulate_atoms(db):
         modstr.append(mstr.format(*args))
 
     phondict = db.phonons.copy()
+    phondict["dim"] = db.base.supercell
     phondict["atom_name"] = ' '.join(db.base.parent.species)
     phondict["modulation"] = ', '.join(modstr)
     with open(conffile, 'w') as f:
@@ -639,7 +640,7 @@ def modulate_atoms(db):
     #(phonopy doesn't write to stderr, only stdout).
     testmod = path.join(db.base.phonodir, "MPOSCAR-001")
     if not path.isfile(testmod):#pragma: no cover
-        msg.err(xres["output"])
+        msg.err(''.join(xres["output"]))
             
 class Calibration(Group):
     """Represents a set of modulated sub-configurations of differing amplitude,
