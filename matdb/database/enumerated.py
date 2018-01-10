@@ -66,7 +66,8 @@ class Enumerated(Group):
         self.rseed = rseed
         self._get_lattice(lattice)
         self._get_basis(basis)
-        self._get_species(species)
+        self.species = self.database.parent.species
+        self.knary = len(self.species)
         self._get_concs(concs)
         self._get_arrows(arrows)
         if rattle is None:
@@ -109,12 +110,16 @@ class Enumerated(Group):
         if isinstance(lattice,string_types):
             if lattice.lower() == "fcc":
                 self.lattice = [[0.5,0.5,0],[0.5,0,0.5],[0,0.5,0.5]]
+                self.lattice_name = "fcc"
             elif lattice.lower() == "bcc":
                 self.lattice = [[0.5,0.5,-0.5],[0.5,-0.5,0.5],[-0.5,0.5,0.5]]
+                self.lattice_name = "bcc"
             elif lattice.lower() == "sc":
                 self.lattice = [[1,0,0],[0,1,0],[0,0,1]]
+                self.lattice_name = "sc"
             elif lattice.lower() == "hcp":
                 self.lattice = [[1,0,0],[.5, 0.866025403784439, 0],[0, 0, 1.6329931618554521]]
+                self.lattice_name = "hcp"
             else:
                 msg.err("The lattice type {} is unsupported. Please enter your lattice vectors "
                         "as a 3x3 matrix with the vectors as rows in the config file "
@@ -122,6 +127,7 @@ class Enumerated(Group):
         elif isinstance(lattice,list):
             if len(lattice) == 3 and len(lattice[0]) == 3 and np.linalg.det(lattice) != 0:
                 self.lattice = lattice
+                self.lattice_name = "custom"
             else: 
                 msg.err("The lattice vectors must be a 3x3 matrix with the vectors as rows "
                         "and the vectors must be linearly independent.")
@@ -130,6 +136,7 @@ class Enumerated(Group):
                     "or a 3x3 matrix with the vectors a rows.")
         else:
             self.lattice = None
+            self.lattice_name = None
 
     def _get_basis(self,basis):
         """Determines the atomic basis vectors for the system.
@@ -146,7 +153,7 @@ class Enumerated(Group):
                         "the number of atoms in the basis.")
         elif basis is None:
             if self.lattice is not None:
-                if isinstance(self.lattice,string_types) and self.lattice.lower() != "hcp":
+                if self.lattice_name != "hcp":
                     self.basis = [[0,0,0]]
                 else:
                     self.basis = [[0,0,0],[0.5,0.28867513459,0.81649658093]]
@@ -155,23 +162,6 @@ class Enumerated(Group):
         else:
             msg.err("The atomic basis must be a list of lists that is nx3 where n is "
                     "the number of atoms in the basis or left blank.")
-
-    def _get_species(self,species):
-        """Parses the atomic species as passed in by the user.
-         
-        Args:
-            species (list): a list of the names of the atomic species present
-                in the system.
-        """
-        if isinstance(species,list):
-            self.knary = len(species)
-            if self.knary == 1:
-                self.species = [species[0],species[0]]
-            else:
-                self.species = species
-        else:
-            msg.err("The species must be a list of atomic elements.")
-            
 
     def _get_concs(self,concs):
         """Parses the atomic concentrations passed in by the user.
