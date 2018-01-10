@@ -64,7 +64,7 @@ rec ! in units of the reciprocal lattice vector
 0 0 0 1 ! 3 coordinates and weight
 """)
 
-def _mueller(target,atoms):
+def _mueller(target,atoms,mindistance=None):
     """Gets the Mueller style k-points from Mueller's server.
     
     Args:
@@ -75,8 +75,11 @@ def _mueller(target,atoms):
 
     precalc = path.join(target,"PRECALC")
     with open(precalc,"w+") as f:
-        f.write("INCLUDEGAMMA=AUTO \n"
-                "MINDISTANCE=40")
+        if mindistance is not None:
+            f.write("INCLUDEGAMMA=AUTO \n"
+                    "MINDISTANCE={}".format(mindistance))
+        else:
+            rais ValueError("'mindistiance' must be provided for Mueller k-points.")
     cur_dir = getcwd()
     chdir(target)
     system("getKPoints")
@@ -97,8 +100,10 @@ def custom(target, key, atoms=None):
         "gamma": _gamma_only,
         "mueller": _mueller
     }
-    if key in select:
-        select[key](target, atoms)
+    if key["method"] in select:
+        method_args = key.copy()
+        del method_args["method"]
+        select[key](target, atoms,**method_args)
     else:
         emsg = "'{}' is not a valid key for custom k-points."
         raise ValueError(emsg.format(key))
