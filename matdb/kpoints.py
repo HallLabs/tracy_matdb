@@ -79,7 +79,7 @@ def _mueller(target,atoms,mindistance=None):
             f.write("INCLUDEGAMMA=AUTO \n"
                     "MINDISTANCE={}".format(mindistance))
         else:
-            rais ValueError("'mindistiance' must be provided for Mueller k-points.")
+            raise ValueError("'mindistiance' must be provided for Mueller k-points.")
     cur_dir = getcwd()
     chdir(target)
     system("getKPoints")
@@ -103,7 +103,7 @@ def custom(target, key, atoms=None):
     if key["method"] in select:
         method_args = key.copy()
         del method_args["method"]
-        select[key](target, atoms,**method_args)
+        select[key["method"]](target, atoms,**method_args)
     else:
         emsg = "'{}' is not a valid key for custom k-points."
         raise ValueError(emsg.format(key))
