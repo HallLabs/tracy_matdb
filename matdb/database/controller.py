@@ -612,7 +612,7 @@ class Controller(object):
         self.title = self.specs["title"]
         self.legacy = {}
         self.collections = {}
-        self.species = [s for s in self.specs["species"]]
+        self.species = sorted([s for s in self.specs["species"]])
         self.execution = self.specs.get("execution", {})
         self.calculator = self.specs.get("calculator", {})
         self.potcars = self.specs["potcars"]
@@ -627,9 +627,8 @@ class Controller(object):
             potargs = self.potcars.copy()
             del potargs["directory"]
             calcargs.update(potargs)
-            elems = sorted(self.species)
             this_atom = Atoms([Atom(a,[0,0,i]) for i,a
-                               in enumerate(elems)],cell=[1,1,len(elems)+1])
+                               in enumerate(self.species)],cell=[1,1,len(self.species)+1])
             calc = calc(this_atom,self.root,**calcargs)
             calc.write_potcar(directory=self.root)
 
