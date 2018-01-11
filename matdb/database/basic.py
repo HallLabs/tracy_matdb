@@ -146,7 +146,8 @@ class Group(object):
             
         self.index = {}
         self._read_index()
-
+        
+        self.cls = cls
         self.parent = parent
         self.execution = execution
         self.atoms = None
@@ -176,6 +177,7 @@ class Group(object):
         if calculator is not None:
             self.calcargs.update(calculator)
         self.calc = getattr(calculators, self.calcargs["name"])
+        del self.calcargs["name"]
 
         self.prefix = prefix
         self.nconfigs = nconfigs
@@ -221,9 +223,9 @@ class Group(object):
                 clsargs["root"] = seed_root
                 clsargs["seeds"] = at_seed
                 clsargs["pgrid"] = self.pgrid
-                if cls is None:
+                if self.cls is None:
                     msg.err("The Group must have a class to have seeds.")
-                self.sequence[seedname] = cls(**clsargs)
+                self.sequence[seedname] = self.cls(**clsargs)
         else:
             if self.pgrid is not None and len(self.pgrid) > 0:
                 for pkey in self.pgrid:
@@ -235,9 +237,9 @@ class Group(object):
                     clsargs.update(self.pgrid[pkey])
                     clsargs["root"] = this_root
                     clsargs["seeds"] = self._seed
-                    if cls is None:
+                    if self.cls is None:
                         msg.err("The Group must have a class to have a parameter grid.")
-                    self.sequence[pkey] = cls(**clsargs)
+                    self.sequence[pkey] = self.cls(**clsargs)
             else:
                 self.atoms = self._seed
                 
@@ -378,8 +380,8 @@ class Group(object):
         """
         if len(self.sequence) == 0:
             is_executing = False
-            for atoms in self.config_atoms:
-                is_executing = atoms.calc.is_executing()
+            for i, atoms in self.config_atoms.items():
+                is_executing = atoms.calc.is_executing(self.configs[i])
                 if is_executing:
                     break                
         else:
@@ -645,7 +647,7 @@ class Group(object):
                     pickle.dump({"date":datetime.datetime.now(),"uuid":self.uuid},f)
             else:
                 for group in self.sequence.values():
-                    group.setup(db_setup,rerun=rerun)
+                    group.setup(rerun=rerun)
         else:
             return False                    
             

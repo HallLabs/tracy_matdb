@@ -2,7 +2,7 @@
 have an appropriate special path in the BZ. `matdb` interfaces with
 `materialscloud.org` to extract their recommended path in the BZ.
 """
-from os import path
+from os import path, getcwd, chdir, system
 import numpy as np
 
 def kpath(poscar):
@@ -64,6 +64,27 @@ rec ! in units of the reciprocal lattice vector
 0 0 0 1 ! 3 coordinates and weight
 """)
 
+def _mueller(target,atoms,mindistance=None):
+    """Gets the Mueller style k-points from Mueller's server.
+    
+    Args:
+        target(str): path to the directory to create the KPOINTS file.
+        rmin (float): the cutoff for the k-point density by Mueller's
+            metric.
+    """
+
+    precalc = path.join(target,"PRECALC")
+    with open(precalc,"w+") as f:
+        if mindistance is not None:
+            f.write("INCLUDEGAMMA=AUTO \n"
+                    "MINDISTANCE={}".format(mindistance))
+        else:
+            raise ValueError("'mindistiance' must be provided for Mueller k-points.")
+    cur_dir = getcwd()
+    chdir(target)
+    system("getKPoints")
+    chdir(cur_dir)
+       
 def custom(target, key, atoms=None):
     """Creates the KPOINT file with the specified custom configuration
     in `target`.
@@ -76,10 +97,13 @@ def custom(target, key, atoms=None):
         atoms (quippy.Atoms): atoms object to generate KPOINTS for.
     """
     select = {
-        "gamma": _gamma_only
+        "gamma": _gamma_only,
+        "mueller": _mueller
     }
-    if key in select:
-        select[key](target, atoms)
+    if key["method"] in select:
+        method_args = key.copy()
+        del method_args["method"]
+        select[key["method"]](target, atoms,**method_args)
     else:
         emsg = "'{}' is not a valid key for custom k-points."
         raise ValueError(emsg.format(key))

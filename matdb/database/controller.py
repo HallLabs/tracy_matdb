@@ -141,7 +141,7 @@ def get_grid(d, suffices=None):
             if k[-1] == '*':
                 nk = k[0:-1]                    
                 for ival, value in enumerate(v):
-                    suffix = get_suffix(suffices, k, ival, value)
+                    suffix = get_suffix(suffices, k, ival+1, value)
                     dc = oned.copy()
                     del dc[k]
                     dc[nk] = value
@@ -612,9 +612,26 @@ class Controller(object):
         self.title = self.specs["title"]
         self.legacy = {}
         self.collections = {}
-        self.species = [s for s in self.specs["species"]]
+        self.species = sorted([s for s in self.specs["species"]])
         self.execution = self.specs.get("execution", {})
         self.calculator = self.specs.get("calculator", {})
+        self.potcars = self.specs["potcars"]
+        if "Vasp" in self.calculator["name"]:
+            from os import environ
+            environ["VASP_PP_PATH"] = relpath(path.expanduser(self.potcars["directory"]))
+            from matdb import calculators
+            from ase import Atoms, Atom
+            calcargs = self.calculator.copy()
+            calc = getattr(calculators, calcargs["name"])
+            del calcargs["name"]
+            potargs = self.potcars.copy()
+            del potargs["directory"]
+            calcargs.update(potargs)
+            this_atom = Atoms([Atom(a,[0,0,i]) for i,a
+                               in enumerate(self.species)],cell=[1,1,len(self.species)+1])
+            calc = calc(this_atom,self.root,**calcargs)
+            calc.write_potcar(directory=self.root)
+
         self.venv = self.specs.get("venv")
         self.random_seed = self.specs.get("random seed")
 
@@ -648,8 +665,9 @@ class Controller(object):
         #Extract the POTCAR that all the databases are going to use. TODO: pure
         #elements can't use this POTCAR, so we have to copy the single POTCAR
         #directly for those databases; update the create().
-        if "potcars" in self.specs:
-            self.POTCAR()
+        # if "potcars" in self.specs:
+        #     self.potcars = self.specs["potcars"]
+        #     self.POTCAR()
 
         #If the controller is going to train any potentials, we also need to 
         self.trainers = None
