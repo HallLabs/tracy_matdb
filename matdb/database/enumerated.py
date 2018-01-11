@@ -327,8 +327,8 @@ class Enumerated(Group):
         # number of configs returned the first time could be to small for
         # enumerations over small systems.
         recurse = 0
-        while dind<self.nconfigs and recurse<3:
-            dind = self._enumerate(dind)
+        while dind<self.nconfigs and recurse<5:
+            dind = self._enumerate(dind,recurse)
             recurse += 1
         chdir(current)
 
@@ -337,7 +337,7 @@ class Enumerated(Group):
         self.save_index()
         self.save_pkl(self.euids,self.euid_file)
 
-    def _enumerate(self,dind):
+    def _enumerate(self,dind,recurse):
         """Performs the enumeration using phenum and creates the files in the
         correct folder for each system enumerated.
 
@@ -347,9 +347,8 @@ class Enumerated(Group):
         from phenum.enumeration import _enum_out
         from phenum.makeStr import _make_structures
         from glob import glob
-        
         _enum_out({"input":"enum.in","outfile":"enum.out",
-                   "seed":self.rseed if self.rseed is None else self.rseed+dind,
+                   "seed":self.rseed if self.rseed is None else self.rseed+dind+recurse,
                    "lattice":"lattice.in","distribution":["all",str(self.nconfigs-dind)],
                    "super":self.keep_supers,"sizes":None,"savedist":None,"filter":None,
                    "acceptrate":None})
