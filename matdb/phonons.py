@@ -94,13 +94,19 @@ def calc(atoms, fit, kpath, cachedir, supercell=4, delta=0.01, Npts=100,
         special points (in `q`) corresponding to the given `kpath`.
     """
     from matdb.utility import reporoot
+    from matdb.fitting.basic import Trainer
     from os import path, mkdir, getcwd, chdir
     #The phonon calculator caches the displacements and force sets for each
     #atomic displacement using pickle. This generates three files for each
     #atomic degree of freedom (one for each cartesian direction). We want to
     #save these in a special directory.
-    pot = fit.calculator
-    dirname = path.join(cachedir, fit.fqn)
+    if isinstance(fit, Trainer):
+        pot = fit.calculator
+        dirname = path.join(cachedir, fit.fqn)
+    else:
+        pot = fit
+        dirname = cachedir
+        
     if not path.isdir(dirname):
         mkdir(dirname)
     curdir = getcwd()
