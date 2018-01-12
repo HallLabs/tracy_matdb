@@ -283,8 +283,8 @@ class DynMatrix(Group):
                 eigvals, eigvecs, = np.linalg.eigh(dynmat)
                 q = data["phonon"][i]["q-position"]
 
-                #This should technically always be true since we only
-                #ran it at a single q-point.
+                #This should technically always be true since we only ran it at
+                #a single q-point.
                 if np.allclose(q, [0., 0., 0.]):
                     result["dynmat"] = dynmat
                     result["eigvals"] = eigvals
