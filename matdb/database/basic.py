@@ -17,8 +17,7 @@ from glob import glob
 import json
 
 from matdb import msg
-from matdb.utility import chdir
-from .controller import ParameterGrid
+from matdb.utility import chdir, ParameterGrid
 from .controller import Database
 from matdb import calculators
 

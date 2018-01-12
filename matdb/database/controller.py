@@ -63,192 +63,6 @@ def parse_path(root,seeds,rseed=None):
 
         return seed_files
     
-def is_nested(d):
-    """Determines if a dictoinary is nested, i.e. contains another dictionary.
-
-    Args:
-        d (dict): dictionary to test.
-    """
-    for k, v in d.items():
-        if k[-1] == '*':
-            return True
-        elif isinstance(v, dict) and is_nested(v):
-            return True
-
-    return False
-
-def get_suffix(d, k, index, values):
-    """Returns the suffix for the specified key in the dictionary that
-    is creating a parameter grid.
-
-    Args:
-        d (dict): the dictionary being turned into a grid.
-        k (str): the key in the dictionary.
-        index (int): the index for the value (gets used as the default suffix).
-        values (str, list, float): the value for the parameter.
-    """
-    from matdb.utility import special_functions
-    nk = k[0:-1]
-    suffix = "{0}_suffix".format(nk)
-    ssuff = suffix + '*'
-    
-    if suffix in d and (isinstance(d[suffix], dict) or ':' in d[suffix]):
-        keyval = special_functions(d[suffix], values)
-    elif suffix in d and isinstance(suffix, six.string_types):
-        keyval = d[suffix].format(values)
-    elif ssuff in d:
-        keyval = d[ssuff][index]
-    else:
-        keyval = index
-    
-    if isinstance(keyval, float):
-        return "{0}-{1:.2f}".format(nk[:3], keyval)
-    else:
-        return "{0}-{1}".format(nk[:3], keyval)
-
-def get_grid(d, suffices=None):
-    """Recursively generates a grid of parameters from the dictionary of parameters
-    that has duplicates or wildcars in it. 
-    
-    Args:
-       d (dict): the dictionary to be turned into a grid.
-       suffices (list): an optional list of suffices.
-    
-    Returns:
-       A dictionary of (key: value) where the key is the suffix string for
-       the parameters and the value are the exact parameters for each
-       entry in the grid.
-    """
-    dcopy = d.copy()
-    stack = [(dcopy, None)]
-    result = {}
-    
-    if suffices is None:
-        suffices = {k: v for k, v in d.items() if "suffix" in k[-8:]}
-        for k in suffices:
-            del dcopy[k]
-    else:
-        for k,v in d.items():
-            if "suffix" in k[-8:]:
-                suffices[k] = v
-        for k in suffices:
-            if k in dcopy:
-                del dcopy[k]            
-        
-    while len(stack) > 0:
-        oned, nsuffix = stack.pop()
-        for k, v in sorted(oned.items()):
-            if k[-1] == '*':
-                nk = k[0:-1]                    
-                for ival, value in enumerate(v):
-                    suffix = get_suffix(suffices, k, ival+1, value)
-                    dc = oned.copy()
-                    del dc[k]
-                    dc[nk] = value
-                    compsuffix = suffix if nsuffix is None else '-'.join(map(str, (nsuffix, suffix)))
-                    stack.append((dc, compsuffix))
-                break
-            elif isinstance(v, dict) and is_nested(v):
-                blowup = get_grid(v, suffices)
-                for rsuffix, entry in sorted(blowup.items()):
-                    dc = oned.copy()
-                    dc[k] = entry
-                    compsuffix = rsuffix if nsuffix is None else '-'.join(map(str, (nsuffix, rsuffix)))
-                    stack.append((dc, compsuffix))
-                break
-        else:
-            result[nsuffix] = oned
-            
-    return result
-
-class ParameterGrid(collections.MutableSet):
-    """An ordered list of the paramater combinations for the database. 
-    Values are the suffixes of the combinations of parameters as tuples:
-    e.g. (8, "dog", 1.2) for "dim", "animal", "temperature"
-    ({"animal*": ["dog", "cat", "cow"], "dim*": [[],[],[]], "temperature": 1.2})
-    Args:
-        params (dict): the paramaters needed to build the database.
-    
-    Attributes:
-        values (dict): keys are the suffix tuple and the values are the 
-            actual values needed by the database.
-        keys (list): the `str` names of the different parameters in the database.
-    """
-    def __init__(self, params):
-        for k in ["root","parent","atoms"]:
-            if k in params:
-                params.pop(k)
-        grid = get_grid(params)
-        #add these items to the set.
-        self.end = end = [] 
-        end += [None, end, end]         # sentinel node for doubly linked list
-        self.map = {}                   # key --> [key, prev, next]
-        self.values = {}
-        self.params = params
-        for i, v in grid.items():
-            self.add(i,v)
-            
-    def __len__(self):
-        return len(self.map)
-
-    def __contains__(self, key):
-        return key in self.map
-
-    def __getitem__(self, key):
-        return self.values[key]
-                        
-    def add(self, key, value):
-        """Adds key to the set if it is not already in the set.
-        Args:
-            key (tuple): Anything that could be added to the set.
-            value (tuple): The actual values that the suffix's 
-                correspond to.
-        """
-        if key not in self.map:
-            end = self.end
-            curr = end[1]
-            curr[2] = end[1] = self.map[key] = [key, curr, end]
-            self.values[key] = value
-        else:
-            msg.warn("The key {} already exists in the set, ignoring addition.".format(key))
-
-    def discard(self, key):
-        """Removes the key from the set.
-        Args:
-            key (tuple): An element of the set.
-        """        
-        if key in self.map:        
-            key, prev, next = self.map.pop(key)
-            prev[2] = next
-            next[1] = prev
-            self.values.pop(key,None)
-
-    def __iter__(self):
-        end = self.end
-        curr = end[2]
-        while curr is not end:
-            if curr[0] is not None:
-                yield curr[0]
-            curr = curr[2]
-
-    def pop(self, key):
-        """Removes an element from the set.
-        Args:
-            key (tuple): An element of the set.
-        """
-        self.discard(key)
-        return key
-
-    def __repr__(self):
-        if not self:
-            return '%s()' % (self.__class__.__name__,)
-        return '%s(%r)' % (self.__class__.__name__, list(self))
-
-    def __eq__(self, other):
-        if isinstance(other, ParameterGrid):
-            return len(self) == len(other) and list(self) == list(other)
-        return set(self) == set(other)
-
 class Database(object):
     """Represents a Database of groups (all inheriting from :class:`Group`) that 
     are all related be the atomic configuration that they model.
@@ -306,6 +120,7 @@ class Database(object):
 
         from collections import OrderedDict
         from os import mkdir
+        from matdb.utility import ParameterGrid
         self.steps = OrderedDict()
         for dbspec in steps:
             if isinstance(dbspec, six.string_types):
@@ -329,7 +144,7 @@ class Database(object):
             #pointers; then add in the keyword arguments that are missing.
             cpspec = dbspec.copy()
             del cpspec["type"]
-            
+
             cpspec["pgrid"] = ParameterGrid(cpspec.copy())
             if len(cpspec["pgrid"]) ==0:
                 cpspec["parameters"] = cpspec["pgrid"].params
