@@ -254,7 +254,7 @@ class Group(object):
             self.seeds = OrderedDict()
             for atomspec in seeds:
                 fmt, pattern = atomspec.split(':')
-                for apath in self.database.controller.relpaths(pattern):
+                for apath in self.database.parent.relpaths([pattern]):
                     self.seeds[path.basename(apath)] = Atoms(apath, format=fmt)
                     
         elif seeds is None and self.seeded:
