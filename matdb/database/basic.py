@@ -136,10 +136,10 @@ class Group(object):
             #have to expand our root to use that name over here. However, for
             #recursively nested groups, we use the root passed in because it
             #already includes the relevant suffixes, etc.
-            self.root = path.join(root, self.name)
+            self.root = path.join(root, parent.name)
         else:
             self.root = root
-            
+
         if not path.isdir(self.root):
             mkdir(self.root)
             

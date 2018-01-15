@@ -92,6 +92,12 @@ class DynMatrix(Group):
         self.seeded = True
         dbargs["prefix"] = "W"
         dbargs["cls"] = DynMatrix
+        if "DynMatrix" not in dbargs['root']:
+            from os import mkdir
+            new_root =path.join(dbargs['root'],"DynMatrix")
+            if not path.isdir(new_root):
+                mkdir(new_root)
+            dbargs['root'] = new_root
         super(DynMatrix, self).__init__(**dbargs)
         #Make sure that we override the global calculator default values with
         #those settings that we know are needed for good phonon calculations.
