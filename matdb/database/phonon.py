@@ -91,17 +91,21 @@ class DynMatrix(Group):
         self.name = name
         self.seeded = True
         dbargs["prefix"] = "W"
+        dbargs["cls"] = DynMatrix
+        super(DynMatrix, self).__init__(**dbargs)
         #Make sure that we override the global calculator default values with
         #those settings that we know are needed for good phonon calculations.
-        calcargs = dbargs["parent"].calculator.copy()
-        if "calculator" in dbargs and "name" in dbargs["calculator"]:
-            calcargs.update(dbargs["calculator"])
-            self._set_calc_defaults(calcargs)
-            dbargs["calculator"] = calcargs
-            
-        super(DynMatrix, self).__init__(**dbargs)
+        calcargs = self.database.calculator.copy()
+        if "calculator" in dbargs:
+            if dbargs["calculator"] is not None and "name" in dbargs["calculator"]:
+                calcargs.update(dbargs["calculator"])
+                self._set_calc_defaults(calcargs)
+                dbargs["calculator"] = calcargs            
 
-        self.supercell = phonopy["dim"]
+        if "dim" in phonopy:
+            self.supercell = phonopy["dim"]
+        else:
+            self.supercell = None
         self.bandmesh = bandmesh
         self.dosmesh = dosmesh
         self.tolerance = tolerance
@@ -467,7 +471,7 @@ class DynMatrix(Group):
         if self.ready():
             return
 
-        if not folders_ok:
+        if not self.is_setup():
             from ase.io import write
             from matdb.utility import execute
             write(path.join(self.phonodir, "POSCAR"), self.atoms, "vasp")        
