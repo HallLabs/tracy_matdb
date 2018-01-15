@@ -264,7 +264,7 @@ class Database(object):
             self._split(name, recalc)
     
     def _split(self, name, recalc=0):
-        """Splits the total available data in all databases into a training and holdout
+        """Splits the total available data in all Groups into a training and holdout
         set.
         Args:
             name (str): name of the split to perform.
@@ -540,35 +540,32 @@ class Controller(object):
             return self.find('*.*')
         
         from fnmatch import fnmatch
-        if pattern.count('.') == 2:
-            parent, db, config = pattern.split('.')
-        elif pattern.count('.') == 1:
-            parent, config = pattern.split('.')
-            db = None
+        if pattern.count('.') == 4:
+            group, dbname, seed, params, config = pattern.split('.')
+        elif pattern.count('.') == 3:
+            group, dbname, seed, config = pattern.split('.')
+            params = None
+        elif pattern.count('.') == 2:
+            group, dbname, config = pattern.split('.')
+            seed = None
+            params = None
         else:
             #We must be searching legacy databases; match the pattern against
             #those.
             return [li for ln, li in self.legacy.items() if fnmatch(ln, pattern)]
         
-        colls = [v for k, v in self.collections.items() if fnmatch(k, config)]
-
-        #For databases without repeaters, there is no suffix.
-        if '-' in parent:
-            dbname, suffix = parent.split('-')
-        else:
-            dbname, suffix = parent, None
+        colls = [v for k, v in self.collections.items() if fnmatch(k, group)]
 
         result = []
         for coll in colls:
             dbs = [dbi for dbn, dbi in coll.items() if fnmatch(dbn, dbname)]
             for dbi in dbs:
                 seqs = [seqi for seqn, seqi in dbi.items()
-                        if fnmatch(seqn, '.'.join((config, parent)))]
+                        if fnmatch(seqn, '.'.join((config, dbname)))]
 
-                if db is not None:
-                    for seq in seqs:
-                        result.extend([si for sn, si in seq.steps.items()
-                                       if fnmatch(sn, db)])
+                for seq in seqs:
+                    result.extend([si for sn, si in seq.steps.items()
+                                   if fnmatch(sn, group)])
                 else:
                     result.extend(seqs)
 
@@ -607,12 +604,12 @@ class Controller(object):
         sequence repitition.
         """
         if key.count('.') == 2:
-            config, parent, db = key.split('.')
+            parent, db, config = key.split('.')
         else:
-            config, parent = key.split('.')
+            parent, config = key.split('.')
             db = None
             
-        coll = self.collections[config]
+        coll = self.collections[db][db]
         if '-' in parent:
             dbname, suffix = parent.split('-')
         else:
