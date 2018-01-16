@@ -36,44 +36,45 @@ def _mimic_vasp(folder, xroot):
                 target = path.join(xpath, name)
                 symlink(target, path.join(folder, dft))
 
-# @pytest.fixture()
-# def Pd(tmpdir):
-#     from matdb.utility import relpath
-#     from matdb.database.controller import Controller
-#     from os import mkdir, symlink, remove
+@pytest.fixture()
+def Pd(tmpdir):
+    from matdb.utility import relpath
+    from matdb.database.controller import Controller
+    from os import mkdir, symlink, remove, path
 
-#     target = relpath("./tests/Pd/matdb")
-#     dbdir = str(tmpdir.join("pd_db"))
-#     mkdir(dbdir)
+    target = relpath("./tests/Pd/matdb")
+    dbdir = str(tmpdir.join("pd_db"))
+    mkdir(dbdir)
     
-#     #We need to copy the POSCAR over from the testing directory to the temporary
-#     #one.
-#     from shutil import copy
-#     POSCAR = relpath("./tests/Pd/POSCAR")
-#     copy(POSCAR, dbdir)
-#     symlink("{}.yml".format(target),"matdb.yml")
+    #We need to copy the POSCAR over from the testing directory to the temporary
+    #one.
+    from shutil import copy
+    POSCAR = relpath("./tests/Pd/POSCAR")
+    mkdir(path.join(dbdir,"seed"))
+    copy(POSCAR, path.join(dbdir,"seed","Pd"))
+    symlink("{}.yml".format(target),"matdb.yml")
     
-#     result = Controller("matdb", dbdir)
-#     remove("matdb.yml")
-#     result = Controller(target, dbdir)
-#     return result
+    result = Controller("matdb", dbdir)
+    remove("matdb.yml")
+    result = Controller(target, dbdir)
+    return result
 
-# @pytest.fixture()
-# def dynPd(Pd):
-#     Pd.setup()
+@pytest.fixture()
+def dynPd(Pd):
+    Pd.setup()
     
-#     #First, we need to copy the FORCE_SETS and total_dos.dat files so that we
-#     #don't have to recompile those (they are tested elsewhere).
-#     from matdb.utility import symlink    
-#     troot = path.join(reporoot, "tests", "data", "Pd", "dynmatrix")
-#     files = ["FORCE_SETS", "total_dos.dat", "mesh.yaml"]
-#     for seq in Pd.find("Pd.phonon-*.dynmatrix"):
-#         for filename in files:
-#             target = path.join(seq.root, "phonopy", filename)
-#             source = path.join(troot, "{0}__{1}".format(filename, seq.parent.name))
-#             symlink(target, source)
+    #First, we need to copy the FORCE_SETS and total_dos.dat files so that we
+    #don't have to recompile those (they are tested elsewhere).
+    from matdb.utility import symlink    
+    troot = path.join(reporoot, "tests", "data", "Pd", "dynmatrix")
+    files = ["FORCE_SETS", "total_dos.dat", "mesh.yaml"]
+    for seq in Pd.find("Pd.phonon-*.dynmatrix"):
+        for filename in files:
+            target = path.join(seq.root, "phonopy", filename)
+            source = path.join(troot, "{0}__{1}".format(filename, seq.parent.name))
+            symlink(target, source)
 
-#     return Pd
+    return Pd
 
 # # @pytest.mark.skip()
 # def test_Pd_phonplot(dynPd, tmpdir):
@@ -89,36 +90,36 @@ def _mimic_vasp(folder, xroot):
 #     band_plot(dbs, **args)
 #     assert path.isfile(target)
     
-# def test_Pd_setup(Pd):
-#     """Makes sure the initial folders were setup according to the spec.
-#     """
-#     Pd.setup()
-#     modelroot = path.join(Pd.root, "Pd.phonon-2", "dynmatrix")
-#     assert Pd["Pd.phonon-2.dynmatrix"].root == modelroot
+def test_Pd_setup(Pd):
+    """Makes sure the initial folders were setup according to the spec.
+    """
+    Pd.setup()
+    modelroot = path.join(Pd.root, "DynMatrix","phonon","Pd","dim-2.00")
+    assert Pd["DynMatrix/phonon/Pd/dim-2.00"].root == modelroot
     
-#     #The matdb.yml file specifies the following databases:
-#     dbs = ["Pd.phonon-{}".format(i) for i in (2, 4, 16, 32, 54)]
-#     #Each one should have a folder for: ["dynmatrix", "modulations"]
-#     #On the first go, the modulations folder will be empty because the DFT
-#     #calculations haven't been performed yet. However, dynmatrix should have DFT
-#     #folders ready to go.
-#     folders = {
-#         "dynmatrix": {
-#             "__files__": ["INCAR", "PRECALC"],
-#             "phonopy": {
-#                 "__files__": ["POSCAR", "POSCAR-001", "disp.yaml", "phonopy_disp.yaml"]
-#             },
-#             "phoncache": {},
-#             "W.1": {
-#                 "__files__": ["INCAR", "POSCAR", "POTCAR", "PRECALC", "KPOINTS"]
-#             }
-#         }
-#     }
+    #The matdb.yml file specifies the following databases:
+    dbs = ["DynMatrix/phonon/Pd/dim-{}".format(i) for i in ('2.00', '4.00', '16.00',
+                                                            '32.00', '27.00', '8.00')]
+    #Each one should have a folder for: ["dynmatrix", "modulations"]
+    #On the first go, the modulations folder will be empty because the DFT
+    #calculations haven't been performed yet. However, dynmatrix should have DFT
+    #folders ready to go.
+    folders = {
+        "__files__": ["compute.pkl","jobfile.sh"],
+        "phonopy": {
+            "__files__": ["POSCAR", "POSCAR-001", "disp.yaml", "phonopy_disp.yaml"]
+        },
+        "phoncache": {},
+        "kpaths": {},
+        "W.1": {
+            "__files__": ["INCAR", "POSCAR", "POTCAR", "PRECALC", "KPOINTS"]
+        }
+    }
 
-#     from matdb.utility import compare_tree
-#     for db in dbs:
-#         dbfolder = path.join(Pd.root, db)
-#         compare_tree(dbfolder, folders)
+    from matdb.utility import compare_tree
+    for db in dbs:
+        dbfolder = path.join(Pd.root, db)
+        compare_tree(dbfolder, folders)
     
 # def test_steps(Pd):
 #     """Tests compilation of all steps in the database.
