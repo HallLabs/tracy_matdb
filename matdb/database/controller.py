@@ -430,22 +430,12 @@ class Controller(object):
         self.species = sorted([s for s in self.specs["species"]])
         self.execution = self.specs.get("execution", {})
         self.calculator = self.specs.get("calculator", {})
-        self.potcars = self.specs["potcars"]
-        if "Vasp" in self.calculator["name"]:
-            from os import environ
-            environ["VASP_PP_PATH"] = relpath(path.expanduser(self.potcars["directory"]))
-            from matdb import calculators
-            from ase import Atoms, Atom
-            calcargs = self.calculator.copy()
-            calc = getattr(calculators, calcargs["name"])
-            del calcargs["name"]
-            potargs = self.potcars.copy()
-            del potargs["directory"]
-            calcargs.update(potargs)
-            this_atom = Atoms([Atom(a,[0,0,i]) for i,a
-                               in enumerate(self.species)],cell=[1,1,len(self.species)+1])
-            calc = calc(this_atom,self.root,**calcargs)
-            calc.write_potcar(directory=self.root)
+        #Extract the POTCAR that all the databases are going to use. TODO: pure
+        #elements can't use this POTCAR, so we have to copy the single POTCAR
+        #directly for those databases; update the create().
+        if "potcars" in self.specs:
+            self.potcars = self.specs["potcars"]
+            self.POTCAR()
 
         self.venv = self.specs.get("venv")
         self.random_seed = self.specs.get("random seed")
@@ -477,13 +467,6 @@ class Controller(object):
         if not path.isdir(self.plotdir):
             mkdir(self.plotdir)
             
-        #Extract the POTCAR that all the databases are going to use. TODO: pure
-        #elements can't use this POTCAR, so we have to copy the single POTCAR
-        #directly for those databases; update the create().
-        # if "potcars" in self.specs:
-        #     self.potcars = self.specs["potcars"]
-        #     self.POTCAR()
-
         #If the controller is going to train any potentials, we also need to 
         self.trainers = None
         if "fitting" in self.specs:
@@ -601,25 +584,32 @@ class Controller(object):
     def __getitem__(self, key):
         """Returns the database object associated with the given key. This is
         necessary because of the hierarchy of objects needed to implement
-        sequence repitition.
+        sequence repitition via the `ParamaterGrid`.
         """
-        if key.count('.') == 2:
-            parent, db, config = key.split('.')
+        if key.count('/') == 3:
+            group, dbname, seed, params = key.split('/')
+        elif key.count('.') == 2:
+            group, dbname, seed = key.split('/')
+            seed = None
         else:
-            parent, config = key.split('.')
-            db = None
+            group, dbname = key.split('/')
+            seed = None
+            params = None
             
-        coll = self.collections[db][db]
-        if '-' in parent:
-            dbname, suffix = parent.split('-')
+        coll = self.collections[dbname][dbname]
+        if group.lower() in coll.steps:
+            step = coll.steps[group.lower()]
+            if seed is not None and seed in step.sequence:
+                seq = step.sequence[seed]
+                if params is not None and params in seq.sequence:
+                    return seq.sequence[params]
+                else:
+                    return seq
+            else:
+                return step
         else:
-            dbname = parent
-        seq = coll[dbname].sequences['.'.join((config, parent))]
-
-        if db is not None:
-            return seq.steps[db]
-        else:
-            return seq
+            msg.err("The group name {0} could not be found in the steps of "
+                    "the database {1}".format(group.lower(),coll.steps.values()))
                         
     def setup(self, rerun=False, cfilter=None, dfilter=None):
         """Sets up each of configuration's databases.
@@ -693,38 +683,74 @@ class Controller(object):
         """Creates the POTCAR file using the pseudopotential and version
         specified in the file.
         """
-        from matdb.utility import relpath
-        target = path.join(self.root, "POTCAR")
-        if not path.isfile(target):
-            # Make sure that the POTCAR version and pseudopotential type match
-            # up so that we don't get nasty surprises.
-            potsrc = path.join(relpath(self.potcars["directory"]),
-                               "pot{}".format(self.potcars["pseudo"]))
-            potcars = []
-            
-            for element in self.species:
-                lel = element.lower()
-                pp = element
-                if lel in self.potcars:
-                    pp += self.potcars[lel]
+        # We only want to construct the POTCAR on this level for a VASP calculation
+        if "Vasp" in self.calculator["name"]:
+            from os import environ
+            from matdb.utility import relpath
+            # Have ASE build the initial POTCAR. This will be
+            # overwritten by use once it exists.
+            environ["VASP_PP_PATH"] = relpath(path.expanduser(self.potcars["directory"]))
+            from matdb import calculators
+            from ase import Atoms, Atom
+            calcargs = self.calculator.copy()
+            calc = getattr(calculators, calcargs["name"])
+            del calcargs["name"]
+            potargs = self.potcars.copy()
+            if "version" in potargs:
+                version = potargs["version"]
+                del potargs["version"]
+            else:
+                version = None
+            del potargs["directory"]
+            calcargs.update(potargs)
+            this_atom = Atoms([Atom(a,[0,0,i]) for i,a
+                               in enumerate(self.species)],cell=[1,1,len(self.species)+1])
+            calc = calc(this_atom,self.root,**calcargs)
+            calc.write_potcar(directory=self.root)
 
-                ppot = path.join(potsrc, pp, "POTCAR")
-                with open(ppot) as f:
-                    first = f.readline()
-                    if "version" in self.potcars:
-                        if element in self.potcars["version"]:
-                            version = self.potcars["version"][element]
-                        else:
-                            version = self.potcars["version"]
-                        assert version in first
+            # Now read in the ASE POTCAR and parse it to construct the
+            # actual POTCAR.
+            # target = path.join(self.root, "POTCAR")
+            # if not path.isfile(target): #pragma: no cover
+            #     msg.err("The POTCAR was not generated by ASE.")
 
-                potcars.append(ppot)
+            # # We need to parse the ASE created POTCAR to construct the POTCAR
+            # # that VASP can actually use.
+            # pots = []
+            # with open(target) as f:
+            #     for line in f:
+            #         pots.append(line.strip().split())
 
-            if len(potcars) == len(self.species):
-                from matdb.utility import cat
-                cat(potcars, target)
-            else: #pragma: no cover
-                msg.err("Couldn't create POTCAR for system.")
+            # potcars = []
+            # for pot in pots:
+            #     if version is not None:
+            #         if pot[1].split('_')[0] in version:
+            #             el_version = version[pot[1].split('_')[0]]
+            #         else:
+            #             el_version = version
+            #         assert el_version in pot[2]
+                    
+            #     if 'PBE' in pot[0]:
+            #         psuedo = 'paw_PBE'
+            #     elif 'GGA' in pot[0]:
+            #         psuedo = 'paw_GGA'
+            #     else: #pragma: no cover
+            #         psuedo = pot[0]
+                    
+            #     potsrc = path.join(relpath(self.potcars["directory"]),
+            #                        "pot{}".format(psuedo))
+
+            #     potcars.append(path.join(potsrc,pot[1],"POTCAR"))
+
+            # from os import remove
+            # remove(target)
+            # import pudb
+            # pudb.set_trace()
+            # if len(potcars) == len(pots):
+            #     from matdb.utility import cat
+            #     cat(potcars,target)
+            # else: #pragma: no cover
+            #     msg.err("Couldn't create POTCAR for system.")
 
     def split(self, recalc=0, cfilter=None, dfilter=None):
         """Splits the total available data in all databases into a training and holdout
