@@ -121,18 +121,19 @@ def test_Pd_setup(Pd):
         dbfolder = path.join(Pd.root, db)
         compare_tree(dbfolder, folders)
     
-# def test_steps(Pd):
-#     """Tests compilation of all steps in the database.
-#     """
-#     steps = ['Pd.modulate.dynmatrix', 'Pd.modulate.modulations',                          
-#              'Pd.phonon-16.dynmatrix', 'Pd.phonon-2.dynmatrix',
-#              'Pd.phonon-32.dynmatrix', 'Pd.phonon-4.dynmatrix',
-#              'Pd.phonon-54.dynmatrix'] 
+def test_steps(Pd):
+    """Tests compilation of all steps in the database.
+    """
+    assert Pd.steps() == ['dynmatrix/phonon']
+    Pd.setup()
+    steps = sorted(['dynmatrix/phonon/Pd/dim-2.00', 'dynmatrix/phonon/Pd/dim-4.00',
+                    'dynmatrix/phonon/Pd/dim-8.00', 'dynmatrix/phonon/Pd/dim-16.00',
+                    'dynmatrix/phonon/Pd/dim-27.00', 'dynmatrix/phonon/Pd/dim-32.00'])
+    assert Pd.steps() == steps
     
-#     seqs = sorted(['Pd.phonon-2', 'Pd.phonon-16', 'Pd.phonon-32',
-#                    'Pd.phonon-4', 'Pd.phonon-54', 'Pd.modulate'])
-#     assert Pd.steps() == steps
-#     assert Pd.sequences() == seqs
+    seqs = sorted(['Pd/dim-2.00', 'Pd/dim-16.00', 'Pd/dim-32.00',
+                   'Pd/dim-4.00', 'Pd/dim-27.00', 'Pd/dim-8.00'])
+    assert Pd.sequences() == seqs
 
 # def test_find(Pd):
 #     """Tests the find function with pattern matching.

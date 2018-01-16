@@ -563,11 +563,20 @@ class Controller(object):
         """Compiles a list of all steps in this set of databases.
         """
         result = []
-        for config, coll in self.collection.items():
-            for repeater in coll.values():
-                for parent, seq in repeater.sequences.items():
-                    for step in seq.steps:
-                        result.append("{0}.{1}".format(parent, step))
+        for config, coll in self.collections.items():
+            for db_name, db in coll.items():
+                for group_name, group in db.steps.items():
+                    if len(group.sequence) > 0:
+                        for seed_name, seed in group.sequence.items():
+                            if len(seed.sequence) > 0:
+                                for param_name, param in seed.sequence.items():
+                                    result.append("{0}/{1}/{2}/{3}".format(group_name,db_name,
+                                                                           seed_name,param_name))
+                            else: 
+                                result.append("{0}/{1}/{2}".format(group_name,db_name,
+                                                                   seed_name))
+                    else:
+                        result.append("{0}/{1}".format(group_name,db_name))
 
         return sorted(result)        
     
@@ -576,8 +585,15 @@ class Controller(object):
         """
         result = []
         for config, coll in self.collections.items():
-            for repeater in coll.values():
-                result.extend(repeater.sequences.keys())
+            for db_name, db in coll.items():
+                for group_name, group in db.steps.items():
+                    if len(group.sequence) > 0:
+                        for seed_name, seed in group.sequence.items():
+                            if len(seed.sequence) > 0:
+                                for param_name, param in seed.sequence.items():
+                                    result.append("{0}/{1}".format(seed_name,param_name))
+                            else: 
+                                result.append("{0}".format(seed_name))
 
         return sorted(result)        
     
