@@ -52,6 +52,8 @@ def Pd(tmpdir):
     POSCAR = relpath("./tests/Pd/POSCAR")
     mkdir(path.join(dbdir,"seed"))
     copy(POSCAR, path.join(dbdir,"seed","Pd"))
+    if path.isfile("matdb.yml"):
+        remove("matdb.yml")
     symlink("{}.yml".format(target),"matdb.yml")
     
     result = Controller("matdb", dbdir)
@@ -135,18 +137,28 @@ def test_steps(Pd):
                    'Pd/dim-4.00', 'Pd/dim-27.00', 'Pd/dim-8.00'])
     assert Pd.sequences() == seqs
 
-# def test_find(Pd):
-#     """Tests the find function with pattern matching.
-#     """
-#     assert Pd['Pd.modulate.dynmatrix'] is Pd['Pd.phonon-16.dynmatrix']
-    
-#     steps = Pd.find("Pd.phonon*.dynmatrix")
-#     model = ['Pd.phonon-2', 'Pd.phonon-16', 'Pd.phonon-32', 'Pd.phonon-4', 'Pd.phonon-54']
-#     assert model == [s.parent.name for s in steps]
+def test_find(Pd):
+    """Tests the find function with pattern matching.
+    """
+    # assert Pd['Pd.modulate.dynmatrix'] is Pd['Pd.phonon-16.dynmatrix']
 
-#     steps = Pd.find("Pd.phonon-*2.dynmatrix")
-#     model = ['Pd.phonon-2', 'Pd.phonon-32']
-#     assert model == [s.parent.name for s in steps]
+    Pd.setup()
+    steps = Pd.find("dynmatrix/phonon/Pd/dim-*")
+    model = ['dynmatrix', 'dynmatrix', 'dynmatrix', 'dynmatrix', 'dynmatrix', 'dynmatrix']
+    assert model == [s.parent.name for s in steps]
+    model = [path.join(Pd.root,'DynMatrix/phonon/Pd/dim-8.00'),
+             path.join(Pd.root,'DynMatrix/phonon/Pd/dim-2.00'),
+             path.join(Pd.root,'DynMatrix/phonon/Pd/dim-4.00'),
+             path.join(Pd.root,'DynMatrix/phonon/Pd/dim-16.00'),
+             path.join(Pd.root,'DynMatrix/phonon/Pd/dim-27.00'),
+             path.join(Pd.root,'DynMatrix/phonon/Pd/dim-32.00')]
+    assert sorted(model) == sorted([s.root for s in steps])
+
+    steps = Pd.find("dynmatrix/phonon/Pd")
+    model = ['dynmatrix']
+    assert model == [s.parent.name for s in steps]
+    model = [path.join(Pd.root,'DynMatrix/phonon/Pd')]
+    assert model == [s.root for s in steps]
     
 # def test_Pd_modulation(dynPd):
 #     """Tests generation of modulated configurations along phonon modes.
@@ -274,16 +286,3 @@ def test_steps(Pd):
 #     remove(output)
 
 #     Pd.split()
-
-# def test_Repeater(Pd):
-#     """Tests the initialization of the squence repeater.
-#     """
-
-#     from matdb.database.controller import Repeater
-#     root = Pd["Pd.phonon-4"].root
-#     POSCAR = relpath("./tests/Pd/POSCAR")
-#     temp = Repeater("temp",POSCAR,root,Pd,[{'phonopy': {'dim': [2, 2, 2]}, 'kpoints':
-#                                              {'mindistance': 30}, 'dosmesh': [10, 10, 10],
-#                                              'type': 'phonon.DynMatrix',
-#                                              'bandmesh': [13, 13, 13]}],
-#                      niterations=[{'phonopy.dim': [0, 1, 1, 1, 0, 1, 1, 1, 0]}])

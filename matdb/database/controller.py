@@ -523,39 +523,46 @@ class Controller(object):
             return self.find('*.*')
         
         from fnmatch import fnmatch
-        if pattern.count('.') == 4:
-            group, dbname, seed, params, config = pattern.split('.')
-        elif pattern.count('.') == 3:
-            group, dbname, seed, config = pattern.split('.')
+        if pattern.count('/') == 3:
+            groupname, dbname, seed, params = pattern.split('/')
+        elif pattern.count('/') == 2:
+            groupname, dbname, seed = pattern.split('/')
             params = None
-        elif pattern.count('.') == 2:
-            group, dbname, config = pattern.split('.')
+        elif pattern.count('/') == 1:
+            groupname, dbname = pattern.split('/')
+            params = None
             seed = None
-            params = None
         else:
             #We must be searching legacy databases; match the pattern against
             #those.
             return [li for ln, li in self.legacy.items() if fnmatch(ln, pattern)]
         
-        colls = [v for k, v in self.collections.items() if fnmatch(k, group)]
+        colls = [v for k, v in self.collections.items() if fnmatch(k, dbname)]
 
         result = []
         for coll in colls:
             dbs = [dbi for dbn, dbi in coll.items() if fnmatch(dbn, dbname)]
             for dbi in dbs:
-                seqs = [seqi for seqn, seqi in dbi.items()
-                        if fnmatch(seqn, '.'.join((config, dbname)))]
+                groups = [groupi for groupn, groupi in dbi.steps.items()
+                        if fnmatch(groupn, groupname)]
 
-                for seq in seqs:
-                    result.extend([si for sn, si in seq.steps.items()
-                                   if fnmatch(sn, group)])
-                else:
-                    result.extend(seqs)
+                for group in groups:
+                    if len(group.sequence) > 0 and seed is not None:
+                        seeds = [si for sn, si in group.sequence.items()
+                                 if fnmatch(sn, seed)]
+                        for seedi in seeds:
+                            if len(seedi.sequence) > 0 and params is not None:
+                                result.extend([si for sn, si in seedi.sequence.items()
+                                               if fnmatch(sn, params)])
+                            else:
+                                result.append(seedi)
+                    else:
+                        result.append(group)
 
-        if config == '*':
+        if groupname == '*':
             #Add all the possible legacy databases.
             result.extend([li for ln, li in self.legacy.items()
-                           if fnmatch(ln, config)])
+                           if fnmatch(ln, groupname)])
                     
         return result
 
