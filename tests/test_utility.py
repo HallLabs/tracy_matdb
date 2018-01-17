@@ -4,7 +4,7 @@
 import pytest
 from os import path
 import numpy as np
-
+import six
 
 def compare_dicts(dict1,dict2):
     """Compares two dictionaries to see if they are the same.
@@ -14,10 +14,33 @@ def compare_dicts(dict1,dict2):
         return False
 
     for key in dict1:
+        print("H2")
         if not np.allclose(dict1[key],dict2[key]):
             return False
 
     return True
+
+def compare_nested_dicts(dict1,dict2):
+    """Compares two dictionaries to see if they are the same.
+    """
+
+    if sorted(dict1.keys()) != sorted(dict2.keys()):
+        return False
+
+    for key in dict1:
+        if isinstance(dict1[key],dict):
+            res = compare_nested_dicts(dict1[key],dict2[key])
+            if not res:
+                return False
+            else:
+                continue
+        if not isinstance(dict1[key],six.string_types) and not np.allclose(dict1[key],dict2[key]):
+            return False
+        elif isinstance(dict1[key],six.string_types) and not dict1[key] == dict2[key]:
+            return False
+
+    return True
+
 
 def test_execute():
     """Tests the execution via shell subprocess in a different folder.
@@ -143,3 +166,192 @@ def test_is_number():
     else:
         assert is_number(u'٥')
     assert not is_number('str')
+
+
+def test_ParameterGrid():
+    """Tests the creation of a ParamaterGrid and it's functionality.
+    """
+    from matdb.utility import ParameterGrid
+
+    db_info = {'phonopy': {'dim*': [[2, 0, 0, 0, 2, 0, 0, 0, 2], [0, 1, 1, 1, 0, 1, 1, 1, 0],
+                                    [0, 2, 2, 2, 0, 2, 2, 2, 0], [-2, 2, 2, 2, -2, 2, 2, 2, -2],
+                                    [-1, 1, 1, 1, -1, 1, 1, 1, -1], [3, 0, 0, 0, 3, 0, 0, 0, 3]],
+                           'dim_suffix': {'func':'linalg:det','reshape':[3,3]}},
+               'parent':  'controller', 'dosmesh*': [[10, 10, 10],[12,12,12]],
+               'dosmesh_suffix*':[30,"tt"],'atoms': 'Pd',
+               'root': '/root/codes/matdb/tests/Pd', 'bandmesh': [13, 13, 13]}
+
+    pgrid = ParameterGrid(db_info)
+
+    assert len(pgrid) == 12
+    assert compare_nested_dicts(pgrid['dos-tt-dim-16.00'],
+                         {'phonopy': {'dim': [0, 2, 2, 2, 0, 2, 2, 2, 0]},
+                          'dosmesh': [12, 12, 12], 'bandmesh': [13, 13, 13]})
+    pgrid.pop('dos-tt-dim-16.00')
+    assert not ('dos-tt-dim-16.00' in pgrid)
+    assert not pgrid == ParameterGrid(db_info)
+
+
+def test_get_grid():
+    """Tests the get_grid method.
+    """
+    from matdb.utility import get_grid
+    from numpy import array
+    db_info = {"lattice*": ["fcc", "bcc", "hcp"], 
+          "calculator": {"encut*": [700, 800, 900]},
+          "normal": [1, 2, 3],
+          "double": {"single": {"dog*": [range(9), list(np.diag([9,2,1])), list(np.diag([3,2,4]))]}},
+          "encut_suffix*": [70,80,90],
+          "dog_suffix": {"func": "linalg:det",
+                         "reshape": [3 ,3]},
+          "lattice_suffix": "{}"
+        }
+
+    test = get_grid(db_info)
+    model = {'enc-70-dog-0.00-lat-bcc': {'calculator': {'encut': 700},
+  'double': {'single': {'dog': [0, 1, 2, 3, 4, 5, 6, 7, 8]}},
+  'lattice': 'bcc',
+  'normal': [1, 2, 3]},
+ 'enc-80-dog-0.00-lat-bcc': {'calculator': {'encut': 800},
+  'double': {'single': {'dog': [0, 1, 2, 3, 4, 5, 6, 7, 8]}},
+  'lattice': 'bcc',
+  'normal': [1, 2, 3]},
+ 'enc-90-dog-0.00-lat-bcc': {'calculator': {'encut': 900},
+  'double': {'single': {'dog': [0, 1, 2, 3, 4, 5, 6, 7, 8]}},
+  'lattice': 'bcc',
+  'normal': [1, 2, 3]},
+ 'enc-70-dog-18.00-lat-bcc': {'calculator': {'encut': 700},
+  'double': {'single': {'dog': [array([9, 0, 0]),
+     array([0, 2, 0]),
+     array([0, 0, 1])]}},
+  'lattice': 'bcc',
+  'normal': [1, 2, 3]},
+ 'enc-80-dog-18.00-lat-bcc': {'calculator': {'encut': 800},
+  'double': {'single': {'dog': [array([9, 0, 0]),
+     array([0, 2, 0]),
+     array([0, 0, 1])]}},
+  'lattice': 'bcc',
+  'normal': [1, 2, 3]},
+ 'enc-90-dog-18.00-lat-bcc': {'calculator': {'encut': 900},
+  'double': {'single': {'dog': [array([9, 0, 0]),
+     array([0, 2, 0]),
+     array([0, 0, 1])]}},
+  'lattice': 'bcc',
+  'normal': [1, 2, 3]},
+ 'enc-70-dog-24.00-lat-bcc': {'calculator': {'encut': 700},
+  'double': {'single': {'dog': [array([3, 0, 0]),
+     array([0, 2, 0]),
+     array([0, 0, 4])]}},
+  'lattice': 'bcc',
+  'normal': [1, 2, 3]},
+ 'enc-80-dog-24.00-lat-bcc': {'calculator': {'encut': 800},
+  'double': {'single': {'dog': [array([3, 0, 0]),
+     array([0, 2, 0]),
+     array([0, 0, 4])]}},
+  'lattice': 'bcc',
+  'normal': [1, 2, 3]},
+ 'enc-90-dog-24.00-lat-bcc': {'calculator': {'encut': 900},
+  'double': {'single': {'dog': [array([3, 0, 0]),
+     array([0, 2, 0]),
+     array([0, 0, 4])]}},
+  'lattice': 'bcc',
+  'normal': [1, 2, 3]},
+ 'enc-70-dog-0.00-lat-fcc': {'calculator': {'encut': 700},
+  'double': {'single': {'dog': [0, 1, 2, 3, 4, 5, 6, 7, 8]}},
+  'lattice': 'fcc',
+  'normal': [1, 2, 3]},
+ 'enc-80-dog-0.00-lat-fcc': {'calculator': {'encut': 800},
+  'double': {'single': {'dog': [0, 1, 2, 3, 4, 5, 6, 7, 8]}},
+  'lattice': 'fcc',
+  'normal': [1, 2, 3]},
+ 'enc-90-dog-0.00-lat-fcc': {'calculator': {'encut': 900},
+  'double': {'single': {'dog': [0, 1, 2, 3, 4, 5, 6, 7, 8]}},
+  'lattice': 'fcc',
+  'normal': [1, 2, 3]},
+ 'enc-70-dog-18.00-lat-fcc': {'calculator': {'encut': 700},
+  'double': {'single': {'dog': [array([9, 0, 0]),
+     array([0, 2, 0]),
+     array([0, 0, 1])]}},
+  'lattice': 'fcc',
+  'normal': [1, 2, 3]},
+ 'enc-80-dog-18.00-lat-fcc': {'calculator': {'encut': 800},
+  'double': {'single': {'dog': [array([9, 0, 0]),
+     array([0, 2, 0]),
+     array([0, 0, 1])]}},
+  'lattice': 'fcc',
+  'normal': [1, 2, 3]},
+ 'enc-90-dog-18.00-lat-fcc': {'calculator': {'encut': 900},
+  'double': {'single': {'dog': [array([9, 0, 0]),
+     array([0, 2, 0]),
+     array([0, 0, 1])]}},
+  'lattice': 'fcc',
+  'normal': [1, 2, 3]},
+ 'enc-70-dog-24.00-lat-fcc': {'calculator': {'encut': 700},
+  'double': {'single': {'dog': [array([3, 0, 0]),
+     array([0, 2, 0]),
+     array([0, 0, 4])]}},
+  'lattice': 'fcc',
+  'normal': [1, 2, 3]},
+ 'enc-80-dog-24.00-lat-fcc': {'calculator': {'encut': 800},
+  'double': {'single': {'dog': [array([3, 0, 0]),
+     array([0, 2, 0]),
+     array([0, 0, 4])]}},
+  'lattice': 'fcc',
+  'normal': [1, 2, 3]},
+ 'enc-90-dog-24.00-lat-fcc': {'calculator': {'encut': 900},
+  'double': {'single': {'dog': [array([3, 0, 0]),
+     array([0, 2, 0]),
+     array([0, 0, 4])]}},
+  'lattice': 'fcc',
+  'normal': [1, 2, 3]},
+ 'enc-70-dog-0.00-lat-hcp': {'calculator': {'encut': 700},
+  'double': {'single': {'dog': [0, 1, 2, 3, 4, 5, 6, 7, 8]}},
+  'lattice': 'hcp',
+  'normal': [1, 2, 3]},
+ 'enc-80-dog-0.00-lat-hcp': {'calculator': {'encut': 800},
+  'double': {'single': {'dog': [0, 1, 2, 3, 4, 5, 6, 7, 8]}},
+  'lattice': 'hcp',
+  'normal': [1, 2, 3]},
+ 'enc-90-dog-0.00-lat-hcp': {'calculator': {'encut': 900},
+  'double': {'single': {'dog': [0, 1, 2, 3, 4, 5, 6, 7, 8]}},
+  'lattice': 'hcp',
+  'normal': [1, 2, 3]},
+ 'enc-70-dog-18.00-lat-hcp': {'calculator': {'encut': 700},
+  'double': {'single': {'dog': [array([9, 0, 0]),
+     array([0, 2, 0]),
+     array([0, 0, 1])]}},
+  'lattice': 'hcp',
+  'normal': [1, 2, 3]},
+ 'enc-80-dog-18.00-lat-hcp': {'calculator': {'encut': 800},
+  'double': {'single': {'dog': [array([9, 0, 0]),
+     array([0, 2, 0]),
+     array([0, 0, 1])]}},
+  'lattice': 'hcp',
+  'normal': [1, 2, 3]},
+ 'enc-90-dog-18.00-lat-hcp': {'calculator': {'encut': 900},
+  'double': {'single': {'dog': [array([9, 0, 0]),
+     array([0, 2, 0]),
+     array([0, 0, 1])]}},
+  'lattice': 'hcp',
+  'normal': [1, 2, 3]},
+ 'enc-70-dog-24.00-lat-hcp': {'calculator': {'encut': 700},
+  'double': {'single': {'dog': [array([3, 0, 0]),
+     array([0, 2, 0]),
+     array([0, 0, 4])]}},
+  'lattice': 'hcp',
+  'normal': [1, 2, 3]},
+ 'enc-80-dog-24.00-lat-hcp': {'calculator': {'encut': 800},
+  'double': {'single': {'dog': [array([3, 0, 0]),
+     array([0, 2, 0]),
+     array([0, 0, 4])]}},
+  'lattice': 'hcp',
+  'normal': [1, 2, 3]},
+ 'enc-90-dog-24.00-lat-hcp': {'calculator': {'encut': 900},
+  'double': {'single': {'dog': [array([3, 0, 0]),
+     array([0, 2, 0]),
+     array([0, 0, 4])]}},
+  'lattice': 'hcp',
+  'normal': [1, 2, 3]}}
+
+    assert compare_nested_dicts(test,model)
+    

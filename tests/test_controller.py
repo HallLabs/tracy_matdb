@@ -36,69 +36,47 @@ def _mimic_vasp(folder, xroot):
                 target = path.join(xpath, name)
                 symlink(target, path.join(folder, dft))
 
-def compare_dicts(dict1,dict2):
-    """Compares two dictionaries to see if they are the same.
-    """
+@pytest.fixture()
+def Pd(tmpdir):
+    from matdb.utility import relpath
+    from matdb.database.controller import Controller
+    from os import mkdir, symlink, remove, path
 
-    if sorted(dict1.keys()) != sorted(dict2.keys()):
-        # print(dict1.keys(),dict2.keys())
-        print(len(dict1.keys()),len(dict2.keys()))
-        print([(a,b) for a, b in zip(dict1.keys(),dict2.keys()) if a!=b])
-        return False
-
-    for key in dict1:
-        if isinstance(dict1[key],dict):
-            res = compare_dicts(dict1[key],dict2[key])
-            if not res:
-                return False
-            else:
-                continue
-        if not isinstance(dict1[key],six.string_types) and not np.allclose(dict1[key],dict2[key]):
-            print(dict1[key],dict2[key])
-            return False
-        elif isinstance(dict1[key],six.string_types) and not dict1[key] == dict2[key]:
-            print(dict1[key],dict2[key])
-            return False
-
-    return True
-# @pytest.fixture()
-# def Pd(tmpdir):
-#     from matdb.utility import relpath
-#     from matdb.database.controller import Controller
-#     from os import mkdir, symlink, remove
-
-#     target = relpath("./tests/Pd/matdb")
-#     dbdir = str(tmpdir.join("pd_db"))
-#     mkdir(dbdir)
+    target = relpath("./tests/Pd/matdb")
+    dbdir = str(tmpdir.join("pd_db"))
+    mkdir(dbdir)
     
-#     #We need to copy the POSCAR over from the testing directory to the temporary
-#     #one.
-#     from shutil import copy
-#     POSCAR = relpath("./tests/Pd/POSCAR")
-#     copy(POSCAR, dbdir)
-#     symlink("{}.yml".format(target),"matdb.yml")
+    #We need to copy the POSCAR over from the testing directory to the temporary
+    #one.
+    from shutil import copy
+    POSCAR = relpath("./tests/Pd/POSCAR")
+    mkdir(path.join(dbdir,"seed"))
+    copy(POSCAR, path.join(dbdir,"seed","Pd"))
+    if path.isfile("matdb.yml"):
+        remove("matdb.yml")
+    symlink("{}.yml".format(target),"matdb.yml")
     
-#     result = Controller("matdb", dbdir)
-#     remove("matdb.yml")
-#     result = Controller(target, dbdir)
-#     return result
+    result = Controller("matdb", dbdir)
+    remove("matdb.yml")
+    result = Controller(target, dbdir)
+    return result
 
-# @pytest.fixture()
-# def dynPd(Pd):
-#     Pd.setup()
+@pytest.fixture()
+def dynPd(Pd):
+    Pd.setup()
     
-#     #First, we need to copy the FORCE_SETS and total_dos.dat files so that we
-#     #don't have to recompile those (they are tested elsewhere).
-#     from matdb.utility import symlink    
-#     troot = path.join(reporoot, "tests", "data", "Pd", "dynmatrix")
-#     files = ["FORCE_SETS", "total_dos.dat", "mesh.yaml"]
-#     for seq in Pd.find("Pd.phonon-*.dynmatrix"):
-#         for filename in files:
-#             target = path.join(seq.root, "phonopy", filename)
-#             source = path.join(troot, "{0}__{1}".format(filename, seq.parent.name))
-#             symlink(target, source)
+    #First, we need to copy the FORCE_SETS and total_dos.dat files so that we
+    #don't have to recompile those (they are tested elsewhere).
+    from matdb.utility import symlink    
+    troot = path.join(reporoot, "tests", "data", "Pd", "dynmatrix")
+    files = ["FORCE_SETS", "total_dos.dat", "mesh.yaml"]
+    for seq in Pd.find("Pd.phonon-*.dynmatrix"):
+        for filename in files:
+            target = path.join(seq.root, "phonopy", filename)
+            source = path.join(troot, "{0}__{1}".format(filename, seq.parent.name))
+            symlink(target, source)
 
-#     return Pd
+    return Pd
 
 # # @pytest.mark.skip()
 # def test_Pd_phonplot(dynPd, tmpdir):
@@ -114,62 +92,73 @@ def compare_dicts(dict1,dict2):
 #     band_plot(dbs, **args)
 #     assert path.isfile(target)
     
-# def test_Pd_setup(Pd):
-#     """Makes sure the initial folders were setup according to the spec.
-#     """
-#     Pd.setup()
-#     modelroot = path.join(Pd.root, "Pd.phonon-2", "dynmatrix")
-#     assert Pd["Pd.phonon-2.dynmatrix"].root == modelroot
+def test_Pd_setup(Pd):
+    """Makes sure the initial folders were setup according to the spec.
+    """
+    Pd.setup()
+    modelroot = path.join(Pd.root, "DynMatrix","phonon","Pd","dim-2.00")
+    assert Pd["DynMatrix/phonon/Pd/dim-2.00"].root == modelroot
     
-#     #The matdb.yml file specifies the following databases:
-#     dbs = ["Pd.phonon-{}".format(i) for i in (2, 4, 16, 32, 54)]
-#     #Each one should have a folder for: ["dynmatrix", "modulations"]
-#     #On the first go, the modulations folder will be empty because the DFT
-#     #calculations haven't been performed yet. However, dynmatrix should have DFT
-#     #folders ready to go.
-#     folders = {
-#         "dynmatrix": {
-#             "__files__": ["INCAR", "PRECALC"],
-#             "phonopy": {
-#                 "__files__": ["POSCAR", "POSCAR-001", "disp.yaml", "phonopy_disp.yaml"]
-#             },
-#             "phoncache": {},
-#             "W.1": {
-#                 "__files__": ["INCAR", "POSCAR", "POTCAR", "PRECALC", "KPOINTS"]
-#             }
-#         }
-#     }
+    #The matdb.yml file specifies the following databases:
+    dbs = ["DynMatrix/phonon/Pd/dim-{}".format(i) for i in ('2.00', '4.00', '16.00',
+                                                            '32.00', '27.00', '8.00')]
+    #Each one should have a folder for: ["dynmatrix", "modulations"]
+    #On the first go, the modulations folder will be empty because the DFT
+    #calculations haven't been performed yet. However, dynmatrix should have DFT
+    #folders ready to go.
+    folders = {
+        "__files__": ["compute.pkl","jobfile.sh"],
+        "phonopy": {
+            "__files__": ["POSCAR", "POSCAR-001", "disp.yaml", "phonopy_disp.yaml"]
+        },
+        "phoncache": {},
+        "kpaths": {},
+        "W.1": {
+            "__files__": ["INCAR", "POSCAR", "POTCAR", "PRECALC", "KPOINTS"]
+        }
+    }
 
-#     from matdb.utility import compare_tree
-#     for db in dbs:
-#         dbfolder = path.join(Pd.root, db)
-#         compare_tree(dbfolder, folders)
+    from matdb.utility import compare_tree
+    for db in dbs:
+        dbfolder = path.join(Pd.root, db)
+        compare_tree(dbfolder, folders)
     
-# def test_steps(Pd):
-#     """Tests compilation of all steps in the database.
-#     """
-#     steps = ['Pd.modulate.dynmatrix', 'Pd.modulate.modulations',                          
-#              'Pd.phonon-16.dynmatrix', 'Pd.phonon-2.dynmatrix',
-#              'Pd.phonon-32.dynmatrix', 'Pd.phonon-4.dynmatrix',
-#              'Pd.phonon-54.dynmatrix'] 
+def test_steps(Pd):
+    """Tests compilation of all steps in the database.
+    """
+    assert Pd.steps() == ['dynmatrix/phonon']
+    Pd.setup()
+    steps = sorted(['dynmatrix/phonon/Pd/dim-2.00', 'dynmatrix/phonon/Pd/dim-4.00',
+                    'dynmatrix/phonon/Pd/dim-8.00', 'dynmatrix/phonon/Pd/dim-16.00',
+                    'dynmatrix/phonon/Pd/dim-27.00', 'dynmatrix/phonon/Pd/dim-32.00'])
+    assert Pd.steps() == steps
     
-#     seqs = sorted(['Pd.phonon-2', 'Pd.phonon-16', 'Pd.phonon-32',
-#                    'Pd.phonon-4', 'Pd.phonon-54', 'Pd.modulate'])
-#     assert Pd.steps() == steps
-#     assert Pd.sequences() == seqs
+    seqs = sorted(['Pd/dim-2.00', 'Pd/dim-16.00', 'Pd/dim-32.00',
+                   'Pd/dim-4.00', 'Pd/dim-27.00', 'Pd/dim-8.00'])
+    assert Pd.sequences() == seqs
 
-# def test_find(Pd):
-#     """Tests the find function with pattern matching.
-#     """
-#     assert Pd['Pd.modulate.dynmatrix'] is Pd['Pd.phonon-16.dynmatrix']
-    
-#     steps = Pd.find("Pd.phonon*.dynmatrix")
-#     model = ['Pd.phonon-2', 'Pd.phonon-16', 'Pd.phonon-32', 'Pd.phonon-4', 'Pd.phonon-54']
-#     assert model == [s.parent.name for s in steps]
+def test_find(Pd):
+    """Tests the find function with pattern matching.
+    """
+    # assert Pd['Pd.modulate.dynmatrix'] is Pd['Pd.phonon-16.dynmatrix']
 
-#     steps = Pd.find("Pd.phonon-*2.dynmatrix")
-#     model = ['Pd.phonon-2', 'Pd.phonon-32']
-#     assert model == [s.parent.name for s in steps]
+    Pd.setup()
+    steps = Pd.find("dynmatrix/phonon/Pd/dim-*")
+    model = ['dynmatrix', 'dynmatrix', 'dynmatrix', 'dynmatrix', 'dynmatrix', 'dynmatrix']
+    assert model == [s.parent.name for s in steps]
+    model = [path.join(Pd.root,'DynMatrix/phonon/Pd/dim-8.00'),
+             path.join(Pd.root,'DynMatrix/phonon/Pd/dim-2.00'),
+             path.join(Pd.root,'DynMatrix/phonon/Pd/dim-4.00'),
+             path.join(Pd.root,'DynMatrix/phonon/Pd/dim-16.00'),
+             path.join(Pd.root,'DynMatrix/phonon/Pd/dim-27.00'),
+             path.join(Pd.root,'DynMatrix/phonon/Pd/dim-32.00')]
+    assert sorted(model) == sorted([s.root for s in steps])
+
+    steps = Pd.find("dynmatrix/phonon/Pd")
+    model = ['dynmatrix']
+    assert model == [s.parent.name for s in steps]
+    model = [path.join(Pd.root,'DynMatrix/phonon/Pd')]
+    assert model == [s.root for s in steps]
     
 # def test_Pd_modulation(dynPd):
 #     """Tests generation of modulated configurations along phonon modes.
@@ -297,203 +286,3 @@ def compare_dicts(dict1,dict2):
 #     remove(output)
 
 #     Pd.split()
-
-# def test_Repeater(Pd):
-#     """Tests the initialization of the squence repeater.
-#     """
-
-#     from matdb.database.controller import Repeater
-#     root = Pd["Pd.phonon-4"].root
-#     POSCAR = relpath("./tests/Pd/POSCAR")
-#     temp = Repeater("temp",POSCAR,root,Pd,[{'phonopy': {'dim': [2, 2, 2]}, 'kpoints':
-#                                              {'mindistance': 30}, 'dosmesh': [10, 10, 10],
-#                                              'type': 'phonon.DynMatrix',
-#                                              'bandmesh': [13, 13, 13]}],
-#                      niterations=[{'phonopy.dim': [0, 1, 1, 1, 0, 1, 1, 1, 0]}])
-
-def test_ParameterGrid():
-    """Tests the creation of a ParamaterGrid and it's functionality.
-    """
-    from matdb.database.controller import ParameterGrid
-
-    db_info = {'phonopy': {'dim*': [[2, 0, 0, 0, 2, 0, 0, 0, 2], [0, 1, 1, 1, 0, 1, 1, 1, 0],
-                                    [0, 2, 2, 2, 0, 2, 2, 2, 0], [-2, 2, 2, 2, -2, 2, 2, 2, -2],
-                                    [-1, 1, 1, 1, -1, 1, 1, 1, -1], [3, 0, 0, 0, 3, 0, 0, 0, 3]],
-                           'dim_suffix': {'func':'linalg:det','reshape':[3,3]}},
-               'parent':  'controller', 'dosmesh*': [[10, 10, 10],[12,12,12]],
-               'dosmesh_suffix*':[30,"tt"],'atoms': 'Pd',
-               'root': '/root/codes/matdb/tests/Pd', 'bandmesh': [13, 13, 13]}
-
-    pgrid = ParameterGrid(db_info)
-
-    assert len(pgrid) == 12
-    assert compare_dicts(pgrid['dos-tt-dim-16.00'],
-                         {'phonopy': {'dim': [0, 2, 2, 2, 0, 2, 2, 2, 0]},
-                          'dosmesh': [12, 12, 12], 'bandmesh': [13, 13, 13]})
-    pgrid.pop('dos-tt-dim-16.00')
-    assert not ('dos-tt-dim-16.00' in pgrid)
-    assert not pgrid == ParameterGrid(db_info)
-
-
-def test_get_grid():
-    """Tests the get_grid method.
-    """
-    from matdb.database.controller import get_grid
-    from numpy import array
-    db_info = {"lattice*": ["fcc", "bcc", "hcp"], 
-          "calculator": {"encut*": [700, 800, 900]},
-          "normal": [1, 2, 3],
-          "double": {"single": {"dog*": [range(9), list(np.diag([9,2,1])), list(np.diag([3,2,4]))]}},
-          "encut_suffix*": [70,80,90],
-          "dog_suffix": {"func": "linalg:det",
-                         "reshape": [3 ,3]},
-          "lattice_suffix": "{}"
-        }
-
-    test = get_grid(db_info)
-    model = {'enc-70-dog-0.00-lat-bcc': {'calculator': {'encut': 700},
-  'double': {'single': {'dog': [0, 1, 2, 3, 4, 5, 6, 7, 8]}},
-  'lattice': 'bcc',
-  'normal': [1, 2, 3]},
- 'enc-80-dog-0.00-lat-bcc': {'calculator': {'encut': 800},
-  'double': {'single': {'dog': [0, 1, 2, 3, 4, 5, 6, 7, 8]}},
-  'lattice': 'bcc',
-  'normal': [1, 2, 3]},
- 'enc-90-dog-0.00-lat-bcc': {'calculator': {'encut': 900},
-  'double': {'single': {'dog': [0, 1, 2, 3, 4, 5, 6, 7, 8]}},
-  'lattice': 'bcc',
-  'normal': [1, 2, 3]},
- 'enc-70-dog-18.00-lat-bcc': {'calculator': {'encut': 700},
-  'double': {'single': {'dog': [array([9, 0, 0]),
-     array([0, 2, 0]),
-     array([0, 0, 1])]}},
-  'lattice': 'bcc',
-  'normal': [1, 2, 3]},
- 'enc-80-dog-18.00-lat-bcc': {'calculator': {'encut': 800},
-  'double': {'single': {'dog': [array([9, 0, 0]),
-     array([0, 2, 0]),
-     array([0, 0, 1])]}},
-  'lattice': 'bcc',
-  'normal': [1, 2, 3]},
- 'enc-90-dog-18.00-lat-bcc': {'calculator': {'encut': 900},
-  'double': {'single': {'dog': [array([9, 0, 0]),
-     array([0, 2, 0]),
-     array([0, 0, 1])]}},
-  'lattice': 'bcc',
-  'normal': [1, 2, 3]},
- 'enc-70-dog-24.00-lat-bcc': {'calculator': {'encut': 700},
-  'double': {'single': {'dog': [array([3, 0, 0]),
-     array([0, 2, 0]),
-     array([0, 0, 4])]}},
-  'lattice': 'bcc',
-  'normal': [1, 2, 3]},
- 'enc-80-dog-24.00-lat-bcc': {'calculator': {'encut': 800},
-  'double': {'single': {'dog': [array([3, 0, 0]),
-     array([0, 2, 0]),
-     array([0, 0, 4])]}},
-  'lattice': 'bcc',
-  'normal': [1, 2, 3]},
- 'enc-90-dog-24.00-lat-bcc': {'calculator': {'encut': 900},
-  'double': {'single': {'dog': [array([3, 0, 0]),
-     array([0, 2, 0]),
-     array([0, 0, 4])]}},
-  'lattice': 'bcc',
-  'normal': [1, 2, 3]},
- 'enc-70-dog-0.00-lat-fcc': {'calculator': {'encut': 700},
-  'double': {'single': {'dog': [0, 1, 2, 3, 4, 5, 6, 7, 8]}},
-  'lattice': 'fcc',
-  'normal': [1, 2, 3]},
- 'enc-80-dog-0.00-lat-fcc': {'calculator': {'encut': 800},
-  'double': {'single': {'dog': [0, 1, 2, 3, 4, 5, 6, 7, 8]}},
-  'lattice': 'fcc',
-  'normal': [1, 2, 3]},
- 'enc-90-dog-0.00-lat-fcc': {'calculator': {'encut': 900},
-  'double': {'single': {'dog': [0, 1, 2, 3, 4, 5, 6, 7, 8]}},
-  'lattice': 'fcc',
-  'normal': [1, 2, 3]},
- 'enc-70-dog-18.00-lat-fcc': {'calculator': {'encut': 700},
-  'double': {'single': {'dog': [array([9, 0, 0]),
-     array([0, 2, 0]),
-     array([0, 0, 1])]}},
-  'lattice': 'fcc',
-  'normal': [1, 2, 3]},
- 'enc-80-dog-18.00-lat-fcc': {'calculator': {'encut': 800},
-  'double': {'single': {'dog': [array([9, 0, 0]),
-     array([0, 2, 0]),
-     array([0, 0, 1])]}},
-  'lattice': 'fcc',
-  'normal': [1, 2, 3]},
- 'enc-90-dog-18.00-lat-fcc': {'calculator': {'encut': 900},
-  'double': {'single': {'dog': [array([9, 0, 0]),
-     array([0, 2, 0]),
-     array([0, 0, 1])]}},
-  'lattice': 'fcc',
-  'normal': [1, 2, 3]},
- 'enc-70-dog-24.00-lat-fcc': {'calculator': {'encut': 700},
-  'double': {'single': {'dog': [array([3, 0, 0]),
-     array([0, 2, 0]),
-     array([0, 0, 4])]}},
-  'lattice': 'fcc',
-  'normal': [1, 2, 3]},
- 'enc-80-dog-24.00-lat-fcc': {'calculator': {'encut': 800},
-  'double': {'single': {'dog': [array([3, 0, 0]),
-     array([0, 2, 0]),
-     array([0, 0, 4])]}},
-  'lattice': 'fcc',
-  'normal': [1, 2, 3]},
- 'enc-90-dog-24.00-lat-fcc': {'calculator': {'encut': 900},
-  'double': {'single': {'dog': [array([3, 0, 0]),
-     array([0, 2, 0]),
-     array([0, 0, 4])]}},
-  'lattice': 'fcc',
-  'normal': [1, 2, 3]},
- 'enc-70-dog-0.00-lat-hcp': {'calculator': {'encut': 700},
-  'double': {'single': {'dog': [0, 1, 2, 3, 4, 5, 6, 7, 8]}},
-  'lattice': 'hcp',
-  'normal': [1, 2, 3]},
- 'enc-80-dog-0.00-lat-hcp': {'calculator': {'encut': 800},
-  'double': {'single': {'dog': [0, 1, 2, 3, 4, 5, 6, 7, 8]}},
-  'lattice': 'hcp',
-  'normal': [1, 2, 3]},
- 'enc-90-dog-0.00-lat-hcp': {'calculator': {'encut': 900},
-  'double': {'single': {'dog': [0, 1, 2, 3, 4, 5, 6, 7, 8]}},
-  'lattice': 'hcp',
-  'normal': [1, 2, 3]},
- 'enc-70-dog-18.00-lat-hcp': {'calculator': {'encut': 700},
-  'double': {'single': {'dog': [array([9, 0, 0]),
-     array([0, 2, 0]),
-     array([0, 0, 1])]}},
-  'lattice': 'hcp',
-  'normal': [1, 2, 3]},
- 'enc-80-dog-18.00-lat-hcp': {'calculator': {'encut': 800},
-  'double': {'single': {'dog': [array([9, 0, 0]),
-     array([0, 2, 0]),
-     array([0, 0, 1])]}},
-  'lattice': 'hcp',
-  'normal': [1, 2, 3]},
- 'enc-90-dog-18.00-lat-hcp': {'calculator': {'encut': 900},
-  'double': {'single': {'dog': [array([9, 0, 0]),
-     array([0, 2, 0]),
-     array([0, 0, 1])]}},
-  'lattice': 'hcp',
-  'normal': [1, 2, 3]},
- 'enc-70-dog-24.00-lat-hcp': {'calculator': {'encut': 700},
-  'double': {'single': {'dog': [array([3, 0, 0]),
-     array([0, 2, 0]),
-     array([0, 0, 4])]}},
-  'lattice': 'hcp',
-  'normal': [1, 2, 3]},
- 'enc-80-dog-24.00-lat-hcp': {'calculator': {'encut': 800},
-  'double': {'single': {'dog': [array([3, 0, 0]),
-     array([0, 2, 0]),
-     array([0, 0, 4])]}},
-  'lattice': 'hcp',
-  'normal': [1, 2, 3]},
- 'enc-90-dog-24.00-lat-hcp': {'calculator': {'encut': 900},
-  'double': {'single': {'dog': [array([3, 0, 0]),
-     array([0, 2, 0]),
-     array([0, 0, 4])]}},
-  'lattice': 'hcp',
-  'normal': [1, 2, 3]}}
-
-    assert compare_dicts(test,model)

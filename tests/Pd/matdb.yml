@@ -7,35 +7,30 @@ species:
 # element name here.
 potcars:
   directory: './tests/vasp'
-  pseudo: 'paw_PBE'
+  xc: 'PBE'
   version: '28Jan2005'
-  pd: '_pv'
+  setups:
+    Pd: '_pv'
 # Directory in which the database folder system will be created.
 root: './tests/Pd'
 venv: 'matdb-dev'
-# List the names of files in the root directory that serve as seed
-# configurations for sub-sampling to create additional configs. The
-# name keyword decides what the folder name will be called in which
-# all sub-sampled configurations are created.
-configs:
-  - name: 'Pd'
-    poscar: 'POSCAR'
-# These are global settings for INCAR that will be applied to *all*
-# the VASP calculations in all databases. They can be overridden in
-# each database.
-incar:
-  prec: 'a'
+# Define the calculator to use for this Database
+calculator:
+  name: 'Vasp'
+  prec: 'a'   
   encut: 400
   isym: 0
   lwave: False
   lreal: 'auto'
-  ediff: '1e-5'
+  ediff: 0.00001
   ismear: 1
   sigma: 0.1
-# We use Mueller k-points exclusively. These kpoint settings apply to
-# all database calculations.
-kpoints:
-  mindistance: 20
+  pp: 'pbe'
+  # We use Mueller k-points exclusively. These kpoint settings apply to
+  # all database calculations.
+  kpoints:
+    method: 'mueller'
+    mindistance: 20
 # Parameters for the job arrays that will be submitted for each
 # database. These can be overridden in each database below as well.
 execution:
@@ -62,31 +57,32 @@ databases:
   - name: 'phonon'
     steps:
       - type: "phonon.DynMatrix"
-        kpoints:
-          mindistance: 30
+        seeds: ["POSCAR:Pd"]
+        calculator:
+          kpoints:
+            method: 'mueller'
+            mindistance: 30
         phonopy:
-          dim: [2, 2, 2]
+          dim*:
+            - [2, 0, 0, 0, 2, 0, 0, 0, 2]
+            - [0, 1, 1, 1, 0, 1, 1, 1, 0]
+            - [0, 2, 2, 2, 0, 2, 2, 2, 0]
+            - [-2, 2, 2, 2, -2, 2, 2, 2, -2]
+            - [-1, 1, 1, 1, -1, 1, 1, 1, -1]
+            - [3, 0, 0, 0, 3, 0, 0, 0, 3]
+          dim_suffix:
+            func: "linalg:det"
+            reshape: [3,3]
         bandmesh: [13, 13, 13]
         dosmesh: [10, 10, 10]
-    niterations:
-      - phonopy.dim: [0,1,1,1,0,1,1,1,0]
-        suffix: "-2"
-      - phonopy.dim: [0,2,2,2,0,2,2,2,0]
-        suffix: "-16"
-      - phonopy.dim: [-2,2,2,2,-2,2,2,2,-2]
-        suffix: "-32"
-      - phonopy.dim: [-1,1,1,1,-1,1,1,1,-1]
-        suffix: "-4"
-      - phonopy.dim: [3,3,3]
-        suffix: "-54"
-  - name: 'modulate'
-    steps:
-      - "Pd.phonon-16.dynmatrix"
-      - type: "phonon.Modulation"
-        nconfigs: 5
-        sampling: 'uniform'
-        amplitude:
-          Pd: 10
+  # - name: 'modulate'
+  #   steps:
+  #     - "dynmatrix.phonon.dim-16"
+  #     - type: "phonon.Modulation"
+  #       nconfigs: 5
+  #       sampling: 'uniform'
+  #       amplitude:
+  #         Pd: 10
           
 fitting:
   dbs: ['*']

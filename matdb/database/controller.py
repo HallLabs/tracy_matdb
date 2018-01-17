@@ -63,192 +63,6 @@ def parse_path(root,seeds,rseed=None):
 
         return seed_files
     
-def is_nested(d):
-    """Determines if a dictoinary is nested, i.e. contains another dictionary.
-
-    Args:
-        d (dict): dictionary to test.
-    """
-    for k, v in d.items():
-        if k[-1] == '*':
-            return True
-        elif isinstance(v, dict) and is_nested(v):
-            return True
-
-    return False
-
-def get_suffix(d, k, index, values):
-    """Returns the suffix for the specified key in the dictionary that
-    is creating a parameter grid.
-
-    Args:
-        d (dict): the dictionary being turned into a grid.
-        k (str): the key in the dictionary.
-        index (int): the index for the value (gets used as the default suffix).
-        values (str, list, float): the value for the parameter.
-    """
-    from matdb.utility import special_functions
-    nk = k[0:-1]
-    suffix = "{0}_suffix".format(nk)
-    ssuff = suffix + '*'
-    
-    if suffix in d and (isinstance(d[suffix], dict) or ':' in d[suffix]):
-        keyval = special_functions(d[suffix], values)
-    elif suffix in d and isinstance(suffix, six.string_types):
-        keyval = d[suffix].format(values)
-    elif ssuff in d:
-        keyval = d[ssuff][index]
-    else:
-        keyval = index
-    
-    if isinstance(keyval, float):
-        return "{0}-{1:.2f}".format(nk[:3], keyval)
-    else:
-        return "{0}-{1}".format(nk[:3], keyval)
-
-def get_grid(d, suffices=None):
-    """Recursively generates a grid of parameters from the dictionary of parameters
-    that has duplicates or wildcars in it. 
-    
-    Args:
-       d (dict): the dictionary to be turned into a grid.
-       suffices (list): an optional list of suffices.
-    
-    Returns:
-       A dictionary of (key: value) where the key is the suffix string for
-       the parameters and the value are the exact parameters for each
-       entry in the grid.
-    """
-    dcopy = d.copy()
-    stack = [(dcopy, None)]
-    result = {}
-    
-    if suffices is None:
-        suffices = {k: v for k, v in d.items() if "suffix" in k[-8:]}
-        for k in suffices:
-            del dcopy[k]
-    else:
-        for k,v in d.items():
-            if "suffix" in k[-8:]:
-                suffices[k] = v
-        for k in suffices:
-            if k in dcopy:
-                del dcopy[k]            
-        
-    while len(stack) > 0:
-        oned, nsuffix = stack.pop()
-        for k, v in sorted(oned.items()):
-            if k[-1] == '*':
-                nk = k[0:-1]                    
-                for ival, value in enumerate(v):
-                    suffix = get_suffix(suffices, k, ival+1, value)
-                    dc = oned.copy()
-                    del dc[k]
-                    dc[nk] = value
-                    compsuffix = suffix if nsuffix is None else '-'.join(map(str, (nsuffix, suffix)))
-                    stack.append((dc, compsuffix))
-                break
-            elif isinstance(v, dict) and is_nested(v):
-                blowup = get_grid(v, suffices)
-                for rsuffix, entry in sorted(blowup.items()):
-                    dc = oned.copy()
-                    dc[k] = entry
-                    compsuffix = rsuffix if nsuffix is None else '-'.join(map(str, (nsuffix, rsuffix)))
-                    stack.append((dc, compsuffix))
-                break
-        else:
-            result[nsuffix] = oned
-            
-    return result
-
-class ParameterGrid(collections.MutableSet):
-    """An ordered list of the paramater combinations for the database. 
-    Values are the suffixes of the combinations of parameters as tuples:
-    e.g. (8, "dog", 1.2) for "dim", "animal", "temperature"
-    ({"animal*": ["dog", "cat", "cow"], "dim*": [[],[],[]], "temperature": 1.2})
-    Args:
-        params (dict): the paramaters needed to build the database.
-    
-    Attributes:
-        values (dict): keys are the suffix tuple and the values are the 
-            actual values needed by the database.
-        keys (list): the `str` names of the different parameters in the database.
-    """
-    def __init__(self, params):
-        for k in ["root","parent","atoms"]:
-            if k in params:
-                params.pop(k)
-        grid = get_grid(params)
-        #add these items to the set.
-        self.end = end = [] 
-        end += [None, end, end]         # sentinel node for doubly linked list
-        self.map = {}                   # key --> [key, prev, next]
-        self.values = {}
-        self.params = params
-        for i, v in grid.items():
-            self.add(i,v)
-            
-    def __len__(self):
-        return len(self.map)
-
-    def __contains__(self, key):
-        return key in self.map
-
-    def __getitem__(self, key):
-        return self.values[key]
-                        
-    def add(self, key, value):
-        """Adds key to the set if it is not already in the set.
-        Args:
-            key (tuple): Anything that could be added to the set.
-            value (tuple): The actual values that the suffix's 
-                correspond to.
-        """
-        if key not in self.map:
-            end = self.end
-            curr = end[1]
-            curr[2] = end[1] = self.map[key] = [key, curr, end]
-            self.values[key] = value
-        else:
-            msg.warn("The key {} already exists in the set, ignoring addition.".format(key))
-
-    def discard(self, key):
-        """Removes the key from the set.
-        Args:
-            key (tuple): An element of the set.
-        """        
-        if key in self.map:        
-            key, prev, next = self.map.pop(key)
-            prev[2] = next
-            next[1] = prev
-            self.values.pop(key,None)
-
-    def __iter__(self):
-        end = self.end
-        curr = end[2]
-        while curr is not end:
-            if curr[0] is not None:
-                yield curr[0]
-            curr = curr[2]
-
-    def pop(self, key):
-        """Removes an element from the set.
-        Args:
-            key (tuple): An element of the set.
-        """
-        self.discard(key)
-        return key
-
-    def __repr__(self):
-        if not self:
-            return '%s()' % (self.__class__.__name__,)
-        return '%s(%r)' % (self.__class__.__name__, list(self))
-
-    def __eq__(self, other):
-        if isinstance(other, ParameterGrid):
-            return len(self) == len(other) and list(self) == list(other)
-        return set(self) == set(other)
-
 class Database(object):
     """Represents a Database of groups (all inheriting from :class:`Group`) that 
     are all related be the atomic configuration that they model.
@@ -306,6 +120,7 @@ class Database(object):
 
         from collections import OrderedDict
         from os import mkdir
+        from matdb.utility import ParameterGrid
         self.steps = OrderedDict()
         for dbspec in steps:
             if isinstance(dbspec, six.string_types):
@@ -329,7 +144,7 @@ class Database(object):
             #pointers; then add in the keyword arguments that are missing.
             cpspec = dbspec.copy()
             del cpspec["type"]
-            
+
             cpspec["pgrid"] = ParameterGrid(cpspec.copy())
             if len(cpspec["pgrid"]) ==0:
                 cpspec["parameters"] = cpspec["pgrid"].params
@@ -449,7 +264,7 @@ class Database(object):
             self._split(name, recalc)
     
     def _split(self, name, recalc=0):
-        """Splits the total available data in all databases into a training and holdout
+        """Splits the total available data in all Groups into a training and holdout
         set.
         Args:
             name (str): name of the split to perform.
@@ -615,22 +430,12 @@ class Controller(object):
         self.species = sorted([s for s in self.specs["species"]])
         self.execution = self.specs.get("execution", {})
         self.calculator = self.specs.get("calculator", {})
-        self.potcars = self.specs["potcars"]
-        if "Vasp" in self.calculator["name"]:
-            from os import environ
-            environ["VASP_PP_PATH"] = relpath(path.expanduser(self.potcars["directory"]))
-            from matdb import calculators
-            from ase import Atoms, Atom
-            calcargs = self.calculator.copy()
-            calc = getattr(calculators, calcargs["name"])
-            del calcargs["name"]
-            potargs = self.potcars.copy()
-            del potargs["directory"]
-            calcargs.update(potargs)
-            this_atom = Atoms([Atom(a,[0,0,i]) for i,a
-                               in enumerate(self.species)],cell=[1,1,len(self.species)+1])
-            calc = calc(this_atom,self.root,**calcargs)
-            calc.write_potcar(directory=self.root)
+        #Extract the POTCAR that all the databases are going to use. TODO: pure
+        #elements can't use this POTCAR, so we have to copy the single POTCAR
+        #directly for those databases; update the create().
+        if "potcars" in self.specs:
+            self.potcars = self.specs["potcars"]
+            self.POTCAR()
 
         self.venv = self.specs.get("venv")
         self.random_seed = self.specs.get("random seed")
@@ -662,13 +467,6 @@ class Controller(object):
         if not path.isdir(self.plotdir):
             mkdir(self.plotdir)
             
-        #Extract the POTCAR that all the databases are going to use. TODO: pure
-        #elements can't use this POTCAR, so we have to copy the single POTCAR
-        #directly for those databases; update the create().
-        # if "potcars" in self.specs:
-        #     self.potcars = self.specs["potcars"]
-        #     self.POTCAR()
-
         #If the controller is going to train any potentials, we also need to 
         self.trainers = None
         if "fitting" in self.specs:
@@ -725,42 +523,46 @@ class Controller(object):
             return self.find('*.*')
         
         from fnmatch import fnmatch
-        if pattern.count('.') == 2:
-            parent, db, config = pattern.split('.')
-        elif pattern.count('.') == 1:
-            parent, config = pattern.split('.')
-            db = None
+        if pattern.count('/') == 3:
+            groupname, dbname, seed, params = pattern.split('/')
+        elif pattern.count('/') == 2:
+            groupname, dbname, seed = pattern.split('/')
+            params = None
+        elif pattern.count('/') == 1:
+            groupname, dbname = pattern.split('/')
+            params = None
+            seed = None
         else:
             #We must be searching legacy databases; match the pattern against
             #those.
             return [li for ln, li in self.legacy.items() if fnmatch(ln, pattern)]
         
-        colls = [v for k, v in self.collections.items() if fnmatch(k, config)]
-
-        #For databases without repeaters, there is no suffix.
-        if '-' in parent:
-            dbname, suffix = parent.split('-')
-        else:
-            dbname, suffix = parent, None
+        colls = [v for k, v in self.collections.items() if fnmatch(k, dbname)]
 
         result = []
         for coll in colls:
             dbs = [dbi for dbn, dbi in coll.items() if fnmatch(dbn, dbname)]
             for dbi in dbs:
-                seqs = [seqi for seqn, seqi in dbi.items()
-                        if fnmatch(seqn, '.'.join((config, parent)))]
+                groups = [groupi for groupn, groupi in dbi.steps.items()
+                        if fnmatch(groupn, groupname)]
 
-                if db is not None:
-                    for seq in seqs:
-                        result.extend([si for sn, si in seq.steps.items()
-                                       if fnmatch(sn, db)])
-                else:
-                    result.extend(seqs)
+                for group in groups:
+                    if len(group.sequence) > 0 and seed is not None:
+                        seeds = [si for sn, si in group.sequence.items()
+                                 if fnmatch(sn, seed)]
+                        for seedi in seeds:
+                            if len(seedi.sequence) > 0 and params is not None:
+                                result.extend([si for sn, si in seedi.sequence.items()
+                                               if fnmatch(sn, params)])
+                            else:
+                                result.append(seedi)
+                    else:
+                        result.append(group)
 
-        if config == '*':
+        if groupname == '*':
             #Add all the possible legacy databases.
             result.extend([li for ln, li in self.legacy.items()
-                           if fnmatch(ln, config)])
+                           if fnmatch(ln, groupname)])
                     
         return result
 
@@ -768,11 +570,20 @@ class Controller(object):
         """Compiles a list of all steps in this set of databases.
         """
         result = []
-        for config, coll in self.collection.items():
-            for repeater in coll.values():
-                for parent, seq in repeater.sequences.items():
-                    for step in seq.steps:
-                        result.append("{0}.{1}".format(parent, step))
+        for config, coll in self.collections.items():
+            for db_name, db in coll.items():
+                for group_name, group in db.steps.items():
+                    if len(group.sequence) > 0:
+                        for seed_name, seed in group.sequence.items():
+                            if len(seed.sequence) > 0:
+                                for param_name, param in seed.sequence.items():
+                                    result.append("{0}/{1}/{2}/{3}".format(group_name,db_name,
+                                                                           seed_name,param_name))
+                            else: 
+                                result.append("{0}/{1}/{2}".format(group_name,db_name,
+                                                                   seed_name))
+                    else:
+                        result.append("{0}/{1}".format(group_name,db_name))
 
         return sorted(result)        
     
@@ -781,33 +592,47 @@ class Controller(object):
         """
         result = []
         for config, coll in self.collections.items():
-            for repeater in coll.values():
-                result.extend(repeater.sequences.keys())
+            for db_name, db in coll.items():
+                for group_name, group in db.steps.items():
+                    if len(group.sequence) > 0:
+                        for seed_name, seed in group.sequence.items():
+                            if len(seed.sequence) > 0:
+                                for param_name, param in seed.sequence.items():
+                                    result.append("{0}/{1}".format(seed_name,param_name))
+                            else: 
+                                result.append("{0}".format(seed_name))
 
         return sorted(result)        
     
     def __getitem__(self, key):
         """Returns the database object associated with the given key. This is
         necessary because of the hierarchy of objects needed to implement
-        sequence repitition.
+        sequence repitition via the `ParamaterGrid`.
         """
-        if key.count('.') == 2:
-            config, parent, db = key.split('.')
+        if key.count('/') == 3:
+            group, dbname, seed, params = key.split('/')
+        elif key.count('.') == 2:
+            group, dbname, seed = key.split('/')
+            seed = None
         else:
-            config, parent = key.split('.')
-            db = None
+            group, dbname = key.split('/')
+            seed = None
+            params = None
             
-        coll = self.collections[config]
-        if '-' in parent:
-            dbname, suffix = parent.split('-')
+        coll = self.collections[dbname][dbname]
+        if group.lower() in coll.steps:
+            step = coll.steps[group.lower()]
+            if seed is not None and seed in step.sequence:
+                seq = step.sequence[seed]
+                if params is not None and params in seq.sequence:
+                    return seq.sequence[params]
+                else:
+                    return seq
+            else:
+                return step
         else:
-            dbname = parent
-        seq = coll[dbname].sequences['.'.join((config, parent))]
-
-        if db is not None:
-            return seq.steps[db]
-        else:
-            return seq
+            msg.err("The group name {0} could not be found in the steps of "
+                    "the database {1}".format(group.lower(),coll.steps.values()))
                         
     def setup(self, rerun=False, cfilter=None, dfilter=None):
         """Sets up each of configuration's databases.
@@ -881,38 +706,74 @@ class Controller(object):
         """Creates the POTCAR file using the pseudopotential and version
         specified in the file.
         """
-        from matdb.utility import relpath
-        target = path.join(self.root, "POTCAR")
-        if not path.isfile(target):
-            # Make sure that the POTCAR version and pseudopotential type match
-            # up so that we don't get nasty surprises.
-            potsrc = path.join(relpath(self.potcars["directory"]),
-                               "pot{}".format(self.potcars["pseudo"]))
-            potcars = []
-            
-            for element in self.species:
-                lel = element.lower()
-                pp = element
-                if lel in self.potcars:
-                    pp += self.potcars[lel]
+        # We only want to construct the POTCAR on this level for a VASP calculation
+        if "Vasp" in self.calculator["name"]:
+            from os import environ
+            from matdb.utility import relpath
+            # Have ASE build the initial POTCAR. This will be
+            # overwritten by use once it exists.
+            environ["VASP_PP_PATH"] = relpath(path.expanduser(self.potcars["directory"]))
+            from matdb import calculators
+            from ase import Atoms, Atom
+            calcargs = self.calculator.copy()
+            calc = getattr(calculators, calcargs["name"])
+            del calcargs["name"]
+            potargs = self.potcars.copy()
+            if "version" in potargs:
+                version = potargs["version"]
+                del potargs["version"]
+            else:
+                version = None
+            del potargs["directory"]
+            calcargs.update(potargs)
+            this_atom = Atoms([Atom(a,[0,0,i]) for i,a
+                               in enumerate(self.species)],cell=[1,1,len(self.species)+1])
+            calc = calc(this_atom,self.root,**calcargs)
+            calc.write_potcar(directory=self.root)
 
-                ppot = path.join(potsrc, pp, "POTCAR")
-                with open(ppot) as f:
-                    first = f.readline()
-                    if "version" in self.potcars:
-                        if element in self.potcars["version"]:
-                            version = self.potcars["version"][element]
-                        else:
-                            version = self.potcars["version"]
-                        assert version in first
+            # Now read in the ASE POTCAR and parse it to construct the
+            # actual POTCAR.
+            # target = path.join(self.root, "POTCAR")
+            # if not path.isfile(target): #pragma: no cover
+            #     msg.err("The POTCAR was not generated by ASE.")
 
-                potcars.append(ppot)
+            # # We need to parse the ASE created POTCAR to construct the POTCAR
+            # # that VASP can actually use.
+            # pots = []
+            # with open(target) as f:
+            #     for line in f:
+            #         pots.append(line.strip().split())
 
-            if len(potcars) == len(self.species):
-                from matdb.utility import cat
-                cat(potcars, target)
-            else: #pragma: no cover
-                msg.err("Couldn't create POTCAR for system.")
+            # potcars = []
+            # for pot in pots:
+            #     if version is not None:
+            #         if pot[1].split('_')[0] in version:
+            #             el_version = version[pot[1].split('_')[0]]
+            #         else:
+            #             el_version = version
+            #         assert el_version in pot[2]
+                    
+            #     if 'PBE' in pot[0]:
+            #         psuedo = 'paw_PBE'
+            #     elif 'GGA' in pot[0]:
+            #         psuedo = 'paw_GGA'
+            #     else: #pragma: no cover
+            #         psuedo = pot[0]
+                    
+            #     potsrc = path.join(relpath(self.potcars["directory"]),
+            #                        "pot{}".format(psuedo))
+
+            #     potcars.append(path.join(potsrc,pot[1],"POTCAR"))
+
+            # from os import remove
+            # remove(target)
+            # import pudb
+            # pudb.set_trace()
+            # if len(potcars) == len(pots):
+            #     from matdb.utility import cat
+            #     cat(potcars,target)
+            # else: #pragma: no cover
+            #     msg.err("Couldn't create POTCAR for system.")
 
     def split(self, recalc=0, cfilter=None, dfilter=None):
         """Splits the total available data in all databases into a training and holdout

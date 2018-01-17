@@ -5,6 +5,7 @@ from matdb import msg
 from os import path, getcwd, chdir, remove, listdir, mkdir
 import numpy as np
 from six import string_types
+import quippy
 
 class Enumerated(Group):
     """Sets up the calculations for a random sampling of structures from
@@ -120,7 +121,7 @@ class Enumerated(Group):
             elif lattice.lower() == "hcp":
                 self.lattice = [[1,0,0],[.5, 0.866025403784439, 0],[0, 0, 1.6329931618554521]]
                 self.lattice_name = "hcp"
-            else:
+            else: #pragma: no cover
                 msg.err("The lattice type {} is unsupported. Please enter your lattice vectors "
                         "as a 3x3 matrix with the vectors as rows in the config file "
                         "(i.e. [a1,a2,a3]).".format(lattice))
@@ -128,10 +129,10 @@ class Enumerated(Group):
             if len(lattice) == 3 and len(lattice[0]) == 3 and np.linalg.det(lattice) != 0:
                 self.lattice = lattice
                 self.lattice_name = "custom"
-            else: 
+            else: #pragma: no cover
                 msg.err("The lattice vectors must be a 3x3 matrix with the vectors as rows "
                         "and the vectors must be linearly independent.")
-        elif lattice is not None:
+        elif lattice is not None: #pragma: no cover
             msg.err("The lattice vectors must either be a string of 'sc', 'fcc', 'hcp', 'bcc', "
                     "or a 3x3 matrix with the vectors a rows.")
         else:
@@ -148,7 +149,7 @@ class Enumerated(Group):
         if basis is not None and isinstance(basis,list):
             if len(basis[0]) == 3:
                 self.basis = basis
-            else:
+            else: #pragma: no cover
                 msg.err("The atomic basis must be a list of lists that is nx3 where n is "
                         "the number of atoms in the basis.")
         elif basis is None:
@@ -159,7 +160,7 @@ class Enumerated(Group):
                     self.basis = [[0,0,0],[0.5,0.28867513459,0.81649658093]]
             else:
                 self.basis = [[0,0,0]]
-        else:
+        else: #pragma: no cover
             msg.err("The atomic basis must be a list of lists that is nx3 where n is "
                     "the number of atoms in the basis or left blank.")
 
@@ -173,12 +174,12 @@ class Enumerated(Group):
             if len(concs[0]) == 3:
                 self.concs = concs
                 self.conc_res = True
-            else:
+            else: #pragma: no cover
                 msg.err("The concetrations must be a nx3 list.")
         elif concs is None:
             self.concs = concs
             self.conc_res = False
-        else:
+        else: #pragma: no cover
             msg.err("The number of species and the concentrations must be have the "
                     "same length.")
 
@@ -191,13 +192,13 @@ class Enumerated(Group):
         if arrows is not None and len(arrows) == len(self.species):
             if isinstance(arrows[0],(int,float)) and arrows[0]<=1:
                 self.arrows = arrows
-                self.arrow_res = False
-            else :
+                self.arrow_res = True
+            else: #pragma: no cover
                 msg.err("The arrows must be a list of values <= 1.")
         elif arrows is None:
             self.arrows = arrows
             self.arrow_res = False
-        else:
+        else: #pragma: no cover
             msg.err("The number of species and arrow concentrations must have the "
                     "same length.")
         
@@ -217,7 +218,7 @@ class Enumerated(Group):
         return path.join(self.root,"euids.pkl")
 
     def _load_euids(self):
-        """Loads the list ef `euid` from the `rset.pkl` file for this
+        """Loads the list of `euid` from the `rset.pkl` file for this
         database group.
         """
         if self.euids is None:
@@ -231,7 +232,7 @@ class Enumerated(Group):
         """
         result = []
         for euid in self.euids:
-            folder = self.index[euid]
+            folder = self.index[str(euid)]
             target = path.join(folder,"atoms.json")
             if path.isfile(target):
                 result.append(folder)
@@ -386,3 +387,13 @@ class Enumerated(Group):
 
         """
         super(Enumerated, self).setup(self._setup_configs,rerun)
+
+        if len(self.sequence) != 0:
+            self.index = {}
+            self.euids = []
+            for seq in self.sequence.values():
+                self.index.update(seq.index)
+                self.euids.extend(seq.euids)
+        self.save_index()
+        self.save_pkl(self.euids,self.euid_file)
+            

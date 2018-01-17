@@ -17,8 +17,7 @@ from glob import glob
 import json
 
 from matdb import msg
-from matdb.utility import chdir
-from .controller import ParameterGrid
+from matdb.utility import chdir, ParameterGrid
 from .controller import Database
 from matdb import calculators
 
@@ -137,10 +136,10 @@ class Group(object):
             #have to expand our root to use that name over here. However, for
             #recursively nested groups, we use the root passed in because it
             #already includes the relevant suffixes, etc.
-            self.root = path.join(root, self.name)
+            self.root = path.join(root, parent.name)
         else:
             self.root = root
-            
+
         if not path.isdir(self.root):
             mkdir(self.root)
             
@@ -255,7 +254,7 @@ class Group(object):
             self.seeds = OrderedDict()
             for atomspec in seeds:
                 fmt, pattern = atomspec.split(':')
-                for apath in self.database.controller.relpaths(pattern):
+                for apath in self.database.parent.relpaths([pattern]):
                     self.seeds[path.basename(apath)] = Atoms(apath, format=fmt)
                     
         elif seeds is None and self.seeded:
