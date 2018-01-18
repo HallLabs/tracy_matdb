@@ -662,15 +662,16 @@ class Group(object):
         ready = {}
         done = {}
 
-        allatoms = self.config_atoms.copy()
+        allatoms = list(self.config_atoms.values())
+        allconfigs = list(self.configs.values())
         if len(self.sequence) > 0:
             for group in self.sequence.values():
-                allatoms.update(group.config_atoms)
-
-        allatoms = list(allatoms.values())
-        for a in tqdm(allatoms):
-            ready[f] = a.calc.can_execute()
-            done[f] = a.calc.can_cleanup()
+                allatoms.extend(group.config_atoms.values())
+                allconfigs.extend(group.configs.values())
+                
+        for f, a in zip(allconfigs,tqdm(allatoms)):
+            ready[f] = a.calc.can_execute(f)
+            done[f] = a.calc.can_cleanup(f)
         
         rdata, ddata = cnz(ready.values()), cnz(done.values())
         N = len(self.configs)        
