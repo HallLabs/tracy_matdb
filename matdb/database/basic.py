@@ -410,19 +410,19 @@ class Group(object):
                 return False
 
             if not recovery:
-                if not all(a.calc.can_execute()
-                           for a in self.config_atoms.values()):
+                if not all(a.calc.can_execute(self.configs[i])
+                           for i, a in self.config_atoms.items()):
                     return False
 
                 #We also need to check that we haven't already submitted this
                 #job. Check to see if it is executing.
-                if any(a.calc.is_executing()
-                       for a in self.config_atoms.values()):
+                if any(a.calc.is_executing(self.configs[i])
+                       for i, a in self.config_atoms.items()):
                     return False
 
                 #Make sure that the calculation isn't complete.
-                if any(a.calc.can_cleanup()
-                       for a in self.config_atoms.values()):
+                if any(a.calc.can_cleanup(self.configs[i])
+                       for i, a in self.config_atoms.items()):
                     return False                
         
             # We must have what we need to execute. Compile the command and
@@ -447,7 +447,7 @@ class Group(object):
             already_executed = []
             for group in self.sequence.values():
                 already_executed.append(group.execute(dryrun=dryrun,
-                                                      recovery=recover,
+                                                      recovery=recovery,
                                                       env_vars=env_vars))
             return all(already_executed)
 
@@ -662,11 +662,12 @@ class Group(object):
         ready = {}
         done = {}
 
-        allatoms = self.config_atoms.values().copy()
+        allatoms = self.config_atoms.copy()
         if len(self.sequence) > 0:
             for group in self.sequence.values():
-                allatoms.update(group.config_atoms.values())
-                
+                allatoms.update(group.config_atoms)
+
+        allatoms = list(allatoms.values())
         for a in tqdm(allatoms):
             ready[f] = a.calc.can_execute()
             done[f] = a.calc.can_cleanup()
