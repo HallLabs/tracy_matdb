@@ -187,7 +187,7 @@ class AsyncVasp(Vasp, AsyncCalculator):
             folder (str): path to the folder in which the executable was run.
         """
         # Read output
-        atoms_sorted = ase.io.read('CONTCAR', format='vasp')
+        atoms_sorted = ase.io.read(path.join(folder,'CONTCAR'), format='vasp')
 
         if (self.int_params['ibrion'] is not None and
                 self.int_params['nsw'] is not None):

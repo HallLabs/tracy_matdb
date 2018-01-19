@@ -743,7 +743,7 @@ class Group(object):
                     continue
                 
                 atoms = self.config_atoms[cid]
-                atoms.calc.cleanup()
+                atoms.calc.cleanup(folder)
                 atoms_to_json(atoms, folder)
 
         else:
