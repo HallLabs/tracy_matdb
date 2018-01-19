@@ -707,7 +707,8 @@ class Group(object):
                 #otherwise we aren't ready to go.
                 return False
         
-            cleanups = [a.calc.can_cleanup() for a in self.config_atoms.values()]
+            cleanups = [a.calc.can_cleanup(f) for f, a in
+                        zip(self.configs.values(),self.config_atoms.values())]
         else: 
             cleanups = [group.can_cleanup() for group in self.sequence.values()]
         return all(cleanups)
