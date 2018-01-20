@@ -6,12 +6,11 @@ existing OUTCAR from `tests/data`. We're copying the POSCAR to the
 CONTCAR so that the cleanup methods can grab the 'relaxed' atomic
 positions.
 """
-from matdb.utility import touch
+from matdb.utility import touch, symlink
 from os import path
-from shutil import copyfile
 files = ["CONTCAR", "WAVECAR", "CHGCAR"]
 for fname in files:
     touch(fname)
 
 if path.isfile("POSCAR"):
-    copyfile("POSCAR","CONTCAR")
+    symlink("CONTCAR","POSCAR")
