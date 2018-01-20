@@ -147,7 +147,15 @@ class MTP(Trainer):
     def _make_relax_ini(self):
         """Creates the 'relax.ini' file for relaxing the structures.
         """
-        pass
+
+        target = path.join(self.root, "relax.ini")
+        
+        from jinja2 import Environment, PackageLoader
+        env = Environment(loader=PackageLoader('matdb', 'templates'))
+        template = env.get_template("relax.ini")
+
+        with open(target,'w') as f:
+            f.write(template.render(**self.relax))
 
     def _make_to_relax_cfg(self):
         """Creates the list of files to relax to check the mtp against.
