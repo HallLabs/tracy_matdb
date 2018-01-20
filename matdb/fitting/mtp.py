@@ -57,9 +57,14 @@ class MTP(Trainer):
                                   parent, dbfilter)
         self.controller = controller
         self.ncores = execution["ntasks"]
+        self.root = root 
 
-        if mtpargs["relax"]:
+        if mtpargs["relax"] is not None:
             self._set_relax_ini(mtpargs["relax"])
+        else:
+            self._set_relax_ini({})
+
+        self.species = mtpargs["species"]        
         
         self.mtp_file = "{}.xml".format(self.name)
         
@@ -142,7 +147,15 @@ class MTP(Trainer):
     def _make_pot_initial(self):
         """Creates the initial 'pot.mtp' file.
         """
-        pass
+
+        target = path.join(self.root, "pot.mtp")
+        
+        from jinja2 import Environment, PackageLoader
+        env = Environment(loader=PackageLoader('matdb', 'templates'))
+        template = env.get_template("pot.mtp")
+
+        with open(target,'w') as f:
+            f.write(template.render("n_species"=len(self.species)))
     
     def _make_relax_ini(self):
         """Creates the 'relax.ini' file for relaxing the structures.
