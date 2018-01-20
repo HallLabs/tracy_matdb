@@ -745,7 +745,9 @@ class Group(object):
                 atoms = self.config_atoms[cid]
                 atoms.calc.cleanup(folder)
                 atoms_to_json(atoms, folder)
-
+            return self.can_cleanup()
+        elif len(self.sequence) >0:
+            return all([group.cleanup() for group in self.sequence.values()])
+                
         else:
-            for group in self.sequence.values():
-                group.cleanup()
+            return self.can_cleanup()
