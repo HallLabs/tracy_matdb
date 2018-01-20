@@ -70,7 +70,7 @@ def dynPd(Pd):
     from matdb.utility import symlink    
     troot = path.join(reporoot, "tests", "data", "Pd", "dynmatrix")
     files = ["FORCE_SETS", "total_dos.dat", "mesh.yaml"]
-    for seq in Pd.find("Pd.phonon-*.dynmatrix"):
+    for seq in Pd.find("dynmatrix/phonon/Pd/dim-*"):
         for filename in files:
             target = path.join(seq.root, "phonopy", filename)
             source = path.join(troot, "{0}__{1}".format(filename, seq.parent.name))
@@ -200,7 +200,7 @@ def test_Pd_dynmatrix(Pd):
 
     """
     Pd.setup()
-        
+    
     #Test the status, we should have some folder ready to execute.
     Pd.status()
     Pd.status(busy=True)
