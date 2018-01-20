@@ -183,15 +183,38 @@ class MTP(Trainer):
           will run in so that it has the relevant files.
         """
 
-        self._make_relax_ini()
-        self._make_pot_initial()
+        if not path.isfile(path.join(self.root,"relax.ini")):
+            self._make_relax_ini()
+        if not path.isfile(path.join(self.root,"pot.mtp")):
+            self._make_pot_initial()
+        
         self._make_train_cfg(self.configs)
 
         self._make_to_relax_cfg()
 
+        if not path.isfile(path.join(self.root,"status.txt")):
+            status = "train"
+            iter_count = 1
+        else:
+            from os import remove
+            with open(path.join(self.root,"status.txt"),"r") as f:
+                for line in f:
+                    old_status = line.strip().split()
+
+            if old_status[0] == "select":
+                status = "train"
+            else:
+                status = old_status[0]
+            iter_count = int(old_status[1]) + 1
+                
+                    
+            
         # IF at start
         #command to train the potential
-        template = "mpirun -n {} mlp train pot.mtp train.cfg > training.txt"
+        if status == "train":
+            template = "mpirun -n {} mlp train pot.mtp train.cfg > training.txt"
+            with open(path.join(self.root,"status.txt"),"w+") as f:
+                f.write("relax {1}".format(iter_count))
 
         # If pot has been trained
         rename("Trained_mtp_","pot.mtp")
