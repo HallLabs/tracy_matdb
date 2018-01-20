@@ -56,7 +56,11 @@ class MTP(Trainer):
         super(MTP, self).__init__(controller, dbs, execution, split, root,
                                   parent, dbfilter)
         self.controller = controller
+        self.ncores = execution["ntasks"]
 
+        if mtpargs["relax"]:
+            self._set_relax_ini(mtpargs["relax"])
+        
         self.mtp_file = "{}.xml".format(self.name)
         
         #Configure the fitting directory for this particular potential.
@@ -64,6 +68,61 @@ class MTP(Trainer):
         if not path.isdir(self.root):
             mkdir(self.root)
 
+    def _set_relax_ini(self,relaxargs):
+        """Sets the arguments for the relax.ini file.
+
+        Args:
+            relaxargs (dict): A dictionary containing keys for the weights.
+        """
+        relax_args = {}
+
+        if "calc-efs" in relaxargs:
+            relax_args["calc_efs"] = relaxargs["calc-efs"]
+        else:
+            relax_args["calc_efs"] = "TRUE"
+
+        if "active-learn" in relaxargs:
+            relax_args["active_learn"] = relaxargs["active-learn"]
+        else:
+            relax_args["active_learn"] = "TRUE"
+
+        if "fit" in relaxargs:
+            relax_args["fit_setting"] = relaxargs["fit"]
+        else:
+            relaxargs["fit_setting"] = "FALSE"
+        
+        if "site-weight" in relaxargs:
+            relax_args["site_weight"] = relaxargs["site-weight"]
+        else:
+            relax_args["site_weight"] = "0.0"
+
+        if "energy-weight" in relaxargs:
+            relax_args["energy_weight"] = relaxargs["energy-weight"]
+        else:
+            relax_args["energy_weight"] = "1.0"
+
+        if "force-weight" in relaxargs:
+            relax_args["force_weight"] = relaxargs["force-weight"]
+        else:
+            relax_args["force_weight"] = "0.001"
+
+        if "stress-weight" in relaxargs:
+            relax_args["stress_weight"] = relaxargs["stress-weight"]
+        else:
+            relax_args["stress_weight"] = "0.0001"
+
+        if "threshold" in relaxargs:
+            relax_args["extrap_threshold"] = relaxargs["threshold"]
+        else:
+            relax_args["extrap_threshold"] = "2.0"
+
+        if "threshold-break" in relaxargs:
+            relax_args["threshold_break"] = relaxargs["threshold-break"]
+        else:
+            relax_args["threshold_break"] = "10.0"
+
+        self.relax = relax_args
+        
     def get_calculator(self):
         """Returns an instance of :class:`ase.Calculator` using the latest
         fitted GAP potential in this trainer.
@@ -109,18 +168,23 @@ class MTP(Trainer):
 
         self._make_to_relax_cfg()
 
+        # IF at start
         #command to train the potential
         template = "mpirun -n {} mlp train pot.mtp train.cfg > training.txt"
 
+        # If pot has been trained
         rename("Trained_mtp_","pot.mtp")
-        
+
         # command to relax structures
         template = "mpirun -n {} mlp relax relax.ini --cfg-filename=to-relax.cfg"
 
+        # if relaxation is done
         cat(glob("selected.cfg_*"),"selected.cfg")
 
         # command to select next training set.
         template = "mlp select-add pot.mtp traic.cfg selected.cfg diff.cfg -selection-limit={}"
+
+        # if active set has been selected add it to the `Active` group.
         
         return template.format(**fields)
 
