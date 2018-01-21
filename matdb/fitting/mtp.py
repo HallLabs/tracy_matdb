@@ -64,9 +64,14 @@ class MTP(Trainer):
         else:
             self._set_relax_ini({})
 
+        self.selection_limit = mtpargs["selection-limit"]
         self.species = mtpargs["species"]        
         
         self.mtp_file = "{}.xml".format(self.name)
+
+        # we need access to the active learning set
+        from matdb.database.active import Active
+        self.active = Active()
         
         #Configure the fitting directory for this particular potential.
         from os import mkdir
@@ -139,10 +144,23 @@ class MTP(Trainer):
     def ready(self):
         return path.isfile(path.join(self.root, self.mtp_file))
 
-    def _make_train_cfg(self):
-        """Creates the 'train.cfg' file needed to train the potential.
+    def _make_train_cfg(self,iteration):
+        """Creates the 'train.cfg' file needed to train the potential from the
+        databeses used.
+
+        Args:
+            iteration (int): the number of iterations of MTP has been 
+                through.
         """
-        pass
+
+        from matdb.utility import cat
+        if iteration == 1:
+            for db in self.dbs:
+                for config in db.config_atoms:
+                    create_cfg_file(path.join(self.root,"train.cfg"),config)
+        else:
+            for config in self.active.last_iter_atoms:
+                create_cfg_file(path.join(self.root,"train.cfg"),config)                
 
     def _make_pot_initial(self):
         """Creates the initial 'pot.mtp' file.
@@ -182,16 +200,7 @@ class MTP(Trainer):
         .. note:: This method also configures the directory that the command
           will run in so that it has the relevant files.
         """
-
-        if not path.isfile(path.join(self.root,"relax.ini")):
-            self._make_relax_ini()
-        if not path.isfile(path.join(self.root,"pot.mtp")):
-            self._make_pot_initial()
         
-        self._make_train_cfg(self.configs)
-
-        self._make_to_relax_cfg()
-
         if not path.isfile(path.join(self.root,"status.txt")):
             status = "train"
             iter_count = 1
@@ -201,36 +210,68 @@ class MTP(Trainer):
                 for line in f:
                     old_status = line.strip().split()
 
-            if old_status[0] == "select":
+            if old_status[0] == "done":
                 status = "train"
+                iter_count = int(old_status[1]) + 1
             else:
                 status = old_status[0]
-            iter_count = int(old_status[1]) + 1
+                iter_count = int(old_status[1])
                 
-                    
-            
-        # IF at start
-        #command to train the potential
+        #if we're at the start of a training iteration use the command to train the potential
         if status == "train":
-            template = "mpirun -n {} mlp train pot.mtp train.cfg > training.txt"
+            self._make_train_cfg(iter_count)
+
+            #remove the selected.cfg and rexaed.cfg from the last iteration if they exist
+            if os.path.isfile(path.join(self.root,"selected.cfg")):
+                from os import remove
+                remove(path.join(self.root,"selected.cfg"))
+            if os.path.isfile(path.join(self.root,"relaxed.cfg")):
+                from os import remove
+                remove(path.join(self.root,"relaxed.cfg"))        
+        
+            if not path.isfile(path.join(self.root,"relax.ini")):
+                self._make_relax_ini()
+            if not path.isfile(path.join(self.root,"pot.mtp")):
+                self._make_pot_initial()
+            template = "mpirun -n {} mlp train pot.mtp train.cfg > training.txt".format(self.ncores)
             with open(path.join(self.root,"status.txt"),"w+") as f:
                 f.write("relax {1}".format(iter_count))
 
-        # If pot has been trained
-        rename("Trained_mtp_","pot.mtp")
+        if status == "relax":
+            # if the unrelaxed.cfg file exists we need to move it to
+            # replace the existing 'to-relax.cfg' otherwise we need to
+            # create the 'to-relax.cfg' file.
+            if path.isfile(path.join(self.root,"unrelaxed.cfg")):
+                from os import rename
+                rename(path.join(self.root,"unrelaxed.cfg"),path.join(self.root,"to-relax.cfg"))
+            else:
+                self._make_to_relax_cfg()
 
-        # command to relax structures
-        template = "mpirun -n {} mlp relax relax.ini --cfg-filename=to-relax.cfg"
+            # If pot has been trained
+            rename("Trained_mtp_","pot.mtp")
+
+            # command to relax structures
+            template = "mpirun -n {} mlp relax relax.ini --cfg-filename=to-relax.cfg".format(self.ncores)
+            with open(path.join(self.root,"status.txt"),"w+") as f:
+                f.write("select {1}".format(iter_count))
 
         # if relaxation is done
-        cat(glob("selected.cfg_*"),"selected.cfg")
+        if status == "select":
+            cat(glob("selected.cfg_*"),"selected.cfg")
 
-        # command to select next training set.
-        template = "mlp select-add pot.mtp traic.cfg selected.cfg diff.cfg -selection-limit={}"
+            # command to select next training set.
+            template = "mlp select-add pot.mtp traic.cfg selected.cfg diff.cfg -selection-limit={}".format(self.selection_limit)
 
-        # if active set has been selected add it to the `Active` group.
-        
-        return template.format(**fields)
+            # if active set has been selected add it to the `Active` group.
+            from matdb.database.active import Active
+            from quippy.atoms import Atoms
+
+            
+            with open(path.join(self.root,"status.txt"),"w+") as f:
+                f.write("done {1}".format(iter_count))
+            
+            
+        return template
 
     def status(self, printed=True):
         """Returns or prints the current status of the MTP training.
