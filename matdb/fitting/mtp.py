@@ -191,7 +191,52 @@ class MTP(Trainer):
     def _make_to_relax_cfg(self):
         """Creates the list of files to relax to check the mtp against.
         """
-        pass
+        from matdb.utility import _get_reporoot
+        from os import path, remove
+        from phenum.makeStr import _make_structures
+        from itertools import combinations
+
+        target = path.join(self.root,"to-relax.cfg")
+
+        if path.isfile(target):
+            remove(target)
+        
+        args = {"config":"t",
+                "species":self.species,
+                "structures": "all",
+                "debug": False,
+                "example": False,
+                "displace":0.0,
+                "mink":True,
+                "outfile":target,
+                "verbose": None,
+                "rattle":0.0,
+                "mapping": None,
+        }
+
+        if len(self.species) >4:
+            msg.err("The MTP relaxation isn't setup to create a to-relax.cfg "
+                    "file for systems with more than 4 elements.")
+        
+        msg.info("Setting up to-relax.cfg file.")
+        for crystal in ["bcc","fcc","sc","hcp"]:
+            for size in range(2,len(self.species)+1):
+                infile = path.join(_get_reporoot(),"matdb","templates",
+                                   "struct_enum.out_{0}_{1}".format(size,crystal))
+                args["input"] = infile
+                # if the size we're currently on is smaller than the
+                # system in question then we need to loop over the
+                # different species mappings possible to correctly form
+                # all the edges/faces of the phase diagram.
+                if size != len(self.species):
+                    for edge in combinations(range(len(species)),size):
+                        args["mapping"] = {i:j for i, j in enumerate(edge)}
+                        _make_structures(args)
+                else:
+                    _make_structures(args)
+                    
+        msg.info("to-relax.cfg file completed.")
+                    
         
     def command(self):
         """Returns the command that is needed to train the GAP
