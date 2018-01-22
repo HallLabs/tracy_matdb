@@ -47,7 +47,14 @@ class MTP(Trainer):
         self.selection_limit = mtpargs["selection-limit"]
         self.species = mtpargs["species"]        
         
-        self.mtp_file = "{}.xml".format(self.name)
+        self.mtp_file = "pot.mtp"
+        if path.isfile(path.join(self.root,"status.txt")):
+            with open(path.join(self.root,"status.txt"),"r") as f:
+                for line in f:
+                    old_status = line.strip().split()
+                self.iter_status = old_status[0]
+        else:
+            self.stat_iter = None
 
         # we need access to the active learning set
         from matdb.database.active import Active
@@ -122,7 +129,13 @@ class MTP(Trainer):
             return Potential("IP MTP", param_filename=self.mtp_file)
 
     def ready(self):
-        return path.isfile(path.join(self.root, self.mtp_file))
+        """Determines if the potential is ready for use.
+        """
+
+        pot_file = (path.isfile(path.join(self.root, self.mtp_file)))
+        stat = (self.iter_state == "done")
+        next_iter = (len(self.last_iteration) == 0)
+        return all(pot_file,stat,next_iter)
 
     def _make_train_cfg(self,iteration):
         """Creates the 'train.cfg' file needed to train the potential from the
@@ -255,7 +268,7 @@ class MTP(Trainer):
         """
         
         if not path.isfile(path.join(self.root,"status.txt")):
-            status = "train"
+            self.iter_status = "train"
             iter_count = 1
         else:
             from os import remove
@@ -264,14 +277,14 @@ class MTP(Trainer):
                     old_status = line.strip().split()
 
             if old_status[0] == "done":
-                status = "train"
+                self.iter_status = "train"
                 iter_count = int(old_status[1]) + 1
             else:
-                status = old_status[0]
+                self.iter_status = old_status[0]
                 iter_count = int(old_status[1])
                 
         #if we're at the start of a training iteration use the command to train the potential
-        if status == "train":
+        if self.iter_status == "train":
             self._make_train_cfg(iter_count)
 
             #remove the selected.cfg and rexaed.cfg from the last iteration if they exist
@@ -290,7 +303,7 @@ class MTP(Trainer):
             with open(path.join(self.root,"status.txt"),"w+") as f:
                 f.write("relax {0}".format(iter_count))
 
-        if status == "relax":
+        if self.iter_status == "relax":
             # if the unrelaxed.cfg file exists we need to move it to
             # replace the existing 'to-relax.cfg' otherwise we need to
             # create the 'to-relax.cfg' file.
@@ -309,20 +322,32 @@ class MTP(Trainer):
                 f.write("select {0}".format(iter_count))
 
         # if relaxation is done
-        if status == "select":
+        if self.iter_status == "select":
             cat(glob("selected.cfg_*"),"selected.cfg")
 
             # command to select next training set.
             template = "mlp select-add pot.mtp traic.cfg selected.cfg diff.cfg -selection-limit={}".format(self.selection_limit)
 
-            # if active set has been selected add it to the `Active` group.
-            from matdb.database.active import Active
+        # if selection is done
+        if self.iter_status == "add":
+            from os import system
+            from glob import glob
             from quippy.atoms import Atoms
+            system("mlp convert-cfg diff.cfg POSCAR --output-format=vasp-poscar")
+            system("cp selected.cfg selected.cfg_iter_{}".format(iter_count))
+            if path.isfile("relaxed.cfg"):
+                system("cp relaxed.cfg relaxed.cfg_iter_{}".format(iter_count))
 
+            new_confgs = []
+            new_POSCARS = glob("POSCAR*")
+            for POSCAR in new_POSCARS:
+                new_configs.append(Atoms(POSCAR,format="POSCAR"))
+
+            self.active.add_configs(new_configs)
+            self.active.setup()
             
             with open(path.join(self.root,"status.txt"),"w+") as f:
                 f.write("done {0}".format(iter_count))
-            
             
         return template
 
@@ -333,7 +358,7 @@ class MTP(Trainer):
             printed (bool): when True, print the status to screen; otherwise,
               return a dictionary with the relevant quantities.
         """
-        # Our interest is in knowing which GAP model is the latest (if any) and
+        # Our interest is in knowing which MTP model is the latest (if any) and
         # whether the job script has been created for the next one in the
         # sequence.
         result = {
