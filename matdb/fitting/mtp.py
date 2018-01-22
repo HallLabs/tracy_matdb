@@ -10,26 +10,6 @@ from .basic import Trainer
 from matdb.utility import cat
 from glob import glob
 
-def dict_to_str(settings, spacer=""):
-    """Converts the specified dictionary of QUIP-compatible settings into a
-    single string.
-
-    Args:
-        settings (dict): key-value pairs that are recognized settings by QUIP
-          for descriptors, teach_sparse, eval, etc.
-    """
-    result = []
-    for k, v in settings.items():
-        if isinstance(v, (list, set, tuple)):
-            value = '{' + ' '.join(map(str, v)) + '}'
-        else:
-            value = v
-
-        result.append("{}={}".format(k, value))
-
-    joiner = " \\\n  {}".format(spacer)
-    return joiner.join(result)
-
 class MTP(Trainer):
     """Implements a simple wrapper around the MTP training functionality for
     creating MTP potentials.
@@ -156,13 +136,39 @@ class MTP(Trainer):
         from matdb.utility import cat
         if iteration == 1:
             for db in self.dbs:
-                for config in db.config_atoms:
-                    create_cfg_file(path.join(self.root,"train.cfg"),config)
+                for config in db.configs.values():
+                    self._create_train_cfg(path.join(self.root,"train.cfg"),config)
         else:
-            for config in self.active.last_iter_atoms:
-                create_cfg_file(path.join(self.root,"train.cfg"),config)                
+            for config in self.active.last_iter.values():
+                self._create_train_cfg(path.join(self.root,"train.cfg"),config)
+
+    def _create_train_cfg(self,target):
+        """Creates a 'train.cfg' file for the calculation stored at the target
+        directory.
+
+        Args:
+            target (str): the path to the directory in which a calculation 
+                was performed.
+        """
+        from os import system, rename
+        from matdb.utility import cat
+        if path.isfile(path.join(target,"OUTCAR")):
+            system("mlp convert-cfg {0}/OUTCAR {1}/diff.cfg --input-format=vasp-outcar >> outcar.txt".format(target,self.root))
+            if path.isfile(path.join(self.root,"diff.cfg")):
+                if path.isfile(path.join(self.root,"train.cfg")):
+                    cat([path.join(self.root,"train.cfg"),path.join(self.root,"diff.cfg")],
+                        path.join(self.root,"temp.cfg"))
+                    rename(path.join(self.root,"temp.cfg"),path.join(self.root,"train.cfg"))
+                else:
+                    rename(path.join(self.root,"diff.cfg"),path.join(self.root,"train.cfg"))
+            else:
+                msg.err("There was an error making the config file for folder "
+                        "{}".format(path.join(self.root,target)))
+        else:
+            msg.err("The folder {} didn't run.".format(path.join(self.root,target)))
 
     def _make_pot_initial(self):
+
         """Creates the initial 'pot.mtp' file.
         """
 
@@ -221,22 +227,24 @@ class MTP(Trainer):
         msg.info("Setting up to-relax.cfg file.")
         for crystal in ["bcc","fcc","sc","hcp"]:
             for size in range(2,len(self.species)+1):
-                infile = path.join(_get_reporoot(),"matdb","templates",
-                                   "struct_enum.out_{0}_{1}".format(size,crystal))
-                args["input"] = infile
                 # if the size we're currently on is smaller than the
                 # system in question then we need to loop over the
                 # different species mappings possible to correctly form
                 # all the edges/faces of the phase diagram.
                 if size != len(self.species):
+                    infile = path.join(_get_reporoot(),"matdb","templates",
+                                       "struct_enum.out_{0}_{1}_sub".format(size,crystal))
+                    args["input"] = infile
                     for edge in combinations(range(len(species)),size):
                         args["mapping"] = {i:j for i, j in enumerate(edge)}
                         _make_structures(args)
                 else:
+                    infile = path.join(_get_reporoot(),"matdb","templates",
+                                       "struct_enum.out_{0}_{1}".format(size,crystal))
+                    args["input"] = infile
                     _make_structures(args)
                     
-        msg.info("to-relax.cfg file completed.")
-                    
+        msg.info("to-relax.cfg file completed.")                   
         
     def command(self):
         """Returns the command that is needed to train the GAP
@@ -280,7 +288,7 @@ class MTP(Trainer):
                 self._make_pot_initial()
             template = "mpirun -n {} mlp train pot.mtp train.cfg > training.txt".format(self.ncores)
             with open(path.join(self.root,"status.txt"),"w+") as f:
-                f.write("relax {1}".format(iter_count))
+                f.write("relax {0}".format(iter_count))
 
         if status == "relax":
             # if the unrelaxed.cfg file exists we need to move it to
@@ -298,7 +306,7 @@ class MTP(Trainer):
             # command to relax structures
             template = "mpirun -n {} mlp relax relax.ini --cfg-filename=to-relax.cfg".format(self.ncores)
             with open(path.join(self.root,"status.txt"),"w+") as f:
-                f.write("select {1}".format(iter_count))
+                f.write("select {0}".format(iter_count))
 
         # if relaxation is done
         if status == "select":
@@ -313,7 +321,7 @@ class MTP(Trainer):
 
             
             with open(path.join(self.root,"status.txt"),"w+") as f:
-                f.write("done {1}".format(iter_count))
+                f.write("done {0}".format(iter_count))
             
             
         return template
