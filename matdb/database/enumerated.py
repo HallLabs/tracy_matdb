@@ -65,7 +65,7 @@ class Enumerated(Group):
             dbargs['root'] = new_root
         super(Enumerated, self).__init__(**dbargs)
         
-        if eps is not None:
+        if eps is None:
             self.eps = 10**(-3)
         else:
             self.eps = eps

@@ -161,9 +161,9 @@ class DynMatrix(Group):
             supercell size.
         """
         #Find the cell size and DOS for each calculation in the sequence.
-        sizes = {k: np.det(np.reshape(np.array(d.supercell), (3, 3)))
+        sizes = {k: np.linalg.det(np.reshape(np.array(d.supercell), (3, 3)))
                  for k, d in self.sequence.items()}
-        dos = {k: np.readtxt(d.dos_file)
+        dos = {k: np.loadtxt(d.dos_file)
                for k, d in self.sequence.items()}
 
         #Find the calculation with the largest cell size and grab its DOS.
