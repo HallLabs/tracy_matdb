@@ -63,9 +63,8 @@ databases:
             - [2, 0, 0, 0, 2, 0, 0, 0, 3]
             - [3, 0, 0, 0, 2, 0, 0, 0, 3]
           dim_suffix: #Defaults to 1, 2, 3, etc.
-            func: "linalg:det" # this can be any numpy or linalg furction,
-                                # or just a list of suffixes
-            reshape: [3,3] # reshape the dim matrices to be 3 by 3 before taking the determinant.
+            func: "linalg:det" 
+            reshape: [3,3] 
 
 train:
   data:

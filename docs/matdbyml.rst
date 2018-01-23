@@ -79,7 +79,7 @@ suffix. The POTCARs are constructed using the `ase` contructor.
   example.
 
 `calculator` Option
---------------
+-------------------
 
 Default parameters for `ase` calculator can be specified using
 `calculator`. The options have exactly the same names as they would
@@ -98,12 +98,12 @@ have in the relavent input file and accept values as expected.
 - `name` is the name of the `ase` calculator to be used. Currently
   only Vasp, and Quippy calculators are support.
 - `nsw` an example INCAR parameter for VASP.
-- `pp` a marker to let the `ase` calculator know which
-  potential types are in use.
+- `pp` lets the `ase` calculator know which potential types are in
+  use.
 - `kpoints` specifies the k-point selection method and density. The
-  `method` flag determines which method will be used. For the
+  `method` keyword determines which method will be used. For the
   'mueller' method the density or k-point spacing is set by the
-  `mindistance` flag.
+  `mindistance` keyword.
 
 .. note:: These parameters can be overridden by any of the database
    specifications recorded later in the YAML file.
@@ -164,22 +164,80 @@ section.
    
 This option takes a list of dictionaries, where each dictionary has
 settings peculiar to the type of database being constructed. Each
-database can include multiple database types using the `steps` command
+database can include multiple groups types using the `steps` command
 allowing for the linking of databases whose calculations rely on each
 other.
-
-Some of the database classes are seeded, i.e., need an initial
-starting configuration to run. These seed configurations should be
-located in a folder calleds "SEED" in the root database directory. The
-configurations will be passed to the databases using the `seeds` key
-word wich takes a list of strings with format *"file format: file
-name"*.
 
 .. note:: You can override the `execution` and `calculator` settings
    for a particular database by including an option in its dictionary
    that is formatted exactly the same way as described above. However,
    you do *not* need to include all options, only those you need to
    override must be specified.
+
+Domain-Specific Languages
+*************************
+
+`matdb` uses two different domain-specific languages inside the
+`database` specifications. One for the specification of seed
+configurations and the other enables the database groups to be looped
+over parameters.
+
+Seed Configurations
+^^^^^^^^^^^^^^^^^^^
+
+Many of the database groups need seed configurations to run. Since
+`matdb` interfaces with multiple calculators and file formats. As such
+it is neccessary that the file format of each config file to be used
+by a group be set by the user using the `seeds` keyword:
+
+.. code-block:: yaml
+
+   steps:
+     - type: 'phonon.PhononDFT'
+       seeds: ["POSCAR:PdAg25","POSCAR:PdAgp0","POSCAR:PdAg75"]
+
+`seeds` take a list of configuration files as "file format : file
+name". The file format can be any that are recognized by the
+`quippy.io.AtomsReader`_. The files can have any name desired by the
+user but they must be stored in a folder called *SEED* located in the
+root directory for the database. 
+
+.. _quippy.io.AtomsReader: https://libatoms.github.io/QUIP/io.html#quippy.io.AtomsReaders
+
+Parameter Grids
+^^^^^^^^^^^^^^^
+
+At times it may be useful to contruct databases that loop over
+different parameters. For example:
+
+.. code-block:: yaml
+
+   steps:
+     - type: 'phonon.PhononDFT'
+       seeds: ["POSCAR:PdAg25","POSCAR:PdAgp0","POSCAR:PdAg75"]
+       kpoints:
+         mindistance: 30
+         seeds: 
+       phonons:
+         dim*:
+	   - [2, 0, 0, 0, 2, 0, 0, 0, 2]
+	   - [2, 0, 0, 0, 2, 0, 0, 0, 3]
+  #	 dim_suffix*:
+  #	   - "8"
+  #	   - "12"
+	 dim_suffix:
+	   - func: "linalg:det"
+	   - reshape: [3,3]
+
+Any parameter of any database can be looped over by including the `*`
+character at the end of the name. `matdb` will then create a subfolder
+for each parameter combination. The folder names are a `-` seperated
+list of parameter names and suffuxes. The default suffix is numerical,
+i.e., 1, 2, 3, etc. However, the user can specify custom suffixes
+using `*paramater name*_suffix*` and explicitly listing the suffixes
+to be used or by specificying the a function `func`, with on optional
+`reshape` flag if needed. The `func` keyword will accept any function
+that can be parsed by :meth:`matdb.utility.special_functions`.
 
 Basic Phonon Database
 *********************
@@ -312,7 +370,7 @@ MD to work. We don't have to specify all of them because the defaults
 from earlier in the specification will be used if not overridden.
 
 Enumerated Database
-***************
+*******************
 
 An enumerated database is one constructed from a random sampling of
 the symmetryically unique arrangements of the `species` on a lattice
