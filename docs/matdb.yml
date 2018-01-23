@@ -8,30 +8,17 @@ species:
 # element name here.
 potcars:
   directory: '/fslhome/glh43/src'
-  pseudo: 'paw_PBE'
+  xc: 'PBE'
   version: '04Jan2005'
-  pd: '_pv'
+  setups:
+    Pd: '_pv'
 # Directory in which the database folder system will be created.
 root: '~/compute/AgPd'
-# List the names of files in the root directory that serve as seed
-# configurations for sub-sampling to create additional configs. The
-# name keyword decides what the folder name will be called in which
-# all sub-sampled configurations are created.
-configs:
-  # - name: 'Pd'
-  #   poscar: 'POSCAR-Pd'
-  - name: 'PdAg*'
-    poscar: 'POSCAR-*'
-  - name: 'PdAg50'
-    poscar: 'POSCAR-50'
-  - name: 'PdAg75'
-    poscar: 'POSCAR-75'
-  # - name: 'Ag'
-  #   poscar: 'POSCAR-Ag'
 # These are global settings for INCAR that will be applied to *all*
 # the VASP calculations in all databases. They can be overridden in
 # each database.
-incar:
+calculator:
+  name: Vasp
   prec: 'a'
   encut: 400
   isym: 0
@@ -40,11 +27,9 @@ incar:
   ediff: '1e-5'
   ismear: 1
   sigma: 0.1
-# We use Mueller k-points exclusively. These kpoint settings apply to
-# all database calculations.
-kpoints:
-  includegamma: True
-  mindistance: 20
+  kpoints:
+    method: 'mueller'
+    mindistance: 20
 # Parameters for the job arrays that will be submitted for each
 # database. These can be overridden in each database below as well.
 execution:
@@ -69,17 +54,18 @@ databases:
   - name: 'phonon'
     steps:
       - type: "phonon.DynMatrix"
-        #name: "dynmatrix"
+        seeds: ["POSCAR:PdAg25","POSCAR:PdAg-*","POSCAR:PdAg50","POSCAR:PdAg75"]
         kpoints:
           mindistance: 30
         phonopy:
-          dim: [2, 2, 2]
-    niterations:
-      - phonopy.dim: [2,2,3]
-        suffix: "-223" #Defaults to 0, 1, 2, etc.
-      - phonopy.dim: [3,2,3]
-        suffix: "-323"
-      - ...
+          dim*:
+            - [2, 0, 0, 0, 2, 0, 0, 0, 2]
+            - [2, 0, 0, 0, 2, 0, 0, 0, 3]
+            - [3, 0, 0, 0, 2, 0, 0, 0, 3]
+          dim_suffix: #Defaults to 1, 2, 3, etc.
+            func: "linalg:det" # this can be any numpy or linalg furction,
+                                # or just a list of suffixes
+            reshape: [3,3] # reshape the dim matrices to be 3 by 3 before taking the determinant.
 
 train:
   data:
