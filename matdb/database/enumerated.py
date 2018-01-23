@@ -309,7 +309,6 @@ class Enumerated(Group):
         with open(target,'w') as f:
             f.write(template.render(**settings))
 
-
     def _setup_configs(self, rerun=False):
         """Sets up the database structure for the enumeration code and creates
         the 'lattice.in' file. Also loops over the enumeration routine
@@ -327,15 +326,15 @@ class Enumerated(Group):
         # We need to construct a lattice.in file then run phenum so that
         # each system gets the correct number of configurations.
         current = getcwd()
-        chdir(self.root)
-        dind = 0
         self._build_lattice_file(self.root)
+        dind = 0
         # Perform the enumeration, we allow for multiple attempts since the
         # number of configs returned the first time could be to small for
         # enumerations over small systems.
+        chdir(self.root)
         recurse = 0
         while dind<self.nconfigs and recurse<5:
-            dind = self._enumerate(dind,recurse)
+            dind = self._enumerate(dind,recurse,current)
             recurse += 1
         chdir(current)
 
@@ -344,12 +343,15 @@ class Enumerated(Group):
         self.save_index()
         self.save_pkl(self.euids,self.euid_file)
 
-    def _enumerate(self,dind,recurse):
+    def _enumerate(self,dind,recurse,home):
         """Performs the enumeration using phenum and creates the files in the
         correct folder for each system enumerated.
 
         Args:
             dind (int): The number of configs found so far.
+            recurse (int): The number of times we've attempted to find
+                a unique set of enumerations over the same range.
+            home (str): The home directory.
         """
         from phenum.enumeration import _enum_out
         from phenum.makeStr import _make_structures
@@ -372,11 +374,14 @@ class Enumerated(Group):
         if self.euids is None:
             self.euids = []
         from quippy.atoms import Atoms
+        current = getcwd()
         for count, dposcar in enumerate(glob("vasp.*")):
             if euids[count] not in self.euids:
                 dind += 1
                 datoms = Atoms(dposcar,format="POSCAR")
+                chdir(home)
                 self.create(datoms,cid=dind)
+                chdir(current)
                 self.index[euids[count]] = self.configs[dind]
                 self.euids.append(euids[count])
         [remove(f) for f in listdir('.') if f.startswith("vasp.")]
