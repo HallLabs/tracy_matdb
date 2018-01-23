@@ -28,7 +28,7 @@ def test_setup(AgPd):
     
     AgPd.setup()
 
-    dbs = ["Enum/enum/lat-{}".format(i) for i in (1,2)]
+    dbs = ["Enum/enumerated/lat-{}".format(i) for i in (1,2)]
 
     folders = {
         "__files__": ["compute.pkl","euids.pkl","jobfile.sh","enum.out",
