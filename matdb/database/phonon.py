@@ -11,8 +11,10 @@ def _parsed_kpath(poscar):
     """Gets the special path in the BZ for the structure with the specified
     POSCAR and then parses the results into the format required by the package
     machinery.
+
     Args:
         poscar (str): path to the structure to get special path for.
+
     Returns:
         tuple: result of querying the materialscloud.org special path
         service. First term is a list of special point labels; second is the
@@ -45,6 +47,7 @@ class DynMatrix(Group):
     """Sets up the displacement calculations needed to construct the dynamical
     matrix. The dynamical matrix is required by :class:`Modulation` to
     create the individual modulations.
+
     Args:
         atoms (quippy.atoms.Atoms): seed configuration that will be
           displaced to generate the database.
@@ -68,8 +71,10 @@ class DynMatrix(Group):
         tolerance (float): maximum difference in integrated total DOS that may
           exist for a calculation to be considered "good enough". This is used
           when selecting the "best" calculation from a parameter grid.
+
     .. note:: Additional attributes are also exposed by the super class
       :class:`Group`.
+
     Attributes:
         name (str): name of this database type relative to the over database
           collection. This is also the name of the folder in which all of its
@@ -140,6 +145,7 @@ class DynMatrix(Group):
         the "correct" answer, and comparing the total DOS. If the comparitive error
         is within `tolerance`, then it is acceptable. The smallest acceptable
         supercell's key is returned.
+
         Returns:
             str: the key in the group's sequence that has the smallest acceptable
             supercell size.
@@ -179,6 +185,7 @@ class DynMatrix(Group):
     def rset(self):
         """Constructs the dynamical matrix for the *best* convergence parameters
         in this group and it's possible sub-sequences.
+
         Returns:
             dict: keys are `atoms` and `dynmat`; values are the atoms object and
             its dynamical matrix respectively.
@@ -206,7 +213,9 @@ class DynMatrix(Group):
     def _set_calc_defaults(self, calcargs):
         """Sets the default calculator parameters for phonon calculations based
         on the calculator specified in `calcargs`.
+
         .. warning:: This method mutates the `calcargs` dictionary.
+
         Args:
             calcargs (dict): the "calculator" dictionary that is part of the
               group arguments for db group.
@@ -305,6 +314,7 @@ class DynMatrix(Group):
     def bands(self):
         """Returns the DFT-accurate phonon bands in a format that can be
         consumed by the `matdb` interfaces.
+
         Returns:
             dict: keys are ['q', 'w', 'path', 'Q'], values are the distance along
             the special path (scalar), phonon frequencies at that distance (vector,
@@ -321,6 +331,7 @@ class DynMatrix(Group):
     def kpath(self):
         """Returns the materialscloud.org special path in k-space for the seed
         configuration of this database.
+
         Returns:
             tuple: result of querying the materialscloud.org special path
             service. First term is a list of special point labels; second is the
@@ -339,6 +350,7 @@ class DynMatrix(Group):
     def calc_bands(self, recalc=False):
         """Calculates the bands at the special points given by the
         materialscloud.org service.
+
         Args:
             recalc (bool): when True, recalculate the DOS, even if the
               file already exists.
@@ -381,6 +393,7 @@ class DynMatrix(Group):
     
     def calc_DOS(self, recalc=False):
         """Calculates the *total* density of states.
+
         Args:
             recalc (bool): when True, recalculate the DOS, even if the
               file already exists.
@@ -411,6 +424,7 @@ class DynMatrix(Group):
             
     def calc_forcesets(self, recalc=False):
         """Extracts the force sets from the displacement calculations.
+
         Args:
             recalc (bool): when True, recalculate the force sets, even if the
               file already exists.
@@ -443,6 +457,7 @@ class DynMatrix(Group):
     def setup(self, rerun=False):
         """Displaces the seed configuration preparatory to calculating the force
         sets for phonon spectra.
+
         Args:
             rerun (bool): when True, recreate the folders even if they
               already exist. 
@@ -452,6 +467,7 @@ class DynMatrix(Group):
     def _setup_configs(self, rerun):
         """Displaces the seed configuration preparatory to calculating the force
         sets for phonon spectra.
+
         Args:
             rerun (bool): when True, recreate the folders even if they
               already exist. 
@@ -488,9 +504,11 @@ class DynMatrix(Group):
     def cleanup(self, recalc=False):
         """Runs post-DFT execution routines to calculate the force-sets and the
         density of states.
+
         Args:
             recalc (bool): when True, redo any calculations that use the DFT
               outputs to find other quantities.
+
         Returns:
            bool: True if the database is ready; this means that any other
            databases that rely on its outputs can be run.
@@ -513,17 +531,20 @@ def sample_dos(meshfile, sampling="uniform", nfreqs=100):
           dictates how frequencies are selected from the DOS for the seed
           configuration's phonon spectrum.
         nfreqs (int): number of frequencies to return by sampling the DOS.
+
     - *uniform*: frequencies are selected uniformly from the list of *unique*
        frequencies in the DOS.
     - *sample*: frequencies are chosen randomly *and* weighted by the q-point
        weight in the BZ and the number of times the frequency shows up.
     - *top*: the top N *unique* frequencies are selected.
+
     .. note:: Because each atomic degree of freedom produces 3 phonon bands, a
       cell with 4 unique atoms will produce 12 different frequencies. When the
       DOS is sampled, we consider each of these frequencies as independent in
       the overall BZ. Thus, if a 20x20x20 q-point grid is used for sampling in
       the `mesh.yaml` file, then we would have 8,000 * 12 = 96,000 frequencies
       to choose from, each with a corresponding q-vector.
+
     Returns:
         numpy.ndarray: where each row is a q-vector in reciprocal space
         corresponding to a frequency that was selected using the specified
@@ -568,6 +589,7 @@ def sample_dos(meshfile, sampling="uniform", nfreqs=100):
 def update_phonons(basic, base):
     """Updates the `basic` phonon settings using the usual defaults. The update
     only happens if the user didn't already specify a value in the config file.
+
     Args:
         basic (dict): user-specified phonon settings that should be updated to
           include defaults.
@@ -584,6 +606,7 @@ def update_phonons(basic, base):
 def modulate_atoms(db):
     """Generates modulated configurations using the dynamical matrix of the
     :class:`DynMatrix` instance.
+
     Args:
         db (Group): database with parameters needed to module the
             atoms, (Calibration or Modulation databases).
@@ -632,6 +655,7 @@ class Calibration(Group):
     """Represents a set of modulated sub-configurations of differing amplitude,
     used to determine the maximum modulation amplitude where the force is still
     in the linear regime .
+
     Args:
         atoms (quippy.atoms.Atoms): seed configuration that will be
           displaced to generate the database.
@@ -648,8 +672,10 @@ class Calibration(Group):
           the global set).
         nconfigs (int): the number of different *amplitudes* to try out in
           calibrating.
+
     .. note:: Additional attributes are also exposed by the super class
       :class:`Group`.
+
     Attributes:
         name (str): name of this database type relative to the over database
           collection. This is also the name of the folder in which all of its
@@ -704,6 +730,7 @@ class Calibration(Group):
         """Extracts the calibration information from the configurations to
         determine the maiximum allowable amplitude to maintain linear force
         regime.
+
         Returns:
            bool: True if the amplitude calibration is ready.
         """
@@ -753,6 +780,7 @@ class Calibration(Group):
     def setup(self, rerun=False):
         """Displaces the seed configuration with varying amplitudes so that the
         resulting forces can be calibrated sensibly.
+
         Args:
             rerun (bool): when True, recreate the folders even if they
               already exist. 
@@ -811,6 +839,7 @@ class Calibration(Group):
 class Modulation(Group):
     """Represents a set of displaced configurations where atoms are
     moved, within a supercell, according to phonon eigenmodes.
+
     Args:
         atoms (quippy.atoms.Atoms): seed configuration that will be
           displaced to generate the database.
@@ -832,8 +861,10 @@ class Modulation(Group):
         sampling (str): on of ['uniform', 'sample', 'top'], where the method
           dictates how frequencies are selected from the DOS for the seed
           configuration's phonon spectrum.
+
     .. note:: Additional attributes are also exposed by the super class
       :class:`Group`.
+
     Attributes:
         sampling (str): on of ['uniform', 'sample', 'top'], where the method
           dictates how frequencies are selected from the DOS for the seed
@@ -913,6 +944,7 @@ class Modulation(Group):
     def cleanup(self):
         """Generates the XYZ database file for all the sub-configs in this
         phonon database.
+
         Returns:
            bool: True if the database is ready; this means that any other
            databases that rely on its outputs can be run.
@@ -925,6 +957,7 @@ class Modulation(Group):
     def setup(self, rerun=False):
         """Displaces the seed configuration preparatory to calculating the force
         sets for phonon spectra.
+
         Args:
             rerun (bool): when True, recreate the folders even if they
               already exist. 

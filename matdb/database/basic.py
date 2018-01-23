@@ -207,8 +207,6 @@ class Group(object):
 
     def _expand_sequence(self):
         """Recursively expands the nested groups to populate :attr:`sequence`.
-
-        Args:
         """
         self._expand_seeds(self._seed)
         

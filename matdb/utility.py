@@ -388,6 +388,7 @@ def datetime_handler(x):
 
 def parse_date(v):
     """Parses the date from the specified single value or list of values.
+
     Args:
         v (str): string representation of the :class:`datetime` returned by
           :func:`datetime_handler`.
@@ -775,18 +776,21 @@ def get_grid(d, suffices=None):
     return result
 
 class ParameterGrid(collections.MutableSet):
-    """An ordered list of the paramater combinations for the database. 
-    Values are the suffixes of the combinations of parameters as tuples:
-    e.g. (8, "dog", 1.2) for "dim", "animal", "temperature"
-    ({"animal*": ["dog", "cat", "cow"], "dim*": [[],[],[]], "temperature": 1.2})
+    """An ordered list of the paramater combinations for the database.
+    Values are the suffixes of the combinations of parameters as
+    tuples: e.g. (8, "dog", 1.2) for "dim", "animal", "temperature"
+    ({"animal*": ["dog", "cat", "cow"], "dim*": [[],[],[]],
+    "temperature": 1.2})
     Args:
         params (dict): the paramaters needed to build the database.
     
     Attributes:
         values (dict): keys are the suffix tuple and the values are the 
-            actual values needed by the database.
-        keys (list): the `str` names of the different parameters in the database.
+          actual values needed by the database.
+        keys (list): the `str` names of the different parameters in
+          the database.
     """
+
     def __init__(self, params):
         for k in ["root","parent","atoms"]:
             if k in params:
@@ -812,10 +816,11 @@ class ParameterGrid(collections.MutableSet):
                         
     def add(self, key, value):
         """Adds key to the set if it is not already in the set.
+
         Args:
             key (tuple): Anything that could be added to the set.
             value (tuple): The actual values that the suffix's 
-                correspond to.
+              correspond to.
         """
         if key not in self.map:
             end = self.end
@@ -827,6 +832,7 @@ class ParameterGrid(collections.MutableSet):
 
     def discard(self, key):
         """Removes the key from the set.
+
         Args:
             key (tuple): An element of the set.
         """        
@@ -846,6 +852,7 @@ class ParameterGrid(collections.MutableSet):
 
     def pop(self, key):
         """Removes an element from the set.
+
         Args:
             key (tuple): An element of the set.
         """

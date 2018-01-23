@@ -14,18 +14,24 @@ class Enumerated(Group):
     Args:
         sizes (list): a list containing the smallest and larges cell sizes to 
             include in the database.
-        basis (list): the atomic basis to use for the enumeration.
+        species (list): the atomic species included in the system.
         lattice (list or str): either the name of the lattice to use 
             ('sc','fcc','bcc', 'hcp') or the atomic basis vectors to use.
-        concs (list): the concentrations of each atomic species.
-        arrows (list): the maximum number of atoms to displace.
-        eps (float): floating point tolerance for comparisons.
-        species (list): the atomic species included in the system.
-        rseed (hashable): a seed to feed to the random number generator.
-        rattle (float): the amount to rattle the atoms by.
-        keep_supers (bool): True if the superperiodic cells are to be kept in the
-            enumerated list.
-        displace (float): the amount to displace atoms with arrows.
+        basis (list, optional): the atomic basis to use for the enumeration. 
+            Defaults to [0,0,0] the origin.
+        concs (list, optional): the concentrations of each atomic species. 
+            Defaults to None.
+        arrows (list, optional): the maximum number of atoms to displace.
+            Defaults ot None.
+        eps (float, optional): floating point tolerance for comparisons. 
+            Defaults to 1E-3.
+        rseed (hashable, optional): a seed to feed to the random number generator.
+            Defaults to None.
+        rattle (float, optional): the amount to rattle the atoms by. Defaults to 0.0.
+        keep_supers (bool, optional): True if the superperiodic cells are to be kept 
+            in the enumerated list. Defaults to False.
+        displace (float, optional): the amount to displace atoms with arrows. Defaults
+            to 0.0.
 
     .. note:: Additional attributes are also exposed by the super class
       :class:`Group`.
@@ -384,7 +390,6 @@ class Enumerated(Group):
         Args:
             rerun (bool): when True, recreate the folders even if they
               already exist.
-
         """
         super(Enumerated, self).setup(self._setup_configs,rerun)
 
