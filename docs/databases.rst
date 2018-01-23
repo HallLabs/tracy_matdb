@@ -16,3 +16,5 @@ types:
 
    database/phonon.rst
    database/liquid.rst
+   database/enuerated.rst
+   database/aflow.rst
