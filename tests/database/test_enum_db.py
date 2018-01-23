@@ -73,8 +73,8 @@ def test_setup(AgPd):
     assert AgPd.collections['enumerated']['enumerated'].steps['enum'].is_setup()
 
     # test the euid and index creation for the entire database.
-    assert path.isfile(path.join(AgPd.root,"Enum/enum/euids.pkl"))
-    assert path.isfile(path.join(AgPd.root,"Enum/enum/index.json"))
+    assert path.isfile(path.join(AgPd.root,"Enum/enumerated/euids.pkl"))
+    assert path.isfile(path.join(AgPd.root,"Enum/enumerated/index.json"))
 
     enum = AgPd.collections['enumerated']['enumerated'].steps['enum']
     assert len(enum.index) == 20
