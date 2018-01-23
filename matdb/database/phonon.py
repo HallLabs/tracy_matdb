@@ -2,18 +2,18 @@
 unit cell along phonon modes using the eigenvectors.
 """
 from matdb import msg
-from os import path
+from os import path, remove
 import numpy as np
 from operator import itemgetter
 from .basic import Group
 
-def _parsed_kpath(poscar):
+def _parsed_kpath(atoms):
     """Gets the special path in the BZ for the structure with the specified
-    POSCAR and then parses the results into the format required by the package
+    atoms object and then parses the results into the format required by the package
     machinery.
 
     Args:
-        poscar (str): path to the structure to get special path for.
+        atoms (:class:`quippy.atoms.Atoms`): a quippy `Atoms` object.
 
     Returns:
         tuple: result of querying the materialscloud.org special path
@@ -21,7 +21,9 @@ def _parsed_kpath(poscar):
         list of points corresponding to those labels.
     """
     from matdb.kpoints import kpath
-    ktup = kpath(poscar)
+
+    atoms.write(dest="KPATH_POSCAR",format="POSCAR")
+    ktup = kpath("KPATH_POSCAR")
     band = []
     labels = []
     names, points = ktup
@@ -41,6 +43,7 @@ def _parsed_kpath(poscar):
 
         band.append(points[key].tolist())
 
+    remove("KPATH_POSCAR")
     return (labels, band)
 
 class DynMatrix(Group):
@@ -117,6 +120,13 @@ class DynMatrix(Group):
         self.phonodir = path.join(self.root, "phonopy")
         self.phonocache = path.join(self.root, "phoncache")
         self.kpathdir = path.join(self.root, "kpaths")
+        self.kfile = path.join(self.database.parent.kpathdir, "{0}.json".format(self.database.name))
+
+        self._kpath = None
+        """tuple: result of querying the materialscloud.org special path
+        service. First term is a list of special point labels; second is the
+        list of points corresponding to those labels.
+        """
 
         self._bands = None
         """dict: keys are ['q', 'w', 'path', 'Q'], values are the distance along
@@ -327,6 +337,36 @@ class DynMatrix(Group):
             self._bands = from_yaml(byaml)
         return self._bands
 
+    def get_kpath(self, atoms):
+        """Returns the materialscloud.org special path in k-space for the seed
+        configuration of this database.
+
+        Args:
+            atoms (:obj:`quippy.atoms.Atoms`): the atoms object the k_path is for.
+
+        Returns:
+            tuple: result of querying the materialscloud.org special path
+            service. First term is a list of special point labels; second is the
+            list of points corresponding to those labels.
+        """
+        if self._kpath is None:
+            import json
+            #We use some caching here so that we don't have to keep querying the
+            #server and waiting for an identical response.
+            if path.isfile(self.kfile):
+                with open(self.kfile) as f:
+                    kdict = json.load(f)
+            else:
+                from .phonon import _parsed_kpath
+                labels, band = _parsed_kpath(atoms)
+                kdict = {"labels": labels, "band": band}
+                with open(self.kfile, 'w') as f:
+                    json.dump(kdict, f)
+            
+            self._kpath = (kdict["labels"], kdict["band"])
+            
+        return self._kpath    
+    
     @property
     def kpath(self):
         """Returns the materialscloud.org special path in k-space for the seed
@@ -339,13 +379,14 @@ class DynMatrix(Group):
         """
         from .controller import Database
         from .basic import Group
-        
+
         if isinstance(self.parent, Database):
             #We actually need to build the kpath file and save it to disk. All
             #the nested Group instances will use the same kpath.
             pass
         elif isinstance(self.parent, DynMatrix):
-            return self.parent.kpath
+            atoms = self.atoms
+            return self.parent.get_kpath(atoms)
     
     def calc_bands(self, recalc=False):
         """Calculates the bands at the special points given by the
@@ -362,7 +403,7 @@ class DynMatrix(Group):
         #We need to create the band.conf file and write the special
         #paths in k-space at which the phonons should be calculated.
         settings = {
-            "ATOM_NAME": ' '.join(self.parent.species),
+            "ATOM_NAME": ' '.join(self.database.species),
             "DIM": ' '.join(map(str, self.supercell)),
             "MP": ' '.join(map(str, self.bandmesh))
         }

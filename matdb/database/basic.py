@@ -220,7 +220,7 @@ class Group(object):
                 clsargs["root"] = seed_root
                 clsargs["seeds"] = at_seed
                 clsargs["pgrid"] = self.pgrid
-                if self.cls is None:
+                if self.cls is None: #pragma: no cover
                     msg.err("The Group must have a class to have seeds.")
                 self.sequence[seedname] = self.cls(**clsargs)
         else:
@@ -234,7 +234,7 @@ class Group(object):
                     clsargs.update(self.pgrid[pkey])
                     clsargs["root"] = this_root
                     clsargs["seeds"] = self._seed
-                    if self.cls is None:
+                    if self.cls is None: #pragma: no cover
                         msg.err("The Group must have a class to have a parameter grid.")
                     self.sequence[pkey] = self.cls(**clsargs)
             else:
@@ -264,7 +264,6 @@ class Group(object):
                 #make sure the original rset doesn't modify. For normal cases
                 #where it is simply an Atoms object, the copy performs the same
                 #function.
-                print(a)
                 self.seeds[seedname] = a.copy()
                 
     @property
@@ -292,7 +291,7 @@ class Group(object):
     def fitting_configs(self):
         """Returns a :class:`quippy.AtomsList` for all configs in this group.
         """
-        pass
+        pass #pragma: no cover
 
     @property
     def rset_file(self):
@@ -304,7 +303,7 @@ class Group(object):
     def rset(self):
         """Saves the rset for the group and all sequences of the group.
         """
-        pass
+        pass #pragma: no cover
 
     def load_pkl(self, file_name, rel_path=None):
         """Loads a pickled obj from the specified location on the path.
