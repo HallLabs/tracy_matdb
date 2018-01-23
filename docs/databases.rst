@@ -18,5 +18,5 @@ to loosely as a "Group" and `matdb` supports multiple group types:
 
    database/phonon.rst
    database/liquid.rst
-   database/enuerated.rst
+   database/enumerated.rst
    database/aflow.rst

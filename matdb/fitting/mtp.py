@@ -192,7 +192,7 @@ class MTP(Trainer):
         template = env.get_template("pot.mtp")
 
         with open(target,'w') as f:
-            f.write(template.render("n_species"=len(self.species)))
+            f.write(template.render(n_species=str(len(self.species))))
     
     def _make_relax_ini(self):
         """Creates the 'relax.ini' file for relaxing the structures.
