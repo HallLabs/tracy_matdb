@@ -97,7 +97,7 @@ class Enumerated(Group):
         elif sizes is not None and len(sizes)==2 and isinstance(sizes,list):
             self.min_size = sizes[0]
             self.max_size = sizes[1]
-        elif sizes is not None:
+        else:
             raise ValueError("The sizes specified must be a list of 1 or 2 values."
                              "If one value then it must be the largest cell size to include,"
                              "i.e., [32]. If 2 values then it the first value is the smallest "
@@ -286,7 +286,7 @@ class Enumerated(Group):
             if self.arrow_res:
                 temp = []
                 for i, a in enumerate(self.arrows):
-                    temp.append("{0} {1}".format(" ".join([str(j) in self.concs[i]]),a))
+                    temp.append("{0} {1}".format(" ".join([str(j) for j in self.concs[i]]),a))
             else:
                 temp = [" ".join([str(i) for i in j]) for j in self.concs]
                     
