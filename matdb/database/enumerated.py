@@ -238,7 +238,7 @@ class Enumerated(Group):
         """
         result = []
         for euid in self.euids:
-            folder = self.index[str(euid)]
+            folder = self.index[euid]
             target = path.join(folder,"atoms.json")
             if path.isfile(target):
                 result.append(folder)
@@ -260,7 +260,7 @@ class Enumerated(Group):
         else:
             result = []
             for e in self.sequence.values():
-                result.extend(e.rset)
+                result.extend(e.rset())
             return result
     
     def _build_lattice_file(self,target):
