@@ -129,12 +129,12 @@ def test_steps(Pd):
     assert Pd.steps() == ['dynmatrix/phonon']
     Pd.setup()
     steps = sorted(['dynmatrix/phonon/Pd/dim-2.00', 'dynmatrix/phonon/Pd/dim-4.00',
-                    'dynmatrix/phonon/Pd/dim-8.00', 'dynmatrix/phonon/Pd/dim-16.00',
-                    'dynmatrix/phonon/Pd/dim-27.00', 'dynmatrix/phonon/Pd/dim-32.00'])
+                    'dynmatrix/phonon/Pd/dim-16.00', 'dynmatrix/phonon/Pd/dim-27.00',
+                    'dynmatrix/phonon/Pd/dim-32.00','dynmatrix/phonon/Pd/dim-8.00'])
     assert Pd.steps() == steps
     
     seqs = sorted(['Pd/dim-2.00', 'Pd/dim-16.00', 'Pd/dim-32.00',
-                   'Pd/dim-4.00', 'Pd/dim-27.00', 'Pd/dim-8.00'])
+                   'Pd/dim-4.00', 'Pd/dim-27.00','Pd/dim-8.00'])
     assert Pd.sequences() == seqs
 
 def test_find(Pd):
@@ -146,9 +146,9 @@ def test_find(Pd):
     steps = Pd.find("dynmatrix/phonon/Pd/dim-*")
     model = ['dynmatrix', 'dynmatrix', 'dynmatrix', 'dynmatrix', 'dynmatrix', 'dynmatrix']
     assert model == [s.parent.name for s in steps]
-    model = [path.join(Pd.root,'DynMatrix/phonon/Pd/dim-8.00'),
-             path.join(Pd.root,'DynMatrix/phonon/Pd/dim-2.00'),
+    model = [path.join(Pd.root,'DynMatrix/phonon/Pd/dim-2.00'),
              path.join(Pd.root,'DynMatrix/phonon/Pd/dim-4.00'),
+             path.join(Pd.root,'DynMatrix/phonon/Pd/dim-8.00'),
              path.join(Pd.root,'DynMatrix/phonon/Pd/dim-16.00'),
              path.join(Pd.root,'DynMatrix/phonon/Pd/dim-27.00'),
              path.join(Pd.root,'DynMatrix/phonon/Pd/dim-32.00')]
