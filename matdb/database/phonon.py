@@ -13,7 +13,7 @@ def _parsed_kpath(atoms):
     machinery.
 
     Args:
-        atoms (:class:`quippy.atoms.Atoms`): a quippy `Atoms` object.
+        atoms (:class:`matdb.atoms.Atoms`): a matdb `Atoms` object.
 
     Returns:
         tuple: result of querying the materialscloud.org special path
@@ -52,7 +52,7 @@ class DynMatrix(Group):
     create the individual modulations.
 
     Args:
-        atoms (quippy.atoms.Atoms): seed configuration that will be
+        atoms (matdb.atoms.Atoms): seed configuration that will be
           displaced to generate the database.
         root (str): path to the folder where the database directories will
           be stored.
@@ -342,7 +342,7 @@ class DynMatrix(Group):
         configuration of this database.
 
         Args:
-            atoms (:obj:`quippy.atoms.Atoms`): the atoms object the k_path is for.
+            atoms (:obj:`matdb.atoms.Atoms`): the atoms object the k_path is for.
 
         Returns:
             tuple: result of querying the materialscloud.org special path
@@ -531,7 +531,7 @@ class DynMatrix(Group):
             chdir(self.phonodir)
 
             try:
-                from quippy.atoms import Atoms
+                from matdb.atoms import Atoms
                 for dposcar in glob("POSCAR-*"):
                     dind = int(dposcar.split('-')[1])
                     datoms = Atoms(dposcar, format="POSCAR")
@@ -698,7 +698,7 @@ class Calibration(Group):
     in the linear regime .
 
     Args:
-        atoms (quippy.atoms.Atoms): seed configuration that will be
+        atoms (matdb.atoms.Atoms): seed configuration that will be
           displaced to generate the database.
         root (str): path to the folder where the database directories will
           be stored.
@@ -789,7 +789,7 @@ class Calibration(Group):
 
         #Read in the XYZ file and extract the forces on each atom in each
         #configuration.
-        import quippy
+        from matdb.atoms import AtomsList
         forces = {}
         failed = 0
         for cid, folder in self.configs.items():
@@ -798,7 +798,7 @@ class Calibration(Group):
             #finish, then we exclude it. This happens for some of the
             #calibration runs if the atoms are too close together.
             try:
-                al = quippy.AtomsList(path.join(folder, "output.xyz"))
+                al = AtomsList(path.join(folder, "output.xyz"))
                 forces[cid] = np.mean(np.abs(np.array(al[0].dft_force)), axis=1)
             except:
                 failed += 1
@@ -842,7 +842,7 @@ class Calibration(Group):
         
         from os import getcwd, chdir, remove
         from glob import glob
-        from quippy.atoms import Atoms
+        from matdb.atoms import Atoms
         current = getcwd()
         chdir(self.base.phonodir)
 
@@ -882,7 +882,7 @@ class Modulation(Group):
     moved, within a supercell, according to phonon eigenmodes.
 
     Args:
-        atoms (quippy.atoms.Atoms): seed configuration that will be
+        atoms (matdb.atoms.Atoms): seed configuration that will be
           displaced to generate the database.
         root (str): path to the folder where the database directories will
           be stored.
@@ -1020,7 +1020,7 @@ class Modulation(Group):
 
             from os import getcwd, chdir, remove
             from glob import glob
-            from quippy.atoms import Atoms
+            from matdb.atoms import Atoms
             current = getcwd()
             chdir(self.base.phonodir)
 

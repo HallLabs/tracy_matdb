@@ -31,27 +31,44 @@ class Atoms(ase.Atoms):
                                         calculator)
 
         self.info = {"params":{},"properties":{}}
+        setattr(self,"params",self.info["params"])
+        setattr(self,"properties",self.info["properties"])
             
         if properties is not None:
-            self.properties.update(properties)
+            for k, v in properties.items():
+                self.add_property(k,v)
         if params is not None:
-            self.params.update(params)
+            for k, v in params.items():
+                self.add_param(k,v)
 
         if info is not None:
-            self.params.update(info)
+            for k, v in info.items():
+                self.add_param(k,v)
 
         self._initialised = True
 
-    def __getattribute__(self,name):
-        if name=="params":
-            return self.info["params"]
-        elif name=="properties":
-            return self.info["properties"]
-        elif name self.info["properties"]:
-            return self.info["properties"][name]
-        else:
-            return ase.Atoms.__getattribute__(self,name)
+    def add_property(self,name,value):
+        """Adds an attribute to the class instance.
 
+        Args:
+            name (str): the name of the attribute.
+            value: the value/values that are associated with the attribute.
+        """
+
+        self.info["properties"][name]=value
+        setattr(self,name,self.info["properties"][name])
+
+    def add_param(self,name,value):
+        """Adds an attribute to the class instance.
+
+        Args:
+            name (str): the name of the attribute.
+            value: the value/values that are associated with the attribute.
+        """
+
+        self.info["params"][name]=value
+        setattr(self,name,self.info["params"][name])       
+    
     def _get_info(self):
         """ASE info dictionary
 
@@ -73,11 +90,21 @@ class Atoms(ase.Atoms):
         """
 
         self.params.update(value)
+
+    def _get_properties(self):
+        """Gets the properties from the ASE info dictionary.
+        """
+        return self.info["properties"]
     
     def _set_properties(self,value):
         """Gets the properties from the ASE info dictionary.
         """
         self.info["properties"] = value
+
+    def _get_params(self):
+        """Gets the properties from the ASE info dictionary.
+        """
+        return self.info["params"]
     
     def _set_params(self,value):
         """Gets the properties from the ASE info dictionary.
@@ -97,8 +124,9 @@ class Atoms(ase.Atoms):
 
         from ase.spacegroup import Spacegroup
         self.__class__.__del__(self)
+        
         if isinstance(other, Atoms):
-            Atoms.__init__(self, n=other.n, lattice=other.lattice,
+            self.__init__(self, n=other.n, lattice=other.lattice,
                                   properties=other.properties, params=other.params)
 
             self.cutoff = other.cutoff
@@ -106,7 +134,10 @@ class Atoms(ase.Atoms):
             self.nneightol = other.nneightol
 
         elif isinstance(other, ase.Atoms):
-            Atoms.__init__(self, n=0, lattice=np.eye(3))
+            super(Atoms, self).__init__(other)
+            self.info = {"params":{},"properties":{}}
+            setattr(self,"params",self.info["params"])
+            setattr(self,"properties",self.info["properties"])
 
             # copy params/info dicts
             if hasattr(other, 'params'):

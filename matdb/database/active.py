@@ -5,8 +5,8 @@ from matdb import msg
 from os import path, getcwd, chdir, remove, listdir, mkdir
 import numpy as np
 from six import string_types
-import quippy
 from glob import glob
+from matdb.atoms import AtomsList
 
 class Active(Group):
     """Sets up the calculations for a set of configurations that are being
@@ -79,13 +79,13 @@ class Active(Group):
         return result 
         
     def rset(self):
-        """Returns a :class:`quippy.AtomsList`, one for each config in the
+        """Returns a :class:`matdb.atoms.AtomsList`, one for each config in the
         latest result set.
         """
         from matdb.database.basic import atoms_from_json
         #Return the configurations from this group; it is at the
         #bottom of the stack
-        result = quippy.AtomsList()
+        result = AtomsList()
         for epath in self.atoms_paths:
             result.append(atoms_from_json)
         return result
@@ -94,7 +94,7 @@ class Active(Group):
         """Adds the atoms objects in the list to the configs of the active set.
 
         Args:
-            new_configs (list): list of `quippy.atoms.Atoms` objects to be added
+            new_configs (list): list of `matdb.atoms.Atoms` objects to be added
                 to the active learning set.
         """
 

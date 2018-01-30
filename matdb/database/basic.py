@@ -66,11 +66,11 @@ def atoms_from_json(folder):
     for prop in props:
         #Undo the extra '_' that we appended to avoid collision between the
         #parameters and properties when saved to local data object.
-        atoms.properties[prop[0:-1]] = np.array(row.data[prop])
+        atoms.add_property(prop[0:-1], np.array(row.data[prop]))
 
     for param in row.data:
         if param not in props:
-            atoms.params[param] = row.data[param]
+            atoms.add_param(param,row.data[param])
 
     calcargs = row.get('calculator_parameters', {})
     calculator = getattr(calculators, row.calculator.title())
