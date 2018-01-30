@@ -10,21 +10,15 @@ from matdb import msg
 from matdb.atoms import AtomsList, Atoms
 
 def _quick_write(atlist, outpath):
-    """Writes the atoms list to file using the
-    :class:`~quippy.cinoutput.CInOutputWriter` for optimization.
+    """Writes the atoms list to file using the :class:`ase.io.write`.
 
     Args:
         atlist (matdb.atoms.AtomsList): atoms to write to XYZ file.
         outpath (str): full path to the location of the output file to write.
+
     """
-    import quippy.cinoutput as qcio
-    from tqdm import tqdm
-    out = qcio.CInOutputWriter(outpath)
-    try:
-        for ai in tqdm(atlist):
-            ai.write(out)
-    finally:
-        out.close()
+    from ase.io import write
+    write(outpath,atlist)            
 
 def _atoms_conform(dbfile, energy, force, virial):
     """Determines whether the specified database conforms to the constraints for

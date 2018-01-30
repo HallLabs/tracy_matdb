@@ -21,8 +21,9 @@ def _parsed_kpath(atoms):
         list of points corresponding to those labels.
     """
     from matdb.kpoints import kpath
-
-    atoms.write(dest="KPATH_POSCAR",format="POSCAR")
+    from ase.io import write
+    
+    write("KPATH_POSCAR",atoms,format="vasp")
     ktup = kpath("KPATH_POSCAR")
     band = []
     labels = []

@@ -202,7 +202,11 @@ class AtomsList(list):
         # need to iterate over it here.
         if isinstance(source,list) and len(source)>0:
             if not isinstance(source[0],Atoms):
-                tmp_ar = [Atoms(ase.io.read(source_file, format=format, **kwargs)) for source_file in source]
+                tmp_ar = []
+                for source_file in source:
+                    tmp_ar.extend([Atoms(i) for i in ase.io.read(source_file, index=':',
+                                                                 format=format,
+                                                                 **kwargs)])
             else:
                 tmp_ar = source
         elif isinstance(source,list) and len(source) == 0:
@@ -211,7 +215,8 @@ class AtomsList(list):
             if isinstance(source,Atoms):
                 tmp_ar = [source]
             else:
-                tmp_ar = [Atoms(ase.io.read(source, format=format, **kwargs))]
+                tmp_ar = [Atoms(i) for i in ase.io.read(source, index=':',format=format,
+                                                        **kwargs)]
 
         list.__init__(self, list(iter(tmp_ar)))
 
