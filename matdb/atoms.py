@@ -21,10 +21,11 @@ class Atoms(ase.Atoms):
                  fpointer=None, finalise=True,
                  **readargs):
 
-        if "format" in readargs and readargs["format"] is not None:
-            if readargs["format"] == "POSCAR":
-                readargs["format"] = "vasp"
-            super(Atoms, self).__init__(*list(ase.io.iread(symbols,**readargs)))
+        if symbols is not None:
+            try:
+                self.copy_from(symbols)
+            except TypeError:
+                self.__init__(ase.io.read(symbols,**readargs))
 
         else:
             super(Atoms, self).__init__(symbols, positions, numbers,
@@ -32,10 +33,13 @@ class Atoms(ase.Atoms):
                                         scaled_positions, cell, pbc, constraint,
                                         calculator)
 
-        self.info = {"params":{},"properties":{}}
+        if "params" not in self.info:
+            self.info["params"]={}
+        if "properties" not in self.info:
+            self.info["properties"]={}
         setattr(self,"params",self.info["params"])
         setattr(self,"properties",self.info["properties"])
-            
+
         if properties is not None:
             for k, v in properties.items():
                 self.add_property(k,v)
@@ -57,8 +61,11 @@ class Atoms(ase.Atoms):
             value: the value/values that are associated with the attribute.
         """
 
-        self.info["properties"][name]=value
-        setattr(self,name,self.info["properties"][name])
+        if hasattr(self,name) or name in self.info["properties"]:
+            self.info["properties"][name] = value
+        else:
+            self.info["properties"][name]=value
+            setattr(self,name,self.info["properties"][name])
 
     def add_param(self,name,value):
         """Adds an attribute to the class instance.
@@ -68,9 +75,12 @@ class Atoms(ase.Atoms):
             value: the value/values that are associated with the attribute.
         """
 
-        self.info["params"][name]=value
-        setattr(self,name,self.info["params"][name])       
-    
+        if hasattr(self,name) or name in self.info["params"]:
+            self.info["params"][name] = value
+        else:
+            self.info["params"][name]=value
+            setattr(self,name,self.info["params"][name])       
+
     def _get_info(self):
         """ASE info dictionary
 
@@ -137,9 +147,13 @@ class Atoms(ase.Atoms):
 
         elif isinstance(other, ase.Atoms):
             super(Atoms, self).__init__(other)
-            self.info = {"params":{},"properties":{}}
-            setattr(self,"params",self.info["params"])
+            if "params" not in self.info:
+                self.info["params"]={}
+            if "properties" not in self.info:
+                self.info["properties"]={}
+                          
             setattr(self,"properties",self.info["properties"])
+            setattr(self,"params",self.info["params"])
 
             # copy params/info dicts
             if hasattr(other, 'params'):
@@ -147,17 +161,20 @@ class Atoms(ase.Atoms):
             if hasattr(other, 'info'):
                 self.params.update(other.info)
                 if 'nneightol' in other.info:
-                    self.nneightol = other.info['nneightol']
+                    self.add_param("nneightol",other.info['nneightol'])
                 if 'cutoff' in other.info:
-                    self.set_cutoff(other.info['cutoff'],
-                                    other.info.get('cutoff_break'))
+                    self.add_param("cutoff",other.info['cutoff'])
+                    self.add_param("cufoff_break",other.info.get('cutoff_break'))
                 if isinstance(other.info.get('spacegroup', None), Spacegroup):
-                    self.params['spacegroup'] = other.info['spacegroup'].symbol
+                    self.add_param('spacegroup',other.info['spacegroup'].symbol)
 
             # create extra properties for any non-standard arrays
             standard_ase_arrays = ['positions', 'numbers', 'masses', 'initial_charges',
                                    'momenta', 'tags', 'initial_magmoms' ]
 
+            for ase_name, value in other.arrays.iteritems():
+                if ase_name not in standard_ase_arrays:
+                    self.add_property(ase_name, np.transpose(value))
             self.constraints = deepcopy(other.constraints)
 
         else:
@@ -183,8 +200,19 @@ class AtomsList(list):
         self._step   = step
         # if the source has a wildcard or would somehow be a list we
         # need to iterate over it here.
-        tmp_ar = [ase.io.read(source_file, format, start, stop, step,
-                             rename=rename, **kwargs) for source_file in source]
+        if isinstance(source,list) and len(source)>0:
+            if not isinstance(source[0],Atoms):
+                tmp_ar = [Atoms(ase.io.read(source_file, format=format, **kwargs)) for source_file in source]
+            else:
+                tmp_ar = source
+        elif isinstance(source,list) and len(source) == 0:
+            tmp_ar = []
+        else:
+            if isinstance(source,Atoms):
+                tmp_ar = [source]
+            else:
+                tmp_ar = [Atoms(ase.io.read(source, format=format, **kwargs))]
+
         list.__init__(self, list(iter(tmp_ar)))
 
     def __getattr__(self, name):
