@@ -9,10 +9,8 @@ from contextlib import contextmanager
 import ase.db
 from uuid import uuid4
 import numpy as np
-import quippy
 import six 
 from collections import OrderedDict
-from quippy.atoms import Atoms
 from glob import glob
 import json
 
@@ -20,16 +18,17 @@ from matdb import msg
 from matdb.utility import chdir, ParameterGrid
 from .controller import Database
 from matdb import calculators
+from matdb.atoms import Atoms, AtomsList
 
 def atoms_to_json(atoms, folder):
     """Exports the specified atoms object, with its calculator's parameters, to
     a `atoms.json` file.
     Args:
-        atoms (quippy.Atoms): configuration to write to JSON.
+        atoms (matdb.atoms.Atoms): configuration to write to JSON.
         folder (str): path to the folder to write the file in.
     """
     db = ase.db.connect(path.join(folder, "atoms.json"))
-    #We need to extract out the additional parameters that a quippy.Atoms object
+    #We need to extract out the additional parameters that a matdb.atoms.Atoms object
     #can have, but which are not supported by ASE.
     handled = ["id", "volume", "magmom", "age", "mass", "formula",
                "user", "charge", "unique_id", "fmax"]
@@ -52,14 +51,14 @@ def atoms_to_json(atoms, folder):
     db.write(atoms, data=data)
 
 def atoms_from_json(folder):
-    """Retrieves a :class:`quippy.Atoms` object from JSON in the specified
+    """Retrieves a :class:`matdb.atoms.Atoms` object from JSON in the specified
     folder.
     Args:
         folder (str): path to the folder that has the `atoms.json` file.
     """
     db = ase.db.connect(path.join(folder, "atoms.json"))
     row = db.get()
-    atoms = quippy.Atoms()
+    atoms = Atoms()
     _atoms = row.toatoms()
     atoms.copy_from(_atoms)
 
@@ -105,12 +104,12 @@ class Group(object):
           the calculator object.
         trainable (bool): True if the groups configs will be used for traning.
         pgrid (ParamaterGrid): The ParameterGrid for the database.
-        seeds (list, str, quippy.Atoms): The location of the files that will be
+        seeds (list, str, matdb.atoms.Atoms): The location of the files that will be
           read into to make the atoms object or an atoms object.
         cls (subclass): the subclass of :class:`Group`.
 
     Attributes:
-        atoms (quippy.atoms.Atoms): a single atomic configuration from
+        atoms (matdb.atoms.Atoms): a single atomic configuration from
           which many others may be derived using MD, phonon
           displacements, etc.
         configs (dict): keys are integer identifiers for the particular
@@ -159,7 +158,7 @@ class Group(object):
         self.seeds = None
         self.pgrid = pgrid
         self._seed = seeds
-        """list, str, quippy.Atoms: The location of the files that will be
+        """list, str, matdb.atoms.Atoms: The location of the files that will be
         read into to make the atoms object or an atoms object. This is the
         parameter that was passed as the seed for the group constructor; for
         recursive constructions, it starts as a list of seed patterns, which
@@ -245,7 +244,7 @@ class Group(object):
         :attr:`seeds` dict.
 
         Args:
-            seeds (list, str, quippy.Atoms): The location of the files that will be
+            seeds (list, str, matdb.atoms.Atoms): The location of the files that will be
               read into to make the atoms object or an atoms object.
         """
         if self.is_seed_listed:
@@ -289,7 +288,7 @@ class Group(object):
 
     @abc.abstractproperty
     def fitting_configs(self):
-        """Returns a :class:`quippy.AtomsList` for all configs in this group.
+        """Returns a :class:`matdb.atoms.AtomsList` for all configs in this group.
         """
         pass #pragma: no cover
 
@@ -542,7 +541,7 @@ class Group(object):
         """Creates a folder within this group to calculate properties.
 
         Args:
-            atoms (quippy.atoms.Atoms): atomic configuration to run.
+            atoms (matdb.atoms.Atoms): atomic configuration to run.
             cid (int): integer configuration id; if not specified, defaults to
               the next available integer.
             rewrite (bool): when True, overwrite any existing files with the

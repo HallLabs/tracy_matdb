@@ -5,7 +5,7 @@ from matdb import msg
 from os import path, getcwd, chdir, remove, listdir, mkdir
 import numpy as np
 from six import string_types
-import quippy
+from matdb.atoms import Atoms, AtomsList
 
 class Enumerated(Group):
     """Sets up the calculations for a random sampling of structures from
@@ -246,14 +246,14 @@ class Enumerated(Group):
         return result 
         
     def rset(self):
-        """Returns a :class:`quippy.AtomsList`, one for each config in the
+        """Returns a :class:`matdb.atoms.AtomsList`, one for each config in the
         latest result set.
         """
         from matdb.database.basic import atoms_from_json
         if len(self.sequence) == 0:
             #Return the configurations from this group; it is at the
             #bottom of the stack
-            result = quippy.AtomsList()
+            result = AtomsList()
             for epath in self.atoms_paths:
                 result.append(atoms_from_json)
             return result
@@ -373,12 +373,11 @@ class Enumerated(Group):
         # Now we need to create the folder for each system we've enumerated
         if self.euids is None:
             self.euids = []
-        from quippy.atoms import Atoms
         current = getcwd()
         for count, dposcar in enumerate(glob("vasp.*")):
             if euids[count] not in self.euids:
                 dind += 1
-                datoms = Atoms(dposcar,format="POSCAR")
+                datoms = Atoms(dposcar,format="vasp")
                 chdir(home)
                 self.create(datoms,cid=dind)
                 chdir(current)

@@ -4,10 +4,13 @@ code for some of the implementation.
 
 import ase
 import numpy as np
+from copy import deepcopy
 
 class Atoms(ase.Atoms):
     """An implementation of the :class:`ase.Atoms` object that adds the
-    additional attributes of params and properties.
+    additional attributes of params and properties and reads the atoms
+    object in from file.
+
     """
 
     def __init__(self, symbols=None, positions=None, numbers=None, tags=None,
@@ -18,28 +21,49 @@ class Atoms(ase.Atoms):
                  fpointer=None, finalise=True,
                  **readargs):
 
-        if properties is not None and not isinstance(properties, dict):
-            self.properties = properties
-        if params is not None and not isinstance(params, dict):
-            self.params = params
+        if "format" in readargs and readargs["format"] is not None:
+            super(Atoms, self).__init__(*list(ase.io.iread(symbols,**readargs)))
 
-        super(Atoms, self).__init__(symbols, positions, numbers,
-                                    tags, momenta, masses, magmoms, charges,
-                                    scaled_positions, cell, pbc, constraint,
-                                    calculator)
+        else:
+            super(Atoms, self).__init__(symbols, positions, numbers,
+                                        tags, momenta, masses, magmoms, charges,
+                                        scaled_positions, cell, pbc, constraint,
+                                        calculator)
+
+        self.info = {"params":{},"properties":{}}
+            
+        if properties is not None:
+            self.properties.update(properties)
+        if params is not None:
+            self.params.update(params)
 
         if info is not None:
             self.params.update(info)
 
         self._initialised = True
-        
+
+    def __getattribute__(self,name):
+        if name=="params":
+            return self.info["params"]
+        elif name=="properties":
+            return self.info["properties"]
+        elif name self.info["properties"]:
+            return self.info["properties"][name]
+        else:
+            return ase.Atoms.__getattribute__(self,name)
+
     def _get_info(self):
         """ASE info dictionary
 
         Entries are actually stored in the params dictionary.
         """
-
-        return self.params
+        info = self.info.copy()
+        if "params" in info:
+            info.pop("params")
+        if "properties" in info:
+            infe.pop("properties")
+        
+        return info
 
     def _set_info(self, value):
         """Set ASE info dictionary.
@@ -49,13 +73,71 @@ class Atoms(ase.Atoms):
         """
 
         self.params.update(value)
+    
+    def _set_properties(self,value):
+        """Gets the properties from the ASE info dictionary.
+        """
+        self.info["properties"] = value
+    
+    def _set_params(self,value):
+        """Gets the properties from the ASE info dictionary.
+        """
+        self.info["params"] = value
+        
+    def __del__(self):
+        attributes = list(vars(self))
+        for attr in attributes:
+            if isinstance(attr,dict):
+                self.attr = {}
+            else:
+                self.attr = None
 
-    info = property(_get_info, _set_info)
+    def copy_from(self, other):
+        """Replace contents of this Atoms object with data from `other`."""
+
+        from ase.spacegroup import Spacegroup
+        self.__class__.__del__(self)
+        if isinstance(other, Atoms):
+            Atoms.__init__(self, n=other.n, lattice=other.lattice,
+                                  properties=other.properties, params=other.params)
+
+            self.cutoff = other.cutoff
+            self.cutoff_skin = other.cutoff_skin
+            self.nneightol = other.nneightol
+
+        elif isinstance(other, ase.Atoms):
+            Atoms.__init__(self, n=0, lattice=np.eye(3))
+
+            # copy params/info dicts
+            if hasattr(other, 'params'):
+                self.params.update(other.params)
+            if hasattr(other, 'info'):
+                self.params.update(other.info)
+                if 'nneightol' in other.info:
+                    self.nneightol = other.info['nneightol']
+                if 'cutoff' in other.info:
+                    self.set_cutoff(other.info['cutoff'],
+                                    other.info.get('cutoff_break'))
+                if isinstance(other.info.get('spacegroup', None), Spacegroup):
+                    self.params['spacegroup'] = other.info['spacegroup'].symbol
+
+            # create extra properties for any non-standard arrays
+            standard_ase_arrays = ['positions', 'numbers', 'masses', 'initial_charges',
+                                   'momenta', 'tags', 'initial_magmoms' ]
+
+            self.constraints = deepcopy(other.constraints)
+
+        else:
+            raise TypeError('can only copy from instances of matdb.Atoms or ase.Atoms')
+
+        # copy any normal (not Fortran) attributes
+        for k, v in other.__dict__.iteritems():
+            if not k.startswith('_') and k not in self.__dict__:
+                self.__dict__[k] = v
         
 class AtomsList(list):
     """An AtomsList like object for storing lists of Atoms objects read in
     from file.
-
     """
 
     def __init__(self, source=[], format=None, start=None, stop=None, step=None,
