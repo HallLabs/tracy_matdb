@@ -22,6 +22,8 @@ class Atoms(ase.Atoms):
                  **readargs):
 
         if "format" in readargs and readargs["format"] is not None:
+            if readargs["format"] == "POSCAR":
+                readargs["format"] = "vasp"
             super(Atoms, self).__init__(*list(ase.io.iread(symbols,**readargs)))
 
         else:
