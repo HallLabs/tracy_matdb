@@ -9,10 +9,8 @@ from contextlib import contextmanager
 import ase.db
 from uuid import uuid4
 import numpy as np
-import quippy
 import six 
 from collections import OrderedDict
-from quippy.atoms import Atoms
 from glob import glob
 import json
 
@@ -20,16 +18,17 @@ from matdb import msg
 from matdb.utility import chdir, ParameterGrid
 from .controller import Database
 from matdb import calculators
+from matdb.atoms import Atoms, AtomsList
 
 def atoms_to_json(atoms, folder):
     """Exports the specified atoms object, with its calculator's parameters, to
     a `atoms.json` file.
     Args:
-        atoms (quippy.Atoms): configuration to write to JSON.
+        atoms (matdb.atoms.Atoms): configuration to write to JSON.
         folder (str): path to the folder to write the file in.
     """
     db = ase.db.connect(path.join(folder, "atoms.json"))
-    #We need to extract out the additional parameters that a quippy.Atoms object
+    #We need to extract out the additional parameters that a matdb.atoms.Atoms object
     #can have, but which are not supported by ASE.
     handled = ["id", "volume", "magmom", "age", "mass", "formula",
                "user", "charge", "unique_id", "fmax"]
@@ -52,14 +51,14 @@ def atoms_to_json(atoms, folder):
     db.write(atoms, data=data)
 
 def atoms_from_json(folder):
-    """Retrieves a :class:`quippy.Atoms` object from JSON in the specified
+    """Retrieves a :class:`matdb.atoms.Atoms` object from JSON in the specified
     folder.
     Args:
         folder (str): path to the folder that has the `atoms.json` file.
     """
     db = ase.db.connect(path.join(folder, "atoms.json"))
     row = db.get()
-    atoms = quippy.Atoms()
+    atoms = Atoms()
     _atoms = row.toatoms()
     atoms.copy_from(_atoms)
 
@@ -67,11 +66,11 @@ def atoms_from_json(folder):
     for prop in props:
         #Undo the extra '_' that we appended to avoid collision between the
         #parameters and properties when saved to local data object.
-        atoms.properties[prop[0:-1]] = np.array(row.data[prop])
+        atoms.add_property(prop[0:-1], np.array(row.data[prop]))
 
     for param in row.data:
         if param not in props:
-            atoms.params[param] = row.data[param]
+            atoms.add_param(param,row.data[param])
 
     calcargs = row.get('calculator_parameters', {})
     calculator = getattr(calculators, row.calculator.title())
@@ -105,12 +104,12 @@ class Group(object):
           the calculator object.
         trainable (bool): True if the groups configs will be used for traning.
         pgrid (ParamaterGrid): The ParameterGrid for the database.
-        seeds (list, str, quippy.Atoms): The location of the files that will be
+        seeds (list, str, matdb.atoms.Atoms): The location of the files that will be
           read into to make the atoms object or an atoms object.
         cls (subclass): the subclass of :class:`Group`.
 
     Attributes:
-        atoms (quippy.atoms.Atoms): a single atomic configuration from
+        atoms (matdb.atoms.Atoms): a single atomic configuration from
           which many others may be derived using MD, phonon
           displacements, etc.
         configs (dict): keys are integer identifiers for the particular
@@ -159,7 +158,7 @@ class Group(object):
         self.seeds = None
         self.pgrid = pgrid
         self._seed = seeds
-        """list, str, quippy.Atoms: The location of the files that will be
+        """list, str, matdb.atoms.Atoms: The location of the files that will be
         read into to make the atoms object or an atoms object. This is the
         parameter that was passed as the seed for the group constructor; for
         recursive constructions, it starts as a list of seed patterns, which
@@ -207,8 +206,6 @@ class Group(object):
 
     def _expand_sequence(self):
         """Recursively expands the nested groups to populate :attr:`sequence`.
-
-        Args:
         """
         self._expand_seeds(self._seed)
         
@@ -222,7 +219,7 @@ class Group(object):
                 clsargs["root"] = seed_root
                 clsargs["seeds"] = at_seed
                 clsargs["pgrid"] = self.pgrid
-                if self.cls is None:
+                if self.cls is None: #pragma: no cover
                     msg.err("The Group must have a class to have seeds.")
                 self.sequence[seedname] = self.cls(**clsargs)
         else:
@@ -236,7 +233,7 @@ class Group(object):
                     clsargs.update(self.pgrid[pkey])
                     clsargs["root"] = this_root
                     clsargs["seeds"] = self._seed
-                    if self.cls is None:
+                    if self.cls is None: #pragma: no cover
                         msg.err("The Group must have a class to have a parameter grid.")
                     self.sequence[pkey] = self.cls(**clsargs)
             else:
@@ -247,7 +244,7 @@ class Group(object):
         :attr:`seeds` dict.
 
         Args:
-            seeds (list, str, quippy.Atoms): The location of the files that will be
+            seeds (list, str, matdb.atoms.Atoms): The location of the files that will be
               read into to make the atoms object or an atoms object.
         """
         if self.is_seed_listed:
@@ -266,7 +263,6 @@ class Group(object):
                 #make sure the original rset doesn't modify. For normal cases
                 #where it is simply an Atoms object, the copy performs the same
                 #function.
-                print(a)
                 self.seeds[seedname] = a.copy()
                 
     @property
@@ -292,9 +288,9 @@ class Group(object):
 
     @abc.abstractproperty
     def fitting_configs(self):
-        """Returns a :class:`quippy.AtomsList` for all configs in this group.
+        """Returns a :class:`matdb.atoms.AtomsList` for all configs in this group.
         """
-        pass
+        pass #pragma: no cover
 
     @property
     def rset_file(self):
@@ -306,7 +302,7 @@ class Group(object):
     def rset(self):
         """Saves the rset for the group and all sequences of the group.
         """
-        pass
+        pass #pragma: no cover
 
     def load_pkl(self, file_name, rel_path=None):
         """Loads a pickled obj from the specified location on the path.
@@ -410,19 +406,19 @@ class Group(object):
                 return False
 
             if not recovery:
-                if not all(a.calc.can_execute()
-                           for a in self.config_atoms.values()):
+                if not all(a.calc.can_execute(self.configs[i])
+                           for i, a in self.config_atoms.items()):
                     return False
 
                 #We also need to check that we haven't already submitted this
                 #job. Check to see if it is executing.
-                if any(a.calc.is_executing()
-                       for a in self.config_atoms.values()):
+                if any(a.calc.is_executing(self.configs[i])
+                       for i, a in self.config_atoms.items()):
                     return False
 
                 #Make sure that the calculation isn't complete.
-                if any(a.calc.can_cleanup()
-                       for a in self.config_atoms.values()):
+                if any(a.calc.can_cleanup(self.configs[i])
+                       for i, a in self.config_atoms.items()):
                     return False                
         
             # We must have what we need to execute. Compile the command and
@@ -447,7 +443,7 @@ class Group(object):
             already_executed = []
             for group in self.sequence.values():
                 already_executed.append(group.execute(dryrun=dryrun,
-                                                      recovery=recover,
+                                                      recovery=recovery,
                                                       env_vars=env_vars))
             return all(already_executed)
 
@@ -545,7 +541,7 @@ class Group(object):
         """Creates a folder within this group to calculate properties.
 
         Args:
-            atoms (quippy.atoms.Atoms): atomic configuration to run.
+            atoms (matdb.atoms.Atoms): atomic configuration to run.
             cid (int): integer configuration id; if not specified, defaults to
               the next available integer.
             rewrite (bool): when True, overwrite any existing files with the
@@ -662,14 +658,16 @@ class Group(object):
         ready = {}
         done = {}
 
-        allatoms = self.config_atoms.values().copy()
+        allatoms = list(self.config_atoms.values())
+        allconfigs = list(self.configs.values())
         if len(self.sequence) > 0:
             for group in self.sequence.values():
-                allatoms.update(group.config_atoms.values())
+                allatoms.extend(group.config_atoms.values())
+                allconfigs.extend(group.configs.values())
                 
-        for a in tqdm(allatoms):
-            ready[f] = a.calc.can_execute()
-            done[f] = a.calc.can_cleanup()
+        for f, a in zip(allconfigs,tqdm(allatoms)):
+            ready[f] = a.calc.can_execute(f)
+            done[f] = a.calc.can_cleanup(f)
         
         rdata, ddata = cnz(ready.values()), cnz(done.values())
         N = len(self.configs)        
@@ -705,7 +703,8 @@ class Group(object):
                 #otherwise we aren't ready to go.
                 return False
         
-            cleanups = [a.calc.can_cleanup() for a in self.config_atoms.values()]
+            cleanups = [a.calc.can_cleanup(f) for f, a in
+                        zip(self.configs.values(),self.config_atoms.values())]
         else: 
             cleanups = [group.can_cleanup() for group in self.sequence.values()]
         return all(cleanups)
@@ -740,9 +739,11 @@ class Group(object):
                     continue
                 
                 atoms = self.config_atoms[cid]
-                atoms.calc.cleanup()
+                atoms.calc.cleanup(folder)
                 atoms_to_json(atoms, folder)
-
+            return self.can_cleanup()
+        elif len(self.sequence) >0:
+            return all([group.cleanup() for group in self.sequence.values()])
+                
         else:
-            for group in self.sequence.values():
-                group.cleanup()
+            return self.can_cleanup()

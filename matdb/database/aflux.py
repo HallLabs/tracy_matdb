@@ -216,11 +216,12 @@ class Aflow(Group):
     
     @property
     def rset(self):
-        """Returns a :class:`quippy.AtomsList`, one for each config in the
+        """Returns a :class:`matdb.atoms.AtomsList`, one for each config in the
         latest result set.
         """
         from matdb.database.basic import atoms_from_json
-        result = quippy.AtomsList()
+        from matdb.atoms import AtomsList
+        result = AtomsList()
         for apath in self.atoms_paths:
             result.append(atoms_from_json(apath))
         return result

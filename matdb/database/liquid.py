@@ -9,7 +9,7 @@ class LiquidGroup(Group):
     liquid transition temperature.
 
     Args:
-        atoms (quippy.atoms.Atoms): seed configuration that will be
+        atoms (matdb.atoms.Atoms): seed configuration that will be
           displaced to generate the database.
         root (str): path to the folder where the database directories will
           be stored.
@@ -84,7 +84,7 @@ class LiquidGroup(Group):
             return
 
         if not folders_ok:
-            from quippy.atoms import Atoms
+            from matdb.atoms import Atoms
             from tqdm import tqdm
             with open(self.mdbase.subsamples) as f:
                 for line in tqdm(f):

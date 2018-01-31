@@ -5,15 +5,12 @@ from matdb import msg
 from os import path, getcwd, chdir, remove, listdir, mkdir
 import numpy as np
 from six import string_types
-import quippy
+from glob import glob
+from matdb.atoms import AtomsList
 
 class Active(Group):
     """Sets up the calculations for a set of configurations that are being
     added to by the active learning approach.
-
-    Args:
-        new_configs (list): list of `quippy.atoms.Atoms` objects to be added
-            to the active learning set.
 
     .. note:: Additional attributes are also exposed by the super class
       :class:`Group`.
@@ -21,9 +18,9 @@ class Active(Group):
     Attributes:
         auids (list): the unique ids for each config in the group
     """
-    def __init__(self, new_configs=None, name="active", **dbargs):
+    def __init__(self, name="active", **dbargs):
         self.name = name
-        dbargs['prefix'] = "A"
+        dbargs['prefix'] = "Ac"
         dbargs['cls'] = Active
         dbargs['trainable'] = True
         if "Active" not in dbargs['root']:
@@ -33,11 +30,13 @@ class Active(Group):
             dbargs['root'] = new_root
         super(Active, self).__init__(**dbargs)
 
-        self.new_configs = new_configs
-        
         self.auids = None
         self._load_auids()
-        self.nconfigs = len(self.auids) + len(new_configs)
+        self.nconfigs = len(self.auids)
+        self.last_iteration = None
+        cur_iter = len(glob("iter_*.pkl"))
+        self.iter_file = path.join(self.root,"iter_{}.pkl".format(cur_iter))
+        self._load_last_iter()        
         
     def ready(self):
         """Returns True if this database has finished its computations and is
@@ -52,17 +51,23 @@ class Active(Group):
         return path.join(self.root,"auids.pkl")
 
     def _load_auids(self):
-        """Loads the list of `euid` from the `rset.pkl` file for this
+        """Loads the list of `auid` from the `rset.pkl` file for this
         database group.
         """
         if self.auids is None:
             self.auids = self.load_pkl(self.auid_file)
-        return self.auids
 
+    def _load_last_iter(self):
+        """Loads the list of paths from the `iter_{}.pkl` file for this
+        database group's last iteration.
+        """
+        if self.last_iteration is None:
+            self.last_iteration = self.load_pkl(self.iter_file)
+            
     @property
     def atoms_paths(self):
         """Returns a list of full paths to the folders that have `atoms.json` objects
-        for the latest result set.
+        for the full result set.
         """
         result = []
         for auid in self.auids:
@@ -74,16 +79,29 @@ class Active(Group):
         return result 
         
     def rset(self):
-        """Returns a :class:`quippy.AtomsList`, one for each config in the
+        """Returns a :class:`matdb.atoms.AtomsList`, one for each config in the
         latest result set.
         """
         from matdb.database.basic import atoms_from_json
         #Return the configurations from this group; it is at the
         #bottom of the stack
-        result = quippy.AtomsList()
+        result = AtomsList()
         for epath in self.atoms_paths:
             result.append(atoms_from_json)
         return result
+
+    def add_configs(self,new_configs,iteration):
+        """Adds the atoms objects in the list to the configs of the active set.
+
+        Args:
+            new_configs (list): list of `matdb.atoms.Atoms` objects to be added
+                to the active learning set.
+        """
+
+        self.new_configs = new_configs
+        self.nconfigs += len(new_configs)
+        self.iter_file = path.join(self.root,"iter_{}.pkl".format(iteration))
+        self.last_iteration = {}
 
     def _setup_configs(self, rerun=False):
         """Sets up the database structure for the active set and creates a
@@ -94,6 +112,7 @@ class Active(Group):
         # constructing their auids and then verifying that the auid
         # hasn't been visited before.
         did = len(self.auids)
+        iter_ind = 0
         for config in self.new_configs:
             auid = hash(tuple([tuple(i) for i in config.cell]),
                         tuple([tuple(i) for i in config.positions]),
@@ -105,11 +124,14 @@ class Active(Group):
             dind += 1
             self.create(config,cid=dind)
             self.index[auid] = self.configs[dind]
+            self.last_iteration[iter_ind] = self.configs[dind]
             self.auids.append(auid)
+            iter_ind += 1
             
         self.jobfile(rerun)
         self.save_index()
         self.save_pkl(self.auids,self.auid_file)
+        self.save_pkl(self.last_iteration,self.iter_file)
         
     def setup(self, rerun=False):
         """Enumerates the desired number of structures and setups up a folder

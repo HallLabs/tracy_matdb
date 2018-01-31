@@ -424,6 +424,7 @@ class Controller(object):
             self.root = tmpdir
             
         self.plotdir = path.join(self.root, "plots")
+        self.kpathdir = path.join(self.root, "kpaths")
         self.title = self.specs["title"]
         self.legacy = {}
         self.collections = {}
@@ -466,6 +467,8 @@ class Controller(object):
         from os import mkdir
         if not path.isdir(self.plotdir):
             mkdir(self.plotdir)
+        if not path.isdir(self.kpathdir):
+            mkdir(self.kpathdir)
             
         #If the controller is going to train any potentials, we also need to 
         self.trainers = None

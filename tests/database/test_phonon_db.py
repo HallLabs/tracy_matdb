@@ -1,4 +1,4 @@
-"""Tests the legacy database interface.
+"""Tests the phonon database interface.
 """
 import pytest
 from matdb.database.phonon import DynMatrix, Calibration, Modulation
@@ -29,12 +29,13 @@ def Pd(tmpdir):
     target = relpath("./tests/Pd/matdb")
     dbdir = str(tmpdir.join("pd_db"))
     mkdir(dbdir)
-    
+
     #We need to copy the POSCAR over from the testing directory to the temporary
     #one.
     from shutil import copy
     POSCAR = relpath("./tests/Pd/POSCAR")
-    copy(POSCAR, dbdir)
+    mkdir(path.join(dbdir,"seed"))
+    copy(POSCAR, path.join(dbdir,"seed","Pd"))
     
     result = Controller(target, dbdir)
     return result
@@ -44,30 +45,30 @@ def dynmatdb(Pd):
     """Returns a DynMatrix database for the Pd dynmatrix database.
     """
     Pd.setup()
-        
-    return Pd["Pd.phonon-16"].steps['dynmatrix']
 
-@pytest.fixture
-def caldb(tmpdir):
-    """Returns a Calibration database.
-    """
-    from matdb.utility import relpath
-    from matdb.database.controller import Controller
-    from os import mkdir
+    return Pd["dynmatrix/phonon/Pd/dim-16.00"]
 
-    target = relpath("./tests/Pd/matdb2")
-    dbdir = str(tmpdir.join("pd2_db"))
-    mkdir(dbdir)
+# @pytest.fixture
+# def caldb(tmpdir):
+#     """Returns a Calibration database.
+#     """
+#     from matdb.utility import relpath
+#     from matdb.database.controller import Controller
+#     from os import mkdir
+
+#     target = relpath("./tests/Pd/matdb2")
+#     dbdir = str(tmpdir.join("pd2_db"))
+#     mkdir(dbdir)
     
-    #We need to copy the POSCAR over from the testing directory to the temporary
-    #one.
-    from shutil import copy
-    POSCAR = relpath("./tests/Pd/POSCAR")
-    copy(POSCAR, dbdir)
+#     #We need to copy the POSCAR over from the testing directory to the temporary
+#     #one.
+#     from shutil import copy
+#     POSCAR = relpath("./tests/Pd/POSCAR")
+#     copy(POSCAR, dbdir)
     
-    Pd = Controller(target, dbdir)
-    Pd.setup()
-    return Pd["Pd.modulate"].steps['calib']
+#     Pd = Controller(target, dbdir)
+#     Pd.setup()
+#     return Pd["Pd.modulate"].steps['calib']
 
 def test_setup_and_cleanup(dynmatdb):
     """Tests the setup and cleanup funtions that have been overwritten
@@ -102,7 +103,7 @@ def test_dmatrix(dynmatdb):
 def test_forcecalc(dynmatdb):
     """Tests the force calculation for the dynamical matrix.
     """
-    src = relpath("./tests/data/Pd/complete/vasprun.xml__Pd.phonon-16")
+    src = relpath("./tests/data/Pd/complete/vasprun.xml__DynMatrix_phonon_Pd_dim-16.00")
     target = path.join(dynmatdb.root,"W.1","vasprun.xml")
     symlink(src,target)
     dynmatdb.calc_forcesets()

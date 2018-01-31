@@ -13,7 +13,7 @@
 """
 import ase
 from ase.calculators.vasp import Vasp
-from os import path, stat, mkdir
+from os import path, stat, mkdir, getcwd, chdir
 import mmap
 from matdb.calculators.basic import AsyncCalculator
 from matdb import msg
@@ -187,7 +187,7 @@ class AsyncVasp(Vasp, AsyncCalculator):
             folder (str): path to the folder in which the executable was run.
         """
         # Read output
-        atoms_sorted = ase.io.read('CONTCAR', format='vasp')
+        atoms_sorted = ase.io.read(path.join(folder,'CONTCAR'), format='vasp')
 
         if (self.int_params['ibrion'] is not None and
                 self.int_params['nsw'] is not None):
@@ -197,5 +197,10 @@ class AsyncVasp(Vasp, AsyncCalculator):
                 self.atoms.positions = atoms_sorted[self.resort].positions
                 self.atoms.cell = atoms_sorted.cell
 
+        # we need to move into the folder being cleaned up in order to
+        # let ase check the convergence
+        cur_dir = getcwd()
+        chdir(folder)
         self.converged = self.read_convergence()
         self.set_results(self.atoms)
+        chdir(cur_dir)

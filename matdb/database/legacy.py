@@ -5,26 +5,20 @@ useful. This module provides a simple class that adapts legacy databases to a
 format that can be used by the `matdb` fitting machinery.
 """
 from os import path
-import quippy
 import numpy as np
 from matdb import msg
+from matdb.atoms import AtomsList, Atoms
+from ase.io import write
 
 def _quick_write(atlist, outpath):
-    """Writes the atoms list to file using the
-    :class:`~quippy.cinoutput.CInOutputWriter` for optimization.
+    """Writes the atoms list to file using the :class:`ase.io.write`.
 
     Args:
-        atlist (quippy.AtomsList): atoms to write to XYZ file.
+        atlist (matdb.atoms.AtomsList): atoms to write to XYZ file.
         outpath (str): full path to the location of the output file to write.
+
     """
-    import quippy.cinoutput as qcio
-    from tqdm import tqdm
-    out = qcio.CInOutputWriter(outpath)
-    try:
-        for ai in tqdm(atlist):
-            ai.write(out)
-    finally:
-        out.close()
+    write(outpath,atlist)            
 
 def _atoms_conform(dbfile, energy, force, virial):
     """Determines whether the specified database conforms to the constraints for
@@ -47,7 +41,7 @@ def _atoms_conform(dbfile, energy, force, virial):
     emsg = "Cannot find {0} under parameter name {1}."
     params = {}
     doforce = False
-    a = quippy.Atoms(dbfile)
+    a = Atoms(dbfile)
     
     if energy not in a.params:
         raise ValueError(emsg.format("energy", energy))
@@ -132,12 +126,12 @@ class LegacyDatabase(object):
             
             if limit is not None:
                 msg.std("Slicing limit subset of full {} db.".format(self.name))
-                full = quippy.AtomsList(self._dbfull)
+                full = AtomsList(self._dbfull)
                 N = np.arange(len(full))
                 np.random.shuffle(N)
                 ids = N[0:limit]
                 part = full[ids]
-                part.write(self._dbfile)
+                write(self._dbfile,part)
                 dbcat([self._dbfull], self._dbfile, docat=False, limit=limit,
                       ids=ids)
             else:
@@ -146,7 +140,7 @@ class LegacyDatabase(object):
 
         #The rest of matdb expects each database to have an atoms object that is
         #representative. Just take the first config in the combined database.
-        self.atoms = quippy.Atoms(self._dbfile)
+        self.atoms = Atoms(self._dbfile)
 
     def _create_dbfull(self, folder, pattern, energy, force, virial, config_type):
         """Creates the full combined database.
@@ -154,10 +148,9 @@ class LegacyDatabase(object):
         from matdb.utility import chdir, dbcat
         from glob import glob
         from tqdm import tqdm
-        import quippy.cinoutput as qcio
         from os import path
         
-        #NB! There is a subtle bug here: if you try and open a quippy.Atoms
+        #NB! There is a subtle bug here: if you try and open a matdb.atoms.Atoms
         #within the context manager of `chdir`, something messes up with the
         #memory sharing in fortran and it dies. This has to be separate.
         with chdir(folder):
@@ -172,30 +165,26 @@ class LegacyDatabase(object):
             params, doforce = _atoms_conform(dbpath, energy, force, virial)
             if len(params) > 0 or doforce:
                 msg.std("Conforming database file {}.".format(dbpath))
-                al = quippy.AtomsList(dbpath)
+                al = AtomsList(dbpath)
                 outpath = path.join(self.root, dbfile)
-                out = qcio.CInOutputWriter(outpath)
-                try:
-                    for ai in tqdm(al):
-                        for target, source in params.items():
-                            if (target == "config_type" and
-                                  config_type is not None):
-                                ai.params[target] = config_type
-                            else:
-                                ai.params[target] = ai.params[source]
-                                del ai.params[source]
+                for ai in tqdm(al):
+                    for target, source in params.items():
+                        if (target == "config_type" and
+                            config_type is not None):
+                            ai.params[target] = config_type
+                        else:
+                            ai.params[target] = ai.params[source]
+                            del ai.params[source]
 
-                        if doforce:
-                            ai.properties["dft_force"] = ai.properties[force]
-                            del ai.properties[force]
+                    if doforce:
+                        ai.properties["dft_force"] = ai.properties[force]
+                        del ai.properties[force]
 
-                        ai.write(out)
+                    write(outpath,ai)
 
-                    #Mark this db as non-conforming so that we created a new
-                    #version of it.
-                    rewrites.append(dbfile)
-                finally:
-                    out.close()
+                #Mark this db as non-conforming so that we created a new
+                #version of it.
+                rewrites.append(dbfile)
 
                 dbcat([dbpath], outpath, docat=False, renames=params,
                       doforce=doforce)
@@ -278,7 +267,7 @@ class LegacyDatabase(object):
         #Either way, we will have to compile a list of all available atoms in
         #the database files.
         msg.info("Working on split {} for {}.".format(name, self.name))
-        subconfs = quippy.AtomsList(self._dbfile)
+        subconfs = AtomsList(self._dbfile)
 
         if path.isfile(idfile):
             with open(idfile, 'rb') as f:

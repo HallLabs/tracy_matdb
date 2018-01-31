@@ -11,7 +11,7 @@ class DynamicsGroup(Group):
     temperature.
 
     Args:
-        atoms (quippy.atoms.Atoms): seed configuration that will be
+        atoms (matdb.atoms.Atoms): seed configuration that will be
           displaced to generate the database.
         root (str): path to the folder where the database directories will
           be stored.

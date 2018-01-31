@@ -22,13 +22,13 @@ def _mimic_vasp(folder, xroot):
     from matdb.utility import symlink
 
     files = ["vasprun.xml", "OUTCAR"]
-    
+
     with chdir(folder):
         for vaspfile in files:
             pattern = vaspfile + "__*"
             for dft in glob(pattern):
                 name, config = dft.split("__")
-                xpath = path.join(xroot, config, "dynmatrix", "W.1")
+                xpath = path.join(xroot, path.join(*config.split("_")), "W.1")
                 #We want to make some testing assertions to ensure that the
                 #stubs ran correctly.
                 assert path.isfile(path.join(xpath, "CONTCAR"))
@@ -70,7 +70,7 @@ def dynPd(Pd):
     from matdb.utility import symlink    
     troot = path.join(reporoot, "tests", "data", "Pd", "dynmatrix")
     files = ["FORCE_SETS", "total_dos.dat", "mesh.yaml"]
-    for seq in Pd.find("Pd.phonon-*.dynmatrix"):
+    for seq in Pd.find("dynmatrix/phonon/Pd/dim-*"):
         for filename in files:
             target = path.join(seq.root, "phonopy", filename)
             source = path.join(troot, "{0}__{1}".format(filename, seq.parent.name))
@@ -129,12 +129,12 @@ def test_steps(Pd):
     assert Pd.steps() == ['dynmatrix/phonon']
     Pd.setup()
     steps = sorted(['dynmatrix/phonon/Pd/dim-2.00', 'dynmatrix/phonon/Pd/dim-4.00',
-                    'dynmatrix/phonon/Pd/dim-8.00', 'dynmatrix/phonon/Pd/dim-16.00',
-                    'dynmatrix/phonon/Pd/dim-27.00', 'dynmatrix/phonon/Pd/dim-32.00'])
+                    'dynmatrix/phonon/Pd/dim-16.00', 'dynmatrix/phonon/Pd/dim-27.00',
+                    'dynmatrix/phonon/Pd/dim-32.00','dynmatrix/phonon/Pd/dim-8.00'])
     assert Pd.steps() == steps
     
     seqs = sorted(['Pd/dim-2.00', 'Pd/dim-16.00', 'Pd/dim-32.00',
-                   'Pd/dim-4.00', 'Pd/dim-27.00', 'Pd/dim-8.00'])
+                   'Pd/dim-4.00', 'Pd/dim-27.00','Pd/dim-8.00'])
     assert Pd.sequences() == seqs
 
 def test_find(Pd):
@@ -146,9 +146,9 @@ def test_find(Pd):
     steps = Pd.find("dynmatrix/phonon/Pd/dim-*")
     model = ['dynmatrix', 'dynmatrix', 'dynmatrix', 'dynmatrix', 'dynmatrix', 'dynmatrix']
     assert model == [s.parent.name for s in steps]
-    model = [path.join(Pd.root,'DynMatrix/phonon/Pd/dim-8.00'),
-             path.join(Pd.root,'DynMatrix/phonon/Pd/dim-2.00'),
+    model = [path.join(Pd.root,'DynMatrix/phonon/Pd/dim-2.00'),
              path.join(Pd.root,'DynMatrix/phonon/Pd/dim-4.00'),
+             path.join(Pd.root,'DynMatrix/phonon/Pd/dim-8.00'),
              path.join(Pd.root,'DynMatrix/phonon/Pd/dim-16.00'),
              path.join(Pd.root,'DynMatrix/phonon/Pd/dim-27.00'),
              path.join(Pd.root,'DynMatrix/phonon/Pd/dim-32.00')]
@@ -193,77 +193,77 @@ def test_find(Pd):
 #     dynPd["Pd.modulate"].steps["modulations"].setup()
 #     # dynPd["Pd.modulate"].steps["modulations"].setup(rerun=True)
     
-# # @pytest.mark.skip()    
-# def test_Pd_dynmatrix(Pd):
-#     """Tests the `niterations` functionality and some of the standard
-#     methods of the class on simple Pd.
+# @pytest.mark.skip()    
+def test_Pd_dynmatrix(Pd):
+    """Tests the `niterations` functionality and some of the standard
+    methods of the class on simple Pd.
 
-#     """
-#     Pd.setup()
-        
-#     #Test the status, we should have some folder ready to execute.
-#     Pd.status()
-#     Pd.status(busy=True)
-
-#     #Test execution command; this uses stubs for all of the commands that would
-#     #be executed.
-#     Pd.execute(env_vars={"SLURM_ARRAY_TASK_ID": "1"})
-#     folder = path.join(reporoot, "tests", "data", "Pd", "recover")
-#     _mimic_vasp(folder, Pd.root)
-
-#     #Now that we have vasp files, we can queue recovery. The recover
-#     #`vasprun.xml` files that we linked to are not complete for all the
-#     #structures (on purpose).
-#     Pd.recover()
-#     recoveries = ["Pd.phonon-16.dynmatrix",
-#                   "Pd.phonon-32.dynmatrix",
-#                   "Pd.phonon-54.dynmatrix"]
-#     okay = ["Pd.phonon-2.dynmatrix",
-#             "Pd.phonon-4.dynmatrix"]
-#     for rkey in recoveries:
-#         assert path.isfile(path.join(Pd[rkey].root, "recovery.sh"))
-#     for rkey in okay:
-#         assert not path.isfile(path.join(Pd[rkey].root, "recovery.sh"))
-
-#     Pd.execute(env_vars={"SLURM_ARRAY_TASK_ID": "1"}, recovery=True)
-#     folder = path.join(reporoot, "tests", "data", "Pd", "rexecute")
-#     _mimic_vasp(folder, Pd.root)   
-
-#     #Now that we have recovered vasp files, we can queue a *second*
-#     #recovery. All but one of the `vasprun.xml` files that we linked to are
-#     #complete for all the structures. This test that we can recover and execute
-#     #multiple times in order.
-#     Pd.recover()
-#     recoveries = ["Pd.phonon-32.dynmatrix"]
-#     okay = ["Pd.phonon-2.dynmatrix",
-#             "Pd.phonon-16.dynmatrix",
-#             "Pd.phonon-4.dynmatrix",
-#             "Pd.phonon-54.dynmatrix"]
-#     for rkey in recoveries:
-#         assert path.isfile(path.join(Pd[rkey].root, "recovery.sh"))
-#     for rkey in okay:
-#         assert not path.isfile(path.join(Pd[rkey].root, "recovery.sh"))
-
-#     #Now copy the final files, which are all good.
-#     Pd.execute(env_vars={"SLURM_ARRAY_TASK_ID": "1"}, recovery=True)
-#     folder = path.join(reporoot, "tests", "data", "Pd", "complete")
-#     _mimic_vasp(folder, Pd.root)
-
-#     Pd.recover()
-#     okay = ["Pd.phonon-2.dynmatrix",
-#             "Pd.phonon-16.dynmatrix",
-#             "Pd.phonon-4.dynmatrix",
-#             "Pd.phonon-54.dynmatrix",
-#             "Pd.phonon-32.dynmatrix"]
-#     for rkey in okay:
-#         assert not path.isfile(path.join(Pd[rkey].root, "recovery.sh"))
+    """
+    Pd.setup()
     
-#     #We are finally ready to cleanup the phonon database.
-#     Pd.cleanup()
+    #Test the status, we should have some folder ready to execute.
+    Pd.status()
+    Pd.status(busy=True)
+
+    #Test execution command; this uses stubs for all of the commands that would
+    #be executed.
+    Pd.execute(env_vars={"SLURM_ARRAY_TASK_ID": "1"})
+    folder = path.join(reporoot, "tests", "data", "Pd", "recover")
+    _mimic_vasp(folder, Pd.root)
+
+    #Now that we have vasp files, we can queue recovery. The recover
+    #`vasprun.xml` files that we linked to are not complete for all the
+    #structures (on purpose).
+    Pd.recover()
+    recoveries = ["dynmatrix/phonon/Pd/dim-16.00",
+                  "dynmatrix/phonon/Pd/dim-32.00",
+                  "dynmatrix/phonon/Pd/dim-27.00"]
+    okay = ["dynmatrix/phonon/Pd/dim-2.00",
+            "dynmatrix/phonon/Pd/dim-4.00"]
+    for rkey in recoveries:
+        assert path.isfile(path.join(Pd[rkey].root, "recovery.sh"))
+    for rkey in okay:
+        assert not path.isfile(path.join(Pd[rkey].root, "recovery.sh"))
+
+    Pd.execute(env_vars={"SLURM_ARRAY_TASK_ID": "1"}, recovery=True)
+    folder = path.join(reporoot, "tests", "data", "Pd", "rexecute")
+    _mimic_vasp(folder, Pd.root)   
+
+    #Now that we have recovered vasp files, we can queue a *second*
+    #recovery. All but one of the `vasprun.xml` files that we linked to are
+    #complete for all the structures. This test that we can recover and execute
+    #multiple times in order.
+    Pd.recover()
+    recoveries = ["dynmatrix/phonon/Pd/dim-32.00"]
+    okay = ["dynmatrix/phonon/Pd/dim-2.00",
+            "dynmatrix/phonon/Pd/dim-16.00",
+            "dynmatrix/phonon/Pd/dim-4.00",
+            "dynmatrix/phonon/Pd/dim-27.00"]
+    for rkey in recoveries:
+        assert path.isfile(path.join(Pd[rkey].root, "recovery.sh"))
+    for rkey in okay:
+        assert not path.isfile(path.join(Pd[rkey].root, "recovery.sh"))
+
+    #Now copy the final files, which are all good.
+    Pd.execute(env_vars={"SLURM_ARRAY_TASK_ID": "1"}, recovery=True)
+    folder = path.join(reporoot, "tests", "data", "Pd", "complete")
+    _mimic_vasp(folder, Pd.root)
+
+    Pd.recover()
+    okay = ["dynmatrix/phonon/Pd/dim-2.00",
+            "dynmatrix/phonon/Pd/dim-16.00",
+            "dynmatrix/phonon/Pd/dim-4.00",
+            "dynmatrix/phonon/Pd/dim-27.00",
+            "dynmatrix/phonon/Pd/dim-32.00"]
+    for rkey in okay:
+        assert not path.isfile(path.join(Pd[rkey].root, "recovery.sh"))
     
-#     for rkey in okay:
-#         assert path.isfile(path.join(Pd[rkey].root, "phonopy", "FORCE_SETS"))
-#         assert path.isfile(path.join(Pd[rkey].root, "phonopy", "total_dos.dat"))
+    #We are finally ready to cleanup the phonon database.
+    Pd.cleanup()
+    
+    for rkey in okay:
+        assert path.isfile(path.join(Pd[rkey].root, "phonopy", "FORCE_SETS"))
+        assert path.isfile(path.join(Pd[rkey].root, "phonopy", "total_dos.dat"))
     
 # def test_split(Pd):
 #     """Tests the splitting logic and that the ids from original

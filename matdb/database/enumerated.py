@@ -5,7 +5,7 @@ from matdb import msg
 from os import path, getcwd, chdir, remove, listdir, mkdir
 import numpy as np
 from six import string_types
-import quippy
+from matdb.atoms import Atoms, AtomsList
 
 class Enumerated(Group):
     """Sets up the calculations for a random sampling of structures from
@@ -14,18 +14,24 @@ class Enumerated(Group):
     Args:
         sizes (list): a list containing the smallest and larges cell sizes to 
             include in the database.
-        basis (list): the atomic basis to use for the enumeration.
+        species (list): the atomic species included in the system.
         lattice (list or str): either the name of the lattice to use 
             ('sc','fcc','bcc', 'hcp') or the atomic basis vectors to use.
-        concs (list): the concentrations of each atomic species.
-        arrows (list): the maximum number of atoms to displace.
-        eps (float): floating point tolerance for comparisons.
-        species (list): the atomic species included in the system.
-        rseed (hashable): a seed to feed to the random number generator.
-        rattle (float): the amount to rattle the atoms by.
-        keep_supers (bool): True if the superperiodic cells are to be kept in the
-            enumerated list.
-        displace (float): the amount to displace atoms with arrows.
+        basis (list, optional): the atomic basis to use for the enumeration. 
+            Defaults to [0,0,0] the origin.
+        concs (list, optional): the concentrations of each atomic species. 
+            Defaults to None.
+        arrows (list, optional): the maximum number of atoms to displace.
+            Defaults ot None.
+        eps (float, optional): floating point tolerance for comparisons. 
+            Defaults to 1E-3.
+        rseed (hashable, optional): a seed to feed to the random number generator.
+            Defaults to None.
+        rattle (float, optional): the amount to rattle the atoms by. Defaults to 0.0.
+        keep_supers (bool, optional): True if the superperiodic cells are to be kept 
+            in the enumerated list. Defaults to False.
+        displace (float, optional): the amount to displace atoms with arrows. Defaults
+            to 0.0.
 
     .. note:: Additional attributes are also exposed by the super class
       :class:`Group`.
@@ -59,7 +65,7 @@ class Enumerated(Group):
             dbargs['root'] = new_root
         super(Enumerated, self).__init__(**dbargs)
         
-        if eps is not None:
+        if eps is None:
             self.eps = 10**(-3)
         else:
             self.eps = eps
@@ -91,7 +97,7 @@ class Enumerated(Group):
         elif sizes is not None and len(sizes)==2 and isinstance(sizes,list):
             self.min_size = sizes[0]
             self.max_size = sizes[1]
-        elif sizes is not None:
+        else:
             raise ValueError("The sizes specified must be a list of 1 or 2 values."
                              "If one value then it must be the largest cell size to include,"
                              "i.e., [32]. If 2 values then it the first value is the smallest "
@@ -232,7 +238,7 @@ class Enumerated(Group):
         """
         result = []
         for euid in self.euids:
-            folder = self.index[str(euid)]
+            folder = self.index[euid]
             target = path.join(folder,"atoms.json")
             if path.isfile(target):
                 result.append(folder)
@@ -240,21 +246,21 @@ class Enumerated(Group):
         return result 
         
     def rset(self):
-        """Returns a :class:`quippy.AtomsList`, one for each config in the
+        """Returns a :class:`matdb.atoms.AtomsList`, one for each config in the
         latest result set.
         """
         from matdb.database.basic import atoms_from_json
         if len(self.sequence) == 0:
             #Return the configurations from this group; it is at the
             #bottom of the stack
-            result = quippy.AtomsList()
+            result = AtomsList()
             for epath in self.atoms_paths:
                 result.append(atoms_from_json)
             return result
         else:
             result = []
             for e in self.sequence.values():
-                result.extend(e.rset)
+                result.extend(e.rset())
             return result
     
     def _build_lattice_file(self,target):
@@ -280,7 +286,7 @@ class Enumerated(Group):
             if self.arrow_res:
                 temp = []
                 for i, a in enumerate(self.arrows):
-                    temp.append("{0} {1}".format(" ".join([str(j) in self.concs[i]]),a))
+                    temp.append("{0} {1}".format(" ".join([str(j) for j in self.concs[i]]),a))
             else:
                 temp = [" ".join([str(i) for i in j]) for j in self.concs]
                     
@@ -303,7 +309,6 @@ class Enumerated(Group):
         with open(target,'w') as f:
             f.write(template.render(**settings))
 
-
     def _setup_configs(self, rerun=False):
         """Sets up the database structure for the enumeration code and creates
         the 'lattice.in' file. Also loops over the enumeration routine
@@ -321,15 +326,15 @@ class Enumerated(Group):
         # We need to construct a lattice.in file then run phenum so that
         # each system gets the correct number of configurations.
         current = getcwd()
-        chdir(self.root)
-        dind = 0
         self._build_lattice_file(self.root)
+        dind = 0
         # Perform the enumeration, we allow for multiple attempts since the
         # number of configs returned the first time could be to small for
         # enumerations over small systems.
+        chdir(self.root)
         recurse = 0
         while dind<self.nconfigs and recurse<5:
-            dind = self._enumerate(dind,recurse)
+            dind = self._enumerate(dind,recurse,current)
             recurse += 1
         chdir(current)
 
@@ -338,12 +343,15 @@ class Enumerated(Group):
         self.save_index()
         self.save_pkl(self.euids,self.euid_file)
 
-    def _enumerate(self,dind,recurse):
+    def _enumerate(self,dind,recurse,home):
         """Performs the enumeration using phenum and creates the files in the
         correct folder for each system enumerated.
 
         Args:
             dind (int): The number of configs found so far.
+            recurse (int): The number of times we've attempted to find
+                a unique set of enumerations over the same range.
+            home (str): The home directory.
         """
         from phenum.enumeration import _enum_out
         from phenum.makeStr import _make_structures
@@ -365,12 +373,14 @@ class Enumerated(Group):
         # Now we need to create the folder for each system we've enumerated
         if self.euids is None:
             self.euids = []
-        from quippy.atoms import Atoms
+        current = getcwd()
         for count, dposcar in enumerate(glob("vasp.*")):
             if euids[count] not in self.euids:
                 dind += 1
-                datoms = Atoms(dposcar,format="POSCAR")
+                datoms = Atoms(dposcar,format="vasp")
+                chdir(home)
                 self.create(datoms,cid=dind)
+                chdir(current)
                 self.index[euids[count]] = self.configs[dind]
                 self.euids.append(euids[count])
         [remove(f) for f in listdir('.') if f.startswith("vasp.")]
@@ -384,7 +394,6 @@ class Enumerated(Group):
         Args:
             rerun (bool): when True, recreate the folders even if they
               already exist.
-
         """
         super(Enumerated, self).setup(self._setup_configs,rerun)
 

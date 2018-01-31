@@ -2,18 +2,18 @@
 unit cell along phonon modes using the eigenvectors.
 """
 from matdb import msg
-from os import path
+from os import path, remove
 import numpy as np
 from operator import itemgetter
 from .basic import Group
 
-def _parsed_kpath(poscar):
+def _parsed_kpath(atoms):
     """Gets the special path in the BZ for the structure with the specified
-    POSCAR and then parses the results into the format required by the package
+    atoms object and then parses the results into the format required by the package
     machinery.
 
     Args:
-        poscar (str): path to the structure to get special path for.
+        atoms (:class:`matdb.atoms.Atoms`): a matdb `Atoms` object.
 
     Returns:
         tuple: result of querying the materialscloud.org special path
@@ -21,7 +21,10 @@ def _parsed_kpath(poscar):
         list of points corresponding to those labels.
     """
     from matdb.kpoints import kpath
-    ktup = kpath(poscar)
+    from ase.io import write
+    
+    write("KPATH_POSCAR",atoms,format="vasp")
+    ktup = kpath("KPATH_POSCAR")
     band = []
     labels = []
     names, points = ktup
@@ -41,6 +44,7 @@ def _parsed_kpath(poscar):
 
         band.append(points[key].tolist())
 
+    remove("KPATH_POSCAR")
     return (labels, band)
 
 class DynMatrix(Group):
@@ -49,7 +53,7 @@ class DynMatrix(Group):
     create the individual modulations.
 
     Args:
-        atoms (quippy.atoms.Atoms): seed configuration that will be
+        atoms (matdb.atoms.Atoms): seed configuration that will be
           displaced to generate the database.
         root (str): path to the folder where the database directories will
           be stored.
@@ -84,7 +88,6 @@ class DynMatrix(Group):
         phonodir (str): directory in which all `phonopy` executions take place.
         bandmesh (list): mesh for calculating the phonon bands.
         dosmesh (list): mesh for calculating the phonon density-of-states.
-
     """
     def __init__(self, phonopy={}, name="dynmatrix", bandmesh=None,
                  dosmesh=None, tolerance=0.1, **dbargs):
@@ -118,6 +121,13 @@ class DynMatrix(Group):
         self.phonodir = path.join(self.root, "phonopy")
         self.phonocache = path.join(self.root, "phoncache")
         self.kpathdir = path.join(self.root, "kpaths")
+        self.kfile = path.join(self.database.parent.kpathdir, "{0}.json".format(self.database.name))
+
+        self._kpath = None
+        """tuple: result of querying the materialscloud.org special path
+        service. First term is a list of special point labels; second is the
+        list of points corresponding to those labels.
+        """
 
         self._bands = None
         """dict: keys are ['q', 'w', 'path', 'Q'], values are the distance along
@@ -152,9 +162,9 @@ class DynMatrix(Group):
             supercell size.
         """
         #Find the cell size and DOS for each calculation in the sequence.
-        sizes = {k: np.det(np.reshape(np.array(d.supercell), (3, 3)))
+        sizes = {k: np.linalg.det(np.reshape(np.array(d.supercell), (3, 3)))
                  for k, d in self.sequence.items()}
-        dos = {k: np.readtxt(d.dos_file)
+        dos = {k: np.loadtxt(d.dos_file)
                for k, d in self.sequence.items()}
 
         #Find the calculation with the largest cell size and grab its DOS.
@@ -328,6 +338,36 @@ class DynMatrix(Group):
             self._bands = from_yaml(byaml)
         return self._bands
 
+    def get_kpath(self, atoms):
+        """Returns the materialscloud.org special path in k-space for the seed
+        configuration of this database.
+
+        Args:
+            atoms (:obj:`matdb.atoms.Atoms`): the atoms object the k_path is for.
+
+        Returns:
+            tuple: result of querying the materialscloud.org special path
+            service. First term is a list of special point labels; second is the
+            list of points corresponding to those labels.
+        """
+        if self._kpath is None:
+            import json
+            #We use some caching here so that we don't have to keep querying the
+            #server and waiting for an identical response.
+            if path.isfile(self.kfile):
+                with open(self.kfile) as f:
+                    kdict = json.load(f)
+            else:
+                from .phonon import _parsed_kpath
+                labels, band = _parsed_kpath(atoms)
+                kdict = {"labels": labels, "band": band}
+                with open(self.kfile, 'w') as f:
+                    json.dump(kdict, f)
+            
+            self._kpath = (kdict["labels"], kdict["band"])
+            
+        return self._kpath    
+    
     @property
     def kpath(self):
         """Returns the materialscloud.org special path in k-space for the seed
@@ -340,13 +380,14 @@ class DynMatrix(Group):
         """
         from .controller import Database
         from .basic import Group
-        
+
         if isinstance(self.parent, Database):
             #We actually need to build the kpath file and save it to disk. All
             #the nested Group instances will use the same kpath.
             pass
         elif isinstance(self.parent, DynMatrix):
-            return self.parent.kpath
+            atoms = self.atoms
+            return self.parent.get_kpath(atoms)
     
     def calc_bands(self, recalc=False):
         """Calculates the bands at the special points given by the
@@ -363,7 +404,7 @@ class DynMatrix(Group):
         #We need to create the band.conf file and write the special
         #paths in k-space at which the phonons should be calculated.
         settings = {
-            "ATOM_NAME": ' '.join(self.parent.species),
+            "ATOM_NAME": ' '.join(self.database.species),
             "DIM": ' '.join(map(str, self.supercell)),
             "MP": ' '.join(map(str, self.bandmesh))
         }
@@ -406,7 +447,7 @@ class DynMatrix(Group):
         #Make sure we have calculated the force sets already.
         self.calc_forcesets(recalc)
         settings = {
-            "ATOM_NAME": ' '.join(self.parent.species),
+            "ATOM_NAME": ' '.join(self.database.parent.species),
             "DIM": ' '.join(map(str, self.supercell)),
             "MP": ' '.join(map(str, self.dosmesh))
         }
@@ -491,7 +532,7 @@ class DynMatrix(Group):
             chdir(self.phonodir)
 
             try:
-                from quippy.atoms import Atoms
+                from matdb.atoms import Atoms
                 for dposcar in glob("POSCAR-*"):
                     dind = int(dposcar.split('-')[1])
                     datoms = Atoms(dposcar, format="POSCAR")
@@ -516,7 +557,7 @@ class DynMatrix(Group):
         """
         if not super(DynMatrix, self).cleanup():
             return
-        
+
         self.calc_forcesets(recalc)
         self.calc_DOS(recalc)
         return self.ready()
@@ -658,7 +699,7 @@ class Calibration(Group):
     in the linear regime .
 
     Args:
-        atoms (quippy.atoms.Atoms): seed configuration that will be
+        atoms (matdb.atoms.Atoms): seed configuration that will be
           displaced to generate the database.
         root (str): path to the folder where the database directories will
           be stored.
@@ -749,7 +790,7 @@ class Calibration(Group):
 
         #Read in the XYZ file and extract the forces on each atom in each
         #configuration.
-        import quippy
+        from matdb.atoms import AtomsList
         forces = {}
         failed = 0
         for cid, folder in self.configs.items():
@@ -758,7 +799,7 @@ class Calibration(Group):
             #finish, then we exclude it. This happens for some of the
             #calibration runs if the atoms are too close together.
             try:
-                al = quippy.AtomsList(path.join(folder, "output.xyz"))
+                al = AtomsList(path.join(folder, "output.xyz"))
                 forces[cid] = np.mean(np.abs(np.array(al[0].dft_force)), axis=1)
             except:
                 failed += 1
@@ -802,7 +843,7 @@ class Calibration(Group):
         
         from os import getcwd, chdir, remove
         from glob import glob
-        from quippy.atoms import Atoms
+        from matdb.atoms import Atoms
         current = getcwd()
         chdir(self.base.phonodir)
 
@@ -842,7 +883,7 @@ class Modulation(Group):
     moved, within a supercell, according to phonon eigenmodes.
 
     Args:
-        atoms (quippy.atoms.Atoms): seed configuration that will be
+        atoms (matdb.atoms.Atoms): seed configuration that will be
           displaced to generate the database.
         root (str): path to the folder where the database directories will
           be stored.
@@ -980,7 +1021,7 @@ class Modulation(Group):
 
             from os import getcwd, chdir, remove
             from glob import glob
-            from quippy.atoms import Atoms
+            from matdb.atoms import Atoms
             current = getcwd()
             chdir(self.base.phonodir)
 
