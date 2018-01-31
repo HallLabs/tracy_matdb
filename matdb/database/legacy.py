@@ -8,6 +8,7 @@ from os import path
 import numpy as np
 from matdb import msg
 from matdb.atoms import AtomsList, Atoms
+from ase.io import write
 
 def _quick_write(atlist, outpath):
     """Writes the atoms list to file using the :class:`ase.io.write`.
@@ -17,7 +18,6 @@ def _quick_write(atlist, outpath):
         outpath (str): full path to the location of the output file to write.
 
     """
-    from ase.io import write
     write(outpath,atlist)            
 
 def _atoms_conform(dbfile, energy, force, virial):
@@ -131,7 +131,7 @@ class LegacyDatabase(object):
                 np.random.shuffle(N)
                 ids = N[0:limit]
                 part = full[ids]
-                part.write(self._dbfile)
+                write(self._dbfile,part)
                 dbcat([self._dbfull], self._dbfile, docat=False, limit=limit,
                       ids=ids)
             else:
@@ -148,7 +148,6 @@ class LegacyDatabase(object):
         from matdb.utility import chdir, dbcat
         from glob import glob
         from tqdm import tqdm
-        import quippy.cinoutput as qcio
         from os import path
         
         #NB! There is a subtle bug here: if you try and open a matdb.atoms.Atoms
@@ -168,28 +167,24 @@ class LegacyDatabase(object):
                 msg.std("Conforming database file {}.".format(dbpath))
                 al = AtomsList(dbpath)
                 outpath = path.join(self.root, dbfile)
-                out = qcio.CInOutputWriter(outpath)
-                try:
-                    for ai in tqdm(al):
-                        for target, source in params.items():
-                            if (target == "config_type" and
-                                  config_type is not None):
-                                ai.params[target] = config_type
-                            else:
-                                ai.params[target] = ai.params[source]
-                                del ai.params[source]
+                for ai in tqdm(al):
+                    for target, source in params.items():
+                        if (target == "config_type" and
+                            config_type is not None):
+                            ai.params[target] = config_type
+                        else:
+                            ai.params[target] = ai.params[source]
+                            del ai.params[source]
 
-                        if doforce:
-                            ai.properties["dft_force"] = ai.properties[force]
-                            del ai.properties[force]
+                    if doforce:
+                        ai.properties["dft_force"] = ai.properties[force]
+                        del ai.properties[force]
 
-                        ai.write(out)
+                    write(outpath,ai)
 
-                    #Mark this db as non-conforming so that we created a new
-                    #version of it.
-                    rewrites.append(dbfile)
-                finally:
-                    out.close()
+                #Mark this db as non-conforming so that we created a new
+                #version of it.
+                rewrites.append(dbfile)
 
                 dbcat([dbpath], outpath, docat=False, renames=params,
                       doforce=doforce)

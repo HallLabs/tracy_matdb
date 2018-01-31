@@ -32,14 +32,19 @@ class Atoms(ase.Atoms):
                                         tags, momenta, masses, magmoms, charges,
                                         scaled_positions, cell, pbc, constraint,
                                         calculator)
-
+            
         if "params" not in self.info:
             self.info["params"]={}
         if "properties" not in self.info:
             self.info["properties"]={}
         setattr(self,"params",self.info["params"])
         setattr(self,"properties",self.info["properties"])
-
+        
+        if hasattr(self,"calc"):
+            if hasattr(self.calc,"results"):
+                for k, v in self.calc.results.items():
+                    self.add_param(k,v)
+                
         if properties is not None:
             for k, v in properties.items():
                 self.add_property(k,v)

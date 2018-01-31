@@ -4,7 +4,7 @@ import pytest
 from matdb.database.legacy import LegacyDatabase
 from matdb.utility import relpath
 from os import mkdir, path
-import quippy
+from matdb.atoms import AtomsList, Atoms
 
 @pytest.fixture
 def phondb(tmpdir):
@@ -18,7 +18,7 @@ def phondb(tmpdir):
     if not path.isdir(root):
         mkdir(root)
     folder = relpath("./tests/data/legacy")
-    
+
     return LegacyDatabase("AgPd-50", root, None, splits, folder, "p-50-*.xyz",
                           "ph")
 
@@ -33,7 +33,8 @@ def rendb(tmpdir):
     root = str(tmpdir.join("legacy"))
     if not path.isdir(root):
         mkdir(root)
-    folder = relpath("./tests/data/legacy")    
+    folder = relpath("./tests/data/legacy")
+
     return LegacyDatabase("R-50", root, None, splits, folder, "r-50-*.xyz",
                           "re", energy="energy", force="force", virial="virial",
                           limit=80)
@@ -50,9 +51,9 @@ def test_split(phondb):
         hfile = path.join(phondb.holdout_file(s))
         sfile = path.join(phondb.super_file(s))
 
-        tal = quippy.AtomsList(tfile)
-        hal = quippy.AtomsList(hfile)
-        sal = quippy.AtomsList(sfile)
+        tal = AtomsList(tfile)
+        hal = AtomsList(hfile)
+        sal = AtomsList(sfile)
         supers[s] = sal
 
         assert len(tal) == int(np.ceil(150*p))
@@ -74,7 +75,7 @@ def test_split(phondb):
     
     for s, p in phondb.splits.items():
         sfile = path.join(phondb.super_file(s))
-        sal = quippy.AtomsList(sfile)
+        sal = AtomsList(sfile)
         assert sal == supers[s]
 
 def test_errors(tmpdir, rendb):
@@ -97,7 +98,7 @@ def test_errors(tmpdir, rendb):
 def test_merge(phondb):
     """Tests merger of the databases into a single DB.
     """
-    combined = quippy.AtomsList(phondb._dbfile)
+    combined = AtomsList(phondb._dbfile)
     assert len(combined) == 150
     assert  combined[20].params["config_type"] == "ph"
 
@@ -109,11 +110,11 @@ def test_merge(phondb):
 def test_rename(rendb):
     """Tests renaming of properties to meet `matdb` conventions.
     """
-    first = quippy.Atoms(rendb._dbfile)
+    first = Atoms(rendb._dbfile)
     assert "dft_energy" in first.params
     assert "dft_force" in first.properties
     assert "dft_virial" in first.params
     assert  first.params["config_type"] == "re"
 
-    al = quippy.AtomsList(rendb._dbfile)
+    al = AtomsList(rendb._dbfile)
     assert len(al) == 80
