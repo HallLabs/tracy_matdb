@@ -13,11 +13,12 @@
 """
 import ase
 from ase.calculators.vasp import Vasp
-from os import path, stat, mkdir, getcwd, chdir
+from os import path, stat, mkdir
 import mmap
 from matdb.calculators.basic import AsyncCalculator
 from matdb import msg
 from matdb.kpoints import custom as write_kpoints
+from matdb.utility import chdir
 
 def phonon_defaults(d):
     """Adds the usual settings for the INCAR file when performing frozen-phonon
@@ -199,8 +200,6 @@ class AsyncVasp(Vasp, AsyncCalculator):
 
         # we need to move into the folder being cleaned up in order to
         # let ase check the convergence
-        cur_dir = getcwd()
-        chdir(folder)
-        self.converged = self.read_convergence()
-        self.set_results(self.atoms)
-        chdir(cur_dir)
+        with chdir(folder):
+            self.converged = self.read_convergence()
+            self.set_results(self.atoms)
