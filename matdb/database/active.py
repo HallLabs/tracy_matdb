@@ -87,7 +87,7 @@ class Active(Group):
         #bottom of the stack
         result = AtomsList()
         for epath in self.atoms_paths:
-            result.append(atoms_from_json)
+            result.append(atoms_from_json(epath))
         return result
 
     def add_configs(self,new_configs,iteration):
@@ -111,10 +111,11 @@ class Active(Group):
         # of the active learning have already been visited by
         # constructing their auids and then verifying that the auid
         # hasn't been visited before.
-        did = len(self.auids)
+        dind = len(self.auids)
         iter_ind = 0
+        from hashlib import sha1 
         for config in self.new_configs:
-            auid = hash(tuple([tuple(i) for i in config.cell]),
+            auid = sha1(tuple([tuple(i) for i in config.cell]),
                         tuple([tuple(i) for i in config.positions]),
                         tuple(config.get_chemical_symbols()))
             if auid in self.auids:
