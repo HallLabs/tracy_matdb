@@ -39,7 +39,8 @@ setup(name='matdb',
           "tqdm",
           "html5lib",
           "mpld3",
-          "phenum"
+          "phenum",
+          "h5py"
       ],
       packages=['matdb', 'matdb.database', 'matdb.fitting','matdb.calculators'],
       scripts=['matdb/scripts/matdb_build.py',
