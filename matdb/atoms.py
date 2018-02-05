@@ -5,6 +5,8 @@ code for some of the implementation.
 import ase
 import numpy as np
 from copy import deepcopy
+import h5py
+from ase.io import write, read
 
 class Atoms(ase.Atoms):
     """An implementation of the :class:`ase.Atoms` object that adds the
@@ -25,7 +27,7 @@ class Atoms(ase.Atoms):
             try:
                 self.copy_from(symbols)
             except TypeError:
-                self.__init__(ase.io.read(symbols,**readargs))
+                self.__init__(self.read(symbols,**readargs))
 
         else:
             super(Atoms, self).__init__(symbols, positions, numbers,
@@ -189,7 +191,65 @@ class Atoms(ase.Atoms):
         for k, v in other.__dict__.iteritems():
             if not k.startswith('_') and k not in self.__dict__:
                 self.__dict__[k] = v
-        
+
+    def read(self,target,format=None,**kwargs):
+        """Reads an atoms object in from file.
+
+        Args:
+            target (str): The path to the target file.
+            format (str): Optional format string for file. If not specified hpf5
+              is assumed.
+        """
+
+        if format is None or formati is "hdf5":
+            hf = h5py.File(target,"r")
+
+        else:
+            self.__init__(read(target,**kwargs))
+            
+    def write(self,taregt,format=None,**kwargs):
+        """Writes an atoms object to file.
+
+        Args:
+            target (str): The path to the target file.
+            format (str): Optional format string for file. If not specified hpf5
+              is assumed.
+        """
+
+        if format is None or formati is "hdf5":
+            hf = h5py.File(target,"w")
+
+            data = {}
+            data["n"] = len(self.positions)
+            data["pbc"] = self.pbc
+            data["params"] = self.params.copy()
+            data["properties"] = {}
+            for prop, value in self.properties.items():
+                if prop not in ["pos", "species", "Z", "n_neighb", "map_shift"]:
+                    newname = prop + '_'
+                    if isinstance(value,(list,np.array)):
+                        data["properties"][new_name] = np.array(value)
+                    else:
+                        data["properties"][new_name] = value
+
+            data["atoms"] = {}
+            numbers = self.get_atomic_numbers()
+            pos = self.positions
+            if self.calc is not None:
+                forces = self.get_forces()
+            else:
+                forces = None
+            symbols = self.get_chemical_symbols()
+            
+            for i in range(data["n"]):
+                data["atoms"][i] = {"species":symbols[i],"pos":np.array(pos[i]),
+                                    "atomic number":numbers[i]}
+                if forces is not None:
+                    data["atoms"][i]["forces"]=np.array(forces[i])
+                
+        else:
+            write(target,self)
+            
 class AtomsList(list):
     """An AtomsList like object for storing lists of Atoms objects read in
     from file.
