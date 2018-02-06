@@ -115,9 +115,9 @@ class Active(Group):
         iter_ind = 0
         from hashlib import sha1 
         for config in self.new_configs:
-            auid = sha1(tuple([tuple(i) for i in config.cell]),
+            auid = sha1(''.join(tuple(tuple([tuple(i) for i in config.cell]),
                         tuple([tuple(i) for i in config.positions]),
-                        tuple(config.get_chemical_symbols()))
+                        tuple(config.get_chemical_symbols()))).encode('utf-8'))
             if auid in self.auids:
                 self.nconfigs -= 1
                 continue
