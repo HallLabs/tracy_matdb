@@ -8,7 +8,52 @@ from copy import deepcopy
 import h5py
 from ase.io import write, read
 
+def _convert_atoms_to_dict(atoms):
+    """Converts the contents of a :class:`matdb.atoms.Atoms` object to a
+    dictionary so it can be saved to file.
+
+    Args:
+        atoms (matdb.atams.Atoms): the atoms object to be converted to 
+            a dictionary
+
+    Returns:
+        A dictionary containing the relavent parts of an atoms object to 
+        be saved.
+    """
+    data = {}
+    data["n"] = len(self.positions)
+    data["pbc"] = self.pbc
+    data["params"] = self.params.copy()
+    data["properties"] = {}
+    for prop, value in self.properties.items():
+        if prop not in ["pos", "species", "Z", "n_neighb", "map_shift"]:
+            newname = prop + '_'
+        if isinstance(value,(list,np.array)):
+            data["properties"][new_name] = np.array(value)
+        else:
+            data["properties"][new_name] = value
+
+    data["atoms"] = {}
+    numbers = self.get_atomic_numbers()
+    pos = self.positions
+    if self.calc is not None:
+        forces = self.get_forces()
+        data["dft_energy"] = self.calc.results["energy"]
+        data["dft_virial"] = sum(self.calc.results["local_virial"])
+    else:
+        forces = None
+        symbols = self.get_chemical_symbols()
+        
+    for i in range(data["n"]):
+        data["atoms"][i] = {"species":symbols[i],"pos":np.array(pos[i]),
+                            "atomic number":numbers[i]}
+        if forces is not None:
+            data["atoms"][i]["dft_forces"]=np.array(forces[i])
+
+    return data
+
 class Atoms(ase.Atoms):
+
     """An implementation of the :class:`ase.Atoms` object that adds the
     additional attributes of params and properties and reads the atoms
     object in from file.
@@ -202,8 +247,10 @@ class Atoms(ase.Atoms):
         """
 
         if format is None or formati is "hdf5":
+            from matdb.utility import load_dict_from_h5
             hf = h5py.File(target,"r")
-
+            data = load_dict_from_h5(hf)
+            self.__init__(**data)
         else:
             self.__init__(read(target,**kwargs))
             
@@ -217,36 +264,10 @@ class Atoms(ase.Atoms):
         """
 
         if format is None or formati is "hdf5":
+            from matdb.utility import save_dict_to_h5
             hf = h5py.File(target,"w")
-
-            data = {}
-            data["n"] = len(self.positions)
-            data["pbc"] = self.pbc
-            data["params"] = self.params.copy()
-            data["properties"] = {}
-            for prop, value in self.properties.items():
-                if prop not in ["pos", "species", "Z", "n_neighb", "map_shift"]:
-                    newname = prop + '_'
-                    if isinstance(value,(list,np.array)):
-                        data["properties"][new_name] = np.array(value)
-                    else:
-                        data["properties"][new_name] = value
-
-            data["atoms"] = {}
-            numbers = self.get_atomic_numbers()
-            pos = self.positions
-            if self.calc is not None:
-                forces = self.get_forces()
-            else:
-                forces = None
-            symbols = self.get_chemical_symbols()
-            
-            for i in range(data["n"]):
-                data["atoms"][i] = {"species":symbols[i],"pos":np.array(pos[i]),
-                                    "atomic number":numbers[i]}
-                if forces is not None:
-                    data["atoms"][i]["forces"]=np.array(forces[i])
-                
+            data = _convert_atoms_to_dict(self)
+            save_dict_to_h5(hf,'/',data)
         else:
             write(target,self)
             
@@ -358,3 +379,42 @@ class AtomsList(list):
     def apply(self, func):
         return np.array([func(at) for at in self])
         
+    def read(self,target,format=None,**kwargs):
+        """Reads an atoms object in from file.
+
+        Args:
+            target (str): The path to the target file.
+            format (str): Optional format string for file. If not specified hpf5
+              is assumed.
+            kwargs (dict): A dictionary of arguments to pass to the ase 
+              read function.
+        """
+        if format is None or formati is "hdf5":
+            from matdb.utility import load_dict_from_h5
+            hf = h5py.File(target,"r")
+            data = load_dict_from_h5(hf)
+            atoms = [Atoms(**d) for d in data.values()]
+            self.__init__(atoms)
+        else:
+            self.__init__(read(target,**kwargs))
+            
+    def write(self,taregt,format=None,**kwargs):
+        """Writes an atoms object to file.
+
+        Args:
+            target (str): The path to the target file.
+            format (str): Optional format string for file. If not specified hpf5
+              is assumed.
+            kwargs (dict): A dictionary of key word args to pass to the ase 
+              write function.
+        """
+
+        if format is None or formati is "hdf5":
+            from matdb.utility import save_dict_to_h5
+            hf = h5py.File(target,"w")
+            for i in range(len(self)):
+                data = _convert_atoms_to_dict(self[i])
+                hf.create_group("atom_{}".format(i))
+                save_dict_to_h5(hf,data,"/atom_{}/".format(i))
+        else:
+            write(target,self)

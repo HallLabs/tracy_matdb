@@ -4,6 +4,8 @@ from os import path
 from six import string_types
 from matdb import msg
 import six
+import numpy as np
+import h5py
 
 import sys
 from contextlib import contextmanager
@@ -869,3 +871,38 @@ class ParameterGrid(collections.MutableSet):
             return len(self) == len(other) and list(self) == list(other)
         return set(self) == set(other)
 
+def save_dict_to_h5(h5file, dic,path='/'):
+    """Saves a nested dictionary to an open hdf5 file.
+
+    Args:
+        h5file (file object): the h5 file to be saved to.
+        dic (dict): the dictionary to save.
+        path (str, optional): the path within the h5 file that the dict will be 
+            saved to. Default is '/'.
+    """
+    for key, item in dic.items():
+        if isinstance(item, (np.ndarray, np.int64, np.float64, str, bytes)):
+            h5file[path + key] = item
+        elif isinstance(item, dict):
+            save_dict_to_h5(h5file, item, path + key + '/')
+        else:
+            raise ValueError('Cannot save %s type'%type(item))
+
+def load_dict_from_h5(h5file, path='/'):
+    """Reads an open hdf5 file into a dictionary.
+
+    Args:
+        h5file (file object): the h5 file to be read.
+        path (str, optional): the path within the h5 file presently being 
+            read. Default is '/'.
+
+    Returns:
+        ans (dict): a dictionary containing the contents of the h5 file.
+    """
+    ans = {}
+    for key, item in h5file[path].items():
+        if isinstance(item, h5py._hl.dataset.Dataset):
+            ans[key] = item.value
+        elif isinstance(item, h5py._hl.group.Group):
+            ans[key] = load_dict_from_h5(h5file, path + key + '/')
+    return ans

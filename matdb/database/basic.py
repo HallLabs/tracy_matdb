@@ -20,14 +20,14 @@ from .controller import Database
 from matdb import calculators
 from matdb.atoms import Atoms, AtomsList
 
-def atoms_to_json(atoms, folder):
+def atoms_to_hdf5(atoms, folder):
     """Exports the specified atoms object, with its calculator's parameters, to
-    a `atoms.json` file.
+    a `atoms.h5` file.
     Args:
         atoms (matdb.atoms.Atoms): configuration to write to JSON.
         folder (str): path to the folder to write the file in.
     """
-    db = ase.db.connect(path.join(folder, "atoms.json"))
+    db = ase.db.connect(path.join(folder, "atoms.h5"))
     #We need to extract out the additional parameters that a matdb.atoms.Atoms object
     #can have, but which are not supported by ASE.
     handled = ["id", "volume", "magmom", "age", "mass", "formula",
@@ -50,7 +50,7 @@ def atoms_to_json(atoms, folder):
 
     db.write(atoms, data=data)
 
-def atoms_from_json(folder):
+def atoms_from_hdf5(folder):
     """Retrieves a :class:`matdb.atoms.Atoms` object from JSON in the specified
     folder.
     Args:

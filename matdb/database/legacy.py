@@ -173,14 +173,16 @@ class LegacyDatabase(object):
                             config_type is not None):
                             ai.params[target] = config_type
                         else:
-                            ai.params[target] = ai.params[source]
+                            ai.add_param(target,ai.params[source])
                             del ai.params[source]
+                            if source in ai.info:
+                                del ai.info[source]
 
                     if doforce:
                         ai.properties["dft_force"] = ai.properties[force]
                         del ai.properties[force]
 
-                    write(outpath,ai)
+                write(outpath,al)
 
                 #Mark this db as non-conforming so that we created a new
                 #version of it.
