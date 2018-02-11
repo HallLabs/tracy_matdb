@@ -7,6 +7,28 @@ import numpy as np
 from copy import deepcopy
 import h5py
 from ase.io import write, read
+from six import string_types
+
+def _recursively_convert_units(in_dict):
+    """Recursively goes through a dictionary and converts it's units to be
+    numpy instead of standard arrays.
+
+    Args:
+        in_dict (dict): the input dictionary.
+
+    Returns:
+        a copy of the dict with the entries converted to numpy ints,
+        floats, and arrays.
+    """
+
+    for key, item in in_dict.items():
+        if isinstance(item,int):
+            in_dict[key] = np.int64(item)
+        elif isinstance(item,float):
+            in_dict[key] = np.float64(item)
+        elif isinstance(item,dict):
+            in_dict[key] = _recursively_convert_units(item)
+    return in_dict
 
 def _convert_atoms_to_dict(atoms):
     """Converts the contents of a :class:`matdb.atoms.Atoms` object to a
@@ -21,35 +43,28 @@ def _convert_atoms_to_dict(atoms):
         be saved.
     """
     data = {}
-    data["n"] = len(self.positions)
-    data["pbc"] = self.pbc
-    data["params"] = self.params.copy()
+    data["n"] = np.int64(len(atoms.positions))
+    data["pbc"] = np.array(atoms.pbc)
+    data["params"] = _recursively_convert_units(atoms.params.copy())
     data["properties"] = {}
-    for prop, value in self.properties.items():
+    for prop, value in atoms.properties.items():
         if prop not in ["pos", "species", "Z", "n_neighb", "map_shift"]:
-            newname = prop + '_'
-        if isinstance(value,(list,np.array)):
-            data["properties"][new_name] = np.array(value)
-        else:
-            data["properties"][new_name] = value
+            new_name = prop# + '_'
+            if isinstance(value,(list,np.ndarray)):
+                data["properties"][new_name] = np.array(value)
+            else:
+                data["properties"][new_name] = np.float64(value)
 
-    data["atoms"] = {}
-    numbers = self.get_atomic_numbers()
-    pos = self.positions
-    if self.calc is not None:
-        forces = self.get_forces()
-        data["dft_energy"] = self.calc.results["energy"]
-        data["dft_virial"] = sum(self.calc.results["local_virial"])
-    else:
-        forces = None
-        symbols = self.get_chemical_symbols()
-        
-    for i in range(data["n"]):
-        data["atoms"][i] = {"species":symbols[i],"pos":np.array(pos[i]),
-                            "atomic number":numbers[i]}
-        if forces is not None:
-            data["atoms"][i]["dft_forces"]=np.array(forces[i])
+    data["positions"] = np.array(atoms.positions)
+    if atoms.calc is not None:
+        data["forces"] = np.array(atoms.get_forces())
+        data["energy"] = np.float64(atoms.energy)
+        data["virial"] = np.array(atoms.virial)
+        data["calc"] = atoms.calc.name
+        data["calcargs"] = atoms.calc.calc_args
 
+    symbols = atoms.get_chemical_symbols()
+    data["symbols"] = ''.join([i+str(symbols.count(i)) for i in set(symbols)])
     return data
 
 class Atoms(ase.Atoms):
@@ -68,7 +83,7 @@ class Atoms(ase.Atoms):
                  fpointer=None, finalise=True,
                  **readargs):
 
-        if symbols is not None:
+        if symbols is not None and not isinstance(symbols,string_types):
             try:
                 self.copy_from(symbols)
             except TypeError:
@@ -209,7 +224,8 @@ class Atoms(ase.Atoms):
 
             # copy params/info dicts
             if hasattr(other, 'params'):
-                self.params.update(other.params)
+                for k, v in other.params.items():
+                    self.add_param(k,v)
             if hasattr(other, 'info'):
                 self.params.update(other.info)
                 if 'nneightol' in other.info:
@@ -237,37 +253,39 @@ class Atoms(ase.Atoms):
             if not k.startswith('_') and k not in self.__dict__:
                 self.__dict__[k] = v
 
-    def read(self,target,format=None,**kwargs):
+    def read(self,target="atoms.h5",format=None,**kwargs):
         """Reads an atoms object in from file.
 
         Args:
-            target (str): The path to the target file.
+            target (str): The path to the target file. Default "atoms.h5".
             format (str): Optional format string for file. If not specified hpf5
               is assumed.
         """
 
-        if format is None or formati is "hdf5":
+        if format is None or format is "h5":
             from matdb.utility import load_dict_from_h5
             hf = h5py.File(target,"r")
             data = load_dict_from_h5(hf)
             self.__init__(**data)
+            # if "energy" in data:
+            #     self.add_param(
         else:
             self.__init__(read(target,**kwargs))
             
-    def write(self,taregt,format=None,**kwargs):
+    def write(self,target="atoms.h5",format=None,**kwargs):
         """Writes an atoms object to file.
 
         Args:
-            target (str): The path to the target file.
-            format (str): Optional format string for file. If not specified hpf5
+            target (str): The path to the target file. Default is "atoms.h5".
+            format (str): Optional format string for file. If not specified hdf5
               is assumed.
         """
 
-        if format is None or formati is "hdf5":
+        if format is None or format is "h5":
             from matdb.utility import save_dict_to_h5
             hf = h5py.File(target,"w")
             data = _convert_atoms_to_dict(self)
-            save_dict_to_h5(hf,'/',data)
+            save_dict_to_h5(hf,data,'/')
         else:
             write(target,self)
             

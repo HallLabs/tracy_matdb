@@ -12,9 +12,8 @@ class SyncQuip(quippy.Potential, SyncCalculator):
         self.calcargs = [] if calcargs is None else calcargs
         self.calckw = {} if calckw is None else calckw
         super(SyncQuip, self).__init__(*self.calcargs, **self.calckw)
-        #self.atoms = atoms
+        # self.atoms = atoms
         self._convert_atoms(atoms)
-        print(type(self.atoms))
         self.folder = folder
         self.name = "Quip"
 
@@ -46,39 +45,37 @@ class SyncQuip(quippy.Potential, SyncCalculator):
     def todict(self):
         return {"calcargs": self.calcargs, "calckw": self.calckw}
 
-    def can_execute(self):
+    # def calc(self,kwargs):
+    #     """Replaces the calc function with one that returns a matdb atoms object.
+        
+    #     Args:
+    #         kwargs (dict): the key work arguments to the :clas:`quippy.Potential` 
+    #           calc function.
+    #     """
+    #     import matdb
+    #     temp_A = self._convert_atoms()
+    #     super(SyncQuip,self).calc(temp_A,**kwargs)
+    #     self.aotms = matdb.atoms.Atoms(temp_A)
 
+    def can_execute(self):
         """Returns `True` if this calculation can calculate properties for the
         specified atoms object.
-
-        Args:
-            atoms (quippy.Atoms): config to test executability for.
         """
         return True
 
     def can_cleanup(self):
         """Returns True if the specified atoms object has completed executing and the
         results are available for use.
-
-        Args:
-            atoms (quippy.Atoms): config to check execution completion for.
         """
         return True
 
     def is_executing(self):
         """Returns True if the specified config is in process of executing.
-
-        Args:
-            atoms (quippy.Atoms): config to check execution for.
         """
         return False
 
     def create(self):
         """Initializes the calculator for the specified atoms object if
         necessary.
-
-        Args:
-            atoms (quippy.Atoms): config to initialize for.
         """
         pass
-
