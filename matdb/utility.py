@@ -871,7 +871,7 @@ class ParameterGrid(collections.MutableSet):
             return len(self) == len(other) and list(self) == list(other)
         return set(self) == set(other)
 
-def save_dict_to_h5(h5file, dic,path='/'):
+def save_dict_to_h5(h5file, dic, path='/'):
     """Saves a nested dictionary to an open hdf5 file.
 
     Args:
