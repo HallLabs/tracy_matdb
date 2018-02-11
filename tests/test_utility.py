@@ -2,7 +2,7 @@
 """Tests the utility functions.
 """
 import pytest
-from os import path
+from os import path, remove
 import numpy as np
 import six
 
@@ -40,7 +40,6 @@ def compare_nested_dicts(dict1,dict2):
             return False
 
     return True
-
 
 def test_execute():
     """Tests the execution via shell subprocess in a different folder.
@@ -355,3 +354,40 @@ def test_get_grid():
 
     assert compare_nested_dicts(test,model)
     
+def test_hdf5_in_out():
+    """Tests the writing of dictionaries to hdf5 and reading back out.
+    """
+
+    import h5py
+    from matdb.utility import load_dict_from_h5, save_dict_to_h5
+
+    dict_1_in = {"a":{"B":np.int64(1),"C":np.int64(3),"D":{"temp":np.array([10,11,12])}},
+                 "n":np.array([3,2]),"t":np.int64(5)}
+    dict_2_in = {"a":np.int64(10),"b":np.array([1,2,10])}
+
+    hf = h5py.File("temp.h5","w")
+    save_dict_to_h5(hf,dict_1_in,"/")
+    hf.close()
+
+    hf = h5py.File("temp.h5","r")
+    out = load_dict_from_h5(hf)
+    hf.close()
+    assert compare_nested_dicts(dict_1_in,out)
+    remove("temp.h5")
+    
+    hf = h5py.File("temp.h5","w")
+    save_dict_to_h5(hf,dict_2_in,"/")
+    hf.close()
+
+    hf = h5py.File("temp.h5","r")
+    out = load_dict_from_h5(hf)
+    hf.close()
+    assert compare_dicts(dict_2_in,out)
+    remove("temp.h5")
+
+    hf = h5py.File("temp.h5","w")
+
+    with pytest.raises(ValueError):
+        save_dict_to_h5(hf,{"a":2},"/")
+    hf.close()
+    remove("temp.h5")
