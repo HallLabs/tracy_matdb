@@ -13,75 +13,13 @@ import six
 from collections import OrderedDict
 from glob import glob
 import json
+import lazy_load
 
 from matdb import msg
 from matdb.utility import chdir, ParameterGrid
 from .controller import Database
-from matdb import calculators
+calculators = lazy_import.lazy_module("matdb.calculators")
 from matdb.atoms import Atoms, AtomsList
-
-def atoms_to_hdf5(atoms, folder):
-    """Exports the specified atoms object, with its calculator's parameters, to
-    a `atoms.h5` file.
-    Args:
-        atoms (matdb.atoms.Atoms): configuration to write to JSON.
-        folder (str): path to the folder to write the file in.
-    """
-    db = ase.db.connect(path.join(folder, "atoms.h5"))
-    #We need to extract out the additional parameters that a matdb.atoms.Atoms object
-    #can have, but which are not supported by ASE.
-    handled = ["id", "volume", "magmom", "age", "mass", "formula",
-               "user", "charge", "unique_id", "fmax"]
-    data = {}
-    for param, value in atoms.params.items():
-        if param not in handled:
-            data[param] = value
-
-    props = []
-    for prop, value in atoms.properties.items():
-        if prop not in ["pos", "species", "Z", "n_neighb", "map_shift"]:
-            #For Hessian fitting in GAP, we need the eigenvalue parameter and
-            #eigenvector property to have the same name. This introduces a
-            #collision in our scheme here.
-            newname = prop + '_'
-            data[newname] = value
-            props.append(newname)
-    data["propnames"] = props
-
-    db.write(atoms, data=data)
-
-def atoms_from_hdf5(folder):
-    """Retrieves a :class:`matdb.atoms.Atoms` object from JSON in the specified
-    folder.
-    Args:
-        folder (str): path to the folder that has the `atoms.json` file.
-    """
-    db = ase.db.connect(path.join(folder, "atoms.json"))
-    row = db.get()
-    atoms = Atoms()
-    _atoms = row.toatoms()
-    atoms.copy_from(_atoms)
-
-    props = row.data.propnames
-    for prop in props:
-        #Undo the extra '_' that we appended to avoid collision between the
-        #parameters and properties when saved to local data object.
-        atoms.add_property(prop[0:-1], np.array(row.data[prop]))
-
-    for param in row.data:
-        if param not in props:
-            atoms.add_param(param,row.data[param])
-
-    calcargs = row.get('calculator_parameters', {})
-    calculator = getattr(calculators, row.calculator.title())
-    #We have to coerce all unicode strings into standard strings for
-    #interoperability with the Fortran in QUIP.
-    if row.calculator == "quip":
-        caster = lambda a: str(a) if isinstance(a, unicode) else a
-        calcargs["calcargs"] = list(map(caster, calcargs["calcargs"]))
-    atoms.calc = calculator(atoms, folder, **calcargs)
-            
-    return atoms
 
 class Group(object):
     """Represents a collection of material configurations (varying in
