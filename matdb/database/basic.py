@@ -13,7 +13,7 @@ import six
 from collections import OrderedDict
 from glob import glob
 import json
-import lazy_load
+import lazy_import
 
 from matdb import msg
 from matdb.utility import chdir, ParameterGrid
