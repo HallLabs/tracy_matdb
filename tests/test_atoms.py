@@ -84,3 +84,58 @@ def test_hdf5(tmpdir):
     assert np.allclose(atR.properties["rand"], atSi.properties["rand"])
     assert np.allclose(atR.positions, atSi.positions)
     remove(path.join(target,"temp.h5"))
+
+def test_Atoms_creation(tmpdir):
+    """Tests the initialization of the atoms objcet.
+    """
+    from matdb.calculators import Quip
+    from matdb.atoms import Atoms
+    from ase.atoms import Atoms as aseAtoms
+    atSi = Atoms("Si8",positions=[[0,0,0],[0.25,0.25,0.25],[0.5,0.5,0],[0.75,0.75,0.25],
+                                  [0.5,0,0.5],[0.75,0.25,0.75],[0,0.5,0.5],[0.25,0.75,0.75]],
+                 cell=[5.43,5.43,5.43])
+    atR = Atoms(atSi)
+    assert atR==atSi
+    
+    atSi = aseAtoms("Si8",positions=[[0,0,0],[0.25,0.25,0.25],[0.5,0.5,0],[0.75,0.75,0.25],
+                                  [0.5,0,0.5],[0.75,0.25,0.75],[0,0.5,0.5],[0.25,0.75,0.75]],
+                 cell=[5.43,5.43,5.43])
+    atSi.info['nneightol'] = 10
+    atSi.info['cutoff'] = 5
+    atSi.info['cutoff_break'] = 10
+    atR = Atoms(atSi)
+
+    assert np.allclose(atR.positions,atSi.positions)
+    assert np.allclose(atR.cell,atSi.cell)
+    assert hasattr(atR,'nneightol')
+    assert hasattr(atR,'cutoff')
+    assert hasattr(atR,'cutoff_break')
+    
+    target = str(tmpdir.join("make_atoms"))
+    if not path.isdir(target):
+        mkdir(target)
+    atSi = Atoms("Si8",positions=[[0,0,0],[0.25,0.25,0.25],[0.5,0.5,0],[0.75,0.75,0.25],
+                                  [0.5,0,0.5],[0.75,0.25,0.75],[0,0.5,0.5],[0.25,0.75,0.75]],
+                 cell=[5.43,5.43,5.43])
+    readargs = {'frmt':"xyz"}
+    atSi.write(target=path.join(target,"temp.xyz"),**readargs)
+    atR = Atoms(path.join(target,"temp.xyz"),**readargs)
+    
+    assert np.allclose(atR.positions,atSi.positions)
+    assert np.allclose(atR.cell,atSi.cell)
+    remove(path.join(target,"temp.xyz"))
+
+    potSW = Quip(atSi, target, ["IP SW"])
+    potSW.results["energy"] = 1234
+    potSW.results["force"] = np.random.randint(0, 100, (8,3))
+    atSi = Atoms("Si8",positions=[[0,0,0],[0.25,0.25,0.25],[0.5,0.5,0],[0.75,0.75,0.25],
+                                  [0.5,0,0.5],[0.75,0.25,0.75],[0,0.5,0.5],[0.25,0.75,0.75]],
+                 cell=[5.43,5.43,5.43],info={"rand":10},calculator=potSW)
+
+    assert "rand" in atSi.params
+    assert atSi.params['energy'] == potSW.results['energy']
+    assert np.allclose(atSi.properties['force'], potSW.results['force'])
+
+    atSi.add_property('force',np.random.randint(0, 100, (8,3)))
+    assert not np.allclose(atSi.properties['force'], potSW.results['force'])
+
