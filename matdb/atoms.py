@@ -8,6 +8,9 @@ from copy import deepcopy
 import h5py
 from ase.io import write, read
 from six import string_types
+import lazy_import
+
+calculators = lazy_import.lazy_module("matdb.calculators")
 
 def _recursively_convert_units(in_dict):
     """Recursively goes through a dictionary and converts it's units to be
@@ -49,22 +52,23 @@ def _convert_atoms_to_dict(atoms):
     data["properties"] = {}
     for prop, value in atoms.properties.items():
         if prop not in ["pos", "species", "Z", "n_neighb", "map_shift"]:
-            new_name = prop# + '_'
-            if isinstance(value,(list,np.ndarray)):
-                data["properties"][new_name] = np.array(value)
-            else:
-                data["properties"][new_name] = np.float64(value)
+            data["properties"].update(_recursively_convert_units({prop:value}))
 
     data["positions"] = np.array(atoms.positions)
     if atoms.calc is not None:
-        data["forces"] = np.array(atoms.get_forces())
-        data["energy"] = np.float64(atoms.energy)
-        data["virial"] = np.array(atoms.virial)
         data["calc"] = atoms.calc.name
-        data["calcargs"] = atoms.calc.calc_args
+        if isinstance(atoms.calc.args,list):
+            data["calcargs"] = np.array(atoms.calc.args)
+        else:
+            data["calcargs"] = []            
+        if isinstance(atoms.calc.kwargs,dict):
+            data["calckwargs"] = _recursively_convert_units(atoms.calc.kwargs)
+        else:
+            data["calckwargs"] = {}
+        data["folder"] = atoms.calc.folder
 
     symbols = atoms.get_chemical_symbols()
-    data["symbols"] = ''.join([i+str(symbols.count(i)) for i in set(symbols)])
+    data["symbols"] = ''.join([i+str(symbols.count(i)) for i in set(symbols)])    
     return data
 
 class Atoms(ase.Atoms):
@@ -146,50 +150,8 @@ class Atoms(ase.Atoms):
             self.info["params"][name] = value
         else:
             self.info["params"][name]=value
-            setattr(self,name,self.info["params"][name])       
+            setattr(self,name,self.info["params"][name])
 
-    def _get_info(self):
-        """ASE info dictionary
-
-        Entries are actually stored in the params dictionary.
-        """
-        info = self.info.copy()
-        if "params" in info:
-            info.pop("params")
-        if "properties" in info:
-            infe.pop("properties")
-        
-        return info
-
-    def _set_info(self, value):
-        """Set ASE info dictionary.
-
-        Entries are actually stored in tho params dictionary.  Note
-        that clearing Atoms.info doesn't empty params,
-        """
-
-        self.params.update(value)
-
-    def _get_properties(self):
-        """Gets the properties from the ASE info dictionary.
-        """
-        return self.info["properties"]
-    
-    def _set_properties(self,value):
-        """Gets the properties from the ASE info dictionary.
-        """
-        self.info["properties"] = value
-
-    def _get_params(self):
-        """Gets the properties from the ASE info dictionary.
-        """
-        return self.info["params"]
-    
-    def _set_params(self,value):
-        """Gets the properties from the ASE info dictionary.
-        """
-        self.info["params"] = value
-        
     def __del__(self):
         attributes = list(vars(self))
         for attr in attributes:
@@ -267,8 +229,11 @@ class Atoms(ase.Atoms):
             hf = h5py.File(target,"r")
             data = load_dict_from_h5(hf)
             self.__init__(**data)
-            # if "energy" in data:
-            #     self.add_param(
+            calc = getattr(calculators, data["calc"])
+            calc = calc(self,data["folder"],
+                        args=list(data["calcargs"]) if "calcargs" in data else None,
+                        kwargs=data["calckwargs"] if 'calckwargs' in data else None)
+            self.set_calculator(calc)
         else:
             self.__init__(read(target,**kwargs))
             
