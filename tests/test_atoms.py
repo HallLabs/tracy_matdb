@@ -71,8 +71,7 @@ def test_hdf5(tmpdir):
                  cell=[5.43,5.43,5.43])
     potSW = Quip(atSi, target, ["IP SW"])
     atSi.set_calculator(potSW)
-    potSW.calc(potSW.atoms, energy=True, force=True, virial=True)
-    atSi = Atoms(potSW.atoms)
+    potSW.calc(atSi, energy=True, force=True, virial=True)
     atSi.properties["rand"] = np.random.randint(0, 100, 8)
     atSi.write(target=path.join(target,"temp.h5"))
     atR = Atoms()
@@ -82,7 +81,6 @@ def test_hdf5(tmpdir):
     assert isinstance(atR, Atoms)
     assert np.allclose(atR.force, atSi.force)
     assert np.allclose(atR.virial, atSi.virial)
-    # assert atR.hessian_1 == atSi.hessian_1
     assert np.allclose(atR.properties["rand"], atSi.properties["rand"])
     assert np.allclose(atR.positions, atSi.positions)
     remove(path.join(target,"temp.h5"))
