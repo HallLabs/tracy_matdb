@@ -67,11 +67,39 @@ def _convert_atoms_to_dict(atoms):
     return data
 
 class Atoms(ase.Atoms):
-
     """An implementation of the :class:`ase.Atoms` object that adds the
-    additional attributes of params and properties and reads the atoms
-    object in from file.
+    additional attributes of params and properties.
 
+    .. note:: All arguments are optional. The user only needs to
+    specify the symbols or the atomic numbers for the system not both.
+
+    Args:
+        symbols (str): The chemical symbols for the system, i.e., 'Si8' or 'CoNb'
+        positions (list): The (x,y,z) position of each atom in the cell.
+        numbers (list): List of the atomic numbers of the atoms.
+        momenta (list): The momenta of each atom.
+        masses (list): The masses of each atom.
+        charges (list): The charges of each atom.
+        cell (list): The lattice vectors for the cell.
+        pbc (list): list of bools for the periodic boundary conditions in x y 
+          and z. 
+        calculator (object): a `matdb` calculator object.
+        info (dict): a dictionary containing other info (this will get stored in 
+          the params dictionary.
+        n (int): the number of atoms in the cell.
+        properties (dict): a dictionary of properties where the keys are the property
+          names and the values are a list containing the property value for each atom.
+        params (dict): a dictionary of parameters that apply to the entire system.
+
+    .. note:: Additional attributes are also exposed by the super class
+      :class:`ase.Atoms`.
+
+    Attributes:
+        properties (dict): a dictionary of properties where the keys are the property
+          names and the values are a list containing the property value for each atom.
+        params (dict): a dictionary of parameters that apply to the entire system.
+        n (int): the number of atoms in the cell
+        calc (object): the `matdb` calculator to be used for calculations.
     """
 
     def __init__(self, symbols=None, positions=None, numbers=None, tags=None,
@@ -273,7 +301,7 @@ class AtomsList(list):
     """
 
     def __init__(self, source=[], frmt=None, start=None, stop=None, step=None,
-                 rename=None, **kwargs):
+                 **kwargs):
 
         self.source = source
         self.frmt = frmt
@@ -286,9 +314,9 @@ class AtomsList(list):
             if not isinstance(source[0],Atoms):
                 tmp_ar = []
                 for source_file in source:
-                    tmp_ar.extend([Atoms(i) for i in ase.io.read(source_file, index=':',
-                                                                 frmt=frmt,
-                                                                 **kwargs)])
+                    readargs = {"frmt":frmt}
+                    tmp_atoms = Atoms(source_file,**readargs)
+                    tmp_ar.append(tmp_atoms)
             else:
                 tmp_ar = source
         elif isinstance(source,list) and len(source) == 0:
@@ -297,8 +325,9 @@ class AtomsList(list):
             if isinstance(source,Atoms):
                 tmp_ar = [source]
             else:
-                tmp_ar = [Atoms(i) for i in ase.io.read(source, index=':',frmt=frmt,
-                                                        **kwargs)]
+                readargs = {"frmt":frmt}
+                tmp_atoms = Atoms(source,**readargs)
+                tmp_ar = [tmp_atoms]
 
         list.__init__(self, list(iter(tmp_ar)))
 
@@ -306,7 +335,10 @@ class AtomsList(list):
         if name.startswith('__'):
             # don't override any special attributes
             raise AttributeError
-
+        if name =="get_positions":
+            # In order to write out using ase we need to not support
+            # this attribute.
+            raise AttributeError
         try:
             return self.source.__getattr__(name)
         except AttributeError:
@@ -314,10 +346,8 @@ class AtomsList(list):
                 seq = [getattr(at, name) for at in iter(self)]
             except AttributeError:
                 raise
-            if seq == []:
+            if seq == []: #pragma: no cover
                 return None
-            elif type(seq[0]) in (FortranArray, np.ndarray):
-                return mockNDarray(*seq)
             else:
                 return seq
 
@@ -329,7 +359,7 @@ class AtomsList(list):
             idx = np.array(idx)
             if idx.dtype.kind not in ('b', 'i'):
                 raise IndexError("Array used for fancy indexing must be of type integer or bool")
-            if idx.dtype.kind == 'b':
+            if idx.dtype.kind == 'b': #pragma: no cover
                 idx = idx.nonzero()[0]
             res = []
             for i in idx:
@@ -364,6 +394,7 @@ class AtomsList(list):
         :attr:`Atoms.params` contains an entry named `energy` for each
         configuration; otherwise an :exc:`AttributError` will be raised).
         """
+        import operator
         if attr is None:
             list.sort(self, cmp, key, reverse)
         else:
@@ -392,9 +423,9 @@ class AtomsList(list):
             atoms = [Atoms(**d) for d in data.values()]
             self.__init__(atoms)
         else:
-            self.__init__(read(target,**kwargs))
+            self.__init__(read(target,index=':',**kwargs))
             
-    def write(self,taregt,frmt=None,**kwargs):
+    def write(self,target,frmt=None,**kwargs):
         """Writes an atoms object to file.
 
         Args:
