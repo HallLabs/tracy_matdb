@@ -57,14 +57,8 @@ def _convert_atoms_to_dict(atoms):
     data["positions"] = np.array(atoms.positions)
     if atoms.calc is not None:
         data["calc"] = atoms.calc.name
-        if isinstance(atoms.calc.args,list):
-            data["calcargs"] = np.array(atoms.calc.args)
-        else:
-            data["calcargs"] = []            
-        if isinstance(atoms.calc.kwargs,dict):
-            data["calckwargs"] = _recursively_convert_units(atoms.calc.kwargs)
-        else:
-            data["calckwargs"] = {}
+        data["calcargs"] = np.array(atoms.calc.args)
+        data["calckwargs"] = _recursively_convert_units(atoms.calc.kwargs)
         data["folder"] = atoms.calc.folder
 
     symbols = atoms.get_chemical_symbols()

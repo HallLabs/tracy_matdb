@@ -70,8 +70,6 @@ class AsyncVasp(Vasp, AsyncCalculator):
         self.folder = path.abspath(path.expanduser(folder))
         self.kpoints = kwargs.pop("kpoints")
         self.atoms = atoms
-        self.kwargs = kwargs
-        self.args = args
         self.folder = folder
         super(AsyncVasp, self).__init__(*args, **kwargs)
         if not path.isdir(self.folder):
