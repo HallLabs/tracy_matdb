@@ -64,14 +64,20 @@ class AsyncVasp(Vasp, AsyncCalculator):
     """
     tarball = ["vasprun.xml"]
 
-    def __init__(self, atoms, folder, *args, **kwargs):
+    def __init__(self, atoms, folder, args=None, kwargs=None):
+        self.args = [] if args is None else args
+        self.kwargs = {} if kwargs is None else kwargs
         self.folder = path.abspath(path.expanduser(folder))
         self.kpoints = kwargs.pop("kpoints")
         self.atoms = atoms
+        self.kwargs = kwargs
+        self.args = args
+        self.folder = folder
         super(AsyncVasp, self).__init__(*args, **kwargs)
         if not path.isdir(self.folder):
             mkdir(self.folder)
         self.initialize(atoms)
+        self.name = "Vasp"
 
     def write_input(self, atoms, directory='./'):
         """Overload of the ASE input writer that handles the k-points using our
