@@ -256,16 +256,15 @@ class Atoms(ase.Atoms):
             if not k.startswith('_') and k not in self.__dict__:
                 self.__dict__[k] = v
 
-    def read(self,target="atoms.h5",frmt=None,**kwargs):
+    def read(self,target="atoms.h5",**kwargs):
         """Reads an atoms object in from file.
 
         Args:
             target (str): The path to the target file. Default "atoms.h5".
-            frmt (str): Optional format string for file. If not specified hpf5
-              is assumed.
         """
 
-        if frmt is None or frmt is "h5":
+        frmt = target.split('.')[-1]
+        if frmt == "h5" or frmt == "hdf5":
             from matdb.utility import load_dict_from_h5
             hf = h5py.File(target,"r")
             data = load_dict_from_h5(hf)
@@ -278,16 +277,15 @@ class Atoms(ase.Atoms):
         else:
             self.__init__(read(target,**kwargs))
             
-    def write(self,target="atoms.h5",frmt=None,**kwargs):
+    def write(self,target="atoms.h5",**kwargs):
         """Writes an atoms object to file.
 
         Args:
             target (str): The path to the target file. Default is "atoms.h5".
-            frmt (str): Optional format string for file. If not specified hdf5
-              is assumed.
         """
 
-        if frmt is None or frmt is "h5":
+        frmt = target.split('.')[-1]
+        if frmt == "h5" or frmt == "hdf5":
             from matdb.utility import save_dict_to_h5
             hf = h5py.File(target,"w")
             data = _convert_atoms_to_dict(self)
@@ -301,7 +299,7 @@ class AtomsList(list):
     """
 
     def __init__(self, source=[], frmt=None, start=None, stop=None, step=None,
-                 **kwargs):
+                 **readargs):
 
         self.source = source
         self.frmt = frmt
@@ -314,7 +312,6 @@ class AtomsList(list):
             if not isinstance(source[0],Atoms):
                 tmp_ar = []
                 for source_file in source:
-                    readargs = {"frmt":frmt}
                     tmp_atoms = Atoms(source_file,**readargs)
                     tmp_ar.append(tmp_atoms)
             else:
@@ -325,7 +322,6 @@ class AtomsList(list):
             if isinstance(source,Atoms):
                 tmp_ar = [source]
             else:
-                readargs = {"frmt":frmt}
                 tmp_atoms = Atoms(source,**readargs)
                 tmp_ar = [tmp_atoms]
 
@@ -406,17 +402,16 @@ class AtomsList(list):
     def apply(self, func):
         return np.array([func(at) for at in self])
         
-    def read(self,target,frmt=None,**kwargs):
+    def read(self,target,**kwargs):
         """Reads an atoms object in from file.
 
         Args:
             target (str): The path to the target file.
-            frmt (str): Optional format string for file. If not specified hdf5
-              is assumed.
             kwargs (dict): A dictionary of arguments to pass to the ase 
               read function.
         """
-        if frmt is None or frmt is "hdf5":
+        frmt = target.split('.')[-1]
+        if frmt == "h5" or frmt == "hdf5":
             from matdb.utility import load_dict_from_h5
             hf = h5py.File(target,"r")
             data = load_dict_from_h5(hf)
@@ -425,18 +420,17 @@ class AtomsList(list):
         else:
             self.__init__(read(target,index=':',**kwargs))
             
-    def write(self,target,frmt=None,**kwargs):
+    def write(self,target,**kwargs):
         """Writes an atoms object to file.
 
         Args:
             target (str): The path to the target file.
-            frmt (str): Optional format string for file. If not specified hpf5
-              is assumed.
             kwargs (dict): A dictionary of key word args to pass to the ase 
               write function.
         """
 
-        if frmt is None or frmt is "hdf5":
+        frmt = target.split('.')[-1]
+        if frmt == "h5" or frmt == "hdf5":
             from matdb.utility import save_dict_to_h5
             hf = h5py.File(target,"w")
             for i in range(len(self)):

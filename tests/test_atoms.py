@@ -117,9 +117,8 @@ def test_Atoms_creation(tmpdir):
     atSi = Atoms("Si8",positions=[[0,0,0],[0.25,0.25,0.25],[0.5,0.5,0],[0.75,0.75,0.25],
                                   [0.5,0,0.5],[0.75,0.25,0.75],[0,0.5,0.5],[0.25,0.75,0.75]],
                  cell=[5.43,5.43,5.43])
-    readargs = {'frmt':"xyz"}
-    atSi.write(target=path.join(target,"temp.xyz"),**readargs)
-    atR = Atoms(path.join(target,"temp.xyz"),**readargs)
+    atSi.write(target=path.join(target,"temp.xyz"))
+    atR = Atoms(path.join(target,"temp.xyz"))
     
     assert np.allclose(atR.positions,atSi.positions)
     assert np.allclose(atR.cell,atSi.cell)
@@ -298,9 +297,9 @@ def test_AtomsList_io(tmpdir):
     assert np.allclose(alpos[2],at3.positions)
     assert np.allclose(alpos[3],at4.positions)
 
-    al1.write(path.join(target,"temp.xyz"),frmt="xyz")
+    al1.write(path.join(target,"temp.xyz"))
 
     aR = AtomsList()
-    aR.read(path.join(target,"temp.xyz"),frmt="xyz")
+    aR.read(path.join(target,"temp.xyz"))
 
     assert len(aR) == len(al1)
