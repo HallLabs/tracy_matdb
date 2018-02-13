@@ -13,13 +13,14 @@
 """
 import ase
 from ase.calculators.vasp import Vasp
-from os import path, stat, mkdir, getcwd, chdir
+from os import path, stat, mkdir
 import mmap
 from matdb.calculators.basic import AsyncCalculator
 from matdb import msg
 from matdb.kpoints import custom as write_kpoints
+from matdb.utility import chdir, execute
 
-def phonon_defaults(d):
+def phonon_defaults(d, dfpt=False):
     """Adds the usual settings for the INCAR file when performing frozen-phonon
     calculations to `d`. They are only added if they weren't already specified
     in the config file.
@@ -28,21 +29,85 @@ def phonon_defaults(d):
 
     Args:
         d (dict): "calculator" dictionary to updated arguments for.
+        dfpt (bool): when True, perform a DFT perturbation theory calculation to
+          extract the force constants; otherwise, do frozen phonons.
     """
     assert d["name"] == "Vasp"
     usuals = {
         "encut": 500,
-        "ibrion": -1,
         "ediff": '1.0e-08',
         "ialgo": 38,
         "ismear": 0,
         "lreal": False,
-        "addgrid": True            
+        "addgrid": True,
+        "lwave": False,
+        "lcharg": False
     }
+
+    if dfpt:
+        usuals["ibrion"] = 8
+    else:
+        usuals["ibrion"] = -1
+        
     for k, v in usuals.items():
         if k not in d:
             d[k] = v
 
+def extract_force_sets(configs, phonodir):
+    """Extracts the force sets from a set of VASP frozen phonon calculations
+    using `phonopy`.
+
+    .. note:: This method uses `phonopy` to create the `FORCE_SETS` file; it
+      does not actually return the force sets.
+
+    Args:
+        configs (dict): keys are config `id`; values are full paths to the
+          folders where the configs were calculated.
+        phonodir (str): full path to the `phonopy` directory for the set of
+          calculations in `configs`.
+    """
+    #First, make sure we have `vasprun.xml` files in each of the
+    #directories.
+    vaspruns = []
+    for i, folder in configs.items():
+        vasprun = path.join(folder, "vasprun.xml")
+        if not path.isfile(vasprun): #pragma: no cover
+            msg.err("vasprun.xml does not exist for {}.".format(folder))
+        else:
+            vaspruns.append(vasprun)
+
+    if len(vaspruns) == len(self.configs):
+        sargs = ["phonopy", "-f"] + vaspruns
+        xres = execute(sargs, phonodir, venv=True)
+
+def extract_force_constants(configs, phonodir):
+    """Extracts the force constants matrix from a single VASP DFPT calculation
+    with support from `phonopy`.
+
+    .. note:: This method uses `phonopy` to create the `FORCE_CONSTANTS` file;
+      it does not actually return the force constants matrix.
+
+    Args:
+        configs (dict): keys are config `id`; values are full paths to the
+          folders where the configs were calculated.
+        phonodir (str): full path to the `phonopy` directory for the set of
+          calculations in `configs`.
+    """
+    #There will only be a single config folder if we are running with
+    #DFPT, since the displacements take place internally.
+    vaspruns = []
+    for i, folder in configs.items():
+        vasprun = path.join(folder, "vasprun.xml")
+        if not path.isfile(vasprun): #pragma: no cover
+            msg.err("vasprun.xml does not exist for {}.".format(folder))
+        else:
+            vaspruns.append(vasprun)
+
+    assert len(vaspruns) == 1
+
+    sargs = ["phonopy", "--fc"] + vaspruns
+    xres = execute(sargs, phonodir, venv=True)          
+        
 class AsyncVasp(Vasp, AsyncCalculator):
     """Represents a calculator that can compute material properties with VASP,
     but which can do so asynchronously.
@@ -203,8 +268,6 @@ class AsyncVasp(Vasp, AsyncCalculator):
 
         # we need to move into the folder being cleaned up in order to
         # let ase check the convergence
-        cur_dir = getcwd()
-        chdir(folder)
-        self.converged = self.read_convergence()
-        self.set_results(self.atoms)
-        chdir(cur_dir)
+        with chdir(folder):
+            self.converged = self.read_convergence()
+            self.set_results(self.atoms)

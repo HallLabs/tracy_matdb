@@ -75,6 +75,8 @@ class DynMatrix(Group):
         tolerance (float): maximum difference in integrated total DOS that may
           exist for a calculation to be considered "good enough". This is used
           when selecting the "best" calculation from a parameter grid.
+        dfpt (bool): when True, calculate the force constants using Density
+          Functional Perturbation Theory.
 
     .. note:: Additional attributes are also exposed by the super class
       :class:`Group`.
@@ -90,7 +92,7 @@ class DynMatrix(Group):
         dosmesh (list): mesh for calculating the phonon density-of-states.
     """
     def __init__(self, phonopy={}, name="dynmatrix", bandmesh=None,
-                 dosmesh=None, tolerance=0.1, **dbargs):
+                 dosmesh=None, tolerance=0.1, dfpt=False, **dbargs):
         self.name = name
         self.seeded = True
         dbargs["prefix"] = "W"
@@ -115,6 +117,8 @@ class DynMatrix(Group):
             self.supercell = phonopy["dim"]
         else:
             self.supercell = None
+            
+        self.dfpt = dfpt
         self.bandmesh = bandmesh
         self.dosmesh = dosmesh
         self.tolerance = tolerance
@@ -136,10 +140,9 @@ class DynMatrix(Group):
         along the paths, and their corresponding distances.
         """
 
-        self._dmatrix = self.load_pkl(self.dynmat_file)
-        """dict: with keys ['dynmat', 'eigvals', 'eigvecs'] representing the dynamical
-        matrix for the gamma point in the seed configuration along with its
-        eigenvalues and eigenvectors.
+        self._fc = self.load_pkl(self.fc_file)
+        """np.array: the force constants matrix, whether it was derived from
+        DFPT or from frozen phonon calculations.
         """
                 
         from os import mkdir
@@ -194,19 +197,19 @@ class DynMatrix(Group):
             
     @property
     def rset(self):
-        """Constructs the dynamical matrix for the *best* convergence parameters
+        """Constructs the force constants matrix for the *best* convergence parameters
         in this group and it's possible sub-sequences.
 
         Returns:
-            dict: keys are `atoms` and `dynmat`; values are the atoms object and
-            its dynamical matrix respectively.
+            dict: keys are `atoms` and `fc`; values are the atoms object and
+            its force constants matrix respectively.
         """
         if len(self.sequence) == 0:
             #We are at the bottom of the stack; calculate the dynamical matrix
             #and return it with the atoms object it corresponds to.
             return [{
                 "atoms": self.atoms,
-                "dynmat": self.dynmat
+                "fc": self.fc
             }]
         else:
             #Check where we are in the stack. If we are just below the database,
@@ -231,14 +234,12 @@ class DynMatrix(Group):
             calcargs (dict): the "calculator" dictionary that is part of the
               group arguments for db group.
         """
-        from matdb import calculators
-        from inspect import getmodule
-        cls = getattr(calculators, calcargs["name"])
+        from matdb.calculators import get_calculator_module
         try:
-            mod = getmodule(cls)
-            if hasattr(mod, "phonon_defaults"):
+            mod = get_calculator_module(calcargs)
+            if mod is not None and hasattr(mod, "phonon_defaults"):
                 call = getattr(mod, "phonon_defaults")
-                call(calcargs)
+                call(calcargs, self.dfpt)
         except:
             pass
 
@@ -261,65 +262,66 @@ class DynMatrix(Group):
             return all(p.ready() for p in self.sequence.values())
 
     @property
-    def dynmat_file(self):
+    def fc_file(self):
         """Returns the full path to the dynamical matrix pickle file.
         """
-        return path.join(self.root, "dynmat.pkl")
-    
+        return path.join(self.root, "fc.pkl")
+
     @property
-    def dmatrix(self):
+    def fc(self):
         """Returns the dynamical matrix extracted from the frozen
         phonon calculations at the gamma point in the BZ.
         """
-        if self._dmatrix is not None:
-            return self._dmatrix
+        if self._fc is not None:
+            return self._fc
         
-        #Otherwise, we need to calculate it from scratch.
-        qpoints = path.join(self.phonodir, "qpoints.yaml")
-        if not path.isfile(qpoints):
-            from matdb.utility import execute
-            DIM = ' '.join(map(str, self.supercell))
-            sargs = ["phonopy", '--dim="{}"'.format(DIM),
-                     '--qpoints="0 0 0"', "--writedm"]
-            xres = execute(sargs, self.phonodir, venv=True)
-            #Make sure that phonopy actually produced files; otherwise show the output
-            #(phonopy doesn't write to stderr, only stdout).
-            if not path.isfile(qpoints): #pragma: no cover
-                msg.std(''.join(xres["error"]))
-                msg.err("could not calculate phonon bands; see errors.")
+        #Otherwise, we need to calculate it from scratch. This depends on
+        #whether we are using DFPT or frozen phonons.
+        from matdb.utility import execute
+        from phonopy import file_IO
+        
+        if self.dfpt:
+            with chdir(self.phonodir):
+                result = file_IO.parse_FORCE_CONSTANTS()
+        else:
+            #We have a stack of frozen phonon calculations that we need to
+            #recombine into the force constants matrix. We already have methods
+            #to calculate force sets, so we call that and then calculate the
+            #force constants from the force sets.
+            self.calc_forcesets()
+            from phonopy.api_phonopy import Phonopy
+            from phonopy.structure.atoms import Atoms as PhonopyAtoms
 
-        if path.isfile(qpoints):
-            import yaml
-            data = yaml.load(open(qpoints))
-            result = {}
-            for i in range(len(data["phonon"])):
-                dynmat = []
-                dynmat_data = data['phonon'][i]['dynamical_matrix']
-                for row in dynmat_data:
-                    vals = np.reshape(row, (-1, 2))
-                    dynmat.append(vals[:, 0] + vals[:, 1] * 1j)
-                dynmat = np.array(dynmat)
+            #Unfortunately, phonopy created their own version of the Atoms object
+            #which is required to work with their functions.
+            patoms = PhonopyAtoms(symbols=self.atoms.get_chemical_symbols(),
+                                  positions=self.atoms.positions,
+                                  masses=self.atoms.get_masses(),
+                                  cell=self.atoms.cell, pbc=self.atoms.pbc)
 
-                eigvals, eigvecs, = np.linalg.eigh(dynmat)
-                q = data["phonon"][i]["q-position"]
+            #This supercell should match the one you used to generate the displacements
+            #in the first place. We construct a Phonopy object and call its methods to
+            #calculate the force constants matrix.
+            if self.supercell is None: # pragma: no cover
+                raise ValueError("Supercell required to calc force constants.")
+            if len(self.supercell) == 3:
+                supercell = np.diag(self.supercell)
+            else:
+                supercell = np.array(self.supercell).reshape(3, 3)
 
-                #This should technically always be true since we only ran it at
-                #a single q-point.
-                if np.allclose(q, [0., 0., 0.]):
-                    result["dynmat"] = dynmat
-                    result["eigvals"] = eigvals
-                    result["eigvecs"] = eigvecs
-                    break
+            with chdir(self.phonodir):
+                phonpy = Phonopy(patoms, supercell)
+                force_sets = file_IO.parse_FORCE_SETS()
+            phonpy.set_displacement_dataset(force_sets)
+            phonpy.produce_force_constants(calculate_full_force_constants=True, 
+                                           computation_algorithm="svd")
+            phonpy._set_dynamical_matrix()
+            result = phonpy._dynamical_matrix._force_constants
 
-            if len(result) < 3: #pragma: no cover
-                msg.err("Could not extract dynamical matrix from qpoints.yaml "
-                        "file...")
-                return
-            
-            self._dmatrix = result
-            self.save_pkl(result, self.dynmat_file)
+        self._fc = result
+        self.save_pkl(result, self.fc_file)
 
-        return self._dmatrix
+        return self._fc
     
     @property
     def bands(self):
@@ -386,8 +388,7 @@ class DynMatrix(Group):
             #the nested Group instances will use the same kpath.
             pass
         elif isinstance(self.parent, DynMatrix):
-            atoms = self.atoms
-            return self.parent.get_kpath(atoms)
+            return self.parent.get_kpath(self.atoms)
     
     def calc_bands(self, recalc=False):
         """Calculates the bands at the special points given by the
@@ -463,6 +464,24 @@ class DynMatrix(Group):
         if not path.isfile(dosfile): #pragma: no cover
             msg.std(''.join(xres["error"]))
             msg.err("could not calculate the DOS; see errors.")
+
+    def calc_fc(self, recalc=False):
+        """Extracts the force constants from a DFPT Hessian matrix.
+        """
+        fcfile = path.join(self.phonodir, "FORCE_CONSTANTS")
+        if not recalc and path.isfile(fcfile):
+            return
+
+        from matdb.calculators import get_calculator_module
+        mod = get_calculator_module(calcargs)
+        call = getattr(mod, "extract_force_constants")
+        call(self.configs, self.phonodir)
+        
+        #Make sure that phonopy actually produced files; otherwise show the
+        #output (phonopy doesn't write to stderr, only stdout).
+        if not path.isfile(fcfile): #pragma: no cover
+            msg.std(''.join(xres["error"]))
+            msg.err("could not calculate the force constants from DFPT.")
             
     def calc_forcesets(self, recalc=False):
         """Extracts the force sets from the displacement calculations.
@@ -475,26 +494,16 @@ class DynMatrix(Group):
         if not recalc and path.isfile(fsets):
             return
         
-        #First, make sure we have `vasprun.xml` files in each of the
-        #directories.
-        vaspruns = []
-        for i, folder in self.configs.items():
-            vasprun = path.join(folder, "vasprun.xml")
-            if not path.isfile(vasprun): #pragma: no cover
-                msg.err("vasprun.xml does not exist for {}.".format(folder))
-            else:
-                vaspruns.append(vasprun)
-
-        if len(vaspruns) == len(self.configs):
-            from matdb.utility import execute
-            sargs = ["phonopy", "-f"] + vaspruns
-            xres = execute(sargs, self.phonodir, venv=True)
+        from matdb.calculators import get_calculator_module
+        mod = get_calculator_module(calcargs)
+        call = getattr(mod, "extract_force_sets")
+        call(self.configs, self.phonodir)
 
         #Make sure that phonopy actually produced files; otherwise show the output
         #(phonopy doesn't write to stderr, only stdout).
         if not path.isfile(fsets):#pragma: no cover
             msg.std(''.join(xres["error"]))
-            msg.err("Couldn't create the FORCE_SETS:")
+            msg.err("Couldn't create the FORCE_SETS.")
 
     def setup(self, rerun=False):
         """Displaces the seed configuration preparatory to calculating the force
@@ -509,6 +518,12 @@ class DynMatrix(Group):
     def _setup_configs(self, rerun):
         """Displaces the seed configuration preparatory to calculating the force
         sets for phonon spectra.
+
+        .. note:: This method *appears* to be VASP-specific. However, the
+          configurations that are generated by `phonopy` as VASP `POSCAR` files
+          are turned into :class:`matdb.atoms.Atoms` objects before they are
+          passed to the super class that sets up the actual calculations. So, it
+          is quite general.
 
         Args:
             rerun (bool): when True, recreate the folders even if they
@@ -526,19 +541,22 @@ class DynMatrix(Group):
             sargs = ["phonopy", "-d", '--dim="{}"'.format(scell)]
             pres = execute(sargs, self.phonodir, venv=True)
 
-            from os import getcwd, chdir, mkdir, rename
-            from glob import glob
-            current = getcwd()
-            chdir(self.phonodir)
-
-            try:
-                from matdb.atoms import Atoms
-                for dposcar in glob("POSCAR-*"):
-                    dind = int(dposcar.split('-')[1])
-                    datoms = Atoms(dposcar, format="POSCAR")
+            from matdb.atoms import Atoms
+            if not self.dfpt:
+                #Frozen phonons, create a config execution folder for each of
+                #the displacements.
+                from glob import glob
+                with chdir(self.phonodir):
+                    for dposcar in glob("POSCAR-*"):
+                        dind = int(dposcar.split('-')[1])
+                        datoms = Atoms(dposcar, format="POSCAR")
+                        self.create(datoms)
+            else:
+                #Pull the perfect supercell and set it up for executing with
+                #DFPT parameters.
+                with chdir(self.phonodir):
+                    datoms = Atoms("SPOSCAR", format="POSCAR")
                     self.create(datoms)
-            finally:
-                chdir(current)
 
         # Last of all, create the job file to execute the job array.
         self.jobfile(rerun)
@@ -558,7 +576,11 @@ class DynMatrix(Group):
         if not super(DynMatrix, self).cleanup():
             return
 
-        self.calc_forcesets(recalc)
+        if self.dfpt:
+            self.calc_forcesets(recalc)
+        else:
+            self.calc_fc(recalc)
+            
         self.calc_DOS(recalc)
         return self.ready()
 
