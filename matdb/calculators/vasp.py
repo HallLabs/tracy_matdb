@@ -20,7 +20,7 @@ from matdb import msg
 from matdb.kpoints import custom as write_kpoints
 from matdb.utility import chdir
 
-def phonon_defaults(d):
+def phonon_defaults(d, dfpt=False):
     """Adds the usual settings for the INCAR file when performing frozen-phonon
     calculations to `d`. They are only added if they weren't already specified
     in the config file.
@@ -29,17 +29,26 @@ def phonon_defaults(d):
 
     Args:
         d (dict): "calculator" dictionary to updated arguments for.
+        dfpt (bool): when True, perform a DFT perturbation theory calculation to
+          extract the force constants; otherwise, do frozen phonons.
     """
     assert d["name"] == "Vasp"
     usuals = {
         "encut": 500,
-        "ibrion": -1,
         "ediff": '1.0e-08',
         "ialgo": 38,
         "ismear": 0,
         "lreal": False,
-        "addgrid": True            
+        "addgrid": True,
+        "lwave": False,
+        "lcharg": False
     }
+
+    if dfpt:
+        usuals["ibrion"] = 8
+    else:
+        usuals["ibrion"] = -1
+        
     for k, v in usuals.items():
         if k not in d:
             d[k] = v
