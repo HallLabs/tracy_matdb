@@ -113,7 +113,6 @@ class Group(object):
         if calculator is not None:
             self.calcargs.update(calculator)
         self.calc = getattr(calculators, self.calcargs["name"])
-        del self.calcargs["name"]
 
         self.prefix = prefix
         self.nconfigs = nconfigs
@@ -506,6 +505,7 @@ class Group(object):
                 mkdir(target)
 
             lcargs = self.calcargs.copy()
+            del lcargs["name"]
             if calcargs is not None:
                 lcargs.update(calcargs)
                 
