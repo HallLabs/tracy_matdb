@@ -458,9 +458,9 @@ class DynMatrix(Group):
             return
 
         from matdb.calculators import get_calculator_module
-        mod = get_calculator_module(calcargs)
+        mod = get_calculator_module(self.calcargs)
         call = getattr(mod, "extract_force_constants")
-        call(self.configs, self.phonodir)
+        xres = call(self.configs, self.phonodir)
         
         #Make sure that phonopy actually produced files; otherwise show the
         #output (phonopy doesn't write to stderr, only stdout).
@@ -479,9 +479,9 @@ class DynMatrix(Group):
             return
         
         from matdb.calculators import get_calculator_module
-        mod = get_calculator_module(calcargs)
+        mod = get_calculator_module(self.calcargs)
         call = getattr(mod, "extract_force_sets")
-        call(self.configs, self.phonodir)
+        xres = call(self.configs, self.phonodir)
 
         #Make sure that phonopy actually produced files; otherwise show the output
         #(phonopy doesn't write to stderr, only stdout).

@@ -69,9 +69,13 @@ def extract_force_sets(configs, phonodir):
         else:
             vaspruns.append(vasprun)
 
-    if len(vaspruns) == len(self.configs):
+    if len(vaspruns) == len(configs):
         sargs = ["phonopy", "-f"] + vaspruns
         xres = execute(sargs, phonodir, venv=True)
+    else:
+        xres = {"error":""}
+
+    return xres
 
 def extract_force_constants(configs, phonodir):
     """Extracts the force constants matrix from a single VASP DFPT calculation
@@ -97,7 +101,9 @@ def extract_force_constants(configs, phonodir):
     assert len(vaspruns) == 1
 
     sargs = ["phonopy", "--fc"] + vaspruns
-    xres = execute(sargs, phonodir, venv=True)          
+    xres = execute(sargs, phonodir, venv=True)
+
+    return xres
         
 class AsyncVasp(Vasp, AsyncCalculator):
     """Represents a calculator that can compute material properties with VASP,
