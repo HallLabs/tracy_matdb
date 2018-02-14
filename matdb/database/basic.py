@@ -137,7 +137,7 @@ class Group(object):
                 try:
                     cid = int(folder.split('.')[1])
                     self.configs[cid] = path.join(self.root, folder)
-                    self.config_atoms[cid] = atoms_from_json(self.configs[cid])
+                    self.config_atoms[cid] = Atoms(path.join(self.configs[cid],"atoms.h5"))
                 except:
                     #The folder name doesn't follow our convention.
                     pass
@@ -680,7 +680,7 @@ class Group(object):
                 
                 atoms = self.config_atoms[cid]
                 atoms.calc.cleanup(folder)
-                atoms_to_json(atoms, folder)
+                atoms.write(path.join(folder,"atoms.h5"))
             return self.can_cleanup()
         elif len(self.sequence) >0:
             return all([group.cleanup() for group in self.sequence.values()])
