@@ -79,8 +79,14 @@ def test_symlink(tmpdir):
     from os import readlink
     result = readlink(source)
     assert result == target
+    
+    symlink(source, target)
+    result = readlink(source)
+    assert result == target
 
     dirsource = str(tmpdir.join("dummy-dir"))
+    from os import mkdir
+    mkdir(dirsource)
     assert symlink(dirsource, reporoot) is None
 
 def test_slicer():
@@ -189,7 +195,6 @@ def test_ParameterGrid():
     pgrid.pop('dos-tt-dim-16.00')
     assert not ('dos-tt-dim-16.00' in pgrid)
     assert not pgrid == ParameterGrid(db_info)
-
 
 def test_get_grid():
     """Tests the get_grid method.
@@ -391,3 +396,39 @@ def test_hdf5_in_out():
         save_dict_to_h5(hf,{"a":2},"/")
     hf.close()
     remove("temp.h5")
+
+def test_linecount():
+    """Tests the linecount method in utility.
+    """
+    from matdb.utility import linecount
+
+    assert linecount("temp") == 0
+
+def test_safeupdate():
+    """Tests the safe_update method in utility.
+    """
+
+    from matdb.atoms import Atoms
+    from matdb.utility import safe_update
+    
+    al = Atoms("Si",positions=[[0,0,0]])
+    al.add_param("energy",None)
+    kv = {"positions":[[0.5,0.5,0.5]],"energy":10}
+    safe_update(al,kv)
+    
+    assert np.allclose(al.positions,[[0,0,0]])
+    assert al.energy == 10
+
+def test_objupdate():
+    """Tests the obj_update method in utility.
+    """
+
+    from matdb.atoms import Atoms
+    from matdb.utility import obj_update
+    
+    al = Atoms("Si",positions=[[0,0,0]])
+    k = "positions"
+    
+    al = obj_update(al,k,[[0.5,0.5,0.5]])
+
+    assert np.allclose(al.positions,[[0.5,0.5,0.5]])

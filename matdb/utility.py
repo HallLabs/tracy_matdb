@@ -157,9 +157,7 @@ def symlink(target, source):
     """
     from os import path, symlink, remove
     from matdb import msg
-    if path.isfile(target) or path.islink(target):# pragma: no cover
-        #This will never fire for normal unit testing because we used
-        #new temporary directories each time.
+    if path.isfile(target) or path.islink(target):
         remove(target)
     elif path.isdir(target):
         msg.warn("Cannot auto-delete directory '{}' for symlinking.".format(target))
@@ -205,7 +203,7 @@ def safe_update(obj, kv):
           values.
     """
     for k, v in kv.items():
-        if hasattr(obj, k) and getattr(k, v) is not None:
+        if hasattr(obj, k) and getattr(obj, k) is not None:
             continue
         setattr(obj, k, v)
 
