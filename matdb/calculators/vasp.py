@@ -1,15 +1,12 @@
 """Implements a `matdb` compatible subclass of the
 :class:`ase.calculators.vasp.Vasp` calculator.
-
 .. note:: Because this calculator is intended to be run asynchronously as part
   of `matdb` framework, it does *not* include a method to actually execute the
   calculation. Although the ASE calculator provides an interface to do so,
   `matdb` uses templates to access HPC resources.
-
 .. warning:: Because of the underlying implementation in ASE, you must use a separate
   instance of the :class:`AsyncVasp` for each :class:`ase.Atoms` object that you
   want to calculate for.
-
 """
 import ase
 from ase.calculators.vasp import Vasp
@@ -24,9 +21,7 @@ def phonon_defaults(d, dfpt=False):
     """Adds the usual settings for the INCAR file when performing frozen-phonon
     calculations to `d`. They are only added if they weren't already specified
     in the config file.
-
     .. warning:: This method mutates `d`.
-
     Args:
         d (dict): "calculator" dictionary to updated arguments for.
         dfpt (bool): when True, perform a DFT perturbation theory calculation to
@@ -56,10 +51,8 @@ def phonon_defaults(d, dfpt=False):
 def extract_force_sets(configs, phonodir):
     """Extracts the force sets from a set of VASP frozen phonon calculations
     using `phonopy`.
-
     .. note:: This method uses `phonopy` to create the `FORCE_SETS` file; it
       does not actually return the force sets.
-
     Args:
         configs (dict): keys are config `id`; values are full paths to the
           folders where the configs were calculated.
@@ -83,10 +76,8 @@ def extract_force_sets(configs, phonodir):
 def extract_force_constants(configs, phonodir):
     """Extracts the force constants matrix from a single VASP DFPT calculation
     with support from `phonopy`.
-
     .. note:: This method uses `phonopy` to create the `FORCE_CONSTANTS` file;
       it does not actually return the force constants matrix.
-
     Args:
         configs (dict): keys are config `id`; values are full paths to the
           folders where the configs were calculated.
@@ -111,16 +102,13 @@ def extract_force_constants(configs, phonodir):
 class AsyncVasp(Vasp, AsyncCalculator):
     """Represents a calculator that can compute material properties with VASP,
     but which can do so asynchronously.
-
     .. note:: The arguments and keywords for this object are identical to the
       :class:`~ase.calculators.vasp.Vasp` calculator that ships with ASE. We
       add some extra functions so that it plays nicely with `matdb`.
-
     Args:
         atoms (quippy.Atoms): configuration to calculate using VASP.
         folder (str): path to the directory where the calculation should take
           place.
-
     Attributes:
         tarball (list): of `str` VASP output file names that should be included
           in an archive that represents the result of the calculation.
@@ -129,18 +117,16 @@ class AsyncVasp(Vasp, AsyncCalculator):
     """
     tarball = ["vasprun.xml"]
 
-    def __init__(self, atoms, folder, args=None, kwargs=None):
-        self.args = [] if args is None else args
-        self.kwargs = {} if kwargs is None else kwargs
+    def __init__(self, atoms, folder, *args, **kwargs):
         self.folder = path.abspath(path.expanduser(folder))
         self.kpoints = kwargs.pop("kpoints")
         self.atoms = atoms
-        self.folder = folder
+        self.args = args
+        self.kwargs = kwargs
         super(AsyncVasp, self).__init__(*args, **kwargs)
         if not path.isdir(self.folder):
             mkdir(self.folder)
         self.initialize(atoms)
-        self.name = "Vasp"
 
     def write_input(self, atoms, directory='./'):
         """Overload of the ASE input writer that handles the k-points using our
@@ -230,7 +216,6 @@ class AsyncVasp(Vasp, AsyncCalculator):
 
     def is_executing(self, folder):
         """Returns True if the specified VASP folder is in process of executing.
-
         Args:
             folder (str): path to the folder in which the executable was run.
         """
@@ -241,7 +226,6 @@ class AsyncVasp(Vasp, AsyncCalculator):
 
     def create(self, rewrite=False):
         """Creates all necessary input files for the VASP calculation.
-
         Args:
             rewrite (bool): when True, overwrite any existing files with the
               latest settings.
@@ -251,7 +235,6 @@ class AsyncVasp(Vasp, AsyncCalculator):
     def cleanup(self, folder):
         """Extracts results from completed calculations and sets them on the
         :class:`ase.Atoms` object.
-
         Args:
             folder (str): path to the folder in which the executable was run.
         """
