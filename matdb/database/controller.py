@@ -716,7 +716,8 @@ class Controller(object):
             # Have ASE build the initial POTCAR. This will be
             # overwritten by use once it exists.
             environ["VASP_PP_PATH"] = relpath(path.expanduser(self.potcars["directory"]))
-            from matdb import calculators
+            import lazy_import
+            calculators = lazy_import.lazy_module("matdb.calculators")
             from ase import Atoms, Atom
             calcargs = self.calculator.copy()
             calc = getattr(calculators, calcargs["name"])
