@@ -291,7 +291,7 @@ class Atoms(ase.Atoms):
             data = _convert_atoms_to_dict(self)
             save_dict_to_h5(hf,data,'/')
         else:
-            write(target,self)
+            write(target,self,**kwargs)
             
 class AtomsList(list):
     """An AtomsList like object for storing lists of Atoms objects read in
