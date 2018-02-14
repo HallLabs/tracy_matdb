@@ -189,6 +189,8 @@ class Group(object):
             self.seeds = OrderedDict()
             for atomspec in seeds:
                 fmt, pattern = atomspec.split(':')
+                if fmt == "POSCAR":
+                    fmt = "vasp"
                 for apath in self.database.parent.relpaths([pattern]):
                     self.seeds[path.basename(apath)] = Atoms(apath, format=fmt)
                     
