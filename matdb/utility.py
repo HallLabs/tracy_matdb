@@ -398,7 +398,7 @@ def parse_date(v):
         return [parse_date(vi) for vi in v]
     elif isinstance(v, string_types):
         return parser.parse(v)
-    else:# pragma: no cover
+    else:
         raise ValueError("Not a valid datetime string.")
 
 def load_datetime(pairs):
