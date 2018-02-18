@@ -6,7 +6,7 @@ import ase
 import numpy as np
 from copy import deepcopy
 import h5py
-from ase.io import write, read
+from ase import io
 from six import string_types
 import lazy_import
 from os import path
@@ -25,14 +25,17 @@ def _recursively_convert_units(in_dict):
         floats, and arrays.
     """
 
-    for key, item in in_dict.items():
+    dict_copy = in_dict.copy()
+    for key, item in dict_copy.items():
         if isinstance(item,int):
-            in_dict[key] = np.int64(item)
+            dict_copy[key] = np.int64(item)
         elif isinstance(item,float):
-            in_dict[key] = np.float64(item)
+            dict_copy[key] = np.float64(item)
         elif isinstance(item,dict):
-            in_dict[key] = _recursively_convert_units(item)
-    return in_dict
+            dict_copy[key] = _recursively_convert_units(item)
+        elif item is None:
+            del dict_copy[key]
+    return dict_copy
 
 def _convert_atoms_to_dict(atoms):
     """Converts the contents of a :class:`matdb.atoms.Atoms` object to a
@@ -52,15 +55,19 @@ def _convert_atoms_to_dict(atoms):
     data["params"] = _recursively_convert_units(atoms.params.copy())
     data["properties"] = {}
     for prop, value in atoms.properties.items():
-        if prop not in ["pos", "species", "Z", "n_neighb", "map_shift"]:
-            data["properties"].update(_recursively_convert_units({prop:value}))
+        if value is not None:
+            if prop not in ["pos", "species", "Z", "n_neighb", "map_shift"]:
+                data["properties"].update(_recursively_convert_units({prop:value}))
 
     data["positions"] = np.array(atoms.positions)
     if atoms.calc is not None:
         data["calc"] = atoms.calc.name
-        data["calcargs"] = np.array(atoms.calc.args)
-        data["calckwargs"] = _recursively_convert_units(atoms.calc.kwargs)
-        data["folder"] = atoms.calc.folder
+        if hasattr(atoms.calc,"args"):
+            data["calcargs"] = np.array(atoms.calc.args)
+        if hasattr(atoms.calc,"kwargs"):
+            data["calckwargs"] = _recursively_convert_units(atoms.calc.kwargs)
+        if hasattr(atoms.calc,"folder"):
+            data["folder"] = atoms.calc.folder
 
     symbols = atoms.get_chemical_symbols()
     data["symbols"] = ''.join([i+str(symbols.count(i)) for i in set(symbols)])    
@@ -124,15 +131,27 @@ class Atoms(ase.Atoms):
                                         calculator)
 
         self.n = n if n is not None else len(self.positions)
-        self.calc = calculator if calculator is not None else None
-        
+        if self.calc is None:
+            self.calc = calculator if calculator is not None else None
+        else:
+            self.calc = calculator if calculator is not None else self.calc
+
         if "params" not in self.info:
             self.info["params"]={}
         if "properties" not in self.info:
             self.info["properties"]={}
         setattr(self,"params",self.info["params"])
         setattr(self,"properties",self.info["properties"])
-        
+
+        if isinstance(symbols,ase.Atoms):
+            for k, v in symbols.arrays.items():
+                if k not in ['positions','numbers']:
+                    self.add_property(k,v)
+                if k in self.info["params"]:
+                    del self.info["params"][k]
+                if k in self.info:
+                    del self.info[k]
+
         if hasattr(self,"calc"):
             if hasattr(self.calc,"results"):
                 for k, v in self.calc.results.items():
@@ -140,10 +159,11 @@ class Atoms(ase.Atoms):
                         self.add_param(k,v)
                     else:
                         self.add_property(k,v)                    
-                
+
         if properties is not None:
             for k, v in properties.items():
                 self.add_property(k,v)
+                
         if params is not None:
             for k, v in params.items():
                 self.add_param(k,v)
@@ -151,6 +171,12 @@ class Atoms(ase.Atoms):
         if info is not None:
             for k, v in info.items():
                 self.add_param(k,v)
+                
+        if self.info is not None:
+            for k, v in self.info.items():
+                if k not in ["params","properties"]:
+                    self.add_param(k,v)
+                    del self.info[k]
 
         self._initialised = True
 
@@ -266,16 +292,19 @@ class Atoms(ase.Atoms):
         frmt = target.split('.')[-1]
         if frmt == "h5" or frmt == "hdf5":
             from matdb.utility import load_dict_from_h5
-            hf = h5py.File(target,"r")
-            data = load_dict_from_h5(hf)
+            with h5py.File(target,"r") as hf:
+                data = load_dict_from_h5(hf)
+            if "atom_0" in data:
+                data = data["atom_0"]
             self.__init__(**data)
-            calc = getattr(calculators, data["calc"])
-            calc = calc(self,data["folder"],
-                        args=list(data["calcargs"]) if "calcargs" in data else None,
-                        kwargs=data["calckwargs"] if 'calckwargs' in data else None)
-            self.set_calculator(calc)
+            if "calc" in data:
+                calc = getattr(calculators, data["calc"])
+                calc = calc(self,data["folder"],
+                            args=list(data["calcargs"]) if "calcargs" in data else None,
+                            kwargs=data["calckwargs"] if 'calckwargs' in data else None)
+                self.set_calculator(calc)
         else:
-            self.__init__(read(target,**kwargs))
+            self.__init__(io.read(target,**kwargs))
             
     def write(self,target="atoms.h5",**kwargs):
         """Writes an atoms object to file.
@@ -287,11 +316,11 @@ class Atoms(ase.Atoms):
         frmt = target.split('.')[-1]
         if frmt == "h5" or frmt == "hdf5":
             from matdb.utility import save_dict_to_h5
-            hf = h5py.File(target,"w")
-            data = _convert_atoms_to_dict(self)
-            save_dict_to_h5(hf,data,'/')
+            with h5py.File(target,"w") as hf:
+                data = _convert_atoms_to_dict(self)
+                save_dict_to_h5(hf,data,'/')
         else:
-            write(target,self,**kwargs)
+            io.write(target,self,**kwargs)
             
 class AtomsList(list):
     """An AtomsList like object for storing lists of Atoms objects read in
@@ -308,12 +337,11 @@ class AtomsList(list):
         self._step   = step
         # if the source has a wildcard or would somehow be a list we
         # need to iterate over it here.
+        tmp_ar = None
         if isinstance(source,list) and len(source)>0:
             if not isinstance(source[0],Atoms):
-                tmp_ar = []
                 for source_file in source:
-                    tmp_atoms = Atoms(source_file,**readargs)
-                    tmp_ar.append(tmp_atoms)
+                    self.read(source_file,**readargs)
             else:
                 tmp_ar = source
         elif isinstance(source,list) and len(source) == 0:
@@ -322,10 +350,10 @@ class AtomsList(list):
             if isinstance(source,Atoms):
                 tmp_ar = [source]
             else:
-                tmp_atoms = Atoms(source,**readargs)
-                tmp_ar = [tmp_atoms]
+                self.read(source,**readargs)
 
-        list.__init__(self, list(iter(tmp_ar)))
+        if tmp_ar is not None:
+            list.__init__(self, list(iter(tmp_ar)))
 
     def __getattr__(self, name):
         if name.startswith('__'):
@@ -413,12 +441,13 @@ class AtomsList(list):
         frmt = target.split('.')[-1]
         if frmt == "h5" or frmt == "hdf5":
             from matdb.utility import load_dict_from_h5
-            hf = h5py.File(target,"r")
-            data = load_dict_from_h5(hf)
+            with h5py.File(target,"r") as hf:
+                data = load_dict_from_h5(hf)
             atoms = [Atoms(**d) for d in data.values()]
             self.__init__(atoms)
         else:
-            self.__init__(read(target,index=':',**kwargs))
+            atoms = [Atoms(d) for d in io.read(target,index=':',**kwargs)]
+            self.__init__(atoms)
             
     def write(self,target,**kwargs):
         """Writes an atoms object to file.
@@ -432,10 +461,10 @@ class AtomsList(list):
         frmt = target.split('.')[-1]
         if frmt == "h5" or frmt == "hdf5":
             from matdb.utility import save_dict_to_h5
-            hf = h5py.File(target,"w")
-            for i in range(len(self)):
-                data = _convert_atoms_to_dict(self[i])
-                hf.create_group("atom_{}".format(i))
-                save_dict_to_h5(hf,data,"/atom_{}/".format(i))
+            with h5py.File(target,"w") as hf:
+                for i in range(len(self)):
+                    data = _convert_atoms_to_dict(self[i])
+                    hf.create_group("atom_{}".format(i))
+                    save_dict_to_h5(hf,data,"/atom_{}/".format(i))
         else:
-            write(target,self)
+            io.write(target,self)
