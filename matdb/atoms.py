@@ -443,11 +443,25 @@ class AtomsList(list):
             from matdb.utility import load_dict_from_h5
             with h5py.File(target,"r") as hf:
                 data = load_dict_from_h5(hf)
-            atoms = [Atoms(**d) for d in data.values()]
-            self.__init__(atoms)
+            # If the data was read in from and hdf5 file written by
+            # the AtomsList object then each atom will have a tag with
+            # it. We check for this by looking for the 'atom_0' tag,
+            # if its not present then we assume the hdf5 file was
+            # written by the Atoms object directly.
+            if "atom_0" in data:
+                atoms = [Atoms(**d) for d in data.values()]
+            else:
+                atoms = [Atoms(**data)]
+            if len(self) >0:
+                self.extend(atoms)
+            else:
+                self.__init__(atoms)
         else:
             atoms = [Atoms(d) for d in io.read(target,index=':',**kwargs)]
-            self.__init__(atoms)
+            if len(self) >0:
+                self.extend(atoms)
+            else:
+                self.__init__(atoms)
             
     def write(self,target,**kwargs):
         """Writes an atoms object to file.
