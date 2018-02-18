@@ -432,3 +432,43 @@ def test_objupdate():
     al = obj_update(al,k,[[0.5,0.5,0.5]])
 
     assert np.allclose(al.positions,[[0.5,0.5,0.5]])
+
+def test_copyonce():
+    """Tests the copyonce method in utility.
+    """
+
+    from matdb.utility import copyonce, touch
+    from os import remove, path
+
+    touch("temp1.txt")
+    copyonce("temp1.txt","temp2.txt")
+
+    assert path.isfile("temp2.txt")
+
+    remove("temp1.txt")
+    remove("temp2.txt")
+
+def test_which():
+    """Tests th which method in utility.
+    """
+
+    from matdb.utility import which
+
+    assert which('/bin/rm')=='/bin/rm'
+
+def test_parse_date():
+    """Tests the date parser.
+    """
+
+    from matdb.utility import parse_date
+    from dateutil import parser
+
+    dates = ['10-2-1987','10-4-1894']
+    temp = parse_date(dates)
+    assert len(temp)==2
+
+    for i in range(2):
+        assert parser.parse(dates[i]) == temp[i]
+
+    with pytest.raises(ValueError):
+        parse_date((10,2,1987))
