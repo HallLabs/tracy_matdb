@@ -476,7 +476,8 @@ def test_parse_date():
 def test_is_uuid4():
     """Tests the is_uuid4 funciton.
     """
-
+    from matdb.utility import is_uuid4
+    
     assert is_uuid4('4b602114-858d-455d-8152-27a2683af17e')
     assert is_uuid4('4b602114858d455d815227a2683af17e')
     assert not is_uuid4(0)
