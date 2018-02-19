@@ -904,3 +904,19 @@ def load_dict_from_h5(h5file, path='/'):
         elif isinstance(item, h5py._hl.group.Group):
             ans[key] = load_dict_from_h5(h5file, path + key + '/')
     return ans
+
+def is_uuid4(uuid_string):
+    """Determines of the string passed in is a valid uuid4 string.
+    """
+
+    try:
+        val = UUID(uuid_string, version=4)
+    except:
+        return False
+
+    # If the uuid_string is a valid hex code, 
+    # but an invalid uuid4,
+    # the UUID.__init__ will convert it to a 
+    # valid uuid4. This is bad for validation purposes.
+
+    return val.hex == uuid_string.replace('-','')    

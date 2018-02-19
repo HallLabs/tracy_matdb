@@ -129,7 +129,6 @@ class Group(object):
         #list.
         self.configs = {}
         self.config_atoms = {}
-        self.uuid = uuid4()
 
         with chdir(self.root):
             for folder in glob("{}.*".format(prefix)):
@@ -140,6 +139,17 @@ class Group(object):
                 except:
                     #The folder name doesn't follow our convention.
                     pass
+
+        if path.isfile(path.join(self.root,"uuid.txt")):
+            with open(path.join(self.root,"uuid.txt"),"r") as f:
+                uid = f.readline().strip()
+        else:
+            uid = uuid4()
+            with open(path.join(self.root,"uuid.txt"),"r") as f:
+                f.write(uid)
+            
+        self.uuid = uid
+        self.databes.parent.uuids[self.uuid] = self
 
     def _expand_sequence(self):
         """Recursively expands the nested groups to populate :attr:`sequence`.
@@ -495,7 +505,6 @@ class Group(object):
         """
 
         if len(self.sequence)==0:
-            uid = uuid4()
             if cid is None:
                 cid = len(self.configs) + 1
 
@@ -504,6 +513,15 @@ class Group(object):
             if not path.isdir(target):
                 mkdir(target)
 
+            if path.isfile(path.join(target,"uuid.txt")):
+                with open(path.join(target,"uuid.txt"),"r") as f:
+                    uid = f.readine().strip()
+            else:
+                uid = uuid4()
+                with open(path.join(target,"uuid.txt"),"w+") as f:
+                    f.write(uid)
+
+            atoms.add_param("uuid",uid)
             lcargs = self.calcargs.copy()
             del lcargs["name"]
             if calcargs is not None:
@@ -516,7 +534,8 @@ class Group(object):
             #Finally, store the configuration for this folder.
             self.configs[cid] = target
             self.config_atoms[cid] = atoms
-            
+
+            self.databes.parent.uuids[uid,atoms]
             return cid
         else:
             for group in self.sequence.values():
