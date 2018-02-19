@@ -233,13 +233,13 @@ class Enumerated(Group):
 
     @property
     def atoms_paths(self):
-        """Returns a list of full paths to the folders that have `atoms.json` objects
+        """Returns a list of full paths to the folders that have `atoms.h5` objects
         for the latest result set.
         """
         result = []
         for euid in self.euids:
             folder = self.index[euid]
-            target = path.join(folder,"atoms.json")
+            target = path.join(folder,"atoms.h5")
             if path.isfile(target):
                 result.append(folder)
 
@@ -249,13 +249,12 @@ class Enumerated(Group):
         """Returns a :class:`matdb.atoms.AtomsList`, one for each config in the
         latest result set.
         """
-        from matdb.database.basic import atoms_from_json
         if len(self.sequence) == 0:
             #Return the configurations from this group; it is at the
             #bottom of the stack
             result = AtomsList()
             for epath in self.atoms_paths:
-                result.append(atoms_from_json)
+                result.append(Atoms(epath))
             return result
         else:
             result = []

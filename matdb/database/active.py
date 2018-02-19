@@ -6,7 +6,7 @@ from os import path, getcwd, chdir, remove, listdir, mkdir
 import numpy as np
 from six import string_types
 from glob import glob
-from matdb.atoms import AtomsList
+from matdb.atoms import AtomsList, Atoms
 
 class Active(Group):
     """Sets up the calculations for a set of configurations that are being
@@ -72,7 +72,7 @@ class Active(Group):
         result = []
         for auid in self.auids:
             folder = self.index[str(auid)]
-            target = path.join(folder,"atoms.json")
+            target = path.join(folder,"atoms.h5")
             if path.isfile(target):
                 result.append(folder)
 
@@ -82,12 +82,12 @@ class Active(Group):
         """Returns a :class:`matdb.atoms.AtomsList`, one for each config in the
         latest result set.
         """
-        from matdb.database.basic import atoms_from_json
+
         #Return the configurations from this group; it is at the
         #bottom of the stack
         result = AtomsList()
         for epath in self.atoms_paths:
-            result.append(atoms_from_json(epath))
+            result.append(Atoms(epath))
         return result
 
     def add_configs(self,new_configs,iteration):
