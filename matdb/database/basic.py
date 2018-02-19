@@ -45,6 +45,9 @@ class Group(object):
         seeds (list, str, matdb.atoms.Atoms): The location of the files that will be
           read into to make the atoms object or an atoms object.
         cls (subclass): the subclass of :class:`Group`.
+        overrid (dict): a dictionary of with uuids or paths as the
+          keys and a dictionary containing parameter: value pairs for
+          parameters that need to be adjusted.
 
     Attributes:
         atoms (matdb.atoms.Atoms): a single atomic configuration from
@@ -63,11 +66,12 @@ class Group(object):
         pgrid (ParamaterGrid): The ParameterGrid for the database.
         grpargs (dict): default arguments to construct the new groups; will
           be overridden by any parameter grid specs.
+
     """
     seeded = False
     def __init__(self, cls=None, root=None, parent=None, prefix='S', pgrid=None,
                  nconfigs=None, calculator=None, seeds=None,
-                 config_type=None, execution={}, trainable=False):
+                 config_type=None, execution={}, trainable=False, override = {}):
         if isinstance(parent, Database):
             #Because we allow the user to override the name of the group, we
             #have to expand our root to use that name over here. However, for
@@ -153,6 +157,13 @@ class Group(object):
             
         self.uuid = str(uid)
         self.database.parent.uuids[str(self.uuid)] = self
+
+        if bool(override):
+            for k,v in override:
+                obj_ins = self.database.controller.find(k)
+                args = obj_ins.to_dict()
+                args.update(v)
+                obj_ins.__init__(**args)
 
     def _expand_sequence(self):
         """Recursively expands the nested groups to populate :attr:`sequence`.
@@ -244,11 +255,31 @@ class Group(object):
         """
         pass #pragma: no cover
 
+    @abc.abstractproperty
+    def to_dict(self):
+        """Returns a dictionary of the parameters passed in to create this
+        group. Each group that subclasses should call
+        `self.basic_dict()` to start their to_dict method.
+
+        """
+        pass #pragma: no cover
+
+    def basic_dict(self):
+        """Returns a dictionary of the parameters passed into the basic group
+        instance.
+        """
+        kw_dict = self.grpargs.copy()
+        args_dict = {"cls": self.cls, "root": self.root, "parent": self.parent,
+                     "pgrid": self.pgrid, "override": self.override}
+        kw_dict.update(args_dict)
+
+        return kw_dict
+
     @property
     def rset_file(self):
-        """Returns the full path to the `rset.pkl` file for this group.
+        """Returns the full path to the `rset.h5` file for this group.
         """
-        return path.join(self.root, "rset.pkl")
+        return path.join(self.root, "rset.h5")
     
     @abc.abstractproperty
     def rset(self):
@@ -705,7 +736,10 @@ class Group(object):
                 atoms.write(path.join(folder,"atoms.h5"))
             return self.can_cleanup()
         elif len(self.sequence) >0:
-            return all([group.cleanup() for group in self.sequence.values()])
-                
+            cleaned = all([group.cleanup() for group in self.sequence.values()])
+            if cleaned:
+                atoms = AtomsList(self.rset())
+                atoms.write(self.rset_file)
+            return cleaned                
         else:
             return self.can_cleanup()

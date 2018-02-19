@@ -52,9 +52,8 @@ class Enumerated(Group):
 
     """
     def __init__(self, sizes=None, basis=None, lattice=None, concs=None,
-                 arrows = None, eps=None, species=None, name="enum",
-                 rattle=None, rseed=None, keep_supers=None, displace=None,
-                 **dbargs):
+                 arrows = None, eps=None, name="enum", rattle=None, rseed=None,
+                 keep_supers=None, displace=None, **dbargs):
         self.name = name
         dbargs['prefix'] = "E"
         dbargs['cls'] = Enumerated
@@ -106,6 +105,23 @@ class Enumerated(Group):
         self.euids = None
         self._load_euids()
 
+    def to_dict(self):
+        """Writes the attributes of this instance of the class to a dictionary.
+        """
+        enum_dict = self.basic_dict()
+        enum_dict["sizes"] = [self.min_size,self.max_size]
+        enum_dict["basis"] = self.basis 
+        enum_dict["lattice"] = self.lattice
+        enum_dict["concs"] = self.concs
+        enum_dict["arrows"] = self.arrows
+        enum_dict["eps"] = self.eps
+        enum_dict["name"] = self.name
+        enum_dict["rattle"] = self.rattle
+        enum_dict["rseed"] = self.rseed
+        enum_dict["keep_supers"] = self.keep_supers
+        enum_dict["displace"] = self.displace
+        return enum_dict
+        
     def _get_lattice(self,lattice):
         """Gets the lattice vectors for the system.
         
