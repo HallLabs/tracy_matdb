@@ -77,6 +77,12 @@ def test_hdf5(tmpdir):
     atR = Atoms()
     atR.read(target=path.join(target,"temp.h5"))
 
+    # check that the calculator got transfered properly.
+    assert type(atSi.calc) == type(atR.calc)
+    assert atSi.calc.args == atR.calc.args
+    assert atSi.calc.kwargs == atR.calc.kwargs
+
+    # check that the other properties got transfered properly.
     assert atR.energy == atSi.energy
     assert isinstance(atR, Atoms)
     assert np.allclose(atR.force, atSi.force)
