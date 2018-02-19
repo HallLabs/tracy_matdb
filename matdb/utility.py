@@ -908,7 +908,8 @@ def load_dict_from_h5(h5file, path='/'):
 def is_uuid4(uuid_string):
     """Determines of the string passed in is a valid uuid4 string.
     """
-
+    from uuid import UUID
+    
     try:
         val = UUID(uuid_string, version=4)
     except:

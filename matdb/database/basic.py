@@ -140,16 +140,19 @@ class Group(object):
                     #The folder name doesn't follow our convention.
                     pass
 
-        if path.isfile(path.join(self.root,"uuid.txt")):
-            with open(path.join(self.root,"uuid.txt"),"r") as f:
+        if path.isfile(path.join(
+                self.root,"{}_{}_uuid.txt".format(self._db_name,self.prefix))):
+            with open(path.join(
+                    self.root,"{}_{}_uuid.txt".format(self._db_name,self.prefix)),"r") as f:
                 uid = f.readline().strip()
         else:
             uid = uuid4()
-            with open(path.join(self.root,"uuid.txt"),"r") as f:
-                f.write(uid)
+            with open(path.join(
+                    self.root,"{}_{}_uuid.txt".format(self._db_name,self.prefix)),"w") as f:
+                f.write(str(uid))
             
-        self.uuid = uid
-        self.databes.parent.uuids[self.uuid] = self
+        self.uuid = str(uid)
+        self.database.parent.uuids[str(self.uuid)] = self
 
     def _expand_sequence(self):
         """Recursively expands the nested groups to populate :attr:`sequence`.
@@ -519,9 +522,9 @@ class Group(object):
             else:
                 uid = uuid4()
                 with open(path.join(target,"uuid.txt"),"w+") as f:
-                    f.write(uid)
+                    f.write(str(uid))
 
-            atoms.add_param("uuid",uid)
+            atoms.add_param("uuid",str(uid))
             lcargs = self.calcargs.copy()
             del lcargs["name"]
             if calcargs is not None:
@@ -535,7 +538,7 @@ class Group(object):
             self.configs[cid] = target
             self.config_atoms[cid] = atoms
 
-            self.databes.parent.uuids[uid,atoms]
+            self.database.parent.uuids[str(uid)] = atoms
             return cid
         else:
             for group in self.sequence.values():

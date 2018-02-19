@@ -472,3 +472,13 @@ def test_parse_date():
 
     with pytest.raises(ValueError):
         parse_date((10,2,1987))
+
+def test_is_uuid4():
+    """Tests the is_uuid4 funciton.
+    """
+
+    assert is_uuid4('4b602114-858d-455d-8152-27a2683af17e')
+    assert is_uuid4('4b602114858d455d815227a2683af17e')
+    assert not is_uuid4(0)
+    assert not is_uuid4('DynMatrix/phonon/Pd/dim-2.00')
+    assert not is_uuid4('a0b1c2d3e4f5ghijklmnopqrstuvwxyz')

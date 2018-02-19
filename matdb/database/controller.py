@@ -167,15 +167,16 @@ class Database(object):
             instance = cls(**cpspec)
             self.steps[instance.name] = instance
 
-        if path.isfile(path.join(self.root,"uuid.txt")):
-            with open(path.join(self.root,"uuid.txt"),"r") as f:
+        if path.isfile(path.join(self.root,"{}_uuid.txt".format(self.name))):
+            with open(path.join(self.root,"{}_uuid.txt".format(self.name)),"r") as f:
                 uid = f.readline().strip()
         else:
             uid = uuid4()
-            with open(path.join(self.root,"uuid.txt"),"w+") as f:
-                f.write(uid)
-            
-        self.parnet.uuids[uid] = self
+            with open(path.join(self.root,"{}_uuid.txt".format(self.name)),"w+") as f:
+                f.write(str(uid))
+
+        self.uuid = str(uid)
+        self.parent.uuids[str(uid)] = self
 
     @property
     def isteps(self):
@@ -327,7 +328,7 @@ class Database(object):
             #We need to save these ids so that we don't mess up the statistics on
             #the training and validation sets.
             data = {
-                "uuid": uuid4(),
+                "uuid": str(uuid4()),
                 "subconfs": subconfs,
                 "ids": ids,
                 "Ntrain": Ntrain,
@@ -537,7 +538,7 @@ class Controller(object):
         """
         from matdb.utility import is_uuid4
         if is_uuid4(pattern):
-            return self.uuids[uuid4]
+            return self.uuids[pattern]
         
         if pattern == '*':
             return self.find('*.*')
