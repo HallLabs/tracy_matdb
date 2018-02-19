@@ -33,7 +33,8 @@ def _recursively_convert_units(in_dict):
             dict_copy[key] = np.float64(item)
         elif isinstance(item,dict):
             dict_copy[key] = _recursively_convert_units(item)
-        elif item is None:
+        elif item is None: #pragma: no cover I'm not sure this ever
+                           #will happen but better safe than sorry.
             del dict_copy[key]
     return dict_copy
 
@@ -147,9 +148,14 @@ class Atoms(ase.Atoms):
             for k, v in symbols.arrays.items():
                 if k not in ['positions','numbers']:
                     self.add_property(k,v)
-                if k in self.info["params"]:
+                if k in self.info["params"]: # pragma: no cover This
+                                             # should never happen
+                                             # check in place just in
+                                             # case.
                     del self.info["params"][k]
-                if k in self.info:
+                if k in self.info: # pragma: no cover This should
+                                   # never happen check in place just
+                                   # in case.
                     del self.info[k]
 
         if hasattr(self,"calc"):

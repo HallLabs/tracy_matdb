@@ -309,3 +309,42 @@ def test_AtomsList_io(tmpdir):
     aR.read(path.join(target,"temp.xyz"))
 
     assert len(aR) == len(al1)
+
+    aR.read(path.join(target,"temp.xyz"))
+    assert len(aR) == 2*len(al1)
+
+
+    # Test reading in of a single atoms object.
+
+    aR1 = Atoms(path.join(target,"temp.h5"))
+    assert isinstance(aR1,Atoms)
+    assert np.allclose(aR1.positions, at1.positions)
+
+def test_ase_atoms_conversion(tmpdir):
+    """Tests the conversion of an ase atoms objcet to a 'matdb.atoms.Atoms' object. 
+    """
+
+    from matdb.calculators import Quip
+    from matdb.atoms import Atoms as matAtoms
+    from ase.atoms import Atoms
+    target = str(tmpdir.join("from_ase"))
+    if not path.isdir(target):
+        mkdir(target)
+
+    atSi = Atoms("Si8",positions=[[0,0,0],[0.25,0.25,0.25],[0.5,0.5,0],[0.75,0.75,0.25],
+                                  [0.5,0,0.5],[0.75,0.25,0.75],[0,0.5,0.5],[0.25,0.75,0.75]],
+                 cell=[5.43,5.43,5.43])
+
+    aR = matAtoms(atSi)
+
+    assert np.allclose(aR.positions, atSi.positions)
+    assert aR.calc == atSi.calc 
+    
+    potSW = Quip(atSi, target, ["IP SW"])
+    atSi.set_calculator(potSW)
+
+    aR = matAtoms(atSi)
+
+    assert np.allclose(aR.positions, atSi.positions)
+    assert aR.calc == atSi.calc 
+    
