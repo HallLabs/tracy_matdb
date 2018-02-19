@@ -164,7 +164,17 @@ class LegacyDatabase(object):
                         else:
                             ai.add_param(target,ai.params[source])
                             del ai.params[source]
-                            if source in ai.info:
+                            if source in ai.info: #pragma: no cover
+                                                  #(if things were
+                                                  #dane correctly by
+                                                  #the atoms object
+                                                  #this should never
+                                                  #be used. It exists
+                                                  #mainly as a
+                                                  #safegaurd.
+                                msg.warn("The atoms object didn't properly "
+                                         "update the parameters of the legacy "
+                                         "atoms object.")
                                 del ai.info[source]
 
                     if doforce:
@@ -191,6 +201,11 @@ class LegacyDatabase(object):
                 all_atoms.extend(AtomsList(dbpath))
 
         all_atoms.write(self._dbfull)
+
+        #Finally, create the config file.
+        from matdb.utility import dbcat
+        with chdir(folder):
+            dbcat(self.dbfiles, self._dbfull, config_type=self.config_type, docat=False)
         
     def train_file(self, split):
         """Returns the full path to the XYZ database file that can be
