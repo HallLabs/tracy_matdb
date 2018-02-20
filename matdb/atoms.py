@@ -69,12 +69,22 @@ def _convert_atoms_to_dict(atoms):
             data["calckwargs"] = _recursively_convert_units(atoms.calc.kwargs)
         if hasattr(atoms.calc,"folder"):
             data["folder"] = atoms.calc.folder
-
+        if hasattr(atoms.calc,"kpoints"):
+            data["calckwargs"]["kpoints"] = _recursively_convert_units(atoms.calc.kpoints)
+            
     symbols = atoms.get_chemical_symbols()
     data["symbols"] = ''.join([i+str(symbols.count(i)) for i in set(symbols)])    
     return data
 
+def _calc_name_converter(name):
+    """Converts the name returned and saved by the ase calculator to the
+    matdb calculator instance name.
+    """
+    name_dict = {"vasp":"Vasp"}
+    return name_dict[name] if name in name_dict else name
+
 class Atoms(ase.Atoms):
+
     """An implementation of the :class:`ase.Atoms` object that adds the
     additional attributes of params and properties.
 
@@ -304,10 +314,22 @@ class Atoms(ase.Atoms):
                 data = data["atom_0"]
             self.__init__(**data)
             if "calc" in data:
-                calc = getattr(calculators, data["calc"])
-                calc = calc(self,data["folder"],
-                            args=list(data["calcargs"]) if "calcargs" in data else None,
-                            kwargs=data["calckwargs"] if 'calckwargs' in data else None)
+                calc = getattr(calculators, _calc_name_converter(data["calc"]))
+                args = list(data["calcargs"]) if "calcargs" in data else None
+                kwargs = data["calckwargs"] if 'calckwargs' in data else None
+                if args is not None:
+                    if kwargs is not None:
+                        calc = calc(self, data["folder"], *args, **kwargs)
+                    else:
+                        calc = calc(self, data["folder"], *args)
+                else: # pragma: no cover This case hasn't arrisen in
+                      # any calculators we've tested so far but I'm
+                      # keeping it here just to be safe and support
+                      # the possibility with future expansions.
+                    if kwargs is not None:
+                        calc = calc(self, data["folder"], **kwargs)
+                    else:
+                        calc = calc(self, data["folder"])
                 self.set_calculator(calc)
         else:
             self.__init__(io.read(target,**kwargs))
