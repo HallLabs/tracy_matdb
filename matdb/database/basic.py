@@ -270,10 +270,11 @@ class Group(object):
         instance.
         """
         kw_dict = self.grpargs.copy()
-        args_dict = {"cls": self.cls.name, "root": self.root,
-                     "pgrid": self.pgrid, "override": self.override} # "parent": self.parent,
+        args_dict = {"root": self.root,
+                     "override": self.override} # "parent": self.parent, "pgrid": self.pgrid, "cls": self.cls
         kw_dict.update(args_dict)
-
+        if "parent" in kw_dict:
+            del kw_dict["parent"]
         return kw_dict
 
     @property
