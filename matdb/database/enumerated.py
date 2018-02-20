@@ -270,7 +270,7 @@ class Enumerated(Group):
             #bottom of the stack
             result = AtomsList()
             for epath in self.atoms_paths:
-                result.append(Atoms(epath))
+                result.append(Atoms(path.join(epath,"atoms.h5")))
             return result
         else:
             result = []
