@@ -14,7 +14,6 @@ def compare_dicts(dict1,dict2):
         return False
 
     for key in dict1:
-        print("H2")
         if not np.allclose(dict1[key],dict2[key]):
             return False
 
@@ -147,6 +146,7 @@ def test_special_values():
     assert special_values("dist:alpha(0,10)") == "dist:alpha(0,10)"
     assert isinstance(special_values("distr:alpha(0,10)"),
                       scipy.stats._distn_infrastructure.rv_frozen)
+    assert np.allclose(special_values("[0,5,10,12]"),[1, 2, 3, 4, 5, 11])
 
 def test_special_functions():
     """Tests the special function evaluation.
@@ -170,8 +170,19 @@ def test_is_number():
         assert is_number('٥')
     else:
         assert is_number(u'٥')
+
     assert not is_number('str')
 
+def test_get_suffix():
+    """Tests uncovored lines in get_suffix.
+    """
+    from matdb.utility import get_suffix
+    
+    d = {"A":10,"B":20}
+    k = "A"
+    index=1
+    values = 10
+    assert get_suffix(d,k,index,values) == '-2'
 
 def test_ParameterGrid():
     """Tests the creation of a ParamaterGrid and it's functionality.
@@ -187,11 +198,15 @@ def test_ParameterGrid():
                'root': '/root/codes/matdb/tests/Pd', 'bandmesh': [13, 13, 13]}
 
     pgrid = ParameterGrid(db_info)
+    assert pgrid.__eq__(set(pgrid))
 
     assert len(pgrid) == 12
     assert compare_nested_dicts(pgrid['dos-tt-dim-16.00'],
                          {'phonopy': {'dim': [0, 2, 2, 2, 0, 2, 2, 2, 0]},
                           'dosmesh': [12, 12, 12], 'bandmesh': [13, 13, 13]})
+    pgrid.add('dos-tt-dim-16.00',10)
+    assert pgrid['dos-tt-dim-16.00'] != 10
+
     pgrid.pop('dos-tt-dim-16.00')
     assert not ('dos-tt-dim-16.00' in pgrid)
     assert not pgrid == ParameterGrid(db_info)
@@ -483,3 +498,71 @@ def test_is_uuid4():
     assert not is_uuid4(0)
     assert not is_uuid4('DynMatrix/phonon/Pd/dim-2.00')
     assert not is_uuid4('a0b1c2d3e4f5ghijklmnopqrstuvwxyz')
+
+def test_redirect_stdout():
+    """Tests the redirection of stdout.
+    """
+    from matdb.utility import redirect_stdout
+    
+    with open("temp.txt",'w') as f:
+        with redirect_stdout(f):
+            print("Wow")
+
+    with open("temp.txt",'r') as f:
+        temp = f.readline().strip()
+
+    assert temp=="Wow"
+    remove("temp.txt")
+
+    with pytest.raises(IOError):
+        with open("temp.txt",'r') as f:
+            with redirect_stdout(f):
+                print("Wow")
+        
+def test_execute():
+    """Tests missing lines of execute.
+    """
+    from matdb.utility import execute
+
+    # test early breaking on stderr and stdout.
+    temp=execute(('which','python'),'.',nlines=0)
+    temp=execute(('python','enum.x'),'.',nlines=0)
+    
+    temp=execute(('which','python'),'.',env_vars={"POTENTIALS_DIR":'1'})
+    assert temp['output'] ==['/usr/local/bin/python\n']
+    assert temp['error'] == []
+
+def test_load_datetime():
+    """Tests missing cases from load datetime pairs.
+    """
+    from matdb.utility import load_datetime
+
+    data=[[1,10]]
+    out = load_datetime(data)
+
+    assert out[1] == 10
+
+def test_dbcate():
+    """Tests missing lines in dbcat.
+    """
+    from matdb.utility import dbcat
+    # Test to make just that 'temp2.txt.json' doesn't get written if
+    # files can't be cated.
+    dbcat(['temp1.txt'],'temp2.txt',sources=["temp3.txt"])
+
+    assert not path.isfile('temp2.txt.json')
+    remove("temp2.txt")
+
+def test_getattrs():
+    """Tetsts the getting of attributes from a chain of attributes.
+    """
+    from matdb.utility import getattrs
+    obj = {"a":{"b":20}}
+    assert 20 == getattrs(obj,'a.b')
+
+    from matdb.atoms import Atoms
+    at = Atoms("C4")
+    assert np.allclose(np.array([[ 0.,  0.,  0.],
+                                 [ 0.,  0.,  0.], [ 0.,  0.,  0.]]),
+                       getattrs(at,'cell'))
+    

@@ -79,7 +79,10 @@ def execute(args, folder, wait=True, nlines=100, venv=None,
     kwargs["cwd"] = folder
 
     if venv is not None:
-        if isinstance(venv, string_types):
+        if isinstance(venv, string_types): # pragma: no cover No
+                                           # guarantee that virtual
+                                           # envs exist on testing
+                                           # machine.
             vargs = ["virtualenvwrapper_derive_workon_home"]
             vres = execute(vargs, path.abspath("."))
             prefix = path.join(vres["output"][0].strip(), venv, "bin")
@@ -592,8 +595,9 @@ def special_values(vs, seed=None):
                 result = _py_execute(module, function, rest)
             else:
                 #We still need to determine the name of the callable.
-                first = rest.index('(')
-                caller = rest[:first]
+                if k in ["random:","distr:"]:
+                    first = rest.index('(')
+                    caller = rest[:first]
                 if k == "random:":
                     from numpy.random import RandomState
                     rs = RandomState(seed)
@@ -668,7 +672,7 @@ def is_number(s):
     except ValueError:
         pass
  
-    try:
+    try: # pragma: no cover
         import unicodedata
         unicodedata.numeric(s)
         return True
@@ -864,10 +868,10 @@ class ParameterGrid(collections.MutableSet):
             return '%s()' % (self.__class__.__name__,)
         return '%s(%r)' % (self.__class__.__name__, list(self))
 
-    def __eq__(self, other):
+    def __eq__(self, other): 
         if isinstance(other, ParameterGrid):
             return len(self) == len(other) and list(self) == list(other)
-        return set(self) == set(other)
+        return set(self) == set(other) 
 
 def save_dict_to_h5(h5file, dic, path='/'):
     """Saves a nested dictionary to an open hdf5 file.
