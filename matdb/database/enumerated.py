@@ -25,7 +25,7 @@ class Enumerated(Group):
             Defaults ot None.
         eps (float, optional): floating point tolerance for comparisons. 
             Defaults to 1E-3.
-        rseed (hashable, optional): a seed to feed to the random number generator.
+        ran_seed (hashable, optional): a seed to feed to the random number generator.
             Defaults to None.
         rattle (float, optional): the amount to rattle the atoms by. Defaults to 0.0.
         keep_supers (bool, optional): True if the superperiodic cells are to be kept 
@@ -52,7 +52,7 @@ class Enumerated(Group):
 
     """
     def __init__(self, sizes=None, basis=None, lattice=None, concs=None,
-                 arrows = None, eps=None, name="enum", rattle=None, rseed=None,
+                 arrows = None, eps=None, name="enum", rattle=None, ran_seed=None,
                  keep_supers=None, displace=None, **dbargs):
         self.name = name
         dbargs['prefix'] = "E"
@@ -69,7 +69,7 @@ class Enumerated(Group):
         else:
             self.eps = eps
 
-        self.rseed = rseed
+        self.ran_seed = ran_seed if ran_seed is not None else self.database.parent.ran_seed
         self._get_lattice(lattice)
         self._get_basis(basis)
         self.species = self.database.parent.species
@@ -105,7 +105,7 @@ class Enumerated(Group):
         self.euids = None
         self._load_euids()
 
-    def to_dict(self):
+    def sub_dict(self):
         """Writes the attributes of this instance of the class to a dictionary.
         """
         enum_dict = self.basic_dict()
@@ -117,7 +117,7 @@ class Enumerated(Group):
         enum_dict["eps"] = self.eps
         enum_dict["name"] = self.name
         enum_dict["rattle"] = self.rattle
-        enum_dict["rseed"] = self.rseed
+        enum_dict["ran_seed"] = self.ran_seed
         enum_dict["keep_supers"] = self.keep_supers
         enum_dict["displace"] = self.displace
         return enum_dict
@@ -372,7 +372,7 @@ class Enumerated(Group):
         from phenum.makeStr import _make_structures
         from glob import glob
         _enum_out({"input":"enum.in","outfile":"enum.out",
-                   "seed":self.rseed if self.rseed is None else self.rseed+dind+recurse,
+                   "seed":self.ran_seed if self.ran_seed is None else self.ran_seed+dind+recurse,
                    "lattice":"lattice.in","distribution":["all",str(self.nconfigs-dind)],
                    "super":self.keep_supers,"sizes":None,"savedist":None,"filter":None,
                    "acceptrate":None})

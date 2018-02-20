@@ -9,13 +9,13 @@ import collections
 from glob import glob
 from uuid import uuid4
 
-def parse_path(root,seeds,rseed=None):
+def parse_path(root,seeds,ran_seed=None):
     """Finds the full path to the seed files for this system.
     Args:
         root (str): the root directory for the databes.
         seeds (str or list of str): the seeds for the database that 
             need to be parsed and have the root folder found.
-        rseed (optional): the seed for the random generator if used.
+        ran_seed (optional): the seed for the random generator if used.
     
     Returns:
         seed_files (list): a list of the seed files for the database.
@@ -334,7 +334,8 @@ class Database(object):
                 "Ntrain": Ntrain,
                 "Nhold": Nhold,
                 "Ntot": Ntot,
-                "Nsuper": Nsuper
+                "Nsuper": Nsuper,
+                "ran_seed": self.parent.ran_seed
             }
             self.parent.uuids[data["uuid"]] = idfile
             with open(idfile, 'wb') as f:
@@ -442,6 +443,10 @@ class Controller(object):
         self.collections = {}
         self.uuids = {}
         self.species = sorted([s for s in self.specs["species"]])
+        self.ran_seed = self.specs.get("ran_seed",None)
+        if self.ran_seed is not None:
+            import random
+            random.seed(self.ran_seed)
         self.execution = self.specs.get("execution", {})
         self.calculator = self.specs.get("calculator", {})
         #Extract the POTCAR that all the databases are going to use. TODO: pure
@@ -515,7 +520,7 @@ class Controller(object):
             pattern (str): the pattern to match.
         """
         
-        return parse_path(self.root,pattern,rseed=self.random_seed)
+        return parse_path(self.root,pattern,ran_seed=self.random_seed)
     
     def find(self, pattern):
         """Finds a list of :class:`matdb.database.basic.Group` that match the given

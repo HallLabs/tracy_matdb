@@ -256,8 +256,8 @@ class Group(object):
         """
         pass #pragma: no cover
 
-    @abc.abstractproperty
-    def to_dict(self):
+    @abc.abstractmethod
+    def sub_dict(self):
         """Returns a dictionary of the parameters passed in to create this
         group. Each group that subclasses should call
         `self.basic_dict()` to start their to_dict method.
@@ -265,16 +265,19 @@ class Group(object):
         """
         pass #pragma: no cover
 
-    def basic_dict(self):
+    def to_dict(self):
         """Returns a dictionary of the parameters passed into the basic group
         instance.
         """
         kw_dict = self.grpargs.copy()
         args_dict = {"root": self.root,
-                     "override": self.override} # "parent": self.parent, "pgrid": self.pgrid, "cls": self.cls
+                     "override": self.override}
+        
         kw_dict.update(args_dict)
         if "parent" in kw_dict:
             del kw_dict["parent"]
+
+        kw_dict.update(self.sub_dict())
         return kw_dict
 
     @property
