@@ -807,7 +807,8 @@ class ParameterGrid(collections.MutableSet):
         self.values = {}
         self.params = params
         for i, v in grid.items():
-            self.add(i,v)
+            if i is not None:
+                self.add(i,v)
             
     def __len__(self):
         return len(self.map)

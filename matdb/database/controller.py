@@ -146,8 +146,6 @@ class Database(object):
             del cpspec["type"]
 
             cpspec["pgrid"] = ParameterGrid(cpspec.copy())
-            if len(cpspec["pgrid"]) ==0:
-                cpspec["parameters"] = cpspec["pgrid"].params
             for k in list(cpspec.keys()):
                 if "suffix" in k:
                     del cpspec[k]

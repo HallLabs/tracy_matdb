@@ -139,14 +139,16 @@ class DynMatrix(Group):
         """np.array: the force constants matrix, whether it was derived from
         DFPT or from frozen phonon calculations.
         """
-                
-        from os import mkdir
-        if not path.isdir(self.phonodir):
-            mkdir(self.phonodir)
-        if not path.isdir(self.phonocache):
-            mkdir(self.phonocache)
-        if not path.isdir(self.kpathdir):
-            mkdir(self.kpathdir)
+
+        # Only place these directories if we're at the bottom of the stack.
+        if self.pgrid is None or (self.pgrid is not None and len(self.pgrid) ==0):
+            from os import mkdir
+            if not path.isdir(self.phonodir):
+                mkdir(self.phonodir)
+            if not path.isdir(self.phonocache):
+                mkdir(self.phonocache)
+            if not path.isdir(self.kpathdir):
+                mkdir(self.kpathdir)
 
     def _best_bands(self):
         """Returns the name of the band collection that has the smallest *converged*
@@ -188,7 +190,7 @@ class DynMatrix(Group):
             minkey = maxkey
 
         return minkey
-            
+
     @property
     def rset(self):
         """Constructs the force constants matrix for the *best* convergence parameters

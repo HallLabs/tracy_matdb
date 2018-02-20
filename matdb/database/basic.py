@@ -14,6 +14,7 @@ from collections import OrderedDict
 from glob import glob
 import json
 import lazy_import
+import h5py
 
 from matdb import msg
 from matdb.utility import chdir, ParameterGrid
@@ -178,9 +179,11 @@ class Group(object):
                     mkdir(seed_root)
 
                 clsargs = self.grpargs.copy()
+                clsargs["pgrid"] = self.pgrid
+                if self.pgrid is None or len(self.pgrid) == 0:
+                    clsargs.update(self.pgrid.params)
                 clsargs["root"] = seed_root
                 clsargs["seeds"] = at_seed
-                clsargs["pgrid"] = self.pgrid
                 if self.cls is None: #pragma: no cover
                     msg.err("The Group must have a class to have seeds.")
                 self.sequence[seedname] = self.cls(**clsargs)
@@ -259,19 +262,19 @@ class Group(object):
     @abc.abstractmethod
     def sub_dict(self):
         """Returns a dictionary of the parameters passed in to create this
-        group. Each group that subclasses should call
-        `self.basic_dict()` to start their to_dict method.
-
+        group.
         """
         pass #pragma: no cover
 
     def to_dict(self):
-        """Returns a dictionary of the parameters passed into the basic group
-        instance.
+        """Returns a dictionary of the parameters passed into the group instance.
         """
+        from matdb import __version__
+        from datetime import datetime
+        
         kw_dict = self.grpargs.copy()
-        args_dict = {"root": self.root,
-                     "override": self.override}
+        args_dict = {"root": self.root, "override": self.override, "version":__version__,
+                     "datetime":str(datetime.now())}
         
         kw_dict.update(args_dict)
         if "parent" in kw_dict:
@@ -556,11 +559,12 @@ class Group(object):
                 with open(path.join(target,"uuid.txt"),"r") as f:
                     uid = f.readine().strip()
             else:
-                uid = uuid4()
+                uid = str(uuid4())
                 with open(path.join(target,"uuid.txt"),"w+") as f:
-                    f.write(str(uid))
+                    f.write(uid)
 
-            atoms.add_param("uuid",str(uid))
+            atoms.uuid = uid
+            atoms.group_args = self.to_dict()
             lcargs = self.calcargs.copy()
             del lcargs["name"]
             if calcargs is not None:
@@ -574,7 +578,7 @@ class Group(object):
             self.configs[cid] = target
             self.config_atoms[cid] = atoms
 
-            self.database.parent.uuids[str(uid)] = atoms
+            self.database.parent.uuids[uid] = atoms
             return cid
         else:
             for group in self.sequence.values():
@@ -743,8 +747,11 @@ class Group(object):
         elif len(self.sequence) >0:
             cleaned = all([group.cleanup() for group in self.sequence.values()])
             if cleaned:
-                atoms = AtomsList(self.rset())
-                atoms.write(self.rset_file)
+                atoms = self.rset()
+                atoms_dict = {"atom_{}".format(Atoms(f).uuid): f for f in atoms}
+                from matdb.utility import save_dict_to_h5
+                with h5py.File(target,"w") as hf:
+                    save_dict_to_h5(hf,atoms_dict,'/')
             return cleaned                
         else:
             return self.can_cleanup()

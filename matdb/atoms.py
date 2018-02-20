@@ -10,7 +10,8 @@ from ase import io
 from six import string_types
 import lazy_import
 from os import path
-from uuid import uuid4()
+from uuid import uuid4
+from matdb import msg
 
 calculators = lazy_import.lazy_module("matdb.calculators")
 
@@ -491,7 +492,13 @@ class AtomsList(list):
             # the contents of the file are an atoms list. If it's not
             # then we assume this is a single atoms object.
             if "atom" in data[data.keys()[0]]:
-                atoms = [Atoms(**d) for d in data.values()]
+                if isinstance(data.values()[0],dict):
+                    atoms = [Atoms(**d) for d in data.values()]
+                elif isinstance(data.values()[0],string_types):
+                    atoms = [Atoms(d) for d in data.values()]
+                else:
+                    msg.err("The data format {} isn't supported for reading AtomLists "
+                            "from hdf5 files.".format(type(data.values()[0])))
             else:
                 atoms = [Atoms(**data)]
             if len(self) >0:
