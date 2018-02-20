@@ -158,6 +158,7 @@ class Group(object):
         self.uuid = str(uid)
         self.database.parent.uuids[str(self.uuid)] = self
 
+        self.override = override.copy()
         if bool(override):
             for k,v in override:
                 obj_ins = self.database.controller.find(k)
@@ -269,8 +270,8 @@ class Group(object):
         instance.
         """
         kw_dict = self.grpargs.copy()
-        args_dict = {"cls": self.cls, "root": self.root, "parent": self.parent,
-                     "pgrid": self.pgrid, "override": self.override}
+        args_dict = {"cls": self.cls.name, "root": self.root,
+                     "pgrid": self.pgrid, "override": self.override} # "parent": self.parent,
         kw_dict.update(args_dict)
 
         return kw_dict
@@ -726,7 +727,7 @@ class Group(object):
         """
         if len(self.sequence) == 0 and self.can_cleanup():
             for cid, folder in self.configs.items():
-                if path.isfile(path.join(folder, "atoms.json")):
+                if path.isfile(path.join(folder, "atoms.h5")):
                     #We don't need to recreate the atoms objects if they already
                     #exist.
                     continue
