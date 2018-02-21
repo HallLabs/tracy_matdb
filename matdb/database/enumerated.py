@@ -108,7 +108,7 @@ class Enumerated(Group):
     def sub_dict(self):
         """Writes the attributes of this instance of the class to a dictionary.
         """
-        enum_dict = self.basic_dict()
+        enum_dict = {}
         enum_dict["sizes"] = [self.min_size,self.max_size]
         enum_dict["basis"] = self.basis 
         enum_dict["lattice"] = self.lattice

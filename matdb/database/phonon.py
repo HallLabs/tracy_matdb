@@ -150,6 +150,14 @@ class DynMatrix(Group):
             if not path.isdir(self.kpathdir):
                 mkdir(self.kpathdir)
 
+    def sub_dict(self):
+        """Returns a dict needed to initialize the class.
+        """
+        args = {"phonopy":{"dim":self.supercell},"name":self.name,
+                "bandmesh":self.bandmesh,"dosmesh":self.dosmesh,
+                "tolerance":self.tolerance,"dfpt":self.dfpt}
+        return args
+                
     def _best_bands(self):
         """Returns the name of the band collection that has the smallest *converged*
         phonon bands. This is accomplished by assuming that the largest supercell is
