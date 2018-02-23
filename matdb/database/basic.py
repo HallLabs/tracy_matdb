@@ -72,7 +72,8 @@ class Group(object):
     seeded = False
     def __init__(self, cls=None, root=None, parent=None, prefix='S', pgrid=None,
                  nconfigs=None, calculator=None, seeds=None,
-                 config_type=None, execution={}, trainable=False, override = {}):
+                 config_type=None, execution={}, trainable=False, override = {},
+                 r_bin=None):
         if isinstance(parent, Database):
             #Because we allow the user to override the name of the group, we
             #have to expand our root to use that name over here. However, for
@@ -98,6 +99,7 @@ class Group(object):
         if seeds is not None:
             self.is_seed_listed = isinstance(seeds, (list, six.string_types))
 
+        self.r_bin = r_bin
         self.seeds = None
         self.pgrid = pgrid
         self._seed = seeds
@@ -163,9 +165,33 @@ class Group(object):
         if bool(override):
             for k,v in override:
                 obj_ins = self.database.controller.find(k)
-                args = obj_ins.to_dict()
-                args.update(v)
-                obj_ins.__init__(**args)
+                if isinstance(obj_ins,Atoms):
+                    if self.r_bin is not None:
+                        back_up_path = obj_ins.calc.folder
+                        back_up_path = back_up_path.strip(self.database.root)[-1]
+                        back_up_path = back_up_path.replace('/','.')+'.atoms.h5'
+                        obj_ins.write(path.join(self.r_bin.root,back_up_path))
+                        if path.isfile(path.join(obj_ins.calc.folder,"atoms.h5")):
+                            from os import remove
+                            remove(path.join(obj_ins.calc.folder,"atoms.h5"))
+                    if "calc" in v:
+                        new_calc = getattr(calculators, v["calc"]["name"])
+                        lcargs = self.calcargs.copy()
+                        del lcargs["name"]
+                        if v["calc"]["calcargs"] is not None:
+                            lcargs.update(calcargs)
+                        calc = new_calc(atoms, obj_ins.calc.folder, **lcargs)
+                        obj_ins.set_calculator(calc)                    
+                else:                        
+                    args = obj_ins.to_dict()
+                    for atm in self.atoms_paths():
+                        from os import rename
+                        back_up_path = atm.strip(self.database.root)[-1]
+                        back_up_path = back_up_path.replace('/','.')+'.atoms.h5'
+                        rename(atm,path.join(selg.r_bin.root,back_up_path))
+                    args.update(v)
+                    obj_ins.__init__(**args)
+                    obj_ins.setup(rerun=True)
 
     def _expand_sequence(self):
         """Recursively expands the nested groups to populate :attr:`sequence`.
@@ -273,8 +299,8 @@ class Group(object):
         from datetime import datetime
         
         kw_dict = self.grpargs.copy()
-        args_dict = {"root": self.root, "override": self.override, "version":__version__,
-                     "datetime":str(datetime.now())}
+        args_dict = {"root": self.root, "override": self.override,
+                     "version":__version__, "datetime":str(datetime.now())}
         
         kw_dict.update(args_dict)
         if "parent" in kw_dict:
@@ -563,6 +589,13 @@ class Group(object):
                 with open(path.join(target,"uuid.txt"),"w+") as f:
                     f.write(uid)
 
+            if path.isfile(path.join(target,"atoms.h5")):
+                from os import rename
+                back_up_path = self.database.root
+                back_up_path = back_up_path.split(target)[-1]
+                back_up_path = back_up_path.replace('/','.')+'.atoms.h5'
+                rename(path.join(target,'atoms.h5'),path.join(self.r_bin.root,back_up_path))
+                    
             atoms.uuid = uid
             atoms.group_args = self.to_dict()
             lcargs = self.calcargs.copy()
