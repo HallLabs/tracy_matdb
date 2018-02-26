@@ -104,7 +104,7 @@ class Database(object):
         self.config = name.split('.')[0]
         self.root = root
         self.splits = {} if splits is None else splits
-        self.rec_bin == recycle_bin(parnet,root,splits)
+        self.rec_bin = recycle_bin(parent,root,splits)
         
         if not path.isdir(self.root):
             from os import mkdir
@@ -272,7 +272,7 @@ class Database(object):
         the database specification.
         """
         for name in self.splits:
-            self._split(name, recalc)
+            self._split(name, recalc)        
     
     def _split(self, name, recalc=0):
         """Splits the total available data in all Groups into a training and holdout
@@ -441,10 +441,10 @@ class recycle_bin(Database):
             from os import mkdir
             mkdir(self.root)
 
-        self.isteps = {"rec_bin":self}
+        self.steps = {"rec_bin":self}
         self.trainable = True
-        self.uuid = str(uid)
-        self.parent.uuids[str(uid)] = self        
+        self.uuid = str(uuid4())
+        self.parent.uuids[self.uuid] = self        
 
     def to_dict(self):
         pass
@@ -467,6 +467,24 @@ class recycle_bin(Database):
     
     def recover(self, rerun=False):
         pass
+
+    def split(self, recalc=0, cfilter=None, dfilter=None):
+        """Splits the total available data in the recycle bin.
+        Args:
+            recalc (int): when non-zero, re-split the data and overwrite any
+              existing *.h5 files. This parameter decreases as
+              rewrites proceed down the stack. To re-calculate
+              lower-level h5 files, increase this value.
+            cfilter (list): of `str` patterns to match against *configuration*
+              names. This limits which configs are returned.
+            dfilter (list): of `str` patterns to match against *database sequence*
+              names. This limits which databases sequences are returned.
+        """
+
+        from matdb.utility import chdir
+
+        with chdir(self.root):
+            super(recycle_bin,self).split(recalc=recalc,cfilter=cfilter,dfilter=dfilter)
     
     def status(self, busy=False):
         pass
