@@ -169,12 +169,10 @@ class Group(object):
                     if "calc" in v:
                         if self.rec_bin is not None:
                             #construct the path for the object in the recycling bin
-                            back_up_path = obj_ins.calc.folder
-                            back_up_path = back_up_path.strip(self.database.root)[-1]
-                            back_up_path = back_up_path.replace('/','.')+'.atoms.h5'
-                            obj_ins.write(path.join(self.rec_bin.root,back_up_path))
-                            self.database.parent.uuids[obj_ins.uuid] = path.join(
-                                self.rec_bin.root,back_up_path)
+                            new_path = path.join(self.rec_bin.root,
+                                                 "{}-atoms.h5".format(obj_ins.uuid))
+                            obj_ins.write(new_path)
+                            self.database.parent.uuids[obj_ins.uuid] = new_path
                             if path.isfile(path.join(obj_ins.calc.folder,"atoms.h5")):
                                 from os import remove
                                 remove(path.join(obj_ins.calc.folder,"atoms.h5"))
@@ -204,10 +202,9 @@ class Group(object):
                     if self.rec_bin is not None:
                         for atm in self.atoms_paths():
                             from os import rename
-                            back_up_path = atm.strip(self.database.root)[-1]
-                            back_up_path = back_up_path.replace('/','.')+'.atoms.h5'
-                            new_atm = path.join(selg.rec_bin.root,back_up_path)
                             atms = Atoms(atm)
+                            new_atm = path.join(selg.rec_bin.root,
+                                                "{}-atoms.h5".format(atms.uuid))
                             self.database.parent.uuids[atms.uuid] = new_atm
                             rename(atm,new_atm)
                     obj_ins.save_pkl(obj_ins.to_dict(),"{}.pkl".format(self.uuid))
@@ -620,10 +617,8 @@ class Group(object):
 
             if path.isfile(path.join(target,"atoms.h5")) and rewrite:
                 from os import rename
-                back_up_path = self.database.root
-                back_up_path = back_up_path.split(target)[-1]
                 back_up_path = back_up_path.replace('/','.')+'.atoms.h5'
-                new_path = path.join(self.rec_bin.root,back_up_path)
+                new_path = path.join(self.rec_bin.root,"{}-atotms.h5".format(uid))
                 rename(path.join(target,'atoms.h5'),new_path)
                 self.database.parent.uuids[uid] = new_path
                 uid = str(uuid4())
