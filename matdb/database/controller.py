@@ -62,7 +62,7 @@ def parse_path(root,seeds,ran_seed=None):
                 msg.err("The seed file {} could not be found.".format(t_seed))
 
         return seed_files
-    
+
 class Database(object):
     """Represents a Database of groups (all inheriting from :class:`Group`) that 
     are all related be the atomic configuration that they model.
@@ -97,12 +97,14 @@ class Database(object):
         steps (OrderedDict): keys are step names (e.g. `dft`, `calibration`,
           etc.); values are the corresponding class instances.
         parent (Controller): instance controlling multiple configurations.
+        rec_bin (recycle_bin): instance of the recycling bin database.
     """
     def __init__(self, name, root, parent, steps, splits):
         self.name = name
         self.config = name.split('.')[0]
         self.root = root
         self.splits = {} if splits is None else splits
+        self.rec_bin == recycle_bin(parnet,root,splits)
         
         if not path.isdir(self.root):
             from os import mkdir
@@ -155,7 +157,7 @@ class Database(object):
             
             cpspec["root"] = self.root
             cpspec["parent"] = self
-
+            cpspec["rec_bin"] = self.rec_bin
             #Handle the special cases where settings are specified uniquely for
             #each of the configurations separately.
             for k in list(cpspec.keys()):
@@ -285,16 +287,28 @@ class Database(object):
         train_file = self.train_file(name)
         holdout_file = self.holdout_file(name)
         super_file = self.super_file(name)
+        idfile = path.join(self.root, "{0}-ids.pkl".format(name))
         if (path.isfile(train_file) and path.isfile(holdout_file)
-            and path.isfile(super_file) and recalc <= 0):
-            return
+            and path.isfile(super_file)):
+            if recalc <= 0:
+                return
+            else:
+                from os import rename, remove
+                if path.isfile(idfile):
+                    with open(idfile, 'rb') as f:
+                        data = load(f)
+                new_idfile = path.join(self.root,"{0}_{1}-ids.pkl".format(name,data["uuid"]))
+                self.parent.uuids[data["uuid"]] = new_idfile
+                for fname in [train_file,holdout_file,super_file]:
+                    new_name = fname.replace(name,"{0}_{1}".format(name,data["uuid"]))
+                    rename(fname,new_name)
+                remove(idfile)
 
         train_perc = self.splits[name]
         
         #Compile a list of all the sub-configurations we can include in the
         #training.
         from cPickle import dump, load
-        idfile = path.join(self.root, "{0}-ids.pkl".format(name))
         if path.isfile(idfile):
             with open(idfile, 'rb') as f:
                 data = load(f)
@@ -397,7 +411,76 @@ class Database(object):
             msg.info("Setting up database {}:{}".format(self.name, dbname))
             db.setup(rerun)
         msg.blank()
+
+    def to_dict(self):
+        """Returns a dictionary of the database parameters and settings.
+        """
+        from matdb.utility import __version__
+        from os import sys
+        data = {"version":__version__,"python_version":sys.version,"name":self.name,
+                "root":self.root,"steps":self._settings,"uuid":self.uuid}
         
+class recycle_bin(Database):
+    """A database of past calculations to be stored for later use.
+
+    Args:
+        parent (Controller): instance controlling multiple configurations.
+        root (str): root directory in which the 'recycle_bin' folder will 
+          be placed. 
+        splits (dict): keys are split names; values are `float` *training*
+          percentages to use.
+    """
+
+    def __init__(self,parent,root,splits):
+        """Sets up the recycle_bin database.
+        """
+        self.parent = parent
+        self.root = path.join(root,"recycle_bin")
+        self.splits = {} if splits is None else splits
+        if not path.isdir(self.root):
+            from os import mkdir
+            mkdir(self.root)
+
+        self.isteps = {"rec_bin":self}
+        self.trainable = True
+        self.uuid = str(uid)
+        self.parent.uuids[str(uid)] = self        
+
+    def to_dict(self):
+        pass
+        
+    @property
+    def rset(self):
+        """Returns a list of all the atoms object files in the recycle_bin."""
+        from glob import glob
+        return glob(path.join(self.root,"*.h5"))
+    
+    def setup(self):
+        pass
+
+    def cleanup(self):
+        pass
+    
+    @property
+    def isteps(self):
+        pass
+    
+    def recover(self, rerun=False):
+        pass
+    
+    def status(self, busy=False):
+        pass
+        """Prints a status message for each of the databases relative
+        to VASP execution status.
+        Args:
+            busy (bool): when True, print a list of the configurations that are
+              still busy being computed in DFT.
+        """
+        msg.std("Ready")
+            
+    def execute(self, recovery=False, env_vars=None):
+        pass
+    
 class Controller(object):
     """Implements methods for tying a configuration dictionary (in
     YAML format) to instances of various databases.
