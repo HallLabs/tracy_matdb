@@ -320,6 +320,9 @@ class Atoms(ase.Atoms):
             A dictionary containing the relavent parts of an atoms object to 
             be saved.
         """
+        import sys
+        from matdb.utility import __version__
+        
         data = {}
         data["n"] = np.int64(len(self.positions))
         data["pbc"] = np.array(self.pbc)
@@ -346,6 +349,8 @@ class Atoms(ase.Atoms):
         data["symbols"] = ''.join([i+str(symbols.count(i)) for i in set(symbols)])
         data["group_args"] = _recursively_convert_units(self.group_args)
         data["uuid"] = self.uuid
+        data["python_version"] = sys.version
+        data["version"] = __version__
         return data
 
     def write(self,target="atoms.h5",**kwargs):
