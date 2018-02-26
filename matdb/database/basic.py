@@ -73,7 +73,7 @@ class Group(object):
     def __init__(self, cls=None, root=None, parent=None, prefix='S', pgrid=None,
                  nconfigs=None, calculator=None, seeds=None,
                  config_type=None, execution={}, trainable=False, override = {},
-                 r_bin=None):
+                 rec_bin=None):
         if isinstance(parent, Database):
             #Because we allow the user to override the name of the group, we
             #have to expand our root to use that name over here. However, for
@@ -99,7 +99,7 @@ class Group(object):
         if seeds is not None:
             self.is_seed_listed = isinstance(seeds, (list, six.string_types))
 
-        self.r_bin = r_bin
+        self.rec_bin = rec_bin
         self.seeds = None
         self.pgrid = pgrid
         self._seed = seeds
@@ -166,31 +166,58 @@ class Group(object):
             for k,v in override:
                 obj_ins = self.database.controller.find(k)
                 if isinstance(obj_ins,Atoms):
-                    if self.r_bin is not None:
-                        back_up_path = obj_ins.calc.folder
-                        back_up_path = back_up_path.strip(self.database.root)[-1]
-                        back_up_path = back_up_path.replace('/','.')+'.atoms.h5'
-                        obj_ins.write(path.join(self.r_bin.root,back_up_path))
-                        if path.isfile(path.join(obj_ins.calc.folder,"atoms.h5")):
-                            from os import remove
-                            remove(path.join(obj_ins.calc.folder,"atoms.h5"))
                     if "calc" in v:
-                        new_calc = getattr(calculators, v["calc"]["name"])
+                        if self.rec_bin is not None:
+                            #construct the path for the object in the recycling bin
+                            back_up_path = obj_ins.calc.folder
+                            back_up_path = back_up_path.strip(self.database.root)[-1]
+                            back_up_path = back_up_path.replace('/','.')+'.atoms.h5'
+                            obj_ins.write(path.join(self.rec_bin.root,back_up_path))
+                            self.database.parent.uuids[obj_ins.uuid] = path.join(
+                                self.rec_bin.root,back_up_path)
+                            if path.isfile(path.join(obj_ins.calc.folder,"atoms.h5")):
+                                from os import remove
+                                remove(path.join(obj_ins.calc.folder,"atoms.h5"))
+                            # Make a new uuid for the new atoms object.
+                            obj_ins.uuid = str(uuid4())
+                            self.database.parent.uuids[obj_ins.uuid] = obj_ins
+
+                        if "name" in v["calc"]:
+                            new_calc = getattr(calculators, v["calc"]["name"])
+                            new_lcarlgs = v.copy()
+                            del new_lcargs["name"]
+                        else:
+                            new_calc = obj_ins.calc
                         lcargs = self.calcargs.copy()
                         del lcargs["name"]
                         if v["calc"]["calcargs"] is not None:
                             lcargs.update(calcargs)
                         calc = new_calc(atoms, obj_ins.calc.folder, **lcargs)
                         obj_ins.set_calculator(calc)                    
-                else:                        
+                elif path.isfile(obj_ins):
+                    #If the object is a file path then it's pointing
+                    #to an old instance of a class objcet that has
+                    #been saved to file.
+                    msg.warn("Can't update object, it has already been overwritten.")
+                else:
                     args = obj_ins.to_dict()
-                    for atm in self.atoms_paths():
-                        from os import rename
-                        back_up_path = atm.strip(self.database.root)[-1]
-                        back_up_path = back_up_path.replace('/','.')+'.atoms.h5'
-                        rename(atm,path.join(selg.r_bin.root,back_up_path))
+                    if self.rec_bin is not None:
+                        for atm in self.atoms_paths():
+                            from os import rename
+                            back_up_path = atm.strip(self.database.root)[-1]
+                            back_up_path = back_up_path.replace('/','.')+'.atoms.h5'
+                            new_atm = path.join(selg.rec_bin.root,back_up_path)
+                            atms = Atoms(atm)
+                            self.database.parent.uuids[atms.uuid] = new_atm
+                            rename(atm,new_atm)
+                    obj_ins.save_pkl(obj_ins.to_dict(),"{}.pkl".format(self.uuid))
+                    self.database.parent.uuids[obj_ins.uuid] = path.join(obj_ins.root,
+                                                                         "{}.pkl".format(
+                                                                             self.uuid))
                     args.update(v)
                     obj_ins.__init__(**args)
+                    obj_ins.uuid = str(uuid4())
+                    self.database.parent.uuids[obj_ins.uuid] = obj_ins
                     obj_ins.setup(rerun=True)
 
     def _expand_sequence(self):
@@ -297,10 +324,12 @@ class Group(object):
         """
         from matdb import __version__
         from datetime import datetime
+        import sys
         
         kw_dict = self.grpargs.copy()
         args_dict = {"root": self.root, "override": self.override,
-                     "version":__version__, "datetime":str(datetime.now())}
+                     "version":__version__, "datetime":str(datetime.now()),
+                     "python_version":sys.version}
         
         kw_dict.update(args_dict)
         if "parent" in kw_dict:
@@ -589,12 +618,15 @@ class Group(object):
                 with open(path.join(target,"uuid.txt"),"w+") as f:
                     f.write(uid)
 
-            if path.isfile(path.join(target,"atoms.h5")):
+            if path.isfile(path.join(target,"atoms.h5")) and rewrite:
                 from os import rename
                 back_up_path = self.database.root
                 back_up_path = back_up_path.split(target)[-1]
                 back_up_path = back_up_path.replace('/','.')+'.atoms.h5'
-                rename(path.join(target,'atoms.h5'),path.join(self.r_bin.root,back_up_path))
+                new_path = path.join(self.rec_bin.root,back_up_path)
+                rename(path.join(target,'atoms.h5'),new_path)
+                self.database.parent.uuids[uid] = new_path
+                uid = str(uuid4())
                     
             atoms.uuid = uid
             atoms.group_args = self.to_dict()
