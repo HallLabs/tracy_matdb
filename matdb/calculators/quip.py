@@ -10,7 +10,7 @@ class SyncQuip(quippy.Potential, SyncCalculator):
     """Implements a synchronous `matdb` calculator for QUIP potentials.
     """
     def __init__(self, atoms, folder, *args, **kwargs):
-        self.args = args
+        self.args = args[0]
         self.kwargs = kwargs
         super(SyncQuip, self).__init__(*self.args, **self.kwargs)
         self.atoms = atoms

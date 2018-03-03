@@ -292,9 +292,9 @@ class Atoms(ase.Atoms):
                 kwargs = data["calckwargs"] if 'calckwargs' in data else None
                 if args is not None:
                     if kwargs is not None:
-                        calc = calc(self, data["folder"], *args, **kwargs)
+                        calc = calc(self, data["folder"], args, **kwargs)
                     else:
-                        calc = calc(self, data["folder"], *args)
+                        calc = calc(self, data["folder"], args)
                 else: # pragma: no cover This case hasn't arrisen in
                       # any calculators we've tested so far but I'm
                       # keeping it here just to be safe and support
@@ -308,7 +308,7 @@ class Atoms(ase.Atoms):
         else:
             self.__init__(io.read(target,**kwargs))
             
-    def to_dict(self,atoms):
+    def to_dict(self):
         """Converts the contents of a :class:`matdb.atoms.Atoms` object to a
         dictionary so it can be saved to file.
 
@@ -321,7 +321,7 @@ class Atoms(ase.Atoms):
             be saved.
         """
         import sys
-        from matdb.utility import __version__
+        from matdb import __version__
         
         data = {}
         data["n"] = np.int64(len(self.positions))
@@ -347,10 +347,11 @@ class Atoms(ase.Atoms):
             
         symbols = self.get_chemical_symbols()
         data["symbols"] = ''.join([i+str(symbols.count(i)) for i in set(symbols)])
-        data["group_args"] = _recursively_convert_units(self.group_args)
+        if self.group_args is not None:
+            data["group_args"] = _recursively_convert_units(self.group_args)
         data["uuid"] = self.uuid
         data["python_version"] = sys.version
-        data["version"] = __version__
+        data["version"] = np.array(__version__)
         return data
 
     def write(self,target="atoms.h5",**kwargs):
@@ -364,7 +365,7 @@ class Atoms(ase.Atoms):
         if frmt == "h5" or frmt == "hdf5":
             from matdb.utility import save_dict_to_h5
             with h5py.File(target,"w") as hf:
-                data = self.to_dict(self)
+                data = self.to_dict()
                 save_dict_to_h5(hf,data,'/')
         else:
             io.write(target,self,**kwargs)
@@ -479,7 +480,7 @@ class AtomsList(list):
         
     def read(self,target,**kwargs):
         """Reads an atoms object in from file.
-
+        
         Args:
             target (str): The path to the target file.
             kwargs (dict): A dictionary of arguments to pass to the ase 
@@ -496,7 +497,7 @@ class AtomsList(list):
             # inside the first key, if it's present we assume that all
             # the contents of the file are an atoms list. If it's not
             # then we assume this is a single atoms object.
-            if "atom" in data[data.keys()[0]]:
+            if "atom" in data.keys()[0]:
                 if isinstance(data.values()[0],dict):
                     atoms = [Atoms(**d) for d in data.values()]
                 elif isinstance(data.values()[0],string_types):

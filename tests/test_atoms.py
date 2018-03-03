@@ -298,10 +298,14 @@ def test_AtomsList_io(tmpdir):
     assert len(aR) == len(al1)
 
     alpos = aR.positions
-    assert np.allclose(alpos[0],at1.positions)
-    assert np.allclose(alpos[1],at2.positions)
-    assert np.allclose(alpos[2],at3.positions)
-    assert np.allclose(alpos[3],at4.positions)
+    assert any([np.allclose(alpos[i],at1.positions) for i in range(4) if
+                len(alpos[i])==len(at1.positions)])
+    assert any([np.allclose(alpos[i],at2.positions) for i in range(4) if
+                len(alpos[i])==len(at2.positions)])
+    assert any([np.allclose(alpos[i],at3.positions) for i in range(4) if
+                len(alpos[i])==len(at3.positions)])
+    assert any([np.allclose(alpos[i],at4.positions) for i in range(4) if
+                len(alpos[i])==len(at4.positions)])
 
     al1.write(path.join(target,"temp.xyz"))
 
@@ -318,7 +322,8 @@ def test_AtomsList_io(tmpdir):
 
     aR1 = Atoms(path.join(target,"temp.h5"))
     assert isinstance(aR1,Atoms)
-    assert np.allclose(aR1.positions, at1.positions)
+    assert any([np.allclose(alpos[i],at1.positions) for i in range(4) if
+                len(alpos[i])==len(at1.positions)])
 
 def test_ase_atoms_conversion(tmpdir):
     """Tests the conversion of an ase atoms objcet to a 'matdb.atoms.Atoms' object. 
