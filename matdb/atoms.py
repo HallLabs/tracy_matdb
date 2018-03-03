@@ -35,6 +35,8 @@ def _recursively_convert_units(in_dict):
             dict_copy[key] = np.float64(item)
         elif isinstance(item,dict):
             dict_copy[key] = _recursively_convert_units(item)
+        elif isinstance(item,list):
+            dict_copy[key] = np.array(item)
         elif item is None: #pragma: no cover I'm not sure this ever
                            #will happen but better safe than sorry.
             del dict_copy[key]
@@ -502,7 +504,7 @@ class AtomsList(list):
                     atoms = [Atoms(**d) for d in data.values()]
                 elif isinstance(data.values()[0],string_types):
                     atoms = [Atoms(d) for d in data.values()]
-                else:
+                else: #pragma: no cover
                     msg.err("The data format {} isn't supported for reading AtomLists "
                             "from hdf5 files.".format(type(data.values()[0])))
             else:

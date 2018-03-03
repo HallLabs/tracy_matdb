@@ -182,7 +182,7 @@ class DynMatrix(Group):
         for k, d in self.sequence.items():
             if k == maxkey:
                 continue
-            assert dos[k].shape == maxdos.shape()
+            assert dos[k].shape == maxdos.shape
             diff = np.sum(np.abs(dos[k][:,1]-maxdos[:,1]))
             if diff < self.tolerance:
                 ok[k] = sizes[k]
