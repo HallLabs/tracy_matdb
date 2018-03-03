@@ -283,7 +283,7 @@ class Atoms(ase.Atoms):
             from matdb.utility import load_dict_from_h5
             with h5py.File(target,"r") as hf:
                 data = load_dict_from_h5(hf)
-            if "atom" in data[data.keys()[0]]:
+            if "atom" in data.keys()[0]:
                 data = data[data.keys()[0]]
             self.__init__(**data)
             if "calc" in data:
