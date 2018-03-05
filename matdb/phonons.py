@@ -2,6 +2,7 @@
 """
 import numpy as np
 from os import path
+from matdb.base import testmode
 
 def _ordered_unique(items):
     """Returns the list of unique items in the list while still *preserving* the
@@ -212,8 +213,9 @@ def bandplot(phonons, names, nbands=None, style=None, figsize=(8, 6),
           plot. If not specified, then scatter plots are used by
           default.
     """
-    import matplotlib
-    matplotlib.use('Agg')
+    if testmode:
+        import matplotlib
+        matplotlib.use('Agg')
     import matplotlib.pyplot as plt
     
     plt.figure(1, figsize, frameon=False)
