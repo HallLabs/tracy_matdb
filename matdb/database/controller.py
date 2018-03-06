@@ -9,13 +9,13 @@ import collections
 from glob import glob
 from uuid import uuid4
 
-def parse_path(root,seeds,rseed=None):
+def parse_path(root,seeds,ran_seed=None):
     """Finds the full path to the seed files for this system.
     Args:
         root (str): the root directory for the databes.
         seeds (str or list of str): the seeds for the database that 
             need to be parsed and have the root folder found.
-        rseed (optional): the seed for the random generator if used.
+        ran_seed (optional): the seed for the random generator if used.
     
     Returns:
         seed_files (list): a list of the seed files for the database.
@@ -62,7 +62,7 @@ def parse_path(root,seeds,rseed=None):
                 msg.err("The seed file {} could not be found.".format(t_seed))
 
         return seed_files
-    
+
 class Database(object):
     """Represents a Database of groups (all inheriting from :class:`Group`) that 
     are all related be the atomic configuration that they model.
@@ -97,12 +97,14 @@ class Database(object):
         steps (OrderedDict): keys are step names (e.g. `dft`, `calibration`,
           etc.); values are the corresponding class instances.
         parent (Controller): instance controlling multiple configurations.
+        rec_bin (RecycleBin): instance of the recycling bin database.
     """
     def __init__(self, name, root, parent, steps, splits):
         self.name = name
         self.config = name.split('.')[0]
         self.root = root
         self.splits = {} if splits is None else splits
+        self.rec_bin = RecycleBin(parent,root,splits)
         
         if not path.isdir(self.root):
             from os import mkdir
@@ -146,8 +148,6 @@ class Database(object):
             del cpspec["type"]
 
             cpspec["pgrid"] = ParameterGrid(cpspec.copy())
-            if len(cpspec["pgrid"]) ==0:
-                cpspec["parameters"] = cpspec["pgrid"].params
             for k in list(cpspec.keys()):
                 if "suffix" in k:
                     del cpspec[k]
@@ -157,7 +157,7 @@ class Database(object):
             
             cpspec["root"] = self.root
             cpspec["parent"] = self
-
+            cpspec["rec_bin"] = self.rec_bin
             #Handle the special cases where settings are specified uniquely for
             #each of the configurations separately.
             for k in list(cpspec.keys()):
@@ -166,6 +166,17 @@ class Database(object):
 
             instance = cls(**cpspec)
             self.steps[instance.name] = instance
+
+        if path.isfile(path.join(self.root,"{}_uuid.txt".format(self.name))):
+            with open(path.join(self.root,"{}_uuid.txt".format(self.name)),"r") as f:
+                uid = f.readline().strip()
+        else:
+            uid = uuid4()
+            with open(path.join(self.root,"{}_uuid.txt".format(self.name)),"w+") as f:
+                f.write(str(uid))
+
+        self.uuid = str(uid)
+        self.parent.uuids[str(uid)] = self
 
     @property
     def isteps(self):
@@ -233,35 +244,35 @@ class Database(object):
         msg.blank()
 
     def train_file(self, split):
-        """Returns the full path to the XYZ database file that can be
+        """Returns the full path to the h5 database file that can be
         used for training.
         Args:
             split (str): name of the split to use.
         """
-        return path.join(self.root, "{0}-train.xyz".format(split))
+        return path.join(self.root, "{0}-train.h5".format(split))
 
     def holdout_file(self, split):
-        """Returns the full path to the XYZ database file that can be
+        """Returns the full path to the h5 database file that can be
         used to validate the potential fit.
         Args:
             split (str): name of the split to use.
         """
-        return path.join(self.root, "{0}-holdout.xyz".format(split))
+        return path.join(self.root, "{0}-holdout.h5".format(split))
 
     def super_file(self, split):
-        """Returns the full path to the XYZ database file that can be
+        """Returns the full path to the h5 database file that can be
         used to *super* validate the potential fit.
         Args:
             split (str): name of the split to use.
         """
-        return path.join(self.root, "{0}-super.xyz".format(split))
+        return path.join(self.root, "{0}-super.h5".format(split))
 
     def split(self, recalc=0):
         """Splits the database multiple times, one for each `split` setting in
         the database specification.
         """
         for name in self.splits:
-            self._split(name, recalc)
+            self._split(name, recalc)        
     
     def _split(self, name, recalc=0):
         """Splits the total available data in all Groups into a training and holdout
@@ -271,21 +282,33 @@ class Database(object):
             recalc (int): when non-zero, re-split the data and overwrite any
               existing files. This parameter decreases as
               rewrites proceed down the stack. To re-calculate
-              lower-level XYZ files, increase this value.
+              lower-level h5 files, increase this value.
         """
         train_file = self.train_file(name)
         holdout_file = self.holdout_file(name)
         super_file = self.super_file(name)
+        idfile = path.join(self.root, "{0}-ids.pkl".format(name))
         if (path.isfile(train_file) and path.isfile(holdout_file)
-            and path.isfile(super_file) and recalc <= 0):
-            return
+            and path.isfile(super_file)):
+            if recalc <= 0:
+                return
+            else:
+                from os import rename, remove
+                if path.isfile(idfile):
+                    with open(idfile, 'rb') as f:
+                        data = load(f)
+                new_idfile = path.join(self.root,"{0}_{1}-ids.pkl".format(name,data["uuid"]))
+                self.parent.uuids[data["uuid"]] = new_idfile
+                for fname in [train_file,holdout_file,super_file]:
+                    new_name = fname.replace(name,"{0}_{1}".format(name,data["uuid"]))
+                    rename(fname,new_name)
+                remove(idfile)
 
         train_perc = self.splits[name]
         
         #Compile a list of all the sub-configurations we can include in the
         #training.
         from cPickle import dump, load
-        idfile = path.join(self.root, "{0}-ids.pkl".format(name))
         if path.isfile(idfile):
             with open(idfile, 'rb') as f:
                 data = load(f)
@@ -317,14 +340,16 @@ class Database(object):
             #We need to save these ids so that we don't mess up the statistics on
             #the training and validation sets.
             data = {
-                "uuid": uuid4(),
+                "uuid": str(uuid4()),
                 "subconfs": subconfs,
                 "ids": ids,
                 "Ntrain": Ntrain,
                 "Nhold": Nhold,
                 "Ntot": Ntot,
-                "Nsuper": Nsuper
+                "Nsuper": Nsuper,
+                "ran_seed": self.parent.ran_seed
             }
+            self.parent.uuids[data["uuid"]] = idfile
             with open(idfile, 'wb') as f:
                 dump(data, f)
         
@@ -336,7 +361,7 @@ class Database(object):
             from tqdm import tqdm
             files = []
             for aid in tqdm(idlist):
-                target = path.join(subconfs[aid], "output.xyz")
+                target = path.join(subconfs[aid], "output.h5")
                 if path.isfile(target):
                     files.append(target)
 
@@ -386,7 +411,94 @@ class Database(object):
             msg.info("Setting up database {}:{}".format(self.name, dbname))
             db.setup(rerun)
         msg.blank()
+
+    def to_dict(self):
+        """Returns a dictionary of the database parameters and settings.
+        """
+        from matdb.utility import __version__
+        from os import sys
+        data = {"version":__version__,"python_version":sys.version,"name":self.name,
+                "root":self.root,"steps":self._settings,"uuid":self.uuid}
         
+class RecycleBin(Database):
+    """A database of past calculations to be stored for later use.
+
+    Args:
+        parent (Controller): instance controlling multiple configurations.
+        root (str): root directory in which the 'RecycleBin' folder will 
+          be placed. 
+        splits (dict): keys are split names; values are `float` *training*
+          percentages to use.
+    """
+
+    def __init__(self,parent,root,splits):
+        """Sets up the RecycleBin database.
+        """
+        self.parent = parent
+        self.root = path.join(root,"RecycleBin")
+        self.splits = {} if splits is None else splits
+        if not path.isdir(self.root):
+            from os import mkdir
+            mkdir(self.root)
+
+        self.steps = {"rec_bin":self}
+        self.trainable = True
+        self.uuid = str(uuid4())
+        self.parent.uuids[self.uuid] = self        
+
+    def to_dict(self):
+        pass
+        
+    @property
+    def rset(self):
+        """Returns a list of all the atoms object files in the RecycleBin."""
+        from glob import glob
+        return glob(path.join(self.root,"*.h5"))
+    
+    def setup(self):
+        pass
+
+    def cleanup(self):
+        pass
+    
+    @property
+    def isteps(self):
+        pass
+    
+    def recover(self, rerun=False):
+        pass
+
+    def split(self, recalc=0, cfilter=None, dfilter=None):
+        """Splits the total available data in the recycle bin.
+        Args:
+            recalc (int): when non-zero, re-split the data and overwrite any
+              existing *.h5 files. This parameter decreases as
+              rewrites proceed down the stack. To re-calculate
+              lower-level h5 files, increase this value.
+            cfilter (list): of `str` patterns to match against *configuration*
+              names. This limits which configs are returned.
+            dfilter (list): of `str` patterns to match against *database sequence*
+              names. This limits which databases sequences are returned.
+        """
+
+        from matdb.utility import chdir
+
+        with chdir(self.root):
+            super(RecycleBin,self).split(recalc=recalc,cfilter=cfilter,dfilter=dfilter)
+    
+    def status(self, busy=False):
+        pass
+        """Prints a status message for each of the databases relative
+        to VASP execution status.
+        Args:
+            busy (bool): when True, print a list of the configurations that are
+              still busy being computed in DFT.
+        """
+        msg.std("Ready")
+            
+    def execute(self, recovery=False, env_vars=None):
+        pass
+    
 class Controller(object):
     """Implements methods for tying a configuration dictionary (in
     YAML format) to instances of various databases.
@@ -428,7 +540,12 @@ class Controller(object):
         self.title = self.specs["title"]
         self.legacy = {}
         self.collections = {}
+        self.uuids = {}
         self.species = sorted([s for s in self.specs["species"]])
+        self.ran_seed = self.specs.get("ran_seed",None)
+        if self.ran_seed is not None:
+            import random
+            random.seed(self.ran_seed)
         self.execution = self.specs.get("execution", {})
         self.calculator = self.specs.get("calculator", {})
         #Extract the POTCAR that all the databases are going to use. TODO: pure
@@ -502,7 +619,7 @@ class Controller(object):
             pattern (str): the pattern to match.
         """
         
-        return parse_path(self.root,pattern,rseed=self.random_seed)
+        return parse_path(self.root,pattern,ran_seed=self.random_seed)
     
     def find(self, pattern):
         """Finds a list of :class:`matdb.database.basic.Group` that match the given
@@ -510,7 +627,7 @@ class Controller(object):
         can be used as a wildcard for any portion of the '.'-separated path.
         .. note:: Actually, an :func:`~fnmatch.fnmatch` pattern can be used.
         Args: pattern (str): fnmatch pattern that follows the convention of the
-        DB key.  Examples:
+        DB key. Alternatively the pattern can be a uuid. Examples:
         
             Get all the dynamical matrix databases for the `Pd`
             configuration. The example assumes that the database name is
@@ -521,7 +638,12 @@ class Controller(object):
             the database.
             >>> CdWO4 = Controller("CdWO4.yml")
             >>> CdWO4.find("*.liquid*")
+            >>> CdWO4.find(uuid)
         """
+        from matdb.utility import is_uuid4
+        if is_uuid4(pattern):
+            return self.uuids[pattern]
+        
         if pattern == '*':
             return self.find('*.*')
         
@@ -716,7 +838,8 @@ class Controller(object):
             # Have ASE build the initial POTCAR. This will be
             # overwritten by use once it exists.
             environ["VASP_PP_PATH"] = relpath(path.expanduser(self.potcars["directory"]))
-            from matdb import calculators
+            import lazy_import
+            calculators = lazy_import.lazy_module("matdb.calculators")
             from ase import Atoms, Atom
             calcargs = self.calculator.copy()
             calc = getattr(calculators, calcargs["name"])
@@ -734,58 +857,14 @@ class Controller(object):
             calc = calc(this_atom,self.root,**calcargs)
             calc.write_potcar(directory=self.root)
 
-            # Now read in the ASE POTCAR and parse it to construct the
-            # actual POTCAR.
-            # target = path.join(self.root, "POTCAR")
-            # if not path.isfile(target): #pragma: no cover
-            #     msg.err("The POTCAR was not generated by ASE.")
-
-            # # We need to parse the ASE created POTCAR to construct the POTCAR
-            # # that VASP can actually use.
-            # pots = []
-            # with open(target) as f:
-            #     for line in f:
-            #         pots.append(line.strip().split())
-
-            # potcars = []
-            # for pot in pots:
-            #     if version is not None:
-            #         if pot[1].split('_')[0] in version:
-            #             el_version = version[pot[1].split('_')[0]]
-            #         else:
-            #             el_version = version
-            #         assert el_version in pot[2]
-                    
-            #     if 'PBE' in pot[0]:
-            #         psuedo = 'paw_PBE'
-            #     elif 'GGA' in pot[0]:
-            #         psuedo = 'paw_GGA'
-            #     else: #pragma: no cover
-            #         psuedo = pot[0]
-                    
-            #     potsrc = path.join(relpath(self.potcars["directory"]),
-            #                        "pot{}".format(psuedo))
-
-            #     potcars.append(path.join(potsrc,pot[1],"POTCAR"))
-
-            # from os import remove
-            # remove(target)
-            # import pudb
-            # pudb.set_trace()
-            # if len(potcars) == len(pots):
-            #     from matdb.utility import cat
-            #     cat(potcars,target)
-            # else: #pragma: no cover
-            #     msg.err("Couldn't create POTCAR for system.")
-
     def split(self, recalc=0, cfilter=None, dfilter=None):
         """Splits the total available data in all databases into a training and holdout
         set.
         Args:
             recalc (int): when non-zero, re-split the data and overwrite any
-              existing *.xyz files. This parameter decreases as
+              existing *.h5 files. This parameter decreases as
               rewrites proceed down the stack. To re-calculate
-              lower-level XYZ files, increase this value.
+              lower-level h5 files, increase this value.
             cfilter (list): of `str` patterns to match against *configuration*
               names. This limits which configs are returned.
             dfilter (list): of `str` patterns to match against *database sequence*

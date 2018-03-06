@@ -4,6 +4,8 @@ from os import path
 from six import string_types
 from matdb import msg
 import six
+import numpy as np
+import h5py
 
 import sys
 from contextlib import contextmanager
@@ -77,7 +79,10 @@ def execute(args, folder, wait=True, nlines=100, venv=None,
     kwargs["cwd"] = folder
 
     if venv is not None:
-        if isinstance(venv, string_types):
+        if isinstance(venv, string_types): # pragma: no cover No
+                                           # guarantee that virtual
+                                           # envs exist on testing
+                                           # machine.
             vargs = ["virtualenvwrapper_derive_workon_home"]
             vres = execute(vargs, path.abspath("."))
             prefix = path.join(vres["output"][0].strip(), venv, "bin")
@@ -155,9 +160,7 @@ def symlink(target, source):
     """
     from os import path, symlink, remove
     from matdb import msg
-    if path.isfile(target) or path.islink(target):# pragma: no cover
-        #This will never fire for normal unit testing because we used
-        #new temporary directories each time.
+    if path.isfile(target) or path.islink(target):
         remove(target)
     elif path.isdir(target):
         msg.warn("Cannot auto-delete directory '{}' for symlinking.".format(target))
@@ -203,7 +206,7 @@ def safe_update(obj, kv):
           values.
     """
     for k, v in kv.items():
-        if hasattr(obj, k) and getattr(k, v) is not None:
+        if hasattr(obj, k) and getattr(obj, k) is not None:
             continue
         setattr(obj, k, v)
 
@@ -398,7 +401,7 @@ def parse_date(v):
         return [parse_date(vi) for vi in v]
     elif isinstance(v, string_types):
         return parser.parse(v)
-    else:# pragma: no cover
+    else:
         raise ValueError("Not a valid datetime string.")
 
 def load_datetime(pairs):
@@ -592,8 +595,9 @@ def special_values(vs, seed=None):
                 result = _py_execute(module, function, rest)
             else:
                 #We still need to determine the name of the callable.
-                first = rest.index('(')
-                caller = rest[:first]
+                if k in ["random:","distr:"]:
+                    first = rest.index('(')
+                    caller = rest[:first]
                 if k == "random:":
                     from numpy.random import RandomState
                     rs = RandomState(seed)
@@ -668,7 +672,7 @@ def is_number(s):
     except ValueError:
         pass
  
-    try:
+    try: # pragma: no cover
         import unicodedata
         unicodedata.numeric(s)
         return True
@@ -803,7 +807,8 @@ class ParameterGrid(collections.MutableSet):
         self.values = {}
         self.params = params
         for i, v in grid.items():
-            self.add(i,v)
+            if i is not None:
+                self.add(i,v)
             
     def __len__(self):
         return len(self.map)
@@ -864,8 +869,60 @@ class ParameterGrid(collections.MutableSet):
             return '%s()' % (self.__class__.__name__,)
         return '%s(%r)' % (self.__class__.__name__, list(self))
 
-    def __eq__(self, other):
+    def __eq__(self, other): 
         if isinstance(other, ParameterGrid):
             return len(self) == len(other) and list(self) == list(other)
-        return set(self) == set(other)
+        return set(self) == set(other) 
 
+def save_dict_to_h5(h5file, dic, path='/'):
+    """Saves a nested dictionary to an open hdf5 file.
+
+    Args:
+        h5file (file object): the h5 file to be saved to.
+        dic (dict): the dictionary to save.
+        path (str, optional): the path within the h5 file that the dict will be 
+            saved to. Default is '/'.
+    """
+    for key, item in dic.items():
+        if isinstance(item, (np.ndarray, np.int64, np.float64, str, bytes)):
+            h5file[path + key] = item
+        elif isinstance(item, dict):
+            save_dict_to_h5(h5file, item, path + key + '/')
+        else:
+            raise ValueError('Cannot save %s type'%type(item))
+
+def load_dict_from_h5(h5file, path='/'):
+    """Reads an open hdf5 file into a dictionary.
+
+    Args:
+        h5file (file object): the h5 file to be read.
+        path (str, optional): the path within the h5 file presently being 
+            read. Default is '/'.
+
+    Returns:
+        ans (dict): a dictionary containing the contents of the h5 file.
+    """
+    ans = {}
+    for key, item in h5file[path].items():
+        if isinstance(item, h5py._hl.dataset.Dataset):
+            ans[key] = item.value
+        elif isinstance(item, h5py._hl.group.Group):
+            ans[key] = load_dict_from_h5(h5file, path + key + '/')
+    return ans
+
+def is_uuid4(uuid_string):
+    """Determines of the string passed in is a valid uuid4 string.
+    """
+    from uuid import UUID
+    
+    try:
+        val = UUID(uuid_string, version=4)
+    except:
+        return False
+
+    # If the uuid_string is a valid hex code, 
+    # but an invalid uuid4,
+    # the UUID.__init__ will convert it to a 
+    # valid uuid4. This is bad for validation purposes.
+
+    return val.hex == uuid_string.replace('-','')    

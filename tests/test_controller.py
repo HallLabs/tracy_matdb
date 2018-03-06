@@ -159,6 +159,9 @@ def test_find(Pd):
     assert model == [s.parent.name for s in steps]
     model = [path.join(Pd.root,'DynMatrix/phonon/Pd')]
     assert model == [s.root for s in steps]
+
+    # test uuid finding.
+    assert all([Pd.find(s.uuid)==s for s in steps])
     
 # def test_Pd_modulation(dynPd):
 #     """Tests generation of modulated configurations along phonon modes.

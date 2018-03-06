@@ -2,7 +2,7 @@
 """Tests the utility functions.
 """
 import pytest
-from os import path
+from os import path, remove
 import numpy as np
 import six
 
@@ -14,7 +14,6 @@ def compare_dicts(dict1,dict2):
         return False
 
     for key in dict1:
-        print("H2")
         if not np.allclose(dict1[key],dict2[key]):
             return False
 
@@ -40,7 +39,6 @@ def compare_nested_dicts(dict1,dict2):
             return False
 
     return True
-
 
 def test_execute():
     """Tests the execution via shell subprocess in a different folder.
@@ -80,8 +78,14 @@ def test_symlink(tmpdir):
     from os import readlink
     result = readlink(source)
     assert result == target
+    
+    symlink(source, target)
+    result = readlink(source)
+    assert result == target
 
     dirsource = str(tmpdir.join("dummy-dir"))
+    from os import mkdir
+    mkdir(dirsource)
     assert symlink(dirsource, reporoot) is None
 
 def test_slicer():
@@ -142,6 +146,7 @@ def test_special_values():
     assert special_values("dist:alpha(0,10)") == "dist:alpha(0,10)"
     assert isinstance(special_values("distr:alpha(0,10)"),
                       scipy.stats._distn_infrastructure.rv_frozen)
+    assert np.allclose(special_values("[0,5,10,12]"),[1, 2, 3, 4, 5, 11])
 
 def test_special_functions():
     """Tests the special function evaluation.
@@ -165,8 +170,19 @@ def test_is_number():
         assert is_number('٥')
     else:
         assert is_number(u'٥')
+
     assert not is_number('str')
 
+def test_get_suffix():
+    """Tests uncovored lines in get_suffix.
+    """
+    from matdb.utility import get_suffix
+    
+    d = {"A":10,"B":20}
+    k = "A"
+    index=1
+    values = 10
+    assert get_suffix(d,k,index,values) == '-2'
 
 def test_ParameterGrid():
     """Tests the creation of a ParamaterGrid and it's functionality.
@@ -182,15 +198,18 @@ def test_ParameterGrid():
                'root': '/root/codes/matdb/tests/Pd', 'bandmesh': [13, 13, 13]}
 
     pgrid = ParameterGrid(db_info)
+    assert pgrid.__eq__(set(pgrid))
 
     assert len(pgrid) == 12
     assert compare_nested_dicts(pgrid['dos-tt-dim-16.00'],
                          {'phonopy': {'dim': [0, 2, 2, 2, 0, 2, 2, 2, 0]},
                           'dosmesh': [12, 12, 12], 'bandmesh': [13, 13, 13]})
+    pgrid.add('dos-tt-dim-16.00',10)
+    assert pgrid['dos-tt-dim-16.00'] != 10
+
     pgrid.pop('dos-tt-dim-16.00')
     assert not ('dos-tt-dim-16.00' in pgrid)
     assert not pgrid == ParameterGrid(db_info)
-
 
 def test_get_grid():
     """Tests the get_grid method.
@@ -354,4 +373,196 @@ def test_get_grid():
   'normal': [1, 2, 3]}}
 
     assert compare_nested_dicts(test,model)
+    
+def test_hdf5_in_out():
+    """Tests the writing of dictionaries to hdf5 and reading back out.
+    """
+
+    import h5py
+    from matdb.utility import load_dict_from_h5, save_dict_to_h5
+
+    dict_1_in = {"a":{"B":np.int64(1),"C":np.int64(3),"D":{"temp":np.array([10,11,12])}},
+                 "n":np.array([3,2]),"t":np.int64(5)}
+    dict_2_in = {"a":np.int64(10),"b":np.array([1,2,10])}
+
+    hf = h5py.File("temp.h5","w")
+    save_dict_to_h5(hf,dict_1_in,"/")
+    hf.close()
+
+    hf = h5py.File("temp.h5","r")
+    out = load_dict_from_h5(hf)
+    hf.close()
+    assert compare_nested_dicts(dict_1_in,out)
+    remove("temp.h5")
+    
+    hf = h5py.File("temp.h5","w")
+    save_dict_to_h5(hf,dict_2_in,"/")
+    hf.close()
+
+    hf = h5py.File("temp.h5","r")
+    out = load_dict_from_h5(hf)
+    hf.close()
+    assert compare_dicts(dict_2_in,out)
+    remove("temp.h5")
+
+    hf = h5py.File("temp.h5","w")
+
+    with pytest.raises(ValueError):
+        save_dict_to_h5(hf,{"a":2},"/")
+    hf.close()
+    remove("temp.h5")
+
+def test_linecount():
+    """Tests the linecount method in utility.
+    """
+    from matdb.utility import linecount
+
+    assert linecount("temp") == 0
+
+def test_safeupdate():
+    """Tests the safe_update method in utility.
+    """
+
+    from matdb.atoms import Atoms
+    from matdb.utility import safe_update
+    
+    al = Atoms("Si",positions=[[0,0,0]])
+    al.add_param("energy",None)
+    kv = {"positions":[[0.5,0.5,0.5]],"energy":10}
+    safe_update(al,kv)
+    
+    assert np.allclose(al.positions,[[0,0,0]])
+    assert al.energy == 10
+
+def test_objupdate():
+    """Tests the obj_update method in utility.
+    """
+
+    from matdb.atoms import Atoms
+    from matdb.utility import obj_update
+    
+    al = Atoms("Si",positions=[[0,0,0]])
+    k = "positions"
+    
+    al = obj_update(al,k,[[0.5,0.5,0.5]])
+
+    assert np.allclose(al.positions,[[0.5,0.5,0.5]])
+
+def test_copyonce():
+    """Tests the copyonce method in utility.
+    """
+
+    from matdb.utility import copyonce, touch
+    from os import remove, path
+
+    touch("temp1.txt")
+    copyonce("temp1.txt","temp2.txt")
+
+    assert path.isfile("temp2.txt")
+
+    remove("temp1.txt")
+    remove("temp2.txt")
+
+def test_which():
+    """Tests th which method in utility.
+    """
+
+    from matdb.utility import which
+
+    assert which('/bin/rm')=='/bin/rm'
+
+def test_parse_date():
+    """Tests the date parser.
+    """
+
+    from matdb.utility import parse_date
+    from dateutil import parser
+
+    dates = ['10-2-1987','10-4-1894']
+    temp = parse_date(dates)
+    assert len(temp)==2
+
+    for i in range(2):
+        assert parser.parse(dates[i]) == temp[i]
+
+    with pytest.raises(ValueError):
+        parse_date((10,2,1987))
+
+def test_is_uuid4():
+    """Tests the is_uuid4 funciton.
+    """
+    from matdb.utility import is_uuid4
+    
+    assert is_uuid4('4b602114-858d-455d-8152-27a2683af17e')
+    assert is_uuid4('4b602114858d455d815227a2683af17e')
+    assert not is_uuid4(0)
+    assert not is_uuid4('DynMatrix/phonon/Pd/dim-2.00')
+    assert not is_uuid4('a0b1c2d3e4f5ghijklmnopqrstuvwxyz')
+
+def test_redirect_stdout():
+    """Tests the redirection of stdout.
+    """
+    from matdb.utility import redirect_stdout
+    
+    with open("temp.txt",'w') as f:
+        with redirect_stdout(f):
+            print("Wow")
+
+    with open("temp.txt",'r') as f:
+        temp = f.readline().strip()
+
+    assert temp=="Wow"
+    remove("temp.txt")
+
+    with pytest.raises(IOError):
+        with open("temp.txt",'r') as f:
+            with redirect_stdout(f):
+                print("Wow")
+        
+def test_execute():
+    """Tests missing lines of execute.
+    """
+    from matdb.utility import execute
+
+    # test early breaking on stderr and stdout.
+    temp=execute(('which','python'),'.',nlines=0)
+    temp=execute(('python','enum.x'),'.',nlines=0)
+    
+    temp=execute(('which','python'),'.',env_vars={"POTENTIALS_DIR":'1'})
+    assert temp['output'] ==['/usr/local/bin/python\n']
+    assert temp['error'] == []
+
+def test_load_datetime():
+    """Tests missing cases from load datetime pairs.
+    """
+    from matdb.utility import load_datetime
+
+    data=[[1,10]]
+    out = load_datetime(data)
+
+    assert out[1] == 10
+
+def test_dbcate():
+    """Tests missing lines in dbcat.
+    """
+    from matdb.utility import dbcat
+    # Test to make just that 'temp2.txt.json' doesn't get written if
+    # files can't be cated.
+    dbcat(['temp1.txt'],'temp2.txt',sources=["temp3.txt"])
+
+    assert not path.isfile('temp2.txt.json')
+    remove("temp2.txt")
+
+def test_getattrs():
+    """Tetsts the getting of attributes from a chain of attributes.
+    """
+    from matdb.utility import getattrs
+    obj = {"a":{"b":20}}
+    assert 20 == getattrs(obj,'a.b')
+
+    from matdb.atoms import Atoms
+    at = Atoms("C4")
+    assert np.allclose(np.array([[ 0.,  0.,  0.],
+                                 [ 0.,  0.,  0.], [ 0.,  0.,  0.]]),
+                       getattrs(at,'cell'))
     

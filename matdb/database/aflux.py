@@ -208,7 +208,7 @@ class Aflow(Group):
         result = []
         for auid in self.auids:
             folder = self.index[auid]
-            target = path.join(folder, "atoms.json")
+            target = path.join(folder, "atoms.h5")
             if path.isfile(target):
                 result.append(folder)
     
@@ -219,11 +219,11 @@ class Aflow(Group):
         """Returns a :class:`matdb.atoms.AtomsList`, one for each config in the
         latest result set.
         """
-        from matdb.database.basic import atoms_from_json
-        from matdb.atoms import AtomsList
+
+        from matdb.atoms import Atoms, AtomsList
         result = AtomsList()
         for apath in self.atoms_paths:
-            result.append(atoms_from_json(apath))
+            result.append(Atoms(apath))
         return result
 
     def ready(self):

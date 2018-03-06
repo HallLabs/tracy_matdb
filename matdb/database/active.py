@@ -6,7 +6,7 @@ from os import path, getcwd, chdir, remove, listdir, mkdir
 import numpy as np
 from six import string_types
 from glob import glob
-from matdb.atoms import AtomsList
+from matdb.atoms import AtomsList, Atoms
 
 class Active(Group):
     """Sets up the calculations for a set of configurations that are being
@@ -72,7 +72,7 @@ class Active(Group):
         result = []
         for auid in self.auids:
             folder = self.index[str(auid)]
-            target = path.join(folder,"atoms.json")
+            target = path.join(folder,"atoms.h5")
             if path.isfile(target):
                 result.append(folder)
 
@@ -82,12 +82,12 @@ class Active(Group):
         """Returns a :class:`matdb.atoms.AtomsList`, one for each config in the
         latest result set.
         """
-        from matdb.database.basic import atoms_from_json
+
         #Return the configurations from this group; it is at the
         #bottom of the stack
         result = AtomsList()
         for epath in self.atoms_paths:
-            result.append(atoms_from_json)
+            result.append(Atoms(epath))
         return result
 
     def add_configs(self,new_configs,iteration):
@@ -111,12 +111,13 @@ class Active(Group):
         # of the active learning have already been visited by
         # constructing their auids and then verifying that the auid
         # hasn't been visited before.
-        did = len(self.auids)
+        dind = len(self.auids)
         iter_ind = 0
+        from hashlib import sha1 
         for config in self.new_configs:
-            auid = hash(tuple([tuple(i) for i in config.cell]),
+            auid = sha1(''.join(tuple(tuple([tuple(i) for i in config.cell]),
                         tuple([tuple(i) for i in config.positions]),
-                        tuple(config.get_chemical_symbols()))
+                        tuple(config.get_chemical_symbols()))).encode('utf-8'))
             if auid in self.auids:
                 self.nconfigs -= 1
                 continue
