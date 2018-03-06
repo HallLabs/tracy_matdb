@@ -25,7 +25,7 @@ class Enumerated(Group):
             Defaults ot None.
         eps (float, optional): floating point tolerance for comparisons. 
             Defaults to 1E-3.
-        rseed (hashable, optional): a seed to feed to the random number generator.
+        ran_seed (hashable, optional): a seed to feed to the random number generator.
             Defaults to None.
         rattle (float, optional): the amount to rattle the atoms by. Defaults to 0.0.
         keep_supers (bool, optional): True if the superperiodic cells are to be kept 
@@ -52,9 +52,8 @@ class Enumerated(Group):
 
     """
     def __init__(self, sizes=None, basis=None, lattice=None, concs=None,
-                 arrows = None, eps=None, species=None, name="enum",
-                 rattle=None, rseed=None, keep_supers=None, displace=None,
-                 **dbargs):
+                 arrows = None, eps=None, name="enum", rattle=None, ran_seed=None,
+                 keep_supers=None, displace=None, **dbargs):
         self.name = name
         dbargs['prefix'] = "E"
         dbargs['cls'] = Enumerated
@@ -70,7 +69,7 @@ class Enumerated(Group):
         else:
             self.eps = eps
 
-        self.rseed = rseed
+        self.ran_seed = ran_seed if ran_seed is not None else self.database.parent.ran_seed
         self._get_lattice(lattice)
         self._get_basis(basis)
         self.species = self.database.parent.species
@@ -106,6 +105,23 @@ class Enumerated(Group):
         self.euids = None
         self._load_euids()
 
+    def sub_dict(self):
+        """Writes the attributes of this instance of the class to a dictionary.
+        """
+        enum_dict = {}
+        enum_dict["sizes"] = [self.min_size,self.max_size]
+        enum_dict["basis"] = self.basis 
+        enum_dict["lattice"] = self.lattice
+        enum_dict["concs"] = self.concs
+        enum_dict["arrows"] = self.arrows
+        enum_dict["eps"] = self.eps
+        enum_dict["name"] = self.name
+        enum_dict["rattle"] = self.rattle
+        enum_dict["ran_seed"] = self.ran_seed
+        enum_dict["keep_supers"] = self.keep_supers
+        enum_dict["displace"] = self.displace
+        return enum_dict
+        
     def _get_lattice(self,lattice):
         """Gets the lattice vectors for the system.
         
@@ -233,13 +249,13 @@ class Enumerated(Group):
 
     @property
     def atoms_paths(self):
-        """Returns a list of full paths to the folders that have `atoms.json` objects
+        """Returns a list of full paths to the folders that have `atoms.h5` objects
         for the latest result set.
         """
         result = []
         for euid in self.euids:
             folder = self.index[euid]
-            target = path.join(folder,"atoms.json")
+            target = path.join(folder,"atoms.h5")
             if path.isfile(target):
                 result.append(folder)
 
@@ -249,13 +265,12 @@ class Enumerated(Group):
         """Returns a :class:`matdb.atoms.AtomsList`, one for each config in the
         latest result set.
         """
-        from matdb.database.basic import atoms_from_json
         if len(self.sequence) == 0:
             #Return the configurations from this group; it is at the
             #bottom of the stack
             result = AtomsList()
             for epath in self.atoms_paths:
-                result.append(atoms_from_json)
+                result.append(Atoms(path.join(epath,"atoms.h5")))
             return result
         else:
             result = []
@@ -357,7 +372,7 @@ class Enumerated(Group):
         from phenum.makeStr import _make_structures
         from glob import glob
         _enum_out({"input":"enum.in","outfile":"enum.out",
-                   "seed":self.rseed if self.rseed is None else self.rseed+dind+recurse,
+                   "seed":self.ran_seed if self.ran_seed is None else self.ran_seed+dind+recurse,
                    "lattice":"lattice.in","distribution":["all",str(self.nconfigs-dind)],
                    "super":self.keep_supers,"sizes":None,"savedist":None,"filter":None,
                    "acceptrate":None})

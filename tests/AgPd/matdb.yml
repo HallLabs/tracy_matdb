@@ -45,7 +45,7 @@ databases:
           - "fcc"
         nconfigs: 10
         sizes: [1,4]
-        rseed: 10
+        ran_seed: 10
 calculator:
   name: Vasp
   nsw: 1

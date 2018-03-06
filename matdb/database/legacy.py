@@ -8,17 +8,6 @@ from os import path
 import numpy as np
 from matdb import msg
 from matdb.atoms import AtomsList, Atoms
-from ase.io import write
-
-def _quick_write(atlist, outpath):
-    """Writes the atoms list to file using the :class:`ase.io.write`.
-
-    Args:
-        atlist (matdb.atoms.AtomsList): atoms to write to XYZ file.
-        outpath (str): full path to the location of the output file to write.
-
-    """
-    write(outpath,atlist)            
 
 def _atoms_conform(dbfile, energy, force, virial):
     """Determines whether the specified database conforms to the constraints for
@@ -104,10 +93,10 @@ class LegacyDatabase(object):
         self.splits = {} if splits is None else splits
         self.folder = folder
 
-        self._dbfile = path.join(self.root, "legacy-{}.xyz".format(limit))
+        self._dbfile = path.join(self.root, "legacy-{}.h5".format(limit))
         """str: path to the combined legacy database, with limits included.
         """
-        self._dbfull = path.join(self.root, "legacy.xyz")
+        self._dbfull = path.join(self.root, "legacy.h5")
         """str: path to the combined legacy database, *without* limits.
         """
         self.dbfiles = []
@@ -123,7 +112,7 @@ class LegacyDatabase(object):
             from matdb.utility import dbcat
             if not path.isfile(self._dbfull):
                 self._create_dbfull(folder, pattern, energy, force, virial, config_type)
-            
+
             if limit is not None:
                 msg.std("Slicing limit subset of full {} db.".format(self.name))
                 full = AtomsList(self._dbfull)
@@ -131,7 +120,7 @@ class LegacyDatabase(object):
                 np.random.shuffle(N)
                 ids = N[0:limit]
                 part = full[ids]
-                write(self._dbfile,part)
+                part.write(self._dbfile)
                 dbcat([self._dbfull], self._dbfile, docat=False, limit=limit,
                       ids=ids)
             else:
@@ -156,7 +145,7 @@ class LegacyDatabase(object):
         with chdir(folder):
             self.dbfiles = glob(pattern)
         rewrites = []
-            
+        
         for dbfile in self.dbfiles:
             #Look at the first configuration in the atoms list to
             #determine if it matches the energy, force, virial and
@@ -166,21 +155,33 @@ class LegacyDatabase(object):
             if len(params) > 0 or doforce:
                 msg.std("Conforming database file {}.".format(dbpath))
                 al = AtomsList(dbpath)
-                outpath = path.join(self.root, dbfile)
+                outpath = path.join(self.root, dbfile.replace(".xyz",".h5"))
                 for ai in tqdm(al):
                     for target, source in params.items():
                         if (target == "config_type" and
                             config_type is not None):
                             ai.params[target] = config_type
                         else:
-                            ai.params[target] = ai.params[source]
+                            ai.add_param(target,ai.params[source])
                             del ai.params[source]
+                            if source in ai.info: #pragma: no cover
+                                                  #(if things were
+                                                  #dane correctly by
+                                                  #the atoms object
+                                                  #this should never
+                                                  #be used. It exists
+                                                  #mainly as a
+                                                  #safegaurd.
+                                msg.warn("The atoms object didn't properly "
+                                         "update the parameters of the legacy "
+                                         "atoms object.")
+                                del ai.info[source]
 
                     if doforce:
-                        ai.properties["dft_force"] = ai.properties[force]
+                        ai.add_property("dft_force",ai.properties[force])
                         del ai.properties[force]
 
-                    write(outpath,ai)
+                al.write(outpath)
 
                 #Mark this db as non-conforming so that we created a new
                 #version of it.
@@ -189,20 +190,22 @@ class LegacyDatabase(object):
                 dbcat([dbpath], outpath, docat=False, renames=params,
                       doforce=doforce)
 
-        catdbs = []
+        # We want a single file to hold all of the data for all the atoms in the database.
+        all_atoms = AtomsList()
         for dbfile in self.dbfiles:
             if dbfile in rewrites:
-                catdbs.append(path.join(self.root, dbfile))
+                infile = dbfile.replace(".xyz",".h5")
+                all_atoms.extend(AtomsList(path.join(self.root, infile)))
             else:
-                catdbs.append(path.join(folder, dbfile))
+                dbpath = path.join(folder, dbfile)
+                all_atoms.extend(AtomsList(dbpath))
 
-        self.dbfiles = catdbs
+        all_atoms.write(self._dbfull)
 
-        #Finally, concatenate all the files together to form the final
-        #database.
+        #Finally, create the config file.
         from matdb.utility import dbcat
         with chdir(folder):
-            dbcat(self.dbfiles, self._dbfull, config_type=self.config_type)
+            dbcat(self.dbfiles, self._dbfull, config_type=self.config_type, docat=False)
         
     def train_file(self, split):
         """Returns the full path to the XYZ database file that can be
@@ -211,7 +214,7 @@ class LegacyDatabase(object):
         Args:
             split (str): name of the split to use.
         """
-        return path.join(self.root, "{0}-train.xyz".format(split))
+        return path.join(self.root, "{0}-train.h5".format(split))
 
     def holdout_file(self, split):
         """Returns the full path to the XYZ database file that can be
@@ -220,7 +223,7 @@ class LegacyDatabase(object):
         Args:
             split (str): name of the split to use.
         """
-        return path.join(self.root, "{0}-holdout.xyz".format(split))
+        return path.join(self.root, "{0}-holdout.h5".format(split))
 
     def super_file(self, split):
         """Returns the full path to the XYZ database file that can be
@@ -229,7 +232,7 @@ class LegacyDatabase(object):
         Args:
             split (str): name of the split to use.
         """
-        return path.join(self.root, "{0}-super.xyz".format(split))
+        return path.join(self.root, "{0}-super.h5".format(split))
                 
     def split(self, recalc=0):
         """Splits the database multiple times, one for each `split` setting in
@@ -245,9 +248,9 @@ class LegacyDatabase(object):
         Args:
             name (str): name of the split to perform.
             recalc (int): when non-zero, re-split the data and overwrite any
-              existing *.xyz files. This parameter decreases as
+              existing *.h5 files. This parameter decreases as
               rewrites proceed down the stack. To re-calculate
-              lower-level XYZ files, increase this value.
+              lower-level h5 files, increase this value.
         """
         train_file = self.train_file(name)
         holdout_file = self.holdout_file(name)
@@ -306,15 +309,15 @@ class LegacyDatabase(object):
         if not path.isfile(train_file):
             tids = ids[0:Ntrain]
             altrain = subconfs[tids]
-            _quick_write(altrain, train_file)
+            altrain.write(train_file)
             dbcat([self._dbfile], train_file, docat=False, ids=tids, N=Ntrain)
         if not path.isfile(holdout_file):
             hids = ids[Ntrain:-Nsuper]
             alhold = subconfs[hids]
-            _quick_write(alhold, holdout_file)
+            alhold.write(holdout_file)
             dbcat([self._dbfile], holdout_file, docat=False, ids=hids, N=Nhold)
         if not path.isfile(super_file):
             sids = ids[-Nsuper:]
             alsuper = subconfs[sids]
-            _quick_write(alsuper, super_file)
+            alsuper.write(super_file)
             dbcat([self._dbfile], super_file, docat=False, ids=sids, N=Nsuper)

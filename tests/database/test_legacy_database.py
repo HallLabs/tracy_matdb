@@ -5,6 +5,7 @@ from matdb.database.legacy import LegacyDatabase
 from matdb.utility import relpath
 from os import mkdir, path
 from matdb.atoms import AtomsList, Atoms
+import numpy as np
 
 @pytest.fixture
 def phondb(tmpdir):
@@ -42,10 +43,9 @@ def rendb(tmpdir):
 def test_split(phondb):
     """Tests splitting of available data from a legacy database.
     """
-    import numpy as np
-    phondb.split()
     supers = {}
     
+    phondb.split()
     for s, p in phondb.splits.items():
         tfile = path.join(phondb.train_file(s))
         hfile = path.join(phondb.holdout_file(s))
@@ -72,7 +72,7 @@ def test_split(phondb):
         remove(sfile)
         
     phondb.split()
-    
+
     for s, p in phondb.splits.items():
         sfile = path.join(phondb.super_file(s))
         sal = AtomsList(sfile)
@@ -118,3 +118,13 @@ def test_rename(rendb):
 
     al = AtomsList(rendb._dbfile)
     assert len(al) == 80
+
+
+
+
+
+
+
+
+
+

@@ -6,6 +6,28 @@ from matdb.utility import relpath
 from os import mkdir, path, symlink, remove
 import quippy
 import numpy as np
+import six
+
+def compare_nested_dicts(dict1,dict2):
+    """Compares two dictionaries to see if they are the same.
+    """
+
+    if sorted(dict1.keys()) != sorted(dict2.keys()):
+        return False
+
+    for key in dict1:
+        if isinstance(dict1[key],dict):
+            res = compare_nested_dicts(dict1[key],dict2[key])
+            if not res:
+                return False
+            else:
+                continue
+        if not isinstance(dict1[key],six.string_types) and dict1[key] is not None and dict2[key] is not None and not np.allclose(dict1[key],dict2[key]):
+            return False
+        elif isinstance(dict1[key],six.string_types) and not dict1[key] == dict2[key]:
+            return False
+
+    return True
 
 @pytest.fixture()
 def AgPd(tmpdir):
@@ -97,7 +119,7 @@ def test_setup(AgPd):
             src = path.join(dbfolder,"E.{}".format(j),"POSCAR")
             dest = path.join(dbfolder,"E.{}".format(j),"CONTCAR")
             symlink(src,dest)
-            
+
     enum.cleanup()
     assert len(enum.atoms_paths) == 20
     assert len(enum.rset()) == 20
@@ -180,3 +202,18 @@ def test_build_lattice(AgPd):
 
     enum._build_lattice_file(enum.root)
     assert path.isfile(path.join(enum.root,"lattice.in"))
+
+def test_to_dict(AgPd):
+    """Tests the to dict method.
+    """
+
+    enum = AgPd.collections['enumerated']['enumerated'].steps['enum']
+
+    out = enum.to_dict()
+    model = {'rattle': 0.0, 'calculator': None, 'trainable': False, 'rseed': 10,
+             'prefix': 'E', 'config_type': None, 'basis': [[0, 0, 0]],
+             'lattice': None, 'override': {},
+             'displace': 0.0, 'execution': {}, 'keep_supers': False, 'name': 'enum',
+             'sizes': [1, 4], 'arrows': None, 'eps': 0.001, 'concs': None, 'nconfigs': 10,
+             'root': enum.root}
+    assert compare_nested_dicts(out, model)

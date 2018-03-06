@@ -13,75 +13,14 @@ import six
 from collections import OrderedDict
 from glob import glob
 import json
+import lazy_import
+import h5py
 
 from matdb import msg
 from matdb.utility import chdir, ParameterGrid
 from .controller import Database
-from matdb import calculators
+calculators = lazy_import.lazy_module("matdb.calculators")
 from matdb.atoms import Atoms, AtomsList
-
-def atoms_to_json(atoms, folder):
-    """Exports the specified atoms object, with its calculator's parameters, to
-    a `atoms.json` file.
-    Args:
-        atoms (matdb.atoms.Atoms): configuration to write to JSON.
-        folder (str): path to the folder to write the file in.
-    """
-    db = ase.db.connect(path.join(folder, "atoms.json"))
-    #We need to extract out the additional parameters that a matdb.atoms.Atoms object
-    #can have, but which are not supported by ASE.
-    handled = ["id", "volume", "magmom", "age", "mass", "formula",
-               "user", "charge", "unique_id", "fmax"]
-    data = {}
-    for param, value in atoms.params.items():
-        if param not in handled:
-            data[param] = value
-
-    props = []
-    for prop, value in atoms.properties.items():
-        if prop not in ["pos", "species", "Z", "n_neighb", "map_shift"]:
-            #For Hessian fitting in GAP, we need the eigenvalue parameter and
-            #eigenvector property to have the same name. This introduces a
-            #collision in our scheme here.
-            newname = prop + '_'
-            data[newname] = value
-            props.append(newname)
-    data["propnames"] = props
-
-    db.write(atoms, data=data)
-
-def atoms_from_json(folder):
-    """Retrieves a :class:`matdb.atoms.Atoms` object from JSON in the specified
-    folder.
-    Args:
-        folder (str): path to the folder that has the `atoms.json` file.
-    """
-    db = ase.db.connect(path.join(folder, "atoms.json"))
-    row = db.get()
-    atoms = Atoms()
-    _atoms = row.toatoms()
-    atoms.copy_from(_atoms)
-
-    props = row.data.propnames
-    for prop in props:
-        #Undo the extra '_' that we appended to avoid collision between the
-        #parameters and properties when saved to local data object.
-        atoms.add_property(prop[0:-1], np.array(row.data[prop]))
-
-    for param in row.data:
-        if param not in props:
-            atoms.add_param(param,row.data[param])
-
-    calcargs = row.get('calculator_parameters', {})
-    calculator = getattr(calculators, row.calculator.title())
-    #We have to coerce all unicode strings into standard strings for
-    #interoperability with the Fortran in QUIP.
-    if row.calculator == "quip":
-        caster = lambda a: str(a) if isinstance(a, unicode) else a
-        calcargs["calcargs"] = list(map(caster, calcargs["calcargs"]))
-    atoms.calc = calculator(atoms, folder, **calcargs)
-            
-    return atoms
 
 class Group(object):
     """Represents a collection of material configurations (varying in
@@ -107,6 +46,9 @@ class Group(object):
         seeds (list, str, matdb.atoms.Atoms): The location of the files that will be
           read into to make the atoms object or an atoms object.
         cls (subclass): the subclass of :class:`Group`.
+        override (dict): a dictionary of with uuids or paths as the
+          keys and a dictionary containing parameter: value pairs for
+          parameters that need to be adjusted.
 
     Attributes:
         atoms (matdb.atoms.Atoms): a single atomic configuration from
@@ -125,11 +67,13 @@ class Group(object):
         pgrid (ParamaterGrid): The ParameterGrid for the database.
         grpargs (dict): default arguments to construct the new groups; will
           be overridden by any parameter grid specs.
+
     """
     seeded = False
     def __init__(self, cls=None, root=None, parent=None, prefix='S', pgrid=None,
                  nconfigs=None, calculator=None, seeds=None,
-                 config_type=None, execution={}, trainable=False):
+                 config_type=None, execution={}, trainable=False, override = {},
+                 rec_bin=None):
         if isinstance(parent, Database):
             #Because we allow the user to override the name of the group, we
             #have to expand our root to use that name over here. However, for
@@ -155,6 +99,7 @@ class Group(object):
         if seeds is not None:
             self.is_seed_listed = isinstance(seeds, (list, six.string_types))
 
+        self.rec_bin = rec_bin
         self.seeds = None
         self.pgrid = pgrid
         self._seed = seeds
@@ -175,7 +120,6 @@ class Group(object):
         if calculator is not None:
             self.calcargs.update(calculator)
         self.calc = getattr(calculators, self.calcargs["name"])
-        del self.calcargs["name"]
 
         self.prefix = prefix
         self.nconfigs = nconfigs
@@ -192,17 +136,86 @@ class Group(object):
         #list.
         self.configs = {}
         self.config_atoms = {}
-        self.uuid = uuid4()
 
         with chdir(self.root):
             for folder in glob("{}.*".format(prefix)):
                 try:
                     cid = int(folder.split('.')[1])
                     self.configs[cid] = path.join(self.root, folder)
-                    self.config_atoms[cid] = atoms_from_json(self.configs[cid])
+                    self.config_atoms[cid] = Atoms(path.join(self.configs[cid],"atoms.h5"))
                 except:
                     #The folder name doesn't follow our convention.
                     pass
+
+        if path.isfile(path.join(
+                self.root,"{}_{}_uuid.txt".format(self._db_name,self.prefix))):
+            with open(path.join(
+                    self.root,"{}_{}_uuid.txt".format(self._db_name,self.prefix)),"r") as f:
+                uid = f.readline().strip()
+        else:
+            uid = uuid4()
+            with open(path.join(
+                    self.root,"{}_{}_uuid.txt".format(self._db_name,self.prefix)),"w") as f:
+                f.write(str(uid))
+            
+        self.uuid = str(uid)
+        self.database.parent.uuids[str(self.uuid)] = self
+
+        self.override = override.copy()
+        if bool(override):
+            for k,v in override:
+                obj_ins = self.database.controller.find(k)
+                if isinstance(obj_ins,Atoms):
+                    if "calc" in v:
+                        if self.rec_bin is not None:
+                            #construct the path for the object in the recycling bin
+                            new_path = path.join(self.rec_bin.root,
+                                                 "{}-atoms.h5".format(obj_ins.uuid))
+                            obj_ins.write(new_path)
+                            self.database.parent.uuids[obj_ins.uuid] = new_path
+                            if path.isfile(path.join(obj_ins.calc.folder,"atoms.h5")):
+                                from os import remove
+                                remove(path.join(obj_ins.calc.folder,"atoms.h5"))
+                            # Make a new uuid for the new atoms object.
+                            obj_ins.uuid = str(uuid4())
+                            self.database.parent.uuids[obj_ins.uuid] = obj_ins
+
+                        if "name" in v["calc"]:
+                            new_calc = getattr(calculators, v["calc"]["name"])
+                            new_lcarlgs = v.copy()
+                            del new_lcargs["name"]
+                        else:
+                            new_calc = obj_ins.calc
+                        lcargs = self.calcargs.copy()
+                        del lcargs["name"]
+                        if v["calc"]["calcargs"] is not None:
+                            lcargs.update(calcargs)
+                        calc = new_calc(atoms, obj_ins.calc.folder, **lcargs)
+                        obj_ins.set_calculator(calc)                    
+                elif path.isfile(obj_ins):
+                    #If the object is a file path then it's pointing
+                    #to an old instance of a class objcet that has
+                    #been saved to file.
+                    msg.warn("Can't update object, it has already been overwritten.")
+                else:
+                    args = obj_ins.to_dict()
+                    if self.rec_bin is not None:
+                        for atm in self.atoms_paths():
+                            from os import rename
+                            atms = Atoms(atm)
+                            new_atm = path.join(selg.rec_bin.root,
+                                                "{}-atoms.h5".format(atms.uuid))
+                            self.database.parent.uuids[atms.uuid] = new_atm
+                            rename(atm,new_atm)
+                    obj_ins.save_pkl(obj_ins.to_dict(),"{}.pkl".format(self.uuid))
+                    self.database.parent.uuids[obj_ins.uuid] = path.join(obj_ins.root,
+                                                                         "{}.pkl".format(
+                                                                             self.uuid))
+                    args.update(v)
+                    obj_ins.__init__(**args)
+                    obj_ins.uuid = str(uuid4())
+                    self.database.parent.uuids[obj_ins.uuid] = obj_ins
+                    obj_ins.setup(rerun=True)
 
     def _expand_sequence(self):
         """Recursively expands the nested groups to populate :attr:`sequence`.
@@ -216,9 +229,11 @@ class Group(object):
                     mkdir(seed_root)
 
                 clsargs = self.grpargs.copy()
+                clsargs["pgrid"] = self.pgrid
+                if self.pgrid is None or len(self.pgrid) == 0:
+                    clsargs.update(self.pgrid.params)
                 clsargs["root"] = seed_root
                 clsargs["seeds"] = at_seed
-                clsargs["pgrid"] = self.pgrid
                 if self.cls is None: #pragma: no cover
                     msg.err("The Group must have a class to have seeds.")
                 self.sequence[seedname] = self.cls(**clsargs)
@@ -251,6 +266,8 @@ class Group(object):
             self.seeds = OrderedDict()
             for atomspec in seeds:
                 fmt, pattern = atomspec.split(':')
+                if fmt == "POSCAR":
+                    fmt = "vasp"
                 for apath in self.database.parent.relpaths([pattern]):
                     self.seeds[path.basename(apath)] = Atoms(apath, format=fmt)
                     
@@ -292,11 +309,37 @@ class Group(object):
         """
         pass #pragma: no cover
 
+    @abc.abstractmethod
+    def sub_dict(self):
+        """Returns a dictionary of the parameters passed in to create this
+        group.
+        """
+        pass #pragma: no cover
+
+    def to_dict(self):
+        """Returns a dictionary of the parameters passed into the group instance.
+        """
+        from matdb import __version__
+        from datetime import datetime
+        import sys
+        
+        kw_dict = self.grpargs.copy()
+        args_dict = {"root": self.root, "override": self.override,
+                     "version":__version__, "datetime":str(datetime.now()),
+                     "python_version":sys.version}
+        
+        kw_dict.update(args_dict)
+        if "parent" in kw_dict:
+            del kw_dict["parent"]
+
+        kw_dict.update(self.sub_dict())
+        return kw_dict
+
     @property
     def rset_file(self):
-        """Returns the full path to the `rset.pkl` file for this group.
+        """Returns the full path to the `rset.h5` file for this group.
         """
-        return path.join(self.root, "rset.pkl")
+        return path.join(self.root, "rset.h5")
     
     @abc.abstractproperty
     def rset(self):
@@ -556,7 +599,6 @@ class Group(object):
         """
 
         if len(self.sequence)==0:
-            uid = uuid4()
             if cid is None:
                 cid = len(self.configs) + 1
 
@@ -565,7 +607,26 @@ class Group(object):
             if not path.isdir(target):
                 mkdir(target)
 
+            if path.isfile(path.join(target,"uuid.txt")):
+                with open(path.join(target,"uuid.txt"),"r") as f:
+                    uid = f.readine().strip()
+            else:
+                uid = str(uuid4())
+                with open(path.join(target,"uuid.txt"),"w+") as f:
+                    f.write(uid)
+
+            if path.isfile(path.join(target,"atoms.h5")) and rewrite:
+                from os import rename
+                back_up_path = back_up_path.replace('/','.')+'.atoms.h5'
+                new_path = path.join(self.rec_bin.root,"{}-atotms.h5".format(uid))
+                rename(path.join(target,'atoms.h5'),new_path)
+                self.database.parent.uuids[uid] = new_path
+                uid = str(uuid4())
+                    
+            atoms.uuid = uid
+            atoms.group_uuid = self.uuid
             lcargs = self.calcargs.copy()
+            del lcargs["name"]
             if calcargs is not None:
                 lcargs.update(calcargs)
                 
@@ -576,7 +637,8 @@ class Group(object):
             #Finally, store the configuration for this folder.
             self.configs[cid] = target
             self.config_atoms[cid] = atoms
-            
+
+            self.database.parent.uuids[uid] = atoms
             return cid
         else:
             for group in self.sequence.values():
@@ -733,17 +795,23 @@ class Group(object):
         """
         if len(self.sequence) == 0 and self.can_cleanup():
             for cid, folder in self.configs.items():
-                if path.isfile(path.join(folder, "atoms.json")):
+                if path.isfile(path.join(folder, "atoms.h5")):
                     #We don't need to recreate the atoms objects if they already
                     #exist.
                     continue
                 
                 atoms = self.config_atoms[cid]
                 atoms.calc.cleanup(folder)
-                atoms_to_json(atoms, folder)
+                atoms.write(path.join(folder,"atoms.h5"))
             return self.can_cleanup()
         elif len(self.sequence) >0:
-            return all([group.cleanup() for group in self.sequence.values()])
-                
+            cleaned = all([group.cleanup() for group in self.sequence.values()])
+            if cleaned:
+                atoms = self.rset()
+                atoms_dict = {"atom_{}".format(Atoms(f).uuid): f for f in atoms}
+                from matdb.utility import save_dict_to_h5
+                with h5py.File(target,"w") as hf:
+                    save_dict_to_h5(hf,atoms_dict,'/')
+            return cleaned                
         else:
             return self.can_cleanup()
