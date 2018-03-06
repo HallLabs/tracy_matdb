@@ -97,14 +97,14 @@ class Database(object):
         steps (OrderedDict): keys are step names (e.g. `dft`, `calibration`,
           etc.); values are the corresponding class instances.
         parent (Controller): instance controlling multiple configurations.
-        rec_bin (recycle_bin): instance of the recycling bin database.
+        rec_bin (RecycleBin): instance of the recycling bin database.
     """
     def __init__(self, name, root, parent, steps, splits):
         self.name = name
         self.config = name.split('.')[0]
         self.root = root
         self.splits = {} if splits is None else splits
-        self.rec_bin = recycle_bin(parent,root,splits)
+        self.rec_bin = RecycleBin(parent,root,splits)
         
         if not path.isdir(self.root):
             from os import mkdir
@@ -420,22 +420,22 @@ class Database(object):
         data = {"version":__version__,"python_version":sys.version,"name":self.name,
                 "root":self.root,"steps":self._settings,"uuid":self.uuid}
         
-class recycle_bin(Database):
+class RecycleBin(Database):
     """A database of past calculations to be stored for later use.
 
     Args:
         parent (Controller): instance controlling multiple configurations.
-        root (str): root directory in which the 'recycle_bin' folder will 
+        root (str): root directory in which the 'RecycleBin' folder will 
           be placed. 
         splits (dict): keys are split names; values are `float` *training*
           percentages to use.
     """
 
     def __init__(self,parent,root,splits):
-        """Sets up the recycle_bin database.
+        """Sets up the RecycleBin database.
         """
         self.parent = parent
-        self.root = path.join(root,"recycle_bin")
+        self.root = path.join(root,"RecycleBin")
         self.splits = {} if splits is None else splits
         if not path.isdir(self.root):
             from os import mkdir
@@ -451,7 +451,7 @@ class recycle_bin(Database):
         
     @property
     def rset(self):
-        """Returns a list of all the atoms object files in the recycle_bin."""
+        """Returns a list of all the atoms object files in the RecycleBin."""
         from glob import glob
         return glob(path.join(self.root,"*.h5"))
     
@@ -484,7 +484,7 @@ class recycle_bin(Database):
         from matdb.utility import chdir
 
         with chdir(self.root):
-            super(recycle_bin,self).split(recalc=recalc,cfilter=cfilter,dfilter=dfilter)
+            super(RecycleBin,self).split(recalc=recalc,cfilter=cfilter,dfilter=dfilter)
     
     def status(self, busy=False):
         pass

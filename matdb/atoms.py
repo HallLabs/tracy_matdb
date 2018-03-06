@@ -73,8 +73,7 @@ class Atoms(ase.Atoms):
         properties (dict): a dictionary of properties where the keys are the property
           names and the values are a list containing the property value for each atom.
         params (dict): a dictionary of parameters that apply to the entire system.
-        group_args (dict): a dictionary of the arguments used to save to create this atoms
-          object.
+        group_uuid (str): the uuid for the group.
         uuid (str): a uuid4 str for unique identification.
 
     .. note:: Additional attributes are also exposed by the super class
@@ -162,7 +161,7 @@ class Atoms(ase.Atoms):
                     self.add_param(k,v)
                     del self.info[k]
 
-        self.group_args = group_args
+        self.group_uuid = group_uuid
         self.uuid = uuid if uuid is not None else str(uuid4())
                 
         self._initialised = True
@@ -262,7 +261,7 @@ class Atoms(ase.Atoms):
                     self.add_param("cutoff_break",other.info.get('cutoff_break'))
 
             self.constraints = deepcopy(other.constraints)
-            self.group_args = {}
+            self.group_uuid = None
             self.uuid = str(uuid4())
 
         else:
@@ -349,8 +348,8 @@ class Atoms(ase.Atoms):
             
         symbols = self.get_chemical_symbols()
         data["symbols"] = ''.join([i+str(symbols.count(i)) for i in set(symbols)])
-        if self.group_args is not None:
-            data["group_args"] = _recursively_convert_units(self.group_args)
+        if self.group_uuid is not None:
+            data["group_uuid"] = self.group_uuid
         data["uuid"] = self.uuid
         data["python_version"] = sys.version
         data["version"] = np.array(__version__)

@@ -46,7 +46,7 @@ class Group(object):
         seeds (list, str, matdb.atoms.Atoms): The location of the files that will be
           read into to make the atoms object or an atoms object.
         cls (subclass): the subclass of :class:`Group`.
-        overrid (dict): a dictionary of with uuids or paths as the
+        override (dict): a dictionary of with uuids or paths as the
           keys and a dictionary containing parameter: value pairs for
           parameters that need to be adjusted.
 
@@ -624,7 +624,7 @@ class Group(object):
                 uid = str(uuid4())
                     
             atoms.uuid = uid
-            atoms.group_args = self.to_dict()
+            atoms.group_uuid = self.uuid
             lcargs = self.calcargs.copy()
             del lcargs["name"]
             if calcargs is not None:
