@@ -41,7 +41,8 @@ setup(name='matdb',
           "mpld3",
           "phenum",
           "h5py",
-          "lazy_import"
+          "lazy_import",
+          "seekpath"
       ],
       packages=['matdb', 'matdb.database', 'matdb.fitting','matdb.calculators'],
       scripts=['matdb/scripts/matdb_build.py',

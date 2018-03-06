@@ -19,10 +19,7 @@ def _parsed_kpath(atoms):
         list of points corresponding to those labels.
     """
     from matdb.kpoints import kpath
-    from ase.io import write
-    
-    write("KPATH_POSCAR",atoms,format="vasp")
-    ktup = kpath("KPATH_POSCAR")
+    ktup = kpath(atoms)
     band = []
     labels = []
     names, points = ktup
@@ -42,7 +39,6 @@ def _parsed_kpath(atoms):
 
         band.append(points[key].tolist())
 
-    remove("KPATH_POSCAR")
     return (labels, band)
 
 class DynMatrix(Group):

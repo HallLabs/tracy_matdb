@@ -5,13 +5,12 @@ have an appropriate special path in the BZ. `matdb` interfaces with
 from os import path, getcwd, chdir, system
 import numpy as np
 
-def kpath(poscar):
+def kpath(atoms):
     """Returns a list of the special k-points in the BZ at which the
     phonons should be sampled.
 
     Args:
-        poscar (str): full path to the POSCAR file that contains the
-          structural information.
+        atoms (matdb.Atoms): structure to get the path for.
 
     Returns:
 
@@ -19,33 +18,22 @@ def kpath(poscar):
         and `points` is a dict with the same names as keys and :class:`numpy.ndarray` as
         values.
     """
-    import requests
-    files = { "structurefile": open(path.abspath(path.expanduser(poscar)), 'rb') }
-    data = { "fileformat": "vasp-ase" }
-    url = "http://www.materialscloud.org/tools/seekpath/process_structure/"
-    r = requests.post(url, data=data, files=files)
-    
+    from seekpath.hpkot import get_path
+    s = (atoms.cell, atoms.get_scaled_positions(), atoms.get_atomic_numbers())
+    kdict = get_path(s)
 
-    from bs4 import BeautifulSoup
-    parsed_html = BeautifulSoup(r.text, "html5lib")
-
-    from json import loads
-    kptcode = parsed_html.body.find("code", attrs={"id": "rawcodedata"}).get_text()
-    kptcode = kptcode.replace(u'\xa0', u' ')
-    kdict = loads(kptcode)
-
-    names = [kdict[u"path"][0][0]]
-    for ki in range(len(kdict[u"path"]))[1:]:
-        s0, e0 = kdict[u"path"][ki-1]
-        s1, e1 = kdict[u"path"][ki]
+    names = [kdict["path"][0][0]]
+    for ki in range(len(kdict["path"]))[1:]:
+        s0, e0 = kdict["path"][ki-1]
+        s1, e1 = kdict["path"][ki]
 
         if e0 == s1:
             names.append(s1)
         else:
             names.append((e0, s1))
-    names.append(kdict[u"path"][-1][1])
+    names.append(kdict["path"][-1][1])
     
-    pts = {k: np.array(v) for k, v in kdict[u"kpoints_rel"].items()}
+    pts = {k: np.array(v) for k, v in kdict["point_coords"].items()}
     return (names, pts)   
 
 def _gamma_only(target, atoms):
