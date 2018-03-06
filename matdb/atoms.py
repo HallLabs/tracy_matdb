@@ -92,7 +92,7 @@ class Atoms(ase.Atoms):
                  scaled_positions=None, cell=None, pbc=None, constraint=None,
                  calculator=None, info=None, n=None,
                  properties=None, params=None, fixed_size=None, set_species=True,
-                 fpointer=None, finalise=True, group_args=None, uuid=None,
+                 fpointer=None, finalise=True, group_uuid=None, uuid=None,
                  **readargs):
 
         if (symbols is not None and not isinstance(symbols,string_types)) or (
@@ -232,14 +232,14 @@ class Atoms(ase.Atoms):
             info = other.info
             del info["params"]
             del info["properties"]
-            group_args = other.group_args
+            group_uuid = other.group_uuid
             
             self.__init__(symbols=symbols, positions=other.positions, n=other.n,
                           properties=other.properties, magmoms=magmoms,
                           params=other.params, masses=masses, momenta=momenta,
                           charges=charges, cell=other.cell, pdb=other.pbc,
                           constraint=constraint, info=info, calculator=other.calc,
-                          group_args = group_args)
+                          group_uuid = group_uuid)
 
         elif isinstance(other, ase.Atoms):
             super(Atoms, self).__init__(other)
