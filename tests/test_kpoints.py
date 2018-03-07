@@ -3,7 +3,7 @@ def test_kpath():
     """Performs a simple test to extract the kpath for an alloy.
     """
     from matdb.atoms import Atoms
-    from matdb.database.phonon import _parsed_kpath
+    from matdb.kpoints import parsed_kpath
     from matdb.utility import relpath
     filepath = relpath("tests/files/POSCAR-AgPd-50")
     at0 = Atoms(filepath, format="vasp")
@@ -29,6 +29,6 @@ def test_kpath():
                         'M']
     }
         
-    labels, band = _parsed_kpath(at0)
+    labels, band = parsed_kpath(at0)
     assert labels == model["labels"]
     assert band == model["band"]
