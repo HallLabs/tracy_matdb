@@ -18,11 +18,11 @@ phonon:
   weight: 1    
   band:
   - # 1
-    frequency:    -0.0000000290
+    frequency:     0.0000000317
   - # 2
-    frequency:     0.0000000701
+    frequency:     0.0000000654
   - # 3
-    frequency:     0.0000000742
+    frequency:     0.0000000760
 
 - q-position: [    0.0769231,    0.0000000,    0.0000000 ]
   weight: 8    
