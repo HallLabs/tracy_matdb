@@ -7,43 +7,17 @@ import numpy as np
 from operator import itemgetter
 from .basic import Group
 
-def _parsed_kpath(atoms):
-    """Gets the special path in the BZ for the structure with the specified
-    atoms object and then parses the results into the format required by the package
-    machinery.
-    Args:
-        atoms (:class:`matdb.atoms.Atoms`): a matdb `Atoms` object.
-    Returns:
-        tuple: result of querying the materialscloud.org special path
-        service. First term is a list of special point labels; second is the
-        list of points corresponding to those labels.
+def unroll_fc(fc):
+    """Unroll's the phonopy force constants matrix into the Hessian.
     """
-    from matdb.kpoints import kpath
-    from ase.io import write
-    
-    write("KPATH_POSCAR",atoms,format="vasp")
-    ktup = kpath("KPATH_POSCAR")
-    band = []
-    labels = []
-    names, points = ktup
-
-    def fix_gamma(s):
-        return r"\Gamma" if s == "GAMMA" else s
-    
-    for name in names:
-        #Unfortunately, the web service that returns the path names returns
-        #GAMMA for \Gamma, so that the labels need to be fixed.
-        if isinstance(name, tuple):
-            key = name[0]
-            labels.append("{}|{}".format(*map(fix_gamma, name)))
-        else:
-            key = name
-            labels.append(fix_gamma(name))
-
-        band.append(points[key].tolist())
-
-    remove("KPATH_POSCAR")
-    return (labels, band)
+    Nc = int(np.sqrt(np.product(fc.shape)))
+    result = np.zeros((Nc, Nc), dtype="double")
+    num_atom = Nc/3
+    for i in range(num_atom):
+        for j in range(num_atom):
+            result[i*3:(i+1)*3, j*3:(j+1)*3] = fc[i, j]
+  
+    return result
 
 class DynMatrix(Group):
     """Sets up the displacement calculations needed to construct the dynamical
@@ -119,13 +93,10 @@ class DynMatrix(Group):
         self.tolerance = tolerance
         self.phonodir = path.join(self.root, "phonopy")
         self.phonocache = path.join(self.root, "phoncache")
-        self.kpathdir = path.join(self.root, "kpaths")
-        self.kfile = path.join(self.database.parent.kpathdir, "{0}.json".format(self.database.name))
 
         self._kpath = None
-        """tuple: result of querying the materialscloud.org special path
-        service. First term is a list of special point labels; second is the
-        list of points corresponding to those labels.
+        """tuple: Special point path in k-space. First term is a list of special point
+        labels; second is the list of points corresponding to those labels.
         """
 
         self._bands = None
@@ -135,8 +106,8 @@ class DynMatrix(Group):
         along the paths, and their corresponding distances.
         """
 
-        self._fc = self.load_pkl(self.fc_file)
-        """np.array: the force constants matrix, whether it was derived from
+        self._H = self.load_pkl(self.H_file)
+        """np.array: the Hessian matrix, whether it was derived from
         DFPT or from frozen phonon calculations.
         """
 
@@ -147,8 +118,6 @@ class DynMatrix(Group):
                 mkdir(self.phonodir)
             if not path.isdir(self.phonocache):
                 mkdir(self.phonocache)
-            if not path.isdir(self.kpathdir):
-                mkdir(self.kpathdir)
 
     def sub_dict(self):
         """Returns a dict needed to initialize the class.
@@ -201,22 +170,21 @@ class DynMatrix(Group):
 
     @property
     def rset(self):
-        """Constructs the force constants matrix for the *best* convergence parameters
+        """Constructs the Hessian matrix for the *best* convergence parameters
         in this group and it's possible sub-sequences.
+
         Returns:
-            dict: keys are `atoms` and `fc`; values are the atoms object and
-            its force constants matrix respectively.
+            list: of :class:`matdb.atoms.Atoms`; each atoms object will have a `H`
+            matrix in its info dictionary.
         """
         if len(self.sequence) == 0:
-            #We are at the bottom of the stack; calculate the dynamical matrix
-            #and return it with the atoms object it corresponds to.
-            return [{
-                "atoms": self.atoms,
-                "fc": self.fc
-            }]
+            #We are at the bottom of the stack; attach the hessian matrix
+            #to the atoms object it corresponds to.
+            self.atoms.info["H"] = self.H
+            return [self.atoms]
         else:
             #Check where we are in the stack. If we are just below the database,
-            #then we want to return a list of dynamical matrices and atoms
+            #then we want to return a list of hessian matrices and atoms
             #objects. If we are not, then we must a parameter grid of sequences
             #to select from.
             if isinstance(self.parent, DynMatrix):
@@ -263,66 +231,35 @@ class DynMatrix(Group):
             return all(p.ready() for p in self.sequence.values())
 
     @property
-    def fc_file(self):
-        """Returns the full path to the dynamical matrix pickle file.
+    def H_file(self):
+        """Returns the full path to the hessian matrix pickle file.
         """
-        return path.join(self.root, "fc.pkl")
+        return path.join(self.root, "H.pkl")
 
     @property
-    def fc(self):
-        """Returns the dynamical matrix extracted from the frozen
-        phonon calculations at the gamma point in the BZ.
+    def H(self):
+        """Returns the Hessian matrix extracted from the frozen phonon calculations at
+        the gamma point in the BZ.
         """
-        if self._fc is not None:
-            return self._fc
+        if self._H is not None:
+            return self._H
         
         #Otherwise, we need to calculate it from scratch. This depends on
         #whether we are using DFPT or frozen phonons.
         from matdb.utility import execute, chdir
         from phonopy import file_IO
+
+        if not self.dfpt:
+            dim = ' '.join(map(str, self.supercell))
+            xargs = ["phonopy", '--dim="{}"'.format(dim), "--writefc"]
+            execute(xargs, self.phonodir, venv=True)    
         
-        if self.dfpt:
-            with chdir(self.phonodir):
-                result = file_IO.parse_FORCE_CONSTANTS()
-        else:
-            #We have a stack of frozen phonon calculations that we need to
-            #recombine into the force constants matrix. We already have methods
-            #to calculate force sets, so we call that and then calculate the
-            #force constants from the force sets.
-            self.calc_forcesets()
-            from phonopy.api_phonopy import Phonopy
-            from phonopy.structure.atoms import Atoms as PhonopyAtoms
-
-            #Unfortunately, phonopy created their own version of the Atoms object
-            #which is required to work with their functions.
-            patoms = PhonopyAtoms(symbols=self.atoms.get_chemical_symbols(),
-                                  positions=self.atoms.positions,
-                                  masses=self.atoms.get_masses(),
-                                  cell=self.atoms.cell, pbc=self.atoms.pbc)
-
-            #This supercell should match the one you used to generate the displacements
-            #in the first place. We construct a Phonopy object and call its methods to
-            #calculate the force constants matrix.
-            if self.supercell is None: # pragma: no cover
-                raise ValueError("Supercell required to calc force constants.")
-            if len(self.supercell) == 3:
-                supercell = np.diag(self.supercell)
-            else:
-                supercell = np.array(self.supercell).reshape(3, 3)
-
-            with chdir(self.phonodir):
-                phonpy = Phonopy(patoms, supercell)
-                force_sets = file_IO.parse_FORCE_SETS()
-            phonpy.set_displacement_dataset(force_sets)
-            phonpy.produce_force_constants(calculate_full_force_constants=True, 
-                                           computation_algorithm="svd")
-            phonpy._set_dynamical_matrix()
-            result = phonpy._dynamical_matrix._force_constants
-
-        self._fc = result
-        self.save_pkl(result, self.fc_file)
-
-        return self._fc
+        with chdir(self.phonodir):
+            result = file_IO.parse_FORCE_CONSTANTS()
+            
+        self._H = unroll_fc(result)        
+        self.save_pkl(self._H, self.H_file)
+        return self._H
     
     @property
     def bands(self):
@@ -340,56 +277,39 @@ class DynMatrix(Group):
             self._bands = from_yaml(byaml)
         return self._bands
 
-    def get_kpath(self, atoms):
-        """Returns the materialscloud.org special path in k-space for the seed
-        configuration of this database.
-        Args:
-            atoms (:obj:`matdb.atoms.Atoms`): the atoms object the k_path is for.
+    def get_kpath(self):
+        """Returns the special path in k-space for the seed configuration of this group.
+
         Returns:
-            tuple: result of querying the materialscloud.org special path
-            service. First term is a list of special point labels; second is the
-            list of points corresponding to those labels.
+            tuple: special path in k-space. First term is a list of special
+            point labels; second is the list of points corresponding to those
+            labels.
         """
         if self._kpath is None:
-            import json
-            #We use some caching here so that we don't have to keep querying the
-            #server and waiting for an identical response.
-            if path.isfile(self.kfile):
-                with open(self.kfile) as f:
-                    kdict = json.load(f)
-            else:
-                from .phonon import _parsed_kpath
-                labels, band = _parsed_kpath(atoms)
-                kdict = {"labels": labels, "band": band}
-                with open(self.kfile, 'w') as f:
-                    json.dump(kdict, f)
-            
-            self._kpath = (kdict["labels"], kdict["band"])
+            from matdb.kpoints import parsed_kpath
+            self._kpath = parsed_kpath
             
         return self._kpath    
     
     @property
     def kpath(self):
-        """Returns the materialscloud.org special path in k-space for the seed
-        configuration of this database.
-        Returns:
-            tuple: result of querying the materialscloud.org special path
-            service. First term is a list of special point labels; second is the
-            list of points corresponding to those labels.
-        """
-        from .controller import Database
-        from .basic import Group
+        """Returns the special path in k-space for the seed configuration of this
+        database.
 
+        Returns:
+            tuple: special path in k-space. First term is a list of special
+            point labels; second is the list of points corresponding to those
+            labels.
+        """
+        from matdb.database import Database, Group
         if isinstance(self.parent, Database):
-            #We actually need to build the kpath file and save it to disk. All
-            #the nested Group instances will use the same kpath.
-            pass
+            return self.get_kpath()
         elif isinstance(self.parent, DynMatrix):
-            return self.parent.get_kpath(self.atoms)
+            return self.parent.get_kpath()
     
     def calc_bands(self, recalc=False):
-        """Calculates the bands at the special points given by the
-        materialscloud.org service.
+        """Calculates the bands at the special points given by seekpath.
+        
         Args:
             recalc (bool): when True, recalculate the DOS, even if the
               file already exists.
@@ -397,38 +317,10 @@ class DynMatrix(Group):
         bandfile = path.join(self.phonodir, "band.yaml")
         if not recalc and path.isfile(bandfile):
             return
-
-        #We need to create the band.conf file and write the special
-        #paths in k-space at which the phonons should be calculated.
-        settings = {
-            "ATOM_NAME": ' '.join(self.database.species),
-            "DIM": ' '.join(map(str, self.supercell)),
-            "MP": ' '.join(map(str, self.bandmesh))
-        }
-
-        labels, bands = self.kpath
-        bandfmt = "{0:.3f} {1:.3f} {2:.3f}"
-        sband = []
         
-        for Q in bands:
-            sband.append(bandfmt.format(*Q))
-
-        settings["BAND"] = "  ".join(sband)
-        settings["BAND_LABELS"] = ' '.join(labels)
-
-        with open(path.join(self.phonodir, "band.conf"), 'w') as f:
-            for k, v in settings.items():
-                f.write("{} = {}\n".format(k, v))
-
-        from matdb.utility import execute
-        sargs = ["phonopy", "-p", "band.conf", "-s"]
-        xres = execute(sargs, self.phonodir, venv=True)
-
-        if not path.isfile(bandfile): #pragma: no cover
-            msg.err("could not calculate phonon bands; see errors.")
-
-        if len(xres["error"]) > 0:
-            msg.std(''.join(xres["error"]))
+        from matdb.phonons import _calc_bands
+        _calc_bands(self.atoms, self.H, supercell=self.supercell,
+                    outfile=self.bandfile, grid=self.bandmesh)
     
     def calc_DOS(self, recalc=False):
         """Calculates the *total* density of states.

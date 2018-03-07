@@ -263,6 +263,7 @@ class Atoms(ase.Atoms):
             self.constraints = deepcopy(other.constraints)
             self.group_uuid = None
             self.uuid = str(uuid4())
+            self.n = len(other)
 
         else:
             raise TypeError('can only copy from instances of matdb.Atoms or ase.Atoms')

@@ -1,0 +1,8 @@
+name: "VarKind"
+properties:
+  - name: "tolerance"
+    dtype: "float"
+    doc: "heard of epsilon."
+    example: 0.2
+doc: >-
+  Simple custom type for unit testing.

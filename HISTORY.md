@@ -1,5 +1,29 @@
 # Revision History for `matdb`
 
+## Revision 1.0.7
+
+- Added CFG support to `matdb.io` and increased unit test coverage.
+- Adjusted dependencies list for `setup.py`.
+
+## Major Revision 1.0
+
+Includes a major, API-breaking refactor of the database handling for
+`matdb`. We refactored the generation to include a recursive group
+structure for handling multiple seeds, chained groups, and parameter
+grids. Some features of the major revision are:
+
+- Recursive group structure allows for parameter grids.
+- Chaining of groups via a new `rset` property.
+- Groups can define a set of training configurations.
+- Scientific reproducibility enforced by having deterministic outcomes
+  for a fixed set of input parameters to groups.
+- `uuid`-based identifiers for all databases, groups and atoms
+  objects.
+- HDF5-based serialization for storage of configurations and
+  calculator results.
+- Hybrid support for ASE and quippy `Atoms` objects.
+- Asynchronous calculator support for basic ASE calculators.
+
 ## Revision 0.0.7
 
 - Implented the functions needed to indentify the seed configurations

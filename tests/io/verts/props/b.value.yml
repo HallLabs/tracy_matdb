@@ -1,0 +1,4 @@
+name: "value"
+dtype: "int"
+doc: "some integer."
+example: 3

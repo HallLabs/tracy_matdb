@@ -1,0 +1,5 @@
+name: "A"
+properties:
+  - ":props/a.kind"
+doc: >-
+  Simple vertex for unit tests.
