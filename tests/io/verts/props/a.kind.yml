@@ -1,0 +1,5 @@
+name: "kind"
+dtype: "VarKind"
+doc: "testing how kind the vertex is."
+example: "kind(1.8)"
+keytype: "float"

@@ -1,0 +1,11 @@
+context:
+  vertices: "verts"
+  edges: "edges"
+  types: "types"
+types:
+  - ":varkind"
+vertices:
+  - ":a"
+  - ":b"
+edges:
+  - ":atob"

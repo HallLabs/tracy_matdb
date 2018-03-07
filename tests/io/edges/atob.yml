@@ -1,0 +1,7 @@
+name: "AtoB"
+sources: "A"
+targets: "B"
+properties:
+  - ":../verts/props/b.value"
+doc: >-
+  Connects A to B.

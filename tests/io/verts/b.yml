@@ -1,0 +1,10 @@
+name: "B"
+properties:
+  - ":props/b.value"
+  - name: "text"
+    dtype: "str"
+    doc: "b.text"
+    example: "'cc'"
+vtype: "logic"
+doc: >-
+  Simple schema for unit tests.  
