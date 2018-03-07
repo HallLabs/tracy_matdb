@@ -201,7 +201,7 @@ class Aflow(Group):
         return self.auids
 
     @property
-    def atoms_paths(self):
+    def fitting_configs(self):
         """Returns a list of full paths to the folders that have `atoms.json` objects
         for the latest result set.
         """
@@ -222,7 +222,7 @@ class Aflow(Group):
 
         from matdb.atoms import Atoms, AtomsList
         result = AtomsList()
-        for apath in self.atoms_paths:
+        for apath in self.fitting_configs:
             result.append(Atoms(apath))
         return result
 
@@ -232,7 +232,7 @@ class Aflow(Group):
         """
         #We need to count the number of `atoms.json` files that we have
         #corresponding to the auids in the list.
-        return len(self.atoms_paths) == self.nconfigs
+        return len(self.fitting_configs) == self.nconfigs
 
     def setup(self, rerun=False):
         """Executes the query against the AFLOW database and downloads the

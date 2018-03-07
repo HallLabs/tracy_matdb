@@ -42,7 +42,7 @@ class Active(Group):
         """Returns True if this database has finished its computations and is
         ready to be used.
         """
-        return len(self.atoms_paths) == self.nconfigs
+        return len(self.fitting_configs) == self.nconfigs
     
     @property
     def auid_file(self):
@@ -65,7 +65,7 @@ class Active(Group):
             self.last_iteration = self.load_pkl(self.iter_file)
             
     @property
-    def atoms_paths(self):
+    def fitting_configs(self):
         """Returns a list of full paths to the folders that have `atoms.json` objects
         for the full result set.
         """
@@ -86,7 +86,7 @@ class Active(Group):
         #Return the configurations from this group; it is at the
         #bottom of the stack
         result = AtomsList()
-        for epath in self.atoms_paths:
+        for epath in self.fitting_configs:
             result.append(Atoms(epath))
         return result
 

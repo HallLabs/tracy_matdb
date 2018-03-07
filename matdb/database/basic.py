@@ -200,7 +200,7 @@ class Group(object):
                 else:
                     args = obj_ins.to_dict()
                     if self.rec_bin is not None:
-                        for atm in self.atoms_paths():
+                        for atm in self.fitting_configs():
                             from os import rename
                             atms = Atoms(atm)
                             new_atm = path.join(selg.rec_bin.root,

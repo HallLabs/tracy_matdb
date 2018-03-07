@@ -229,7 +229,7 @@ class Enumerated(Group):
         ready to be used.
         """
         if len(self.sequence) == 0:
-            return len(self.atoms_paths) == self.nconfigs
+            return len(self.fitting_configs) == self.nconfigs
         else:            
             return all(e.ready() for e in self.sequence.values())
     
@@ -248,7 +248,7 @@ class Enumerated(Group):
         return self.euids
 
     @property
-    def atoms_paths(self):
+    def fitting_configs(self):
         """Returns a list of full paths to the folders that have `atoms.h5` objects
         for the latest result set.
         """
@@ -269,7 +269,7 @@ class Enumerated(Group):
             #Return the configurations from this group; it is at the
             #bottom of the stack
             result = AtomsList()
-            for epath in self.atoms_paths:
+            for epath in self.fitting_configs:
                 result.append(Atoms(path.join(epath,"atoms.h5")))
             return result
         else:
