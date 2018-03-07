@@ -2,8 +2,25 @@
 """
 import pytest
 from matdb.io import read
-from matdb.utility import reporoot
+from matdb.utility import reporoot, relpath
+from matdb.atoms import AtomsList
+from matdb.io import cfg_to_xyz
+import numpy as np
 
+def test_cfg(tmpdir):
+    """Tests conversion of MTP's CFG format to XYZ.
+    """
+    target = str(tmpdir.join("cfg.xyz"))
+    model = AtomsList(relpath("tests/files/io_convert/atoms.xyz"))
+    conv = cfg_to_xyz(relpath("tests/files/io_convert/atoms.cfg"), target,
+               species=[46, 47])
+
+    for a, b in zip(model, conv):
+        assert np.allclose(a.get_positions(), b.get_positions())
+        assert np.allclose(a.get_forces(), b.calc.results["forces"])
+        assert np.allclose(a.get_stress(), b.calc.results["stress"], atol=1e-4, rtol=1e-3)
+        assert a.get_total_energy() == b.calc.results["energy"]
+        
 def test_schema():
     """Tests the template read for the whole schema to make sure that contexts
     work as expected.
