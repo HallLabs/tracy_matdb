@@ -170,22 +170,21 @@ class DynMatrix(Group):
 
     @property
     def rset(self):
-        """Constructs the force constants matrix for the *best* convergence parameters
+        """Constructs the Hessian matrix for the *best* convergence parameters
         in this group and it's possible sub-sequences.
+
         Returns:
-            dict: keys are `atoms` and `fc`; values are the atoms object and
-            its force constants matrix respectively.
+            list: of :class:`matdb.atoms.Atoms`; each atoms object will have a `H`
+            matrix in its info dictionary.
         """
         if len(self.sequence) == 0:
-            #We are at the bottom of the stack; calculate the dynamical matrix
-            #and return it with the atoms object it corresponds to.
-            return [{
-                "atoms": self.atoms,
-                "fc": self.fc
-            }]
+            #We are at the bottom of the stack; attach the hessian matrix
+            #to the atoms object it corresponds to.
+            self.atoms.info["H"] = self.H
+            return [self.atoms]
         else:
             #Check where we are in the stack. If we are just below the database,
-            #then we want to return a list of dynamical matrices and atoms
+            #then we want to return a list of hessian matrices and atoms
             #objects. If we are not, then we must a parameter grid of sequences
             #to select from.
             if isinstance(self.parent, DynMatrix):
