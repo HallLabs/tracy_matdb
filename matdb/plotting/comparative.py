@@ -4,13 +4,11 @@ convergence runs against each other.
 """
 from os import path
 from tqdm import tqdm
-import quippy
-
+from matdb.atoms import Atoms
 from matdb.phonons import bandplot
 from matdb.utility import chdir
-from matdb.phonons import calc as phon_calc
-from matdb.database.phonon import _parsed_kpath
-from matdb.phonons import from_yaml
+from matdb.phonons import from_yaml, calc as phon_calc
+from matdb.kpoints import parsed_kpath
             
 def band_plot(phondbs, fits=None, dim=2, npts=100, title="{} Phonon Spectrum",
               save=None, figsize=(10, 8), nbands=4, **kwargs):
@@ -96,15 +94,16 @@ def band_raw(poscar, bandfiles, pots=None, dim=2, npts=100, title="{} Phonon Spe
     colors = ['k', 'b', 'g', 'r', 'c', 'm', 'y' ]
     bands, style = {}, {}
     names, kpath = None, None
-    atoms = quippy.Atoms(poscar, format="vasp")
+    atoms = Atoms(poscar, format="vasp")
     
     for ifile, fpath in enumerate(bandfiles):
         if names is None:
-            names, kpath = _parsed_kpath(poscar)
+            names, kpath = parsed_kpath(atoms)
             #matplotlib needs the $ signs for latex if we are using special
             #characters. We only get names out from the first configuration; all
             #the others have to use the same one.
-            names = ["${}$".format(n) if '\\' in n else n for n in names]
+            names = ["${}$".format(n) if '\\' in n or '_' in n
+                     else n for n in names]
 
         if line_names is not None:
             key = line_names[ifile]
