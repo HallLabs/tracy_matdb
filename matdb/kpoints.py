@@ -5,6 +5,39 @@ have an appropriate special path in the BZ. `matdb` interfaces with
 from os import path, getcwd, chdir, system
 import numpy as np
 
+def parsed_kpath(atoms):
+    """Gets the special path in the BZ for the structure with the specified
+    atoms object and then parses the results into the format required by the package
+    machinery.
+    Args:
+        atoms (:class:`matdb.atoms.Atoms`): a matdb `Atoms` object.
+    Returns:
+        tuple: result of querying the materialscloud.org special path
+        service. First term is a list of special point labels; second is the
+        list of points corresponding to those labels.
+    """
+    ktup = kpath(atoms)
+    band = []
+    labels = []
+    names, points = ktup
+
+    def fix_gamma(s):
+        return r"\Gamma" if s == "GAMMA" else s
+    
+    for name in names:
+        #Unfortunately, the web service that returns the path names returns
+        #GAMMA for \Gamma, so that the labels need to be fixed.
+        if isinstance(name, tuple):
+            key = name[0]
+            labels.append("{}|{}".format(*map(fix_gamma, name)))
+        else:
+            key = name
+            labels.append(fix_gamma(name))
+
+        band.append(points[key].tolist())
+
+    return (labels, band)
+
 def kpath(atoms):
     """Returns a list of the special k-points in the BZ at which the
     phonons should be sampled.
