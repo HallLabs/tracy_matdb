@@ -8,7 +8,11 @@ class AsyncCalculator(object):
     """Represents a calculator such as :class:`ase.Calculator` that can be run
     in multiple stages to compute properties (such as in a distributed or HCP
     environment).
+
+    Attributes:
+        key (str): short, lower-case name to identify the calculator type.
     """
+    key = None    
     __metaclass__ = abc.ABCMeta
     
     @abc.abstractmethod
@@ -66,7 +70,12 @@ class SyncCalculator(object):
     """Represents a calculator such as :class:`ase.Calculator` that can be run
     synchronously stages to compute properties (does not require a distributed
     or HCP environment).
+
+    Attributes:
+        key (str): short, lower-case name to identify the calculator type.
     """
+    key = None
+    
     @abc.abstractmethod
     def can_execute(self):
         """Returns `True` if this calculation can calculate properties for the
