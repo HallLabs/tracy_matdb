@@ -121,6 +121,7 @@ class AsyncVasp(Vasp, AsyncCalculator):
         folder (str): path to the directory where the calculation should take
           place.
     """
+    key = "vasp"
     tarball = ["vasprun.xml"]
 
     def __init__(self, atoms, folder, *args, **kwargs):
