@@ -637,7 +637,8 @@ class Group(object):
             calc = self.calc(atoms, target, **lcargs)
             calc.create()
             atoms.set_calculator(calc)
-
+            atoms.write(path.join(target, "atoms.h5"))
+            
             #Finally, store the configuration for this folder.
             self.configs[cid] = target
             self.config_atoms[cid] = atoms
@@ -768,12 +769,17 @@ class Group(object):
                 #We need to have at least one folder for each config;
                 #otherwise we aren't ready to go.
                 return False
-        
-            cleanups = [a.calc.can_cleanup(f) for f, a in
-                        zip(self.configs.values(),self.config_atoms.values())]
+
+            result = False
+            for f, a in zip(self.configs.values(), self.config_atoms.values()):
+                if a.calc.can_cleanup(f):
+                    msg.std("Config {} not ready to cleanup.".format(f))
+                    break
+            else:
+                result = True
+            return result
         else: 
-            cleanups = [group.can_cleanup() for group in self.sequence.values()]
-        return all(cleanups)
+            return all(group.can_cleanup() for group in self.sequence.values())
 
     def tarball(self, filename="output.tar.gz"):
         """Creates a zipped tar archive that contains each of the specified
@@ -800,15 +806,20 @@ class Group(object):
         self._expand_sequence()
         if len(self.sequence) == 0 and self.can_cleanup():
             for cid, folder in self.configs.items():
-                if path.isfile(path.join(folder, "atoms.h5")):
+                atompath = path.join(folder, "atoms.h5")
+                if path.isfile(atompath):
                     #We don't need to recreate the atoms objects if they already
                     #exist.
                     continue
                 
                 atoms = self.config_atoms[cid]
                 atoms.calc.cleanup(folder)
-                atoms.write(path.join(folder,"atoms.h5"))
-            return self.can_cleanup()
+                atoms.write(atompath)
+
+            result = self.can_cleanup()
+            if not result:
+                msg.std("Calculator cannot cleanup {}.".format(atompath), 2)
+            return result
         elif len(self.sequence) >0:
             cleaned = all([group.cleanup() for group in self.sequence.values()])
             if cleaned:
@@ -819,4 +830,7 @@ class Group(object):
                     save_dict_to_h5(hf,atoms_dict,'/')
             return cleaned                
         else:
-            return self.can_cleanup()
+            result = self.can_cleanup()
+            if not result:
+                msg.std("Calculator cannot cleanup {}.".format(self.root), 2)
+            return result
