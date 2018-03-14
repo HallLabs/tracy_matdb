@@ -442,26 +442,30 @@ class Group(object):
             bool: True if the submission generated a job id
             (considered successful).
         """
-
+        self._expand_sequence()
         if len(self.sequence) == 0:
             jobfile = "recovery.sh" if recovery else "jobfile.sh"
             if not path.isfile(path.join(self.root, jobfile)):
+                msg.std("Jobfile missing for {}.".format(self.root), 2)
                 return False
 
             if not recovery:
                 if not all(a.calc.can_execute(self.configs[i])
                            for i, a in self.config_atoms.items()):
+                    msg.std("Not all configs in {} are ready to execute.".format(self.name), 2)
                     return False
 
                 #We also need to check that we haven't already submitted this
                 #job. Check to see if it is executing.
                 if any(a.calc.is_executing(self.configs[i])
                        for i, a in self.config_atoms.items()):
+                    msg.std("Some configs in {} are already executing.".format(self.name), 2)
                     return False
 
                 #Make sure that the calculation isn't complete.
                 if any(a.calc.can_cleanup(self.configs[i])
                        for i, a in self.config_atoms.items()):
+                    msg.std("All the calculations in {} have finished running.".format(self.name), 2)
                     return False                
         
             # We must have what we need to execute. Compile the command and
@@ -793,6 +797,7 @@ class Group(object):
     def cleanup(self):
         """Creates a JSON file for each atoms object in the group.
         """
+        self._expand_sequence()
         if len(self.sequence) == 0 and self.can_cleanup():
             for cid, folder in self.configs.items():
                 if path.isfile(path.join(folder, "atoms.h5")):
