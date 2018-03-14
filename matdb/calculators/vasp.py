@@ -264,3 +264,9 @@ class AsyncVasp(Vasp, AsyncCalculator):
         with chdir(folder):
             self.converged = self.read_convergence()
             self.set_results(self.atoms)
+            E = self.get_total_energy()
+            F = self.forces
+            S = self.stress
+            self.atoms.add_property("vasp_force", F)
+            self.atoms.add_param("vasp_stress", S)
+            self.atoms.add_param("vasp_energy", E)
