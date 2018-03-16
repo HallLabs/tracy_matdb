@@ -126,7 +126,10 @@ class AsyncVasp(Vasp, AsyncCalculator):
 
     def __init__(self, atoms, folder, ran_seed, *args, **kwargs):
         self.folder = path.abspath(path.expanduser(folder))
-        self.kpoints = kwargs.pop("kpoints")
+        self.kpoints = None
+        if "kpoints" in kwargs:
+            self.kpoints = kwargs.pop("kpoints")
+            
         self.atoms = atoms
         self.args = args
         self.kwargs = kwargs
@@ -148,7 +151,7 @@ class AsyncVasp(Vasp, AsyncCalculator):
         self._write_potcar(directory=directory)
         if self.kpoints is not None:
             write_kpoints(directory, self.kpoints, self.atoms)
-        else:
+        elif "kspacing" not in self.kwargs:
             self.write_kpoints(directory=directory)
         self.write_sort_file(directory=directory)
 
@@ -265,3 +268,9 @@ class AsyncVasp(Vasp, AsyncCalculator):
         with chdir(folder):
             self.converged = self.read_convergence()
             self.set_results(self.atoms)
+            E = self.get_total_energy()
+            F = self.forces
+            S = self.stress
+            self.atoms.add_property("vasp_force", F)
+            self.atoms.add_param("vasp_stress", S)
+            self.atoms.add_param("vasp_energy", E)
