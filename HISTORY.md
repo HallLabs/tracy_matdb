@@ -1,5 +1,19 @@
 # Revision History for `matdb`
 
+## Revision 1.0.8
+
+- Moved all database specific functions from `matdb.utility` to
+  `matdb.database.utility`.
+- Removed the `split` method for the `legacy` database and `Database`
+  classes and made a universal `split` function in
+  `matdb.database.utility`.
+- Moved the classes contained in `matdb.database.controller.py` and
+  `matdb.database.basic.py` to `matdb.database.__init__.py`, and fixed
+  relative imports.
+
+- Switched random seeds to be universal when defined in controller.
+- All calculators now take a random seed.
+
 ## Revision 1.0.7
 
 - Added CFG support to `matdb.io` and increased unit test coverage.

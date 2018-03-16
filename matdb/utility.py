@@ -419,70 +419,6 @@ def load_datetime(pairs):
             d[k] = v             
     return d
 
-def dbconfig(dbfile):
-    """Returns the database configuration `dict` of the specified database file.
-
-    Args:
-        dbfile (str): path to the database file to get config information for.
-    """
-    confpath = dbfile + ".json"
-    if not path.isfile(confpath):
-        return {}
-    
-    import json
-    with open(confpath) as f:
-        config = json.load(f, object_pairs_hook=load_datetime)
-
-    return config
-
-def dbcat(files, output, sources=None, docat=True, **params):
-    """Constructs a new database file using a set of existing database files.
-
-    .. note:: This function is important because it enforces reproducibility. It
-      assigns a version number to the new database file and stores a config file
-      with the specific details of how it was created.
-
-    Args:
-        files (list): of `str` paths to files to combine to create the new
-          file.
-        sources (list): of `str` sources as a reference for a created file.
-        output (str): path to the file to write the combined files to.
-        docat (bool): when True, perform the concatenation; otherwise, just
-          create the config file.
-        params (dict): key-value pairs that characterize *how* the database was
-          created using the source files.
-    """
-    from uuid import uuid4
-    from datetime import datetime
-    from matdb import __version__
-    import json
-    confpath = output + ".json"
-    config = {
-        "version": str(uuid4()),
-        "sources": [],
-        "timestamp": datetime.utcnow(),
-        "matdb": __version__
-    }
-    if sources is None:
-        for dbpath in files:
-            _dbconf = dbconfig(dbpath)
-            config["sources"].append((dbpath, _dbconf.get("version")))
-    else:
-        config["sources"] = sources
-
-    config.update(params)
-
-    try:
-        with open(confpath, 'w') as f:
-            json.dump(config, f, default=datetime_handler)
-
-        if docat:
-            if len(files) > 1 or (len(files) == 1 and files[0] != output):
-                cat(files, output)
-    except:
-        from os import remove
-        remove(confpath)
-
 def getattrs(obj, chain):
     """Recursively gets attributes in a chain from object to object until the
     train terminates.
@@ -926,3 +862,53 @@ def is_uuid4(uuid_string):
     # valid uuid4. This is bad for validation purposes.
 
     return val.hex == uuid_string.replace('-','')    
+
+def dbcat(files, output, sources=None, docat=True, **params):
+    """Constructs a new database file using a set of existing database files.
+
+    .. note:: This function is important because it enforces reproducibility. It
+      assigns a version number to the new database file and stores a config file
+      with the specific details of how it was created.
+
+    Args:
+        files (list): of `str` paths to files to combine to create the new
+          file.
+        sources (list): of `str` sources as a reference for a created file.
+        output (str): path to the file to write the combined files to.
+        docat (bool): when True, perform the concatenation; otherwise, just
+          create the config file.
+        params (dict): key-value pairs that characterize *how* the database was
+          created using the source files.
+    """
+    from uuid import uuid4
+    from datetime import datetime
+    from matdb import __version__
+    from matdb.database.utility import dbconfig
+    import json
+    
+    confpath = output + ".json"
+    config = {
+        "version": str(uuid4()),
+        "sources": [],
+        "timestamp": datetime.utcnow(),
+        "matdb": __version__
+    }
+    if sources is None:
+        for dbpath in files:
+            _dbconf = dbconfig(dbpath)
+            config["sources"].append((dbpath, _dbconf.get("version")))
+    else:
+        config["sources"] = sources
+
+    config.update(params)
+
+    try:
+        with open(confpath, 'w') as f:
+            json.dump(config, f, default=datetime_handler)
+
+        if docat:
+            if len(files) > 1 or (len(files) == 1 and files[0] != output):
+                cat(files, output)
+    except:
+        from os import remove
+        remove(confpath)                

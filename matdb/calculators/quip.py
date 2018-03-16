@@ -9,9 +9,10 @@ import numpy as np
 class SyncQuip(quippy.Potential, SyncCalculator):
     """Implements a synchronous `matdb` calculator for QUIP potentials.
     """
-    def __init__(self, atoms, folder, *args, **kwargs):
+    def __init__(self, atoms, folder, ran_seed, *args, **kwargs):
         self.args = args[0]
         self.kwargs = kwargs
+        self.ran_seed = ran_seed
         super(SyncQuip, self).__init__(*self.args, **self.kwargs)
         self.atoms = atoms
         self.folder = folder

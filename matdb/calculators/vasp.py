@@ -124,12 +124,13 @@ class AsyncVasp(Vasp, AsyncCalculator):
     key = "vasp"
     tarball = ["vasprun.xml"]
 
-    def __init__(self, atoms, folder, *args, **kwargs):
+    def __init__(self, atoms, folder, ran_seed, *args, **kwargs):
         self.folder = path.abspath(path.expanduser(folder))
         self.kpoints = kwargs.pop("kpoints")
         self.atoms = atoms
         self.args = args
         self.kwargs = kwargs
+        self.ran_seed = ran_seed
         super(AsyncVasp, self).__init__(*args, **kwargs)
         if not path.isdir(self.folder):
             mkdir(self.folder)
@@ -180,7 +181,10 @@ class AsyncVasp(Vasp, AsyncCalculator):
         if not path.isdir(folder):
             return False
         
-        required = ["INCAR", "POSCAR", "KPOINTS", "POTCAR"]
+        required = ["INCAR", "POSCAR", "POTCAR"]
+        if "kspacing" not in self.kwargs or "KSPACING" not in self.kwargs:
+            required.append("KPOINTS")
+            
         present = {}
         for rfile in required:
             target = path.join(folder, rfile)

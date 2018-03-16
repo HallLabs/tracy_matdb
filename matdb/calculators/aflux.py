@@ -34,10 +34,11 @@ class AsyncAflow(SyncCalculator):
         atoms (quippy.Atoms): atoms object created from the database entry. Is
           `None` until the download is performed.
     """
-    def __init__(self, atoms, folder, entry=None, *args, **kwargs):
+    def __init__(self, atoms, folder, ran_seed, entry=None, *args, **kwargs):
         self.kwargs = kwargs
         self.args = []
         self.entry = entry
+        self.ran_seed = ran_seed
         self.kwargs["entry"] = self.entry
         self.folder = folder
         self.atoms = atoms

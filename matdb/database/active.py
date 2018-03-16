@@ -1,6 +1,6 @@
 """Group of configurations that is created from an enumerated list of structures.
 """
-from .basic import Group
+from matdb.database import Group
 from matdb import msg
 from os import path, getcwd, chdir, remove, listdir, mkdir
 import numpy as np

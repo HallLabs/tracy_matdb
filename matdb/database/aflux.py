@@ -57,7 +57,7 @@ Operators
 6. `|` is the logical `or` between two conditions.
 
 """
-from .basic import Group
+from matdb.database import Group
 import aflow
 import operator
 from os import path

@@ -47,9 +47,9 @@ def test_split(phondb):
     
     phondb.split()
     for s, p in phondb.splits.items():
-        tfile = path.join(phondb.train_file(s))
-        hfile = path.join(phondb.holdout_file(s))
-        sfile = path.join(phondb.super_file(s))
+        tfile = path.join(phondb.train_file().format(s))
+        hfile = path.join(phondb.holdout_file().format(s))
+        sfile = path.join(phondb.super_file().format(s))
 
         tal = AtomsList(tfile)
         hal = AtomsList(hfile)
@@ -68,13 +68,13 @@ def test_split(phondb):
     #Remove one of the files so that we can trigger reading from existing ids.
     from os import remove
     for s, p in phondb.splits.items():
-        sfile = path.join(phondb.super_file(s))
+        sfile = path.join(phondb.super_file().format(s))
         remove(sfile)
         
     phondb.split()
 
     for s, p in phondb.splits.items():
-        sfile = path.join(phondb.super_file(s))
+        sfile = path.join(phondb.super_file().format(s))
         sal = AtomsList(sfile)
         assert sal == supers[s]
 

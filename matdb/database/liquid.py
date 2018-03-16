@@ -1,7 +1,7 @@
 """Class for generating and interacting with a group of
 configurations generated from liquid-temperature molecular dynamics.
 """
-from .basic import Group
+from matdb.database import Group
 from os import path
 
 class LiquidGroup(Group):

@@ -5,7 +5,7 @@ configurations in `seed`.
 from os import path, remove
 import numpy as np
 from operator import itemgetter
-from .basic import Group
+from matdb.database import Group
 from matdb.utility import execute, chdir
 from phonopy import file_IO
         

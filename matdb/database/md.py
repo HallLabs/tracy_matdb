@@ -1,7 +1,7 @@
 """Class for generating MD runs that can be subsampled to generate
 databases of configurations.
 """
-from .basic import Group
+from matdb.database import Group
 from matdb import msg
 from os import path
 import numpy as np
