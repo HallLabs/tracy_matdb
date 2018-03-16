@@ -1,5 +1,10 @@
 # Revision History for `matdb`
 
+## Revision 1.0.9
+
+- Fixed the bug reported in Issue [#33](/../../issues/33).
+- Fixed atoms object after format change to calculators.
+
 ## Revision 1.0.8
 
 - Moved all database specific functions from `matdb.utility` to
@@ -10,7 +15,6 @@
 - Moved the classes contained in `matdb.database.controller.py` and
   `matdb.database.basic.py` to `matdb.database.__init__.py`, and fixed
   relative imports.
-
 - Switched random seeds to be universal when defined in controller.
 - All calculators now take a random seed.
 

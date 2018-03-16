@@ -415,6 +415,7 @@ class Group(object):
         """Returns True if the database DFT calculations are in process of being
         executed.
         """
+        self._expand_sequence()
         if len(self.sequence) == 0:
             is_executing = False
             for i, atoms in self.config_atoms.items():
@@ -442,6 +443,7 @@ class Group(object):
             (considered successful).
         """
 
+        self._expand_sequence()
         if len(self.sequence) == 0:
             jobfile = "recovery.sh" if recovery else "jobfile.sh"
             if not path.isfile(path.join(self.root, jobfile)):
@@ -498,6 +500,8 @@ class Group(object):
               already exists. 
         """
 
+        self._expand_sequence()
+        
         if len(self.sequence) == 0:
             detail = self.status(False)
             failed = [k for k, v in detail["done"].items() if not v]
@@ -539,6 +543,8 @@ class Group(object):
               recovery jobs for those that have previously failed. This uses a
               different template and execution path.
         """
+
+        self._expand_sequence()
 
         if len(self.sequence) == 0:
             if recovery:
@@ -658,6 +664,8 @@ class Group(object):
         """Determines if all the necessary folders for sub-configurations of the seed
         atomic configuration exist.
         """        
+        self._expand_sequence()
+
         if len(self.sequence) == 0:
             #Test to see if we have already set the database up.
             confok = False
@@ -757,18 +765,24 @@ class Group(object):
         implementation only checks that each of the sub-config directories has
         the necessary files needed for cleanup.
         """
+        self._expand_sequence()
         if len(self.sequence) == 0:
             if (len(self.configs) != self.nconfigs and
                 self.nconfigs is not None):
                 #We need to have at least one folder for each config;
                 #otherwise we aren't ready to go.
                 return False
-        
-            cleanups = [a.calc.can_cleanup(f) for f, a in
-                        zip(self.configs.values(),self.config_atoms.values())]
+
+            result = False
+            for f, a in zip(self.configs.values(), self.config_atoms.values()):
+                if not a.calc.can_cleanup(f):
+                    msg.std("Config {} not ready to cleanup.".format(f))
+                    break
+            else:
+                result = True
+            return result
         else: 
-            cleanups = [group.can_cleanup() for group in self.sequence.values()]
-        return all(cleanups)
+            return all(group.can_cleanup() for group in self.sequence.values())
 
     def tarball(self, filename="output.tar.gz"):
         """Creates a zipped tar archive that contains each of the specified
@@ -792,6 +806,7 @@ class Group(object):
     def cleanup(self):
         """Creates a JSON file for each atoms object in the group.
         """
+        self._expand_sequence()
         if len(self.sequence) == 0 and self.can_cleanup():
             for cid, folder in self.configs.items():
                 if path.isfile(path.join(folder, "atoms.h5")):

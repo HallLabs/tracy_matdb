@@ -217,11 +217,20 @@ class AsyncVasp(Vasp, AsyncCalculator):
         with open(outcar, 'r') as f:
             # memory-map the file, size 0 means whole file
             m = mmap.mmap(f.fileno(), 0, prot=mmap.PROT_READ)  
-            i = m.rfind('free  energy')
+            i = m.rfind('free energy')
+            # we look for this second line to verify that VASP wasn't
+            # terminated during runtime for memory or time
+            # restrictions
+            j = m.find('General timing and accounting')
             if i > 0:
                 # seek to the location and get the rest of the line.
                 m.seek(i)
                 line = m.readline()
+
+        # If the timing info wasn't reported by VASP then the
+        # computation failed to complete.
+        if j < 0:
+            return False
 
         if line is not None:
             return "TOTEN" in line or "Error" in line

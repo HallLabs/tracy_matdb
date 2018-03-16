@@ -293,17 +293,17 @@ class Atoms(ase.Atoms):
                 kwargs = data["calckwargs"] if 'calckwargs' in data else None
                 if args is not None:
                     if kwargs is not None:
-                        calc = calc(self, data["folder"], args, **kwargs)
+                        calc = calc(self, data["folder"], data["calc_ran_seed"], args, **kwargs)
                     else:
-                        calc = calc(self, data["folder"], args)
+                        calc = calc(self, data["folder"], data["calc_ran_seed"], args)
                 else: # pragma: no cover This case hasn't arrisen in
                       # any calculators we've tested so far but I'm
                       # keeping it here just to be safe and support
                       # the possibility with future expansions.
                     if kwargs is not None:
-                        calc = calc(self, data["folder"], **kwargs)
+                        calc = calc(self, data["folder"], data["calc_ran_seed"], **kwargs)
                     else:
-                        calc = calc(self, data["folder"])
+                        calc = calc(self, data["folder"], data["calc_ran_seed"])
                 self.set_calculator(calc)
 
         else:
@@ -343,6 +343,8 @@ class Atoms(ase.Atoms):
                 data["calckwargs"] = _recursively_convert_units(self.calc.kwargs)
             if hasattr(self.calc,"folder"):
                 data["folder"] = self.calc.folder
+            if hasattr(self.calc,"ran_seed"):
+                data["calc_ran_seed"] = np.float64(self.calc.ran_seed)
             if hasattr(self.calc, "kpoints") and self.calc.kpoints is not None:
                 data["calckwargs"]["kpoints"] = _recursively_convert_units(self.calc.kpoints)
             
