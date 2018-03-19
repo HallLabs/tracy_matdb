@@ -234,6 +234,13 @@ class Group(object):
                     self.database.parent.uuids[obj_ins.uuid] = obj_ins
                     obj_ins.setup(rerun=True)
 
+    @property
+    def key(self):
+        """Returns the directory name for the group (i.e.,
+        :func:`os.path.basename`).
+        """
+        return path.basename(self.root)
+
     def _expand_sequence(self):
         """Recursively expands the nested groups to populate :attr:`sequence`.
         """
@@ -1260,6 +1267,8 @@ class Controller(object):
     """
     def __init__(self, config, tmpdir=None):
         from matdb.io import read
+        from matdb.utility import check_deps
+        self.versions = check_deps()
         self.config = path.expanduser(path.abspath(config))
         if path.isabs(config):
             root, config = path.split(config)
@@ -1404,10 +1413,12 @@ class Controller(object):
                         if fnmatch(groupn, groupname)]
 
                 for group in groups:
+                    group._expand_sequence()
                     if len(group.sequence) > 0 and seed is not None:
                         seeds = [si for sn, si in group.sequence.items()
                                  if fnmatch(sn, seed)]
                         for seedi in seeds:
+                            seedi._expand_sequence()
                             if len(seedi.sequence) > 0 and params is not None:
                                 result.extend([si for sn, si in seedi.sequence.items()
                                                if fnmatch(sn, params)])

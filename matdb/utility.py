@@ -931,3 +931,40 @@ def convert_dict_to_str(dct):
             dict_str += "'%s':'%s';"%(key,val)
 
     return dict_str
+
+def check_deps():
+    """Checks that the needed dependencies have been installed and that
+    they were all installed by pip.
+
+    Returns:
+        A dictionary of the dependencies and their version numbers.
+    """
+
+    from matdb.io import required_packages
+
+    req_pckgs = required_packages()
+    
+    versions = {}
+
+    instld_pckgs = execute("pip freeze",".")["output"]
+
+    for pkg_j in req_pckgs:
+        found = False
+        for pkg_i in instld_pckgs:
+            name, version = pkg_i.split("==")
+            if name.lower() == pkg_j.lowe():
+                if (version.count(".") == 2 or
+                    version.count(".") == 3) and ("/" not in version
+                                                  and ":" not in version
+                                                  and  "-" not in version
+                                                  and ".com" not in version):
+                    versions[pkg_j] = version
+                    found = True
+                    break
+                else:
+                    msg.err("Cannot run `matdb` with locally installed package {} "
+                            "as it would not be reproducable.".format(pkg_i))
+        if not found:
+            msg.err("Could not find required package {} in environment.".format(pkg_j))
+
+    return versions

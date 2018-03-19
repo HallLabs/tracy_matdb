@@ -24,6 +24,7 @@
 - Implemented the bug fix described in Issue [#22](/../../issues/22)
   so that `xc` only needs to be set in one place for the `vasp`
   calculator.
+- Implemented dependency version checking and storing on matdb.
 
 ## Revision 1.0.8
 
