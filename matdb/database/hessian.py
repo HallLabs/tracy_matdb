@@ -60,7 +60,7 @@ class Hessian(Group):
         bandmesh (list): mesh for calculating the phonon bands.
         dosmesh (list): mesh for calculating the phonon density-of-states.
     """
-    def __init__(self, phonopy={}, name="dynmatrix", bandmesh=None,
+    def __init__(self, phonopy={}, name="hessian", bandmesh=None,
                  dosmesh=None, tolerance=0.1, dfpt=False, **dbargs):
         self.name = name
         self.seeded = True
