@@ -8,7 +8,12 @@ from operator import itemgetter
 from .basic import Group
 from matdb.utility import execute, chdir
 from phonopy import file_IO
+from phonopy.structure.atoms import Atoms as PhonopyAtoms
+from phonopy.cui.phonopy_argparse import get_parser
+from phonopy.cui.settings import PhonopyConfParser
 from matdb import msg
+from matdb.atoms import Atoms
+from matdb.phonons import roll as roll_fc
 
 def unroll_fc(fc):
     """Unroll's the phonopy force constants matrix into the Hessian.
@@ -21,6 +26,24 @@ def unroll_fc(fc):
             result[i*3:(i+1)*3, j*3:(j+1)*3] = fc[i, j]
   
     return result
+
+def phonopy_to_matdb(patoms):
+    """Converts a :class:`phonopy.structure.atoms.Atoms` to
+    :class:`matdb.atoms.Atoms`. See also :func:`matdb_to_phonopy`.
+    """
+    return Atoms(symbols=patoms.get_chemical_symbols(),
+                 positions=patoms.get_positions(),
+                 magmoms=patoms.get_magnetic_moments(),
+                 cell=patoms.get_cell())
+
+def matdb_to_phonopy(matoms):
+    """Converts a :class:`matdb.atoms.Atoms` to a
+    :class:`phonopy.structure.atoms.Atoms`. See also :func:`phonopy_to_matdb`.
+    """
+    return PhonopyAtoms(symbols=primitive.get_chemical_symbols(),
+                        positions=primitive.positions,
+                        masses=primitive.get_masses(),
+                        cell=primitive.cell, pbc=primitive.pbc)
 
 class Hessian(Group):
     """Sets up the displacement calculations needed to construct the Hessian
@@ -189,7 +212,64 @@ class Hessian(Group):
                 "bandmesh":self.bandmesh,"dosmesh":self.dosmesh,
                 "tolerance":self.tolerance,"dfpt":self.dfpt}
         return args
-                
+
+    @property
+    def BZ_sample(self):
+        """Returns a full sampling of the BZ by calculating frequencies at every
+        unique k-point as sampled on the :attr:`dosmesh` grid.
+        
+        Returns:
+
+            tuple: `(q-points, weights, eigenvalues)` where the `q-points` are
+            the unique points after symmetry reduction; `weights` are the
+            corresponding weights for each point; `eigenvalues` is a
+            :class:`numpy.ndarray` of frequencies (in THz) for each point.
+        """
+        #This is a little convoluted because of how the phonopy API works. We
+        #want to get a full sampling of the BZ, but with symmetry, and then
+        #compare the eigenvalues at every point.
+        atoms = matdb_to_phonopy(self.atoms)
+        phonpy = Phonopy(atoms, self.supercell)
+        phonpy.set_force_constants(roll_fc(self.H))
+        phonpy._set_dynamical_matrix()       
+
+        #Phonopy requires full settings to compute the unique grid and
+        #eigenvalues. We spoof the command-line parser.
+        parser = get_parser()
+        (options, args) = parser.parse_args()
+        option_list = parser.option_list
+        options.mesh_numbers = ' '.join(map(str, self.dosmesh))
+        phonopy_conf = PhonopyConfParser(options=options, option_list=option_list)
+        settings = phonopy_conf.get_settings()
+
+        #Next, set the mesh on the phonopy object and ask it to reduce and
+        #calculate frequencies.
+        mesh = settings.get_mesh()
+        phonpy.set_mesh(mesh)
+        return phonpy.get_mesh()[0:3]
+    
+    def compare(self, other):
+        """Compares this Hessian group's calculated bands with another Hessian
+        group that is taken to the "right" answer.
+
+        Args:
+            other (Hessian): correct bands to compare to.
+
+        Returns:
+            tuple: `(abs err, rms err)` for the eigenvalues at every point in the
+            sampling of the BZ.
+        """
+        dosmesh = self.dosmesh
+        self.dosmesh = other.dosmesh
+        sgrid, sweights, sfreqs = self.BZ_sample
+        ogrid, oweights, ofreqs = other.BZ_sample
+
+        #Make sure both are running on the same grid. This should always be true
+        #unless the primitive is different, or if the grid spacing is different.
+        assert np.allclose(sgrid, ogrid)
+        
+        return (np.mean(np.abs(sgrid.ogrid)), np.std(sgrid-ogrid))
+    
     def _best_bands(self):
         """Returns the name of the band collection that has the smallest *converged*
         phonon bands. This is accomplished by assuming that the largest supercell is
