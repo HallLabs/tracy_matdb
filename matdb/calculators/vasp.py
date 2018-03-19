@@ -113,7 +113,7 @@ class AsyncVasp(Vasp, AsyncCalculator):
       add some extra functions so that it plays nicely with `matdb`.
 
     Args:
-        atoms (quippy.Atoms): configuration to calculate using VASP.
+        atoms (matdb.Atoms): configuration to calculate using VASP.
         folder (str): path to the directory where the calculation should take
           place.
         contr_dir (str): The absolute path of the controller's root directory.
@@ -138,10 +138,25 @@ class AsyncVasp(Vasp, AsyncCalculator):
             
         if "kpoints" in kwargs:
             self.kpoints = kwargs.pop("kpoints")
+
+        # remove the "potcars" section of the kwargs for latter use in
+        # creation of the POTCAR file.
+        self.potcars = kwargs.pop("potcars")
             
         self.atoms = atoms
         self.args = args
         self.kwargs = kwargs
+
+        # if 'xc' was set on either the kwargs or the potcars
+        # dictionaries but not the other then we need to copy it over.
+
+        if "xc" in self.kwargs and "xc" not in self.potcars:
+            self.potcars["xc"] = self.kwargs["xc"]
+        elif "xc" in self.potcars and "xc" not in self.kwargs:
+            self.kwargs["xc"] = self.potcars["xc"]
+        elif "xc" not in self.potcars and "xc" not in self.kwargs:
+            msg.err("'xc' must be provided as either a calculator keyword "
+                    "or a potcar keyword.")
         self.ran_seed = ran_seed
         self.version = None
         super(AsyncVasp, self).__init__(*args, **kwargs)
@@ -165,27 +180,31 @@ class AsyncVasp(Vasp, AsyncCalculator):
             self.write_kpoints(directory=directory)
         self.write_sort_file(directory=directory)
 
-    def _write_potcar(self,directory='./'):
+    def _write_potcar(self):
         """Makes a symbolic link between the main POTCAR file for the database
         and the folder VASP will execute in."""
 
         from matdb.utility import symlink, relpath
-        from os import listdir
-        # We need to find the parent POTCAR to symlink to.
-        # This is inelegant and should be revisited later.
-        temp_path = '/'
-        POTCAR = None
-        for step in directory.split('/'):
-            if step == '':
-                continue
-            temp_path = path.join(temp_path,step)
-            if path.isfile(path.join(temp_path,"POTCAR")):
-                POTCAR = path.join(temp_path,"POTCAR")
-                break
-        if POTCAR is None:
-            msg.err("Couldn't finde the primary POTCAR on the path")
-        #link to the POTCAR file.
-        symlink(path.join(directory,"POTCAR"),POTCAR)        
+        from os import environ
+        from matdb.atoms import Atoms
+
+        POTCAR = path.join(self.contr_dir,"POTCAR")
+        # First we check to see if the POTCAR file already exists, if
+        # it does then all we have to do is create the symbolic link.
+        if not path.isfile(POTCAR):
+            pot_args = self.potcars.copy()
+            calc_args = self.kwargs.copy()
+            environ["VASP_PP_PATH"] = relpath(path.expanduser(pot_args["directory"]))
+            if "version" in pot_args:
+                version = pot_args["version"]
+                del pot_args["version"]
+            else:
+                version = None
+                
+            calc = AsyncVasp(self.atoms,self.contr_dir,self.contr_dir,self.ran_seed,**calc_args)
+            calc.write_potcar(director=self.contr_dir)            
+
+        symlink(path.join(self.folder,"POTCAR"),POTCAR)        
 
     def can_execute(self, folder):
         """Returns True if the specified folder is ready to execute VASP

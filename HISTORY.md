@@ -18,6 +18,12 @@
 - Added the `contr_dir` to store tho controller directory for the
   calculators. This will be needed to implement Issue
   [#21](/../../issues/21).
+- Implemented the creation of the `POTCAR` like file in the
+  calculators instead of the `controller` as described in Issue
+  [#21](/../../issues/21).
+- Implemented the bug fix described in Issue [#22](/../../issues/22)
+  so that `xc` only needs to be set in one place for the `vasp`
+  calculator.
 
 ## Revision 1.0.8
 

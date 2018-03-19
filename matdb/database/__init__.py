@@ -251,6 +251,8 @@ class Group(object):
                     clsargs.update(self.pgrid.params)
                 clsargs["root"] = seed_root
                 clsargs["seeds"] = at_seed
+                if isinstance(at_seed,Atoms):
+                    self.atoms = at_seed
                 if self.cls is None: #pragma: no cover
                     msg.err("The Group must have a class to have seeds.")
                 self.sequence[seedname] = self.cls(**clsargs)
@@ -265,6 +267,8 @@ class Group(object):
                     clsargs.update(self.pgrid[pkey])
                     clsargs["root"] = this_root
                     clsargs["seeds"] = self._seed
+                    if isinstance(self._seed,Atoms):
+                        self.atoms = self._seed
                     if self.cls is None: #pragma: no cover
                         msg.err("The Group must have a class to have a parameter grid.")
                     self.sequence[pkey] = self.cls(**clsargs)
@@ -1282,12 +1286,6 @@ class Controller(object):
         
         self.execution = self.specs.get("execution", {})
         self.calculator = self.specs.get("calculator", {})
-        #Extract the POTCAR that all the databases are going to use. TODO: pure
-        #elements can't use this POTCAR, so we have to copy the single POTCAR
-        #directly for those databases; update the create().
-        if "potcars" in self.specs:
-            self.potcars = self.specs["potcars"]
-            self.POTCAR()
 
         self.venv = self.specs.get("venv")
         self.ran_seed = self.specs.get("random seed")
@@ -1560,36 +1558,6 @@ class Controller(object):
         """
         for dbname, seq in self.ifiltered(cfilter, dfilter):
             seq.status(busy)
-            
-    def POTCAR(self):
-        """Creates the POTCAR file using the pseudopotential and version
-        specified in the file.
-        """
-        # We only want to construct the POTCAR on this level for a VASP calculation
-        if "Vasp" in self.calculator["name"]:
-            from os import environ
-            from matdb.utility import relpath
-            # Have ASE build the initial POTCAR. This will be
-            # overwritten by use once it exists.
-            environ["VASP_PP_PATH"] = relpath(path.expanduser(self.potcars["directory"]))
-            import lazy_import
-            calculators = lazy_import.lazy_module("matdb.calculators")
-            from ase import Atoms, Atom
-            calcargs = self.calculator.copy()
-            calc = getattr(calculators, calcargs["name"])
-            del calcargs["name"]
-            potargs = self.potcars.copy()
-            if "version" in potargs:
-                version = potargs["version"]
-                del potargs["version"]
-            else:
-                version = None
-            del potargs["directory"]
-            calcargs.update(potargs)
-            this_atom = Atoms([Atom(a,[0,0,i]) for i,a
-                               in enumerate(self.species)],cell=[1,1,len(self.species)+1])
-            calc = calc(this_atom,self.root,self.ran_seed,**calcargs)
-            calc.write_potcar(directory=self.root)
 
     def split(self, recalc=0, cfilter=None, dfilter=None):
         """Splits the total available data in all databases into a training and holdout
