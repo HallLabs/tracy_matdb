@@ -25,7 +25,7 @@ class Enumerated(Group):
             Defaults ot None.
         eps (float, optional): floating point tolerance for comparisons. 
             Defaults to 1E-3.
-        ran_seed (hashable, optional): a seed to feed to the random number generator.
+        ran_seed (int or float, optional): a seed to feed to the random number generator.
             Defaults to None.
         rattle (float, optional): the amount to rattle the atoms by. Defaults to 0.0.
         keep_supers (bool, optional): True if the superperiodic cells are to be kept 

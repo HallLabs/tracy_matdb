@@ -10,7 +10,7 @@
 """
 import ase
 from ase.calculators.vasp import Vasp
-from os import path, stat, mkdir
+from os import path, stat, mkdir, remove
 import mmap
 from matdb.calculators.basic import AsyncCalculator
 from matdb import msg
@@ -111,10 +111,14 @@ class AsyncVasp(Vasp, AsyncCalculator):
     .. note:: The arguments and keywords for this object are identical to the
       :class:`~ase.calculators.vasp.Vasp` calculator that ships with ASE. We
       add some extra functions so that it plays nicely with `matdb`.
+
     Args:
         atoms (quippy.Atoms): configuration to calculate using VASP.
         folder (str): path to the directory where the calculation should take
           place.
+        contr_dir (str): The absolute path of the controller's root directory.
+        ran_seed (int or float): the random seed to be used for this calculator.
+    
     Attributes:
         tarball (list): of `str` VASP output file names that should be included
           in an archive that represents the result of the calculation.
@@ -124,9 +128,14 @@ class AsyncVasp(Vasp, AsyncCalculator):
     key = "vasp"
     tarball = ["vasprun.xml"]
 
-    def __init__(self, atoms, folder, ran_seed, *args, **kwargs):
+    def __init__(self, atoms, folder, contr_dir, ran_seed, *args, **kwargs):
         self.folder = path.abspath(path.expanduser(folder))
         self.kpoints = None
+        if path.isdir(contr_dir):
+            self.contr_dir = contr_dir
+        else:
+            msg.err("{} is not a valid directory.".format(contr_dir))
+            
         if "kpoints" in kwargs:
             self.kpoints = kwargs.pop("kpoints")
             
@@ -134,6 +143,7 @@ class AsyncVasp(Vasp, AsyncCalculator):
         self.args = args
         self.kwargs = kwargs
         self.ran_seed = ran_seed
+        self.version = None
         super(AsyncVasp, self).__init__(*args, **kwargs)
         if not path.isdir(self.folder):
             mkdir(self.folder)
@@ -217,20 +227,14 @@ class AsyncVasp(Vasp, AsyncCalculator):
         with open(outcar, 'r') as f:
             # memory-map the file, size 0 means whole file
             m = mmap.mmap(f.fileno(), 0, prot=mmap.PROT_READ)  
-            i = m.rfind('free energy')
+            i = m.rfind('free  energy')
             # we look for this second line to verify that VASP wasn't
             # terminated during runtime for memory or time
             # restrictions
-            j = m.find('General timing and accounting')
             if i > 0:
                 # seek to the location and get the rest of the line.
                 m.seek(i)
                 line = m.readline()
-
-        # If the timing info wasn't reported by VASP then the
-        # computation failed to complete.
-        if j < 0:
-            return False
 
         if line is not None:
             return "TOTEN" in line or "Error" in line
@@ -239,6 +243,7 @@ class AsyncVasp(Vasp, AsyncCalculator):
 
     def is_executing(self, folder):
         """Returns True if the specified VASP folder is in process of executing.
+
         Args:
             folder (str): path to the folder in which the executable was run.
         """
@@ -249,6 +254,7 @@ class AsyncVasp(Vasp, AsyncCalculator):
 
     def create(self, rewrite=False):
         """Creates all necessary input files for the VASP calculation.
+
         Args:
             rewrite (bool): when True, overwrite any existing files with the
               latest settings.
@@ -258,6 +264,7 @@ class AsyncVasp(Vasp, AsyncCalculator):
     def cleanup(self, folder):
         """Extracts results from completed calculations and sets them on the
         :class:`ase.Atoms` object.
+
         Args:
             folder (str): path to the folder in which the executable was run.
         """
@@ -283,3 +290,34 @@ class AsyncVasp(Vasp, AsyncCalculator):
             self.atoms.add_property("vasp_force", F)
             self.atoms.add_param("vasp_stress", S)
             self.atoms.add_param("vasp_energy", E)
+
+    def to_dict(self, folder):
+        """Writes the current version number of the code being run to a
+        dictionary along with the parameters of the code.
+
+        Args:
+            folder (str): path to the folder in which the executable was run.
+        """
+        vasp_dict = {"folder":self.folder, "ran_seed":self.ran_seed,
+                     "contr_dir":self.contr_dir, "kwargs": self.kwargs,
+                     "args": self.args}
+
+        # run vasp in the root directory in order to determine the
+        # version number.
+        if self.version is None:
+            data = execute("vasp",self.contr_dir)
+            vasp_dict["version"] = data["output"][0].strip().split()[0]
+            self.version = vasp_dict["version"]
+        else:
+            vasp_dict["version"] = self.version
+        # Files that need to be removed after being created by the
+        # vasp executable.
+
+        files = ["CHG", "CHGCAR", "WAVECAR", "XDATCAR", "vasprun.xml", "OUTCAR",
+                 "IBZKPT", "OSZICAR", "CONTCAR", "EIGENVAL", "DOSCAR", "PCDAT"]
+
+        for f in files:
+            if path.isfile(path.join(self.contr_dir,f)):
+                remove(path.join(self.contr_dir,f))
+
+        return vasp_dict

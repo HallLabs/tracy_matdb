@@ -19,7 +19,7 @@ def split(atlist, splits, targets, dbdir, ran_seed, dbfile=None, recalc=0):
           "holdout": file_name, "super": file_name}.
         dbdir (str): the root directory for the database.
         dbfile (str): the _dbfile for a legacy database.
-        ran_seed (hashable): the random seed for the splits (i.e. the controllers
+        ran_seed (int or float): the random seed for the splits (i.e. the controllers
           random seed).
         recalc (int): when non-zero, re-split the data and overwrite any
           existing *.h5 files. This parameter decreases as

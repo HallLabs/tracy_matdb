@@ -61,7 +61,7 @@ class Hessian(Group):
         bandmesh (list): mesh for calculating the phonon bands.
         dosmesh (list): mesh for calculating the phonon density-of-states.
     """
-    def __init__(self, phonopy={}, name="dynmatrix", bandmesh=None,
+    def __init__(self, phonopy={}, name="hessian", bandmesh=None,
                  dosmesh=None, tolerance=0.1, dfpt=False, **dbargs):
         self.name = name
         self.seeded = True
@@ -225,7 +225,7 @@ class Hessian(Group):
         if len(ok) > 0:
             minkey, minval = min(ok.items(), key=itemgetter(1))
         else:
-            msg.warn("DynMatrix calculation may not be converged. Your tolerance "
+            msg.warn("Hessian calculation may not be converged. Your tolerance "
                      "may be too high. Returning the largest supercell by default.")
             minkey = maxkey
 
@@ -250,7 +250,7 @@ class Hessian(Group):
             #then we want to return a list of hessian matrices and atoms
             #objects. If we are not, then we must a parameter grid of sequences
             #to select from.
-            if isinstance(self.parent, DynMatrix):
+            if isinstance(self.parent, Hessian):
                 #We have many dynamical matrices to choose from. We need to decide
                 #what "best" means and then return that one.
                 bestkey = self._best_bands()
@@ -377,7 +377,7 @@ class Hessian(Group):
         from matdb.database import Database, Group
         if isinstance(self.parent, Database):
             return self.get_kpath()
-        elif isinstance(self.parent, DynMatrix):
+        elif isinstance(self.parent, Hessian):
             return self.parent.get_kpath()
     
     def calc_bands(self, recalc=False):

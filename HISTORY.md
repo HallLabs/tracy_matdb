@@ -4,6 +4,20 @@
 
 - Fixed the bug reported in Issue [#33](/../../issues/33).
 - Fixed atoms object after format change to calculators.
+- Added progress bars to the database setup and cleanup methods as
+  suggested in Issue [#26](/../../issues/26).
+- Added the hash methods to group, database, and controller as well as
+  the verify_hash method to the controller as described in Issue
+  [#30](/../../issues/30).
+- Added the time stamp to the second line of the uuid files. Also
+  fixed some errors with the overwriting of objects in the group
+  settings in which the new uuid for the new objects wasn't getting
+  saved to file. This resolves Issue [#37](/../../issues/37).
+- Implemented the `to_dict` method on the calculators as described in
+  Issue [#29](/../../issues/29).
+- Added the `contr_dir` to store tho controller directory for the
+  calculators. This will be needed to implement Issue
+  [#21](/../../issues/21).
 
 ## Revision 1.0.8
 

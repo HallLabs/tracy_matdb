@@ -912,3 +912,22 @@ def dbcat(files, output, sources=None, docat=True, **params):
     except:
         from os import remove
         remove(confpath)                
+
+def convert_dict_to_str(dct):
+    """Recursively converts a dictionary to a string.
+
+    Args:
+        dct (dict): the dictionary to be converted.
+
+    Returns:
+        A string of the dictionaries values.
+    """
+
+    dict_str = ''
+    for key, val in sorted(dct.items()):
+        if isinstance(val,dict):
+            dict_str += "'%s':'%s';"%(key,convert_dict_to_str(val))
+        else:
+            dict_str += "'%s':'%s';"%(key,val)
+
+    return dict_str

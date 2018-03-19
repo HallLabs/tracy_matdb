@@ -3,7 +3,7 @@ folders via a simple configuration file.
 """
 from os import path, mkdir
 from matdb import msg
-from matdb.utility import chdir, ParameterGrid
+from matdb.utility import chdir, ParameterGrid, convert_dict_to_str
 import numpy as np
 import six
 import collections
@@ -20,6 +20,8 @@ import lazy_import
 import h5py
 calculators = lazy_import.lazy_module("matdb.calculators")
 from matdb.atoms import Atoms, AtomsList
+from tqdm import tqdm
+from hashlib import sha1
 
 class Group(object):
     """Represents a collection of material configurations (varying in
@@ -151,13 +153,16 @@ class Group(object):
             with open(path.join(
                     self.root,"{}_{}_uuid.txt".format(self._db_name,self.prefix)),"r") as f:
                 uid = f.readline().strip()
+                time_stamp = f.readline.strip()
         else:
-            uid = uuid4()
+            uid = str(uuid4())
+            time_stamp = str(datetime.now())
             with open(path.join(
                     self.root,"{}_{}_uuid.txt".format(self._db_name,self.prefix)),"w") as f:
-                f.write(str(uid))
-            
-        self.uuid = str(uid)
+                f.write("{0} \n {1}".format(str(uid),str(time_stamp)))
+
+        self.time_stamp = time_stamp
+        self.uuid = uid
         self.database.parent.uuids[str(self.uuid)] = self
 
         self.override = override.copy()
@@ -175,8 +180,15 @@ class Group(object):
                             if path.isfile(path.join(obj_ins.calc.folder,"atoms.h5")):
                                 from os import remove
                                 remove(path.join(obj_ins.calc.folder,"atoms.h5"))
-                            # Make a new uuid for the new atoms object.
+                            # Make a new uuid for the new atoms object
+                            # and overwrite the uuid file.
                             obj_ins.uuid = str(uuid4())
+                            obj_ins.time_stamp = str(datetime.now())
+                            with open(path.join(
+                                    obj_ins.root,
+                                    "{}_{}_uuid.txt".format(obj_ins._db_name,
+                                                            obj_ins.prefix)),"w+") as f:
+                                f.write("{0} \n {1}".format(obj_ins.uuid,obj_ins.time_stamp))
                             self.database.parent.uuids[obj_ins.uuid] = obj_ins
 
                         if "name" in v["calc"]:
@@ -189,7 +201,8 @@ class Group(object):
                         del lcargs["name"]
                         if v["calc"]["calcargs"] is not None:
                             lcargs.update(calcargs)
-                        calc = new_calc(atoms, obj_ins.calc.folder, **lcargs)
+                        calc = new_calc(atoms, obj_ins.calc.folder, obj_ins.calc.contr_dir,
+                                        obj_ins.calc.ran_seed, **lcargs)
                         obj_ins.set_calculator(calc)                    
                 elif path.isfile(obj_ins):
                     #If the object is a file path then it's pointing
@@ -213,6 +226,11 @@ class Group(object):
                     args.update(v)
                     obj_ins.__init__(**args)
                     obj_ins.uuid = str(uuid4())
+                    obj_ins.time_stamp = str(datetime.now())
+                    with open(path.join(obj_ins.root,
+                                        "{}_{}_uuid.txt".format(obj_ins._db_name,
+                                                                obj_ins.prefix)),"w+") as f:
+                        f.write("{0} \n {1}".format(obj_ins.uuid,obj_ins.time_stamp))
                     self.database.parent.uuids[obj_ins.uuid] = obj_ins
                     obj_ins.setup(rerun=True)
 
@@ -315,7 +333,7 @@ class Group(object):
         """
         pass #pragma: no cover
 
-    def to_dict(self):
+    def to_dict(self,include_time_stamp=True):
         """Returns a dictionary of the parameters passed into the group instance.
         """
         from matdb import __version__
@@ -324,8 +342,9 @@ class Group(object):
         
         kw_dict = self.grpargs.copy()
         args_dict = {"root": self.root, "override": self.override,
-                     "version":__version__, "datetime":str(datetime.now()),
-                     "python_version":sys.version}
+                     "version":__version__, "python_version":sys.version}
+        if include_time_stamp:
+            args_dict["datetime"] = str(datetime.now())
         
         kw_dict.update(args_dict)
         if "parent" in kw_dict:
@@ -345,6 +364,17 @@ class Group(object):
         """Saves the rset for the group and all sequences of the group.
         """
         pass #pragma: no cover
+
+    def hash_group(self):
+        """Hashes the rset and the parameters of the  for the group.
+        """
+        
+        hash_str = convert_dict_to_str(self.to_dict(include_time_stamp=False))
+        for atom in self.rset():
+            temp_atom = Atoms(atom)
+            hash_str += convert_dict_to_str(temp_atom.to_dict())
+
+        return str(sha1(hash_str).hexdigest())
 
     def load_pkl(self, file_name, rel_path=None):
         """Loads a pickled obj from the specified location on the path.
@@ -615,10 +645,12 @@ class Group(object):
             if path.isfile(path.join(target,"uuid.txt")):
                 with open(path.join(target,"uuid.txt"),"r") as f:
                     uid = f.readine().strip()
+                    time_stamp = f.readine().strip()
             else:
                 uid = str(uuid4())
+                time_stamp = str(datetime.now())
                 with open(path.join(target,"uuid.txt"),"w+") as f:
-                    f.write(uid)
+                    f.write("{0} \n {1}".format(uid,time_stamp))
 
             if path.isfile(path.join(target,"atoms.h5")) and rewrite:
                 from os import rename
@@ -629,13 +661,15 @@ class Group(object):
                 uid = str(uuid4())
                     
             atoms.uuid = uid
+            atoms.time_stamp = time_stamp
             atoms.group_uuid = self.uuid
             lcargs = self.calcargs.copy()
             del lcargs["name"]
             if calcargs is not None:
                 lcargs.update(calcargs)
                 
-            calc = self.calc(atoms, target, self.database.parent.ran_seed, **lcargs)
+            calc = self.calc(atoms, target, self,database.parent.root,
+                             self.database.parent.ran_seed, **lcargs)
             calc.create()
             atoms.set_calculator(calc)
 
@@ -710,8 +744,11 @@ class Group(object):
                 with open(path.join(self.root,"compute.pkl"),"w+") as f:
                     pickle.dump({"date":datetime.datetime.now(),"uuid":self.uuid},f)
             else:
+                pbar = tqdm(len(self.sequence))
                 for group in self.sequence.values():
                     group.setup(rerun=rerun)
+                    pbar.update(1)
+                pbar.close()
         else:
             return False                    
             
@@ -723,7 +760,6 @@ class Group(object):
               information; otherwise, return a dict of the numbers involved
         """
         from numpy import count_nonzero as cnz
-        from tqdm import tqdm
         ready = {}
         done = {}
 
@@ -819,7 +855,13 @@ class Group(object):
                 atoms.write(path.join(folder,"atoms.h5"))
             return self.can_cleanup()
         elif len(self.sequence) >0:
-            cleaned = all([group.cleanup() for group in self.sequence.values()])
+            pbar = tqdm(len(self.sequence))
+            cleaned = []
+            for group in self.sequence.values():
+                cleaned.append(group.cleanup())
+                pbar.update(1)
+            cleaned = all(cleaned)
+            pbar.close()
             if cleaned:
                 atoms = self.rset()
                 atoms_dict = {"atom_{}".format(Atoms(f).uuid): f for f in atoms}
@@ -936,13 +978,26 @@ class Database(object):
         if path.isfile(path.join(self.root,"{}_uuid.txt".format(self.name))):
             with open(path.join(self.root,"{}_uuid.txt".format(self.name)),"r") as f:
                 uid = f.readline().strip()
+                time_stamp = f.readline().strip()
         else:
-            uid = uuid4()
+            uid = str(uuid4())
+            time_stamp = str(datetime.now())
             with open(path.join(self.root,"{}_uuid.txt".format(self.name)),"w+") as f:
-                f.write(str(uid))
+                f.write("{0} \n {1}".format(uid,time_stamp))
 
-        self.uuid = str(uid)
-        self.parent.uuids[str(uid)] = self
+        self.uuid = uid
+        self.time_stamp = time_stamp
+        self.parent.uuids[uid] = self
+
+    def hash_db(self):
+        """Creates the hash for the database.
+        """
+        hashes = ''
+        for step in self.steps:
+            hashes += ' '
+            hashes += step.hash_group()
+
+        return str(sha1(hashes).hexdigest())
 
     @property
     def isteps(self):
@@ -1111,6 +1166,7 @@ class RecycleBin(Database):
         self.steps = {"rec_bin":self}
         self.trainable = True
         self.uuid = str(uuid4())
+        self.time_stamp = str(datetime.now())
         self.parent.uuids[self.uuid] = self        
 
     def to_dict(self):
@@ -1121,6 +1177,17 @@ class RecycleBin(Database):
         """Returns a list of all the atoms object files in the RecycleBin."""
         from glob import glob
         return glob(path.join(self.root,"*.h5"))
+
+    def hash_bin(self):
+        """Returns a hash of the atoms objcets in the recycle bin.
+        """
+
+        hash_str = ""
+        for atom in self.rset():
+            temp_atom = Atoms(atom):
+            hash_str += convert_dict_to_str(temp_atom.to_dict())
+
+        return str(sha1(hash_str).hexdigest())
     
     def setup(self):
         pass
@@ -1527,6 +1594,7 @@ class Controller(object):
     def split(self, recalc=0, cfilter=None, dfilter=None):
         """Splits the total available data in all databases into a training and holdout
         set.
+
         Args:
             recalc (int): when non-zero, re-split the data and overwrite any
               existing *.h5 files. This parameter decreases as
@@ -1539,3 +1607,39 @@ class Controller(object):
         """
         for dbname, seq in self.ifiltered(cfilter, dfilter):
             seq.split(recalc)
+
+    def hash_dbs(self, cfilter=None, dfilter=None):
+        """Hashes the databases into a single hash. 
+        
+        Args:
+            cfilter (list): of `str` patterns to match against *configuration*
+              names. This limits which configs are returned.
+            dfilter (list): of `str` patterns to match against *database sequence*
+              names. This limits which databases sequences are returned.
+        """
+        hash_all = ''
+        for dbname, seq in self.ifiltered(cfilter, dfilter):
+            hash_all += ' '
+            hash_all += seq.hash_db()
+
+        hash_all += ' '
+        hash_all += seq.rec_bin.hash_bin()
+
+        return str(sha1(hash_all).hexdigest())
+
+    def verify_hash(self, hash_cand, cfilter=None, dfilter=None):
+        """Verifies that the the candidate hash matches this matdb
+        controller's dabateses
+
+        Args:
+            hash_cand (str): The candidate hash to check.
+            cfilter (list): of `str` patterns to match against *configuration*
+              names. This limits which configs are returned.
+            dfilter (list): of `str` patterns to match against *database sequence*
+              names. This limits which databases sequences are returned.
+
+        Returns:
+            True if the hash matches the databases.
+        """
+
+        return hash_cand == self.hash_dbs(cfilter=cfilter, dfilter=dfilter)
