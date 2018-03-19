@@ -672,10 +672,12 @@ class Controller(object):
                         if fnmatch(groupn, groupname)]
 
                 for group in groups:
+                    group._expand_sequence()
                     if len(group.sequence) > 0 and seed is not None:
                         seeds = [si for sn, si in group.sequence.items()
                                  if fnmatch(sn, seed)]
                         for seedi in seeds:
+                            seedi._expand_sequence()
                             if len(seedi.sequence) > 0 and params is not None:
                                 result.extend([si for sn, si in seedi.sequence.items()
                                                if fnmatch(sn, params)])
