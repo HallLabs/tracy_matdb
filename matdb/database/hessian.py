@@ -8,7 +8,8 @@ from operator import itemgetter
 from .basic import Group
 from matdb.utility import execute, chdir
 from phonopy import file_IO
-        
+from matdb import msg
+
 def unroll_fc(fc):
     """Unroll's the phonopy force constants matrix into the Hessian.
     """
@@ -285,12 +286,23 @@ class Hessian(Group):
         """Returns True if all the phonon calculations have been completed, the
         force sets have been created, and the DOS has been calculated.
         """
+        self._expand_sequence()
         if len(self.sequence) == 0:
             #If the DOS has been calculated, then all the other steps must have
             #completed correctly.
-            return path.isfile(self.dos_file)
+            result = path.isfile(self.dos_file)
+            if not result:
+                msg.std("{} is not ready. Exiting.".format(self.root), 2)
+            return result
         else:
-            return all(p.ready() for p in self.sequence.values())
+            ready = False
+            for p in self.sequence.values():
+                if not p.ready():
+                    msg.std("{} is not ready. Exiting.".format(p.root), 2)
+                    break
+            else:
+                ready = True
+            return ready
 
     @property
     def H_file(self):
@@ -519,7 +531,7 @@ class Hessian(Group):
         if not super(Hessian, self).cleanup():
             return
 
-        if self.dfpt:
+        if not self.dfpt:
             self.calc_forcesets(recalc)
         else:
             self.calc_fc(recalc)

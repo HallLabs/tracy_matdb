@@ -26,7 +26,6 @@ def _recursively_convert_units(in_dict):
         a copy of the dict with the entries converted to numpy ints,
         floats, and arrays.
     """
-
     dict_copy = in_dict.copy()
     for key, item in dict_copy.items():
         if isinstance(item,int):
@@ -344,7 +343,7 @@ class Atoms(ase.Atoms):
                 data["calckwargs"] = _recursively_convert_units(self.calc.kwargs)
             if hasattr(self.calc,"folder"):
                 data["folder"] = self.calc.folder
-            if hasattr(self.calc,"kpoints"):
+            if hasattr(self.calc, "kpoints") and self.calc.kpoints is not None:
                 data["calckwargs"]["kpoints"] = _recursively_convert_units(self.calc.kpoints)
             
         symbols = self.get_chemical_symbols()
