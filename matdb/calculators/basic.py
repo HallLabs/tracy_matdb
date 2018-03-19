@@ -66,8 +66,19 @@ class AsyncCalculator(object):
         """
         pass
 
+    @abc.abstractmethod
+    def to_dict(self, folder):
+        """Writes the current version number of the code being run to a
+        dictionary along with the parameters of the code.
+
+        Args:
+            folder (str): path to the folder in which the executable was run.
+        """
+        pass
+
 class SyncCalculator(object):
-    """Represents a calculator such as :class:`ase.Calculator` that can be run
+
+        """Represents a calculator such as :class:`ase.Calculator` that can be run
     synchronously stages to compute properties (does not require a distributed
     or HCP environment).
 
@@ -111,5 +122,15 @@ class SyncCalculator(object):
 
         Args:
             folder (str): path to the folder in which to create input files.
+        """
+        pass
+
+    @abc.abstractmethod
+    def to_dict(self, folder):
+        """Writes the current version number of the code being run to a
+        dictionary along with the parameters of the code.
+
+        Args:
+            folder (str): path to the folder in which the executable was run.
         """
         pass

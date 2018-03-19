@@ -289,21 +289,21 @@ class Atoms(ase.Atoms):
             self.__init__(**data)
             if "calc" in data:
                 calc = getattr(calculators, _calc_name_converter(data["calc"]))
-                args = list(data["calcargs"]) if "calcargs" in data else None
-                kwargs = data["calckwargs"] if 'calckwargs' in data else None
+                args = list(data["calc_args"]) if "calc_args" in data else None
+                kwargs = data["calc_kwargs"] if 'calc_kwargs' in data else None
                 if args is not None:
                     if kwargs is not None:
-                        calc = calc(self, data["folder"], args, **kwargs)
+                        calc = calc(self, data["folder"], data["calc_ran_seed"], args, **kwargs)
                     else:
-                        calc = calc(self, data["folder"], args)
+                        calc = calc(self, data["folder"], data["calc_ran_seed"], args)
                 else: # pragma: no cover This case hasn't arrisen in
                       # any calculators we've tested so far but I'm
                       # keeping it here just to be safe and support
                       # the possibility with future expansions.
                     if kwargs is not None:
-                        calc = calc(self, data["folder"], **kwargs)
+                        calc = calc(self, data["folder"], data["calc_ran_seed"], **kwargs)
                     else:
-                        calc = calc(self, data["folder"])
+                        calc = calc(self, data["folder"], data["calc_ran_seed"])
                 self.set_calculator(calc)
 
         else:
@@ -336,15 +336,20 @@ class Atoms(ase.Atoms):
 
         data["positions"] = np.array(self.positions)
         if self.calc is not None:
+            calc_dict = self.calc.to_dict(self.calc.folder)
             data["calc"] = self.calc.name
+            if "version" in calc_dict:
+                data["calc_version"] = calc_dict["version"] 
             if hasattr(self.calc,"args"):
-                data["calcargs"] = np.array(self.calc.args)
+                data["calc_args"] = np.array(self.calc.args)
             if hasattr(self.calc,"kwargs"):
-                data["calckwargs"] = _recursively_convert_units(self.calc.kwargs)
+                data["calc_kwargs"] = _recursively_convert_units(self.calc.kwargs)
             if hasattr(self.calc,"folder"):
                 data["folder"] = self.calc.folder
+            if hasattr(self.calc,"ran_seed"):
+                data["calc_ran_seed"] = np.float64(self.calc.ran_seed)
             if hasattr(self.calc, "kpoints") and self.calc.kpoints is not None:
-                data["calckwargs"]["kpoints"] = _recursively_convert_units(self.calc.kpoints)
+                data["calc_kwargs"]["kpoints"] = _recursively_convert_units(self.calc.kpoints)
             
         symbols = self.get_chemical_symbols()
         data["symbols"] = ''.join([i+str(symbols.count(i)) for i in set(symbols)])

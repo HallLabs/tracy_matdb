@@ -93,6 +93,11 @@ class LegacyDatabase(object):
         self.splits = {} if splits is None else splits
         self.folder = folder
 
+        if self.controller is None:
+            self.ran_seed = 0
+        else:
+            self.ran_seed = self.controller.ran_seed
+
         self._dbfile = path.join(self.root, "legacy-{}.h5".format(limit))
         """str: path to the combined legacy database, with limits included.
         """
@@ -102,7 +107,7 @@ class LegacyDatabase(object):
         self.dbfiles = []
         self.config_type = config_type
 
-        from matdb.utility import dbconfig
+        from matdb.database.utility import dbconfig
         config = dbconfig(self._dbfull)
         if path.isfile(self._dbfile) and len(config) > 0:
             self.dbfiles = [db[0] for db in config["sources"]]
@@ -207,117 +212,35 @@ class LegacyDatabase(object):
         with chdir(folder):
             dbcat(self.dbfiles, self._dbfull, config_type=self.config_type, docat=False)
         
-    def train_file(self, split):
+    def train_file(self):
         """Returns the full path to the XYZ database file that can be
         used for training.
-
-        Args:
-            split (str): name of the split to use.
         """
-        return path.join(self.root, "{0}-train.h5".format(split))
+        return path.join(self.root, "{}-train.h5")
 
-    def holdout_file(self, split):
+    def holdout_file(self):
         """Returns the full path to the XYZ database file that can be
         used to validate the potential fit.
-
-        Args:
-            split (str): name of the split to use.
         """
-        return path.join(self.root, "{0}-holdout.h5".format(split))
+        return path.join(self.root, "{}-holdout.h5")
 
-    def super_file(self, split):
+    def super_file(self):
         """Returns the full path to the XYZ database file that can be
         used to *super* validate the potential fit.
-
-        Args:
-            split (str): name of the split to use.
         """
-        return path.join(self.root, "{0}-super.h5".format(split))
+        return path.join(self.root, "{}-super.h5")
                 
     def split(self, recalc=0):
         """Splits the database multiple times, one for each `split` setting in
         the database specification.
         """
-        for name in self.splits:
-            self._split(name, recalc)
-    
-    def _split(self, name, recalc=0):
-        """Splits the total available data in the combined legacy file into a training
-        and holdout sets.
+        from matdb.database.utility import split
 
-        Args:
-            name (str): name of the split to perform.
-            recalc (int): when non-zero, re-split the data and overwrite any
-              existing *.h5 files. This parameter decreases as
-              rewrites proceed down the stack. To re-calculate
-              lower-level h5 files, increase this value.
-        """
-        train_file = self.train_file(name)
-        holdout_file = self.holdout_file(name)
-        super_file = self.super_file(name)
-        if (path.isfile(train_file) and path.isfile(holdout_file)
-            and path.isfile(super_file) and recalc <= 0):
-            return
-
-        train_perc = self.splits[name]
-        
-        #Compile a list of all the sub-configurations we can include in the
-        #training.
-        from cPickle import dump, load
-        from tqdm import tqdm
-        idfile = path.join(self.root, "{0}-ids.pkl".format(name))
-
-        #Either way, we will have to compile a list of all available atoms in
-        #the database files.
-        msg.info("Working on split {} for {}.".format(name, self.name))
+        # Get the AtomsList object
         subconfs = AtomsList(self._dbfile)
-
-        if path.isfile(idfile):
-            with open(idfile, 'rb') as f:
-                data = load(f)
-
-            ids = data["ids"]
-            Ntrain = data["Ntrain"]
-            Nhold = data["Nhold"]
-            Ntot = data["Ntot"]
-            Nsuper = data["Nsuper"]
-        else:
-            Ntot = len(subconfs)
-            Ntrain = int(np.ceil(Ntot*train_perc))
-            ids = np.arange(Ntot)
-            Nhold = int(np.ceil((Ntot-Ntrain)*train_perc))
-            Nsuper = Ntot-Ntrain-Nhold
-            np.random.shuffle(ids)
-
-            #We need to save these ids so that we don't mess up the statistics on
-            #the training and validation sets.
-            data = {
-                "ids": ids,
-                "Ntrain": Ntrain,
-                "Nhold": Nhold,
-                "Ntot": Ntot,
-                "Nsuper": Nsuper
-            }
-            with open(idfile, 'wb') as f:
-                dump(data, f)
-
-        #Only write the minimum necessary files. Use dbcat to create the
-        #database version and configuration information. There is duplication
-        #here because we also store the ids again. We retain the pkl file above
-        #so that we can recreate *exactly* the same split again later.
-        from matdb.utility import dbcat
-        if not path.isfile(train_file):
-            tids = ids[0:Ntrain]
-            altrain = subconfs[tids]
-            altrain.write(train_file)
-            dbcat([self._dbfile], train_file, docat=False, ids=tids, N=Ntrain)
-        if not path.isfile(holdout_file):
-            hids = ids[Ntrain:-Nsuper]
-            alhold = subconfs[hids]
-            alhold.write(holdout_file)
-            dbcat([self._dbfile], holdout_file, docat=False, ids=hids, N=Nhold)
-        if not path.isfile(super_file):
-            sids = ids[-Nsuper:]
-            alsuper = subconfs[sids]
-            alsuper.write(super_file)
-            dbcat([self._dbfile], super_file, docat=False, ids=sids, N=Nsuper)
+        
+        file_targets = {"train": self.train_file(), "holdout": self.holdout_file(),
+                        "super": self.super_file()}
+        
+        split(subconfs, self.splits, file_targets, self.root, self.ran_seed,
+              dbfile=self._dbfile, recalc=recalc)

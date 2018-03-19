@@ -1,6 +1,6 @@
 """Group of configurations that is created from an enumerated list of structures.
 """
-from .basic import Group
+from matdb.database import Group
 from matdb import msg
 from os import path, getcwd, chdir, remove, listdir, mkdir
 import numpy as np
@@ -25,7 +25,7 @@ class Enumerated(Group):
             Defaults ot None.
         eps (float, optional): floating point tolerance for comparisons. 
             Defaults to 1E-3.
-        ran_seed (hashable, optional): a seed to feed to the random number generator.
+        ran_seed (int or float, optional): a seed to feed to the random number generator.
             Defaults to None.
         rattle (float, optional): the amount to rattle the atoms by. Defaults to 0.0.
         keep_supers (bool, optional): True if the superperiodic cells are to be kept 
@@ -229,7 +229,7 @@ class Enumerated(Group):
         ready to be used.
         """
         if len(self.sequence) == 0:
-            return len(self.atoms_paths) == self.nconfigs
+            return len(self.fitting_configs) == self.nconfigs
         else:            
             return all(e.ready() for e in self.sequence.values())
     
@@ -248,7 +248,7 @@ class Enumerated(Group):
         return self.euids
 
     @property
-    def atoms_paths(self):
+    def fitting_configs(self):
         """Returns a list of full paths to the folders that have `atoms.h5` objects
         for the latest result set.
         """
@@ -269,7 +269,7 @@ class Enumerated(Group):
             #Return the configurations from this group; it is at the
             #bottom of the stack
             result = AtomsList()
-            for epath in self.atoms_paths:
+            for epath in self.fitting_configs:
                 result.append(Atoms(path.join(epath,"atoms.h5")))
             return result
         else:

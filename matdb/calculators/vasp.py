@@ -10,7 +10,7 @@
 """
 import ase
 from ase.calculators.vasp import Vasp
-from os import path, stat, mkdir
+from os import path, stat, mkdir, remove
 import mmap
 from matdb.calculators.basic import AsyncCalculator
 from matdb import msg
@@ -111,10 +111,14 @@ class AsyncVasp(Vasp, AsyncCalculator):
     .. note:: The arguments and keywords for this object are identical to the
       :class:`~ase.calculators.vasp.Vasp` calculator that ships with ASE. We
       add some extra functions so that it plays nicely with `matdb`.
+
     Args:
-        atoms (quippy.Atoms): configuration to calculate using VASP.
+        atoms (matdb.Atoms): configuration to calculate using VASP.
         folder (str): path to the directory where the calculation should take
           place.
+        contr_dir (str): The absolute path of the controller's root directory.
+        ran_seed (int or float): the random seed to be used for this calculator.
+    
     Attributes:
         tarball (list): of `str` VASP output file names that should be included
           in an archive that represents the result of the calculation.
@@ -124,15 +128,37 @@ class AsyncVasp(Vasp, AsyncCalculator):
     key = "vasp"
     tarball = ["vasprun.xml"]
 
-    def __init__(self, atoms, folder, *args, **kwargs):
+    def __init__(self, atoms, folder, contr_dir, ran_seed, *args, **kwargs):
         self.folder = path.abspath(path.expanduser(folder))
         self.kpoints = None
+        if path.isdir(contr_dir):
+            self.contr_dir = contr_dir
+        else:
+            msg.err("{} is not a valid directory.".format(contr_dir))
+            
         if "kpoints" in kwargs:
             self.kpoints = kwargs.pop("kpoints")
+
+        # remove the "potcars" section of the kwargs for latter use in
+        # creation of the POTCAR file.
+        self.potcars = kwargs.pop("potcars")
             
         self.atoms = atoms
         self.args = args
         self.kwargs = kwargs
+
+        # if 'xc' was set on either the kwargs or the potcars
+        # dictionaries but not the other then we need to copy it over.
+
+        if "xc" in self.kwargs and "xc" not in self.potcars:
+            self.potcars["xc"] = self.kwargs["xc"]
+        elif "xc" in self.potcars and "xc" not in self.kwargs:
+            self.kwargs["xc"] = self.potcars["xc"]
+        elif "xc" not in self.potcars and "xc" not in self.kwargs:
+            msg.err("'xc' must be provided as either a calculator keyword "
+                    "or a potcar keyword.")
+        self.ran_seed = ran_seed
+        self.version = None
         super(AsyncVasp, self).__init__(*args, **kwargs)
         if not path.isdir(self.folder):
             mkdir(self.folder)
@@ -154,27 +180,31 @@ class AsyncVasp(Vasp, AsyncCalculator):
             self.write_kpoints(directory=directory)
         self.write_sort_file(directory=directory)
 
-    def _write_potcar(self,directory='./'):
+    def _write_potcar(self):
         """Makes a symbolic link between the main POTCAR file for the database
         and the folder VASP will execute in."""
 
         from matdb.utility import symlink, relpath
-        from os import listdir
-        # We need to find the parent POTCAR to symlink to.
-        # This is inelegant and should be revisited later.
-        temp_path = '/'
-        POTCAR = None
-        for step in directory.split('/'):
-            if step == '':
-                continue
-            temp_path = path.join(temp_path,step)
-            if path.isfile(path.join(temp_path,"POTCAR")):
-                POTCAR = path.join(temp_path,"POTCAR")
-                break
-        if POTCAR is None:
-            msg.err("Couldn't finde the primary POTCAR on the path")
-        #link to the POTCAR file.
-        symlink(path.join(directory,"POTCAR"),POTCAR)        
+        from os import environ
+        from matdb.atoms import Atoms
+
+        POTCAR = path.join(self.contr_dir,"POTCAR")
+        # First we check to see if the POTCAR file already exists, if
+        # it does then all we have to do is create the symbolic link.
+        if not path.isfile(POTCAR):
+            pot_args = self.potcars.copy()
+            calc_args = self.kwargs.copy()
+            environ["VASP_PP_PATH"] = relpath(path.expanduser(pot_args["directory"]))
+            if "version" in pot_args:
+                version = pot_args["version"]
+                del pot_args["version"]
+            else:
+                version = None
+                
+            calc = AsyncVasp(self.atoms,self.contr_dir,self.contr_dir,self.ran_seed,**calc_args)
+            calc.write_potcar(director=self.contr_dir)            
+
+        symlink(path.join(self.folder,"POTCAR"),POTCAR)        
 
     def can_execute(self, folder):
         """Returns True if the specified folder is ready to execute VASP
@@ -183,7 +213,10 @@ class AsyncVasp(Vasp, AsyncCalculator):
         if not path.isdir(folder):
             return False
         
-        required = ["INCAR", "POSCAR", "KPOINTS", "POTCAR"]
+        required = ["INCAR", "POSCAR", "POTCAR"]
+        if "kspacing" not in self.kwargs or "KSPACING" not in self.kwargs:
+            required.append("KPOINTS")
+            
         present = {}
         for rfile in required:
             target = path.join(folder, rfile)
@@ -214,6 +247,9 @@ class AsyncVasp(Vasp, AsyncCalculator):
             # memory-map the file, size 0 means whole file
             m = mmap.mmap(f.fileno(), 0, prot=mmap.PROT_READ)  
             i = m.rfind('free  energy')
+            # we look for this second line to verify that VASP wasn't
+            # terminated during runtime for memory or time
+            # restrictions
             if i > 0:
                 # seek to the location and get the rest of the line.
                 m.seek(i)
@@ -226,6 +262,7 @@ class AsyncVasp(Vasp, AsyncCalculator):
 
     def is_executing(self, folder):
         """Returns True if the specified VASP folder is in process of executing.
+
         Args:
             folder (str): path to the folder in which the executable was run.
         """
@@ -236,6 +273,7 @@ class AsyncVasp(Vasp, AsyncCalculator):
 
     def create(self, rewrite=False):
         """Creates all necessary input files for the VASP calculation.
+
         Args:
             rewrite (bool): when True, overwrite any existing files with the
               latest settings.
@@ -245,6 +283,7 @@ class AsyncVasp(Vasp, AsyncCalculator):
     def cleanup(self, folder):
         """Extracts results from completed calculations and sets them on the
         :class:`ase.Atoms` object.
+
         Args:
             folder (str): path to the folder in which the executable was run.
         """
@@ -270,3 +309,34 @@ class AsyncVasp(Vasp, AsyncCalculator):
             self.atoms.add_property("vasp_force", F)
             self.atoms.add_param("vasp_stress", S)
             self.atoms.add_param("vasp_energy", E)
+
+    def to_dict(self, folder):
+        """Writes the current version number of the code being run to a
+        dictionary along with the parameters of the code.
+
+        Args:
+            folder (str): path to the folder in which the executable was run.
+        """
+        vasp_dict = {"folder":self.folder, "ran_seed":self.ran_seed,
+                     "contr_dir":self.contr_dir, "kwargs": self.kwargs,
+                     "args": self.args}
+
+        # run vasp in the root directory in order to determine the
+        # version number.
+        if self.version is None:
+            data = execute("vasp",self.contr_dir)
+            vasp_dict["version"] = data["output"][0].strip().split()[0]
+            self.version = vasp_dict["version"]
+        else:
+            vasp_dict["version"] = self.version
+        # Files that need to be removed after being created by the
+        # vasp executable.
+
+        files = ["CHG", "CHGCAR", "WAVECAR", "XDATCAR", "vasprun.xml", "OUTCAR",
+                 "IBZKPT", "OSZICAR", "CONTCAR", "EIGENVAL", "DOSCAR", "PCDAT"]
+
+        for f in files:
+            if path.isfile(path.join(self.contr_dir,f)):
+                remove(path.join(self.contr_dir,f))
+
+        return vasp_dict

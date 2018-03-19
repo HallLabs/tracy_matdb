@@ -29,15 +29,20 @@ class AsyncAflow(SyncCalculator):
     Args:
         entry (aflow.entries.Entry): database entry to download data for.
         folder (str): path to the folder where the result will be stored.
+        contr_dir (str): The absolute path of the controller's root directory.
+        ran_seed (int or float): the random seed to be used for this calculator.
 
     Attributes:
         atoms (quippy.Atoms): atoms object created from the database entry. Is
           `None` until the download is performed.
     """
-    def __init__(self, atoms, folder, entry=None, *args, **kwargs):
+    def __init__(self, atoms, folder, contr_dir, ran_seed, entry=None, *args, **kwargs):
         self.kwargs = kwargs
         self.args = []
         self.entry = entry
+        self.ran_seed = ran_seed
+        self.contr_dir = contr_dir
+        self.version = None
         self.kwargs["entry"] = self.entry
         self.folder = folder
         self.atoms = atoms
@@ -97,3 +102,19 @@ class AsyncAflow(SyncCalculator):
             folder (str): path to the folder in which the executable was run.
         """
         pass
+
+    def to_dict(self, folder):
+        """Writes the current version number of the code being run to a
+        dictionary along with the parameters of the code.
+
+        Args:
+            folder (str): path to the folder in which the executable was run.
+        """
+        aflux_dict = {"folder":self.folder, "ran_seed":self.ran_seed,
+                     "contr_dir":self.contr_dir, "kwargs": self.kwargs,
+                     "args": self.args}
+
+        # Need to determine how/what to store as aflux version number.
+        # aflux_dict["version"] = 
+
+        return aflux_dict

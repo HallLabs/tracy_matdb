@@ -8,10 +8,20 @@ import numpy as np
 
 class SyncQuip(quippy.Potential, SyncCalculator):
     """Implements a synchronous `matdb` calculator for QUIP potentials.
+
+    Args:
+        atoms (quippy.Atoms): configuration to calculate using VASP.
+        folder (str): path to the directory where the calculation should take
+          place.
+        contr_dir (str): The absolute path of the controller's root directory.
+        ran_seed (int or float): the random seed to be used for this calculator.
     """
-    def __init__(self, atoms, folder, *args, **kwargs):
+    def __init__(self, atoms, folder, contr_dir, ran_seed, *args, **kwargs):
         self.args = args[0]
         self.kwargs = kwargs
+        self.ran_seed = ran_seed
+        self.contr_dir = contr_dir
+        self.version = None
         super(SyncQuip, self).__init__(*self.args, **self.kwargs)
         self.atoms = atoms
         self.folder = folder
@@ -94,3 +104,20 @@ class SyncQuip(quippy.Potential, SyncCalculator):
         necessary.
         """
         pass
+
+
+    def to_dict(self, folder):
+        """Writes the current version number of the code being run to a
+        dictionary along with the parameters of the code.
+
+        Args:
+            folder (str): path to the folder in which the executable was run.
+        """
+        quip_dict = {"folder":self.folder, "ran_seed":self.ran_seed,
+                     "contr_dir":self.contr_dir, "kwargs": self.kwargs,
+                     "args": self.args}
+
+        # Need to determine how to find the quip version number.
+        # quip_dict["version"] = data["output"][0].strip().split()[0]
+
+        return quip_dict
