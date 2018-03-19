@@ -15,7 +15,7 @@ def band_plot(phondbs, fits=None, dim=2, npts=100, title="{} Phonon Spectrum",
     """Plots the phonon bands for the specified CLI args.
 
     Args:
-        phondbs (list): of :class:`matdb.database.phonon.DynMatrix` `phonopy`
+        phondbs (list): of :class:`matdb.database.hessian.Hessian` `phonopy`
           calculation database instances that have DFT-accurate band
           information.
         fits (list): of :class:`~matdb.fitting.basic.Trainer` to calculate bands
