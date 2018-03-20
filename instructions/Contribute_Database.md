@@ -3,6 +3,7 @@
 #### Table of Contents
 
 [Introduction](#introduction)
+
 [Source Code](#source-code)
   * [Group Name](#group-name-and-default-name)
   * [Initialization](#initialization)
