@@ -1152,6 +1152,22 @@ class Database(object):
         from os import sys
         data = {"version":__version__,"python_version":sys.version,"name":self.name,
                 "root":self.root,"steps":self._settings,"uuid":self.uuid}
+        return data
+
+    def finalize(self):
+        """Finalizes the database to a dictionary that can be saved to an h5 file.
+        """
+
+        final_dict = self.to_dict()
+        final_dict["hash"] = self.hash()
+        
+        for dbname, db in self.isteps:
+            final_dict["dbname"] = db.finalize()
+
+        for split in self.splits():
+
+        return final_dict
+        
         
 class RecycleBin(Database):
     """A database of past calculations to be stored for later use.
@@ -1604,7 +1620,11 @@ class Controller(object):
         hash_all += ' '
         hash_all += seq.rec_bin.hash_bin()
 
-        return str(sha1(hash_all).hexdigest())
+        hash_all = str(sha1(hash_all).hexdigest())
+        with open(path.join(self.root,"hash.txt"),"w+") as f:
+            f.write("{0} \n {1}".format(hash_all,str(datetime.now())))
+            
+        return hash_all
 
     def verify_hash(self, hash_cand, cfilter=None, dfilter=None):
         """Verifies that the the candidate hash matches this matdb
@@ -1622,3 +1642,31 @@ class Controller(object):
         """
 
         return hash_cand == self.hash_dbs(cfilter=cfilter, dfilter=dfilter)
+
+    def finalize(self, cfilter=None, dfilter=None):
+        """Creates the finalized version of the databases that were used for
+        fitting the potential. Stored in final_{matdb.version}.h5.
+
+        Args:
+            cfilter (list): of `str` patterns to match against *configuration*
+              names. This limits which configs are returned.
+            dfilter (list): of `str` patterns to match against *database sequence*
+              names. This limits which databases sequences are returned.
+        """
+
+        from matdb.utility import save_dict_to_h5
+        from matdb import __version__
+        
+        final_dict = self.versions.copy()
+        final_dict["hash"] = self.hash(cfilter=cfilter, dfilter=dfilter)
+        final_dict["yml_file"] = self.specs.copy()
+        for dbname, seq in self.ifiltered(cfilter, dfilter):
+            final_dict["dbname"] = seq.finalize()
+
+        if "rec_bin" in dfilter or dfilter is None or dfilter=="*":
+            final_dict["rec_bin"] = seq.rec_bin.finalize()
+
+        mdb_ver = ".".join(__version__)
+        target = path.join(self.root,"final_{}.h5".format(mdb_ver))
+        with h5py.File(target,"w") as hf:
+            save_dict_to_h5(hf,final_dict,'/')
