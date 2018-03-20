@@ -88,7 +88,7 @@ class SyncQuip(quippy.Potential, SyncCalculator):
         """
         return True
 
-    def can_cleanup(self):
+    def can_extract(self):
         """Returns True if the specified atoms object has completed executing and the
         results are available for use.
         """
@@ -105,8 +105,7 @@ class SyncQuip(quippy.Potential, SyncCalculator):
         """
         pass
 
-
-    def to_dict(self, folder):
+    def to_dict(self):
         """Writes the current version number of the code being run to a
         dictionary along with the parameters of the code.
 

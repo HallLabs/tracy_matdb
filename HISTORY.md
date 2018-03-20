@@ -1,5 +1,13 @@
 # Revision History for `matdb`
 
+## Revision 1.1.0
+
+- The database finalize method has been implemented as described in
+  Issue [#31](/../../issues/31).
+- Rename the cleanup methods to extract and created a new cleanup
+  method on the calculators that performs the desired level of cleanup
+  as described in Issue [#35](/../../issues/35).
+
 ## Revision 1.0.9
 
 - Fixed the bug reported in Issue [#33](/../../issues/33).
