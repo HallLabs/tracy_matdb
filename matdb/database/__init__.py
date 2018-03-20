@@ -914,7 +914,7 @@ class Group(object):
                 uuids.append(this_uuid)
                 group_inst = self.database.parent.find(this_uuid)
                 key = group_inst.key()
-                params = group_inst.sub_dict()
+                params = group_inst.to_dict(include_time_stamp=True)
                 params.extend(group_inst.grpargs)
                 params_dict[key] = _recursively_convert_units(params)
             pbar.update(1)

@@ -228,6 +228,7 @@ class Enumerated(Group):
         """Returns True if this database has finished its computations and is
         ready to be used.
         """
+        self._expand_sequence()
         if len(self.sequence) == 0:
             return len(self.fitting_configs) == self.nconfigs
         else:            
@@ -259,8 +260,9 @@ class Enumerated(Group):
             if path.isfile(target):
                 result.append(folder)
 
-        return result 
-        
+        return result
+    
+    @property
     def rset(self):
         """Returns a :class:`matdb.atoms.AtomsList`, one for each config in the
         latest result set.
