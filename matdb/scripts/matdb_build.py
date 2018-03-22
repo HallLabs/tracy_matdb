@@ -34,8 +34,8 @@ script_options = {
            "help": ("Submit the job array file for each database that has "
                     "folders ready to run. If --recover is specified, then "
                     "the recovery jobfile is submitted instead.")},
-    "-c": {"action": "store_true",
-           "help": ("Cleanup the databases that have completed execution "
+    "-e": {"action": "store_true",
+           "help": ("Process the databases that have completed execution "
                     "so that results can be extracted.")},
     "--status": {"action": "store_true",
                 "help": ("Determines status of the databases "
@@ -50,6 +50,10 @@ script_options = {
     "--dfilter": {"nargs": "+",
                   "help": ("Specify a list of patterns to match against _database_ "
                            "names that should be *included*.")},
+    "--clean": {"default": "default",
+                "type": str,
+                "help": ("Specify the cleanup level for the database, 'aggressive', "
+                         "'default', or 'light'.")},
     "--busy": {"action": "store_true",
                "help": ("Display a list of configurations that haven't "
                         "finished running in DFT yet.")},
@@ -92,11 +96,11 @@ def run(args):
         cdb.setup(args["rerun"])
     if args["x"]:
         cdb.execute(args["recover"], args["cfilter"], args["dfilter"])
-    if args["c"]:
-        cdb.cleanup()    
+    if args["e"]:
+        cdb.extract(cleanup=args["clean"])    
 
     if args["recover"] and not args["x"]:
-        cdb.recover(args["rerun"], args["cfilter"], args["dfilter"])
+        cdb.recover(args["recover"], args["cfilter"], args["dfilter"])
         
     if args["status"]:
         cdb.status(args["busy"], args["cfilter"], args["dfilter"])

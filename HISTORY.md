@@ -1,5 +1,52 @@
 # Revision History for `matdb`
 
+## Revision 1.1.0
+
+- The database finalize method has been implemented as described in
+  Issue [#31](/../../issues/31).
+- Rename the cleanup methods to extract and created a new cleanup
+  method on the calculators that performs the desired level of cleanup
+  as described in Issue [#35](/../../issues/35).
+
+## Revision 1.0.9
+
+- Fixed the bug reported in Issue [#33](/../../issues/33).
+- Fixed atoms object after format change to calculators.
+- Added progress bars to the database setup and cleanup methods as
+  suggested in Issue [#26](/../../issues/26).
+- Added the hash methods to group, database, and controller as well as
+  the verify_hash method to the controller as described in Issue
+  [#30](/../../issues/30).
+- Added the time stamp to the second line of the uuid files. Also
+  fixed some errors with the overwriting of objects in the group
+  settings in which the new uuid for the new objects wasn't getting
+  saved to file. This resolves Issue [#37](/../../issues/37).
+- Implemented the `to_dict` method on the calculators as described in
+  Issue [#29](/../../issues/29).
+- Added the `contr_dir` to store tho controller directory for the
+  calculators. This will be needed to implement Issue
+  [#21](/../../issues/21).
+- Implemented the creation of the `POTCAR` like file in the
+  calculators instead of the `controller` as described in Issue
+  [#21](/../../issues/21).
+- Implemented the bug fix described in Issue [#22](/../../issues/22)
+  so that `xc` only needs to be set in one place for the `vasp`
+  calculator.
+- Implemented dependency version checking and storing on matdb.
+
+## Revision 1.0.8
+
+- Moved all database specific functions from `matdb.utility` to
+  `matdb.database.utility`.
+- Removed the `split` method for the `legacy` database and `Database`
+  classes and made a universal `split` function in
+  `matdb.database.utility`.
+- Moved the classes contained in `matdb.database.controller.py` and
+  `matdb.database.basic.py` to `matdb.database.__init__.py`, and fixed
+  relative imports.
+- Switched random seeds to be universal when defined in controller.
+- All calculators now take a random seed.
+
 ## Revision 1.0.7
 
 - Added CFG support to `matdb.io` and increased unit test coverage.

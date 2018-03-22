@@ -2,7 +2,7 @@
 via :class:`aflow.entries.Entry` objects. This allows for asynchronous download
 of AFLOW results and makes the overall abstract framework of
 :class:`matdb.database.basic.Group` work correctly (since all configurations are
-required to have a calculator attached to perform tasks related to cleanup,
+required to have a calculator attached to perform tasks related to extract,
 checking for execution readiness, etc.
 
 .. todo: This class should ideally inherit from :class:`ase.Calculator`. That
@@ -29,15 +29,20 @@ class AsyncAflow(SyncCalculator):
     Args:
         entry (aflow.entries.Entry): database entry to download data for.
         folder (str): path to the folder where the result will be stored.
+        contr_dir (str): The absolute path of the controller's root directory.
+        ran_seed (int or float): the random seed to be used for this calculator.
 
     Attributes:
         atoms (quippy.Atoms): atoms object created from the database entry. Is
           `None` until the download is performed.
     """
-    def __init__(self, atoms, folder, entry=None, *args, **kwargs):
+    def __init__(self, atoms, folder, contr_dir, ran_seed, entry=None, *args, **kwargs):
         self.kwargs = kwargs
         self.args = []
         self.entry = entry
+        self.ran_seed = ran_seed
+        self.contr_dir = contr_dir
+        self.version = None
         self.kwargs["entry"] = self.entry
         self.folder = folder
         self.atoms = atoms
@@ -59,7 +64,7 @@ class AsyncAflow(SyncCalculator):
         """
         return self.entry is not None
 
-    def can_cleanup(self):
+    def can_extract(self):
         """Returns True if the specified folder has completed executing and the results
         are available for use.
 
@@ -71,7 +76,7 @@ class AsyncAflow(SyncCalculator):
     def is_executing(self):
         """Returns True if the specified folder is in process of executing. This
         means that files/output has been produced to indicate that the process
-        started and that the folder is not ready to cleanup yet.
+        started and that the folder is not ready to extract yet.
 
         Args:
             folder (str): path to the folder in which the executable was run.
@@ -88,12 +93,28 @@ class AsyncAflow(SyncCalculator):
             with open(self.entry_file, "w+") as f:
                 pickle.dump(self.entry, f)
 
-    def cleanup(self):
+    def extract(self, cleanup="default"):
         """Extracts results from completed calculations and sets them on the
         :class:`ase.Atoms` object. This involves executing the actual call to
         the AFLOW database for downloading config information, etc.
 
         Args:
-            folder (str): path to the folder in which the executable was run.
+            cleanup (str): the level of cleanup to perform (not used here).
         """
         pass
+
+    def to_dict(self, folder):
+        """Writes the current version number of the code being run to a
+        dictionary along with the parameters of the code.
+
+        Args:
+            folder (str): path to the folder in which the executable was run.
+        """
+        aflux_dict = {"folder":self.folder, "ran_seed":self.ran_seed,
+                     "contr_dir":self.contr_dir, "kwargs": self.kwargs,
+                     "args": self.args}
+
+        # Need to determine how/what to store as aflux version number.
+        # aflux_dict["version"] = 
+
+        return aflux_dict

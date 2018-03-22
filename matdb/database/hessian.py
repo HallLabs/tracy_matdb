@@ -5,7 +5,7 @@ configurations in `seed`.
 from os import path, remove
 import numpy as np
 from operator import itemgetter
-from .basic import Group
+from matdb.database import Group
 from matdb.utility import execute, chdir
 from phonopy import file_IO
 from phonopy.api_phonopy import Phonopy
@@ -319,7 +319,7 @@ class Hessian(Group):
         if len(ok) > 0:
             minkey, minval = min(ok.items(), key=itemgetter(1))
         else:
-            msg.warn("DynMatrix calculation may not be converged. Your tolerance "
+            msg.warn("Hessian calculation may not be converged. Your tolerance "
                      "may be too high. Returning the largest supercell by default.")
             minkey = maxkey
 
@@ -344,7 +344,7 @@ class Hessian(Group):
             #then we want to return a list of hessian matrices and atoms
             #objects. If we are not, then we must a parameter grid of sequences
             #to select from.
-            if isinstance(self.parent, DynMatrix):
+            if isinstance(self.parent, Hessian):
                 #We have many dynamical matrices to choose from. We need to decide
                 #what "best" means and then return that one.
                 bestkey = self._best_bands()
@@ -613,17 +613,20 @@ class Hessian(Group):
         # Last of all, create the job file to execute the job array.
         self.jobfile(rerun)
 
-    def cleanup(self, recalc=False):
+    def extract(self, recalc=False, cleanup="default"):
         """Runs post-DFT execution routines to calculate the force-sets and the
         density of states.
+
         Args:
             recalc (bool): when True, redo any calculations that use the DFT
               outputs to find other quantities.
+            cleanup (str): the level of cleanup to perform after extraction.
+
         Returns:
            bool: True if the database is ready; this means that any other
            databases that rely on its outputs can be run.
         """
-        if not super(Hessian, self).cleanup():
+        if not super(Hessian, self).extract(cleanup=cleanup):
             return
 
         if not self.dfpt:

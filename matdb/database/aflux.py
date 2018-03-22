@@ -57,7 +57,7 @@ Operators
 6. `|` is the logical `or` between two conditions.
 
 """
-from .basic import Group
+from matdb.database import Group
 import aflow
 import operator
 from os import path
@@ -201,7 +201,7 @@ class Aflow(Group):
         return self.auids
 
     @property
-    def atoms_paths(self):
+    def fitting_configs(self):
         """Returns a list of full paths to the folders that have `atoms.json` objects
         for the latest result set.
         """
@@ -222,7 +222,7 @@ class Aflow(Group):
 
         from matdb.atoms import Atoms, AtomsList
         result = AtomsList()
-        for apath in self.atoms_paths:
+        for apath in self.fitting_configs:
             result.append(Atoms(apath))
         return result
 
@@ -232,13 +232,13 @@ class Aflow(Group):
         """
         #We need to count the number of `atoms.json` files that we have
         #corresponding to the auids in the list.
-        return len(self.atoms_paths) == self.nconfigs
+        return len(self.fitting_configs) == self.nconfigs
 
     def setup(self, rerun=False):
         """Executes the query against the AFLOW database and downloads the
         configurations specified by the query. Each is created in its own
         folder. However, the `atoms.json` files will not be created until
-        :meth:`cleanup` is called.
+        :meth:`extract` is called.
         """
         super(Aflow, self).setup(self._setup_configs, rerun)
 
@@ -287,7 +287,7 @@ class Aflow(Group):
 
                 #This creates the folder and configures the atoms object in the
                 #group. However, it does *not* create `atoms.json`, which
-                #happens only when cleanup is called.
+                #happens only when extract is called.
                 atoms = entry.atoms(quippy=True, keywords=self.keywords)                
                 cid = self.create(atoms, calcargs={"entry": entry})
                 self.index[entry.auid] = self.configs[cid]

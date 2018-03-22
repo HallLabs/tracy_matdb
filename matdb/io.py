@@ -299,3 +299,14 @@ def read(context, yfile):
     #are expanded to be full-fledged python objects from their YAML files.
     _unpack_obj(ncontext, result, lcontext)
     return result
+
+def required_packages():
+    """Returns the list of required packages for matdb. These have to be
+    hard coded before each commit.
+    """
+
+    return ["argparse", "backports.functools-lru-cache", "beautifulsoup4", "certifi",
+            "chardet", "cycler", "h5py", "html5lib", "idna", "matplotlib", "mpld3",
+            "numpy", "phenum", "phonopy", "pyparsing", "python-dateutil", "pytz",
+            "PyYAML", "requests", "setuptools", "six", "subprocess32", "termcolor",
+            "tqdm", "urllib3", "webencodings", "lazy_import", "ase", "seekpath"]
