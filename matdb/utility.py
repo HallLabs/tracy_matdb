@@ -946,7 +946,7 @@ def check_deps():
     
     versions = {}
 
-    instld_pckgs = execute("pip freeze",".")["output"]
+    instld_pckgs = execute("pip freeze", ".", venv=True)["output"]
 
     for pkg_j in req_pckgs:
         found = False
