@@ -117,6 +117,16 @@ class Hessian(Group):
         
         if "dim" in phonopy:
             self.supercell = phonopy["dim"]
+
+            #Make sure that the supercell matrix has positive determinant for
+            #phonopy; if it doesn't correct it.
+            if len(self.supercell) == 3:
+                scell = np.diag(self.supercell)
+            else:
+                scell = np.array(self.supercell).reshape(3,3)
+            det = np.linalg.det(scell)
+            if det < 0:
+                self.supercell = list(np.array(self.supercell)*-1)
         else:
             self.supercell = None
             
@@ -587,12 +597,17 @@ class Hessian(Group):
 
         if not self.is_setup():
             from ase.io import write
-
             write(path.join(self.phonodir, "POSCAR"), self.atoms, "vasp")        
             scell = ' '.join(map(str, self.supercell))
             sargs = ["phonopy", "-d", '--dim="{}"'.format(scell)]
             pres = execute(sargs, self.phonodir, venv=True)
 
+            #Make sure that phonopy produced the supercell. If it didn't, it
+            #should have printed an error to *stdout* because it doesn't know
+            #about stderr...
+            if not path.isfile(path.join(self.phonodir, "SPOSCAR")):
+                msg.err('\n'.join(pres["output"]))
+            
             from matdb.atoms import Atoms
             if not self.dfpt:
                 #Frozen phonons, create a config execution folder for each of
