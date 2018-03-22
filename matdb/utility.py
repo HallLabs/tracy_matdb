@@ -946,18 +946,22 @@ def check_deps():
     
     versions = {}
 
-    instld_pckgs = execute("pip freeze", ".", venv=True)["output"]
+    instld_pckgs = [l.strip() for l in execute(["pip freeze"], ".", venv=True)["output"]]
 
     for pkg_j in req_pckgs:
         found = False
         for pkg_i in instld_pckgs:
-            name, version = pkg_i.split("==")
-            if name.lower() == pkg_j.lowe():
-                if (version.count(".") == 2 or
+            if "==" in pkg_i:
+                name, version = pkg_i.split("==")
+            else:
+                name, version = pkg_i, None
+                
+            if name.lower() == pkg_j.lower():
+                if (version is not None and (version.count(".") == 2 or
                     version.count(".") == 3) and ("/" not in version
                                                   and ":" not in version
                                                   and  "-" not in version
-                                                  and ".com" not in version):
+                                                  and ".com" not in version)):
                     versions[pkg_j] = version
                     found = True
                     break
