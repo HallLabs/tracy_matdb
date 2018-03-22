@@ -11,7 +11,9 @@
   calculator setup).
 - Removed the folder argument from the calculators `to_dict` method
   since it isn't needed/used.
-
+- Fixed `datetime` import in `matdb/database/__init__.py`.
+- Removed duplicate `ran_seed` assignment in the database
+  `Controller`.
 
 ## Revision 1.1.0
 

@@ -11,7 +11,7 @@ from glob import glob
 from uuid import uuid4
 import abc
 import pickle
-import datetime
+from datetime import datetime
 from contextlib import contextmanager
 import ase.db
 from collections import OrderedDict
@@ -348,7 +348,6 @@ class Group(object):
         """Returns a dictionary of the parameters passed into the group instance.
         """
         from matdb import __version__
-        from datetime import datetime
         import sys
         
         kw_dict = self.grpargs.copy()
@@ -1350,7 +1349,7 @@ class Controller(object):
         self.collections = {}
         self.uuids = {}
         self.species = sorted([s for s in self.specs["species"]])
-        self.ran_seed = self.specs.get("ran_seed",0)
+        self.ran_seed = self.specs.get("random_seed",0)
         import random
         random.seed(self.ran_seed)
         
@@ -1358,7 +1357,6 @@ class Controller(object):
         self.calculator = self.specs.get("calculator", {})
 
         self.venv = self.specs.get("venv")
-        self.ran_seed = self.specs.get("random seed")
 
         # We need to split out the databases by user-given name to create
         # the sequences.
