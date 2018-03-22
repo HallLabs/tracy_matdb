@@ -305,8 +305,8 @@ def required_packages():
     hard coded before each commit.
     """
 
-    return ["argparse", "backports.functools-lru-cache", "beautifulsoup4", "certifi",
+    return ["argparse", "ase", "backports.functools-lru-cache", "beautifulsoup4", "certifi",
             "chardet", "cycler", "h5py", "html5lib", "idna", "matplotlib", "mpld3",
             "numpy", "phenum", "phonopy", "pyparsing", "python-dateutil", "pytz",
             "PyYAML", "requests", "setuptools", "six", "subprocess32", "termcolor",
-            "tqdm", "urllib3", "webencodings", "lazy_import", "ase", "seekpath"]
+            "tqdm", "urllib3", "webencodings", "lazy_import", "seekpath"]

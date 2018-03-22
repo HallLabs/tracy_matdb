@@ -942,29 +942,28 @@ def check_deps():
 
     from matdb.io import required_packages
 
-    req_pckgs = required_packages()
-    
+    req_pckgs = required_packages()    
     versions = {}
+    instld_pckgs = execute(["pip freeze"], ".", venv=True)["output"]
 
-    instld_pckgs = execute("pip freeze",".")["output"]
-
-    for pkg_j in req_pckgs:
-        found = False
-        for pkg_i in instld_pckgs:
-            name, version = pkg_i.split("==")
-            if name.lower() == pkg_j.lowe():
-                if (version.count(".") == 2 or
-                    version.count(".") == 3) and ("/" not in version
-                                                  and ":" not in version
-                                                  and  "-" not in version
-                                                  and ".com" not in version):
-                    versions[pkg_j] = version
-                    found = True
-                    break
-                else:
-                    msg.err("Cannot run `matdb` with locally installed package {} "
-                            "as it would not be reproducable.".format(pkg_i))
-        if not found:
-            msg.err("Could not find required package {} in environment.".format(pkg_j))
+    for pkg in instld_pckgs:
+        if "==" in pkg:
+            name, version = pkg.strip().split("==")
+        else:
+            name, version = pkg, None
+        if name.lower() in req_pckgs:
+            count = version.count(".")
+            if version is not None and (count in [1,2,3] and ("/" not in version
+                                                              and ":" not in version
+                                                              and  "-" not in version
+                                                              and ".com" not in version)):
+                versions[name.lower()] = version
+                req_pckgs.remove(name.lower())
+            else:
+                msg.err("Cannot run `matdb` with locally installed package {} "
+                        "as it would not be reproducable.".format(pkg))
+    if len(req_pckgs) >= 1:
+        for pkg in req_pckgs:
+            msg.err("Could not find required package {} in environment.".format(pkg))
 
     return versions
