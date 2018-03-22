@@ -8,7 +8,13 @@ from operator import itemgetter
 from matdb.database import Group
 from matdb.utility import execute, chdir
 from phonopy import file_IO
+from phonopy.api_phonopy import Phonopy
+from phonopy.structure.atoms import Atoms as PhonopyAtoms
+from phonopy.cui.phonopy_argparse import get_parser
+from phonopy.cui.settings import PhonopyConfParser
 from matdb import msg
+from matdb.atoms import Atoms
+from matdb.phonons import roll as roll_fc
 
 def unroll_fc(fc):
     """Unroll's the phonopy force constants matrix into the Hessian.
@@ -21,6 +27,24 @@ def unroll_fc(fc):
             result[i*3:(i+1)*3, j*3:(j+1)*3] = fc[i, j]
   
     return result
+
+def phonopy_to_matdb(patoms):
+    """Converts a :class:`phonopy.structure.atoms.Atoms` to
+    :class:`matdb.atoms.Atoms`. See also :func:`matdb_to_phonopy`.
+    """
+    return Atoms(symbols=patoms.get_chemical_symbols(),
+                 positions=patoms.get_positions(),
+                 magmoms=patoms.get_magnetic_moments(),
+                 cell=patoms.get_cell())
+
+def matdb_to_phonopy(matoms):
+    """Converts a :class:`matdb.atoms.Atoms` to a
+    :class:`phonopy.structure.atoms.Atoms`. See also :func:`phonopy_to_matdb`.
+    """
+    return PhonopyAtoms(symbols=matoms.get_chemical_symbols(),
+                        positions=matoms.positions,
+                        masses=matoms.get_masses(),
+                        cell=matoms.cell, pbc=matoms.pbc)
 
 class Hessian(Group):
     """Sets up the displacement calculations needed to construct the Hessian
@@ -73,23 +97,29 @@ class Hessian(Group):
             if not path.isdir(new_root):
                 mkdir(new_root)
             dbargs['root'] = new_root
-        super(Hessian, self).__init__(**dbargs)
         
         #Make sure that we override the global calculator default values with
-        #those settings that we know are needed for good phonon calculations.
+        #those settings that we know are needed for good phonon calculations. We
+        #also need to assign the parent here *before* the super.__init__ so that
+        #the recursive database lookup works.
+        self.dfpt = dfpt
+        self.parent = dbargs["parent"]
         calcargs = self.database.calculator.copy()
         if "calculator" in dbargs:
             if dbargs["calculator"] is not None and "name" in dbargs["calculator"]:
                 calcargs.update(dbargs["calculator"])
-                self._set_calc_defaults(calcargs)
-                dbargs["calculator"] = calcargs            
+        self._set_calc_defaults(calcargs)
+        dbargs["calculator"] = calcargs
 
+        #We only initialize now because we wanted to first update the dbargs for
+        #the calculator, etc.
+        super(Hessian, self).__init__(**dbargs)
+        
         if "dim" in phonopy:
             self.supercell = phonopy["dim"]
         else:
             self.supercell = None
             
-        self.dfpt = dfpt
         self.bandmesh = bandmesh
         self.dosmesh = dosmesh
         self.tolerance = tolerance
@@ -108,6 +138,9 @@ class Hessian(Group):
         along the paths, and their corresponding distances.
         """
 
+        self._bzsample = None
+        """tuple: returned by :attr:`BZ_sample`."""
+        
         self._H = self.load_pkl(self.H_file)
         """np.array: the Hessian matrix, whether it was derived from
         DFPT or from frozen phonon calculations.
@@ -189,7 +222,68 @@ class Hessian(Group):
                 "bandmesh":self.bandmesh,"dosmesh":self.dosmesh,
                 "tolerance":self.tolerance,"dfpt":self.dfpt}
         return args
-                
+
+    @property
+    def BZ_sample(self):
+        """Returns a full sampling of the BZ by calculating frequencies at every
+        unique k-point as sampled on the :attr:`dosmesh` grid.
+        
+        Returns:
+
+            tuple: `(q-points, weights, eigenvalues)` where the `q-points` are
+            the unique points after symmetry reduction; `weights` are the
+            corresponding weights for each point; `eigenvalues` is a
+            :class:`numpy.ndarray` of frequencies (in THz) for each point.
+        """
+        #This is a little convoluted because of how the phonopy API works. We
+        #want to get a full sampling of the BZ, but with symmetry, and then
+        #compare the eigenvalues at every point.
+        if self._bzsample is None:
+            with chdir(self.phonodir):
+                atoms = matdb_to_phonopy(self.atoms)
+                phonpy = Phonopy(atoms, np.array(self.supercell).reshape(3,3))
+                phonpy.set_force_constants(roll_fc(self.H))
+                phonpy._set_dynamical_matrix()       
+
+                #Phonopy requires full settings to compute the unique grid and
+                #eigenvalues. We spoof the command-line parser.
+                parser = get_parser()
+                (options, args) = parser.parse_args()
+                option_list = parser.option_list
+                options.mesh_numbers = ' '.join(map(str, self.dosmesh))
+                phonopy_conf = PhonopyConfParser(options=options, option_list=option_list)
+                settings = phonopy_conf.get_settings()
+
+                #Next, set the mesh on the phonopy object and ask it to reduce and
+                #calculate frequencies.
+                mesh = settings.get_mesh()
+                phonpy.set_mesh(*mesh)
+                self._bzsample = phonpy.get_mesh()[0:3]
+
+        return self._bzsample
+    
+    def compare(self, other):
+        """Compares this Hessian group's calculated bands with another Hessian
+        group that is taken to the "right" answer.
+
+        Args:
+            other (Hessian): correct bands to compare to.
+
+        Returns:
+            tuple: `(abs err, rms err)` for the eigenvalues at every point in the
+            sampling of the BZ.
+        """
+        dosmesh = self.dosmesh
+        self.dosmesh = other.dosmesh
+        sgrid, sweights, sfreqs = self.BZ_sample
+        ogrid, oweights, ofreqs = other.BZ_sample
+
+        #Make sure both are running on the same grid. This should always be true
+        #unless the primitive is different, or if the grid spacing is different.
+        assert np.allclose(sgrid, ogrid)
+        
+        return (np.mean(np.abs(sfreqs-ofreqs)), np.std(sfreqs-ofreqs))
+    
     def _best_bands(self):
         """Returns the name of the band collection that has the smallest *converged*
         phonon bands. This is accomplished by assuming that the largest supercell is
@@ -360,7 +454,7 @@ class Hessian(Group):
         """
         if self._kpath is None:
             from matdb.kpoints import parsed_kpath
-            self._kpath = parsed_kpath
+            self._kpath = parsed_kpath(self.atoms)
             
         return self._kpath    
     
@@ -374,7 +468,7 @@ class Hessian(Group):
             point labels; second is the list of points corresponding to those
             labels.
         """
-        from matdb.database import Database, Group
+        from matdb.database import Database
         if isinstance(self.parent, Database):
             return self.get_kpath()
         elif isinstance(self.parent, Hessian):
@@ -387,13 +481,14 @@ class Hessian(Group):
             recalc (bool): when True, recalculate the DOS, even if the
               file already exists.
         """
+        self._expand_sequence()
         bandfile = path.join(self.phonodir, "band.yaml")
         if not recalc and path.isfile(bandfile):
             return
         
         from matdb.phonons import _calc_bands
         _calc_bands(self.atoms, self.H, supercell=self.supercell,
-                    outfile=self.bandfile, grid=self.bandmesh)
+                    outfile=bandfile, grid=self.bandmesh)
     
     def calc_DOS(self, recalc=False):
         """Calculates the *total* density of states.
