@@ -211,9 +211,12 @@ class DynamicsGroup(Group):
         from matdb.utility import linecount
         return linecount(self.subsamples) == self.nsteps * (len(self.strains))
     
-    def cleanup(self):
+    def extract(self, cleanup="default"):
         """Parses the XDATCAR files to create a list of configurations
         that can be run using high-accuracy DFT.
+
+        Args:
+            cleanup (str): the level of cleanup to perform after extraction.
 
         Returns:
            bool: True if the database is ready; this means that any other
@@ -222,7 +225,7 @@ class DynamicsGroup(Group):
         #First, we need to check that the MD is done; then we can subsample it
         #and run the individual DFT calculations.
         if not self._xdatcar_ok():
-            msg.std("XDATCAR incomplete; can't cleanup the MD.", 2)
+            msg.std("XDATCAR incomplete; can't extract the MD.", 2)
             return False
 
         subsamples = []

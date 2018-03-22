@@ -2,7 +2,7 @@
 via :class:`aflow.entries.Entry` objects. This allows for asynchronous download
 of AFLOW results and makes the overall abstract framework of
 :class:`matdb.database.basic.Group` work correctly (since all configurations are
-required to have a calculator attached to perform tasks related to cleanup,
+required to have a calculator attached to perform tasks related to extract,
 checking for execution readiness, etc.
 
 .. todo: This class should ideally inherit from :class:`ase.Calculator`. That
@@ -64,7 +64,7 @@ class AsyncAflow(SyncCalculator):
         """
         return self.entry is not None
 
-    def can_cleanup(self):
+    def can_extract(self):
         """Returns True if the specified folder has completed executing and the results
         are available for use.
 
@@ -76,7 +76,7 @@ class AsyncAflow(SyncCalculator):
     def is_executing(self):
         """Returns True if the specified folder is in process of executing. This
         means that files/output has been produced to indicate that the process
-        started and that the folder is not ready to cleanup yet.
+        started and that the folder is not ready to extract yet.
 
         Args:
             folder (str): path to the folder in which the executable was run.
@@ -93,13 +93,13 @@ class AsyncAflow(SyncCalculator):
             with open(self.entry_file, "w+") as f:
                 pickle.dump(self.entry, f)
 
-    def cleanup(self):
+    def extract(self, cleanup="default"):
         """Extracts results from completed calculations and sets them on the
         :class:`ase.Atoms` object. This involves executing the actual call to
         the AFLOW database for downloading config information, etc.
 
         Args:
-            folder (str): path to the folder in which the executable was run.
+            cleanup (str): the level of cleanup to perform (not used here).
         """
         pass
 

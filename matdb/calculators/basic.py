@@ -27,7 +27,7 @@ class AsyncCalculator(object):
         pass
 
     @abc.abstractmethod
-    def can_cleanup(self, folder):
+    def can_extract(self, folder):
         """Returns True if the specified folder has completed executing and the results
         are available for use.
 
@@ -40,7 +40,7 @@ class AsyncCalculator(object):
     def is_executing(self, folder):
         """Returns True if the specified folder is in process of executing. This
         means that files/output has been produced to indicate that the process
-        started and that the folder is not ready to cleanup yet.
+        started and that the folder is not ready to extract yet.
 
         Args:
             folder (str): path to the folder in which the executable was run.
@@ -57,12 +57,23 @@ class AsyncCalculator(object):
         pass
 
     @abc.abstractmethod
-    def cleanup(self, folder):
+    def extract(self, folder):
         """Extracts results from completed calculations and sets them on the
         :class:`ase.Atoms` object.
 
         Args:
             folder (str): path to the folder in which the executable was run.
+        """
+        pass
+
+    @abc.abstractmethod
+    def cleanup(self, folder, clean_level="default"):
+        """Extracts results from completed calculations and sets them on the
+        :class:`ase.Atoms` object.
+
+        Args:
+            folder (str): path to the folder in which the executable was run.
+            clean_level (str): the level of cleanup to perform.
         """
         pass
 
@@ -98,7 +109,7 @@ class SyncCalculator(object):
         pass
 
     @abc.abstractmethod
-    def can_cleanup(self):
+    def can_extract(self):
         """Returns True if the specified atoms object has completed executing and the
         results are available for use.
 

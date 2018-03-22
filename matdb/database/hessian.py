@@ -518,17 +518,20 @@ class Hessian(Group):
         # Last of all, create the job file to execute the job array.
         self.jobfile(rerun)
 
-    def cleanup(self, recalc=False):
+    def extract(self, recalc=False, cleanup="default"):
         """Runs post-DFT execution routines to calculate the force-sets and the
         density of states.
+
         Args:
             recalc (bool): when True, redo any calculations that use the DFT
               outputs to find other quantities.
+            cleanup (str): the level of cleanup to perform after extraction.
+
         Returns:
            bool: True if the database is ready; this means that any other
            databases that rely on its outputs can be run.
         """
-        if not super(Hessian, self).cleanup():
+        if not super(Hessian, self).extract(cleanup=cleanup):
             return
 
         if not self.dfpt:

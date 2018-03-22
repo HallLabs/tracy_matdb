@@ -502,7 +502,7 @@ class Group(object):
                     return False
 
                 #Make sure that the calculation isn't complete.
-                if any(a.calc.can_cleanup(self.configs[i])
+                if any(a.calc.can_extract(self.configs[i])
                        for i, a in self.config_atoms.items()):
                     return False                
         
@@ -741,7 +741,7 @@ class Group(object):
                 group independently.
             rerun (bool): default value is False.
         """
-        if self.prev is None or self.prev.can_cleanup():
+        if self.prev is None or self.prev.can_extract():
             #Before we attempt to setup the folders, we first need to construct
             #the recursive sequence groups. This cannot happen until the
             #previous group in the database is ready, which is why it happens
@@ -783,7 +783,7 @@ class Group(object):
                 
         for f, a in zip(allconfigs,tqdm(allatoms)):
             ready[f] = a.calc.can_execute(f)
-            done[f] = a.calc.can_cleanup(f)
+            done[f] = a.calc.can_extract(f)
         
         rdata, ddata = cnz(ready.values()), cnz(done.values())
         N = len(self.configs)        
@@ -807,10 +807,10 @@ class Group(object):
                 "busy": is_busy
             }
         
-    def can_cleanup(self):
+    def can_extract(self):
         """Runs post-execution routines to clean-up the calculations. This super class
         implementation only checks that each of the sub-config directories has
-        the necessary files needed for cleanup.
+        the necessary files needed for extraction of output.
         """
         self._expand_sequence()
         if len(self.sequence) == 0:
@@ -822,14 +822,14 @@ class Group(object):
 
             result = False
             for f, a in zip(self.configs.values(), self.config_atoms.values()):
-                if not a.calc.can_cleanup(f):
-                    msg.std("Config {} not ready to cleanup.".format(f))
+                if not a.calc.can_extract(f):
+                    msg.std("Config {} not ready for extraction.".format(f))
                     break
             else:
                 result = True
             return result
         else: 
-            return all(group.can_cleanup() for group in self.sequence.values())
+            return all(group.can_extract() for group in self.sequence.values())
 
     def tarball(self, filename="output.tar.gz"):
         """Creates a zipped tar archive that contains each of the specified
@@ -850,11 +850,15 @@ class Group(object):
             for group in self.sequence.values():
                 group.tarball(filename)
 
-    def cleanup(self):
-        """Creates a JSON file for each atoms object in the group.
+    def extract(self, cleanup="default"):
+        """Creates a hdf5 file for each atoms object in the group.
+
+        Args:
+            cleanup (str): the level of cleanup to perform after 
+              extraction.
         """
         self._expand_sequence()
-        if len(self.sequence) == 0 and self.can_cleanup():
+        if len(self.sequence) == 0 and self.can_extract():
             for cid, folder in self.configs.items():
                 if path.isfile(path.join(folder, "atoms.h5")):
                     #We don't need to recreate the atoms objects if they already
@@ -862,14 +866,14 @@ class Group(object):
                     continue
                 
                 atoms = self.config_atoms[cid]
-                atoms.calc.cleanup(folder)
+                atoms.calc.extract(folder, cleanup=cleanup)
                 atoms.write(path.join(folder,"atoms.h5"))
-            return self.can_cleanup()
+            return self.can_extract()
         elif len(self.sequence) >0:
             pbar = tqdm(len(self.sequence))
             cleaned = []
             for group in self.sequence.values():
-                cleaned.append(group.cleanup())
+                cleaned.append(group.extract(cleanup=cleanup))
                 pbar.update(1)
             cleaned = all(cleaned)
             pbar.close()
@@ -881,10 +885,45 @@ class Group(object):
                     save_dict_to_h5(hf,atoms_dict,'/')
             return cleaned                
         else:
-            return self.can_cleanup()
+            return self.can_extract()
+
+    def finalize(self):
+        """Returns a dictionary of the uuid, hash, parameters, and the rset
+        for the group.
+        """
+
+        from matdb.atoms import _recursively_convert_units
+        
+        final_dict["hash"] = self.hash()
+        final_dict["uuid"] = self.uuid
+        
+        rset = self.rset()
+        atoms = AtomsList(rset)
+
+        # The rset exists for a set of parameters. We want to know
+        # which sets of parameters went into making the rset. 
+        msg.info("Finalizing {}".format(self.name))
+        pbar = tqdm(len(atoms))
+        params_dict = {}
+        uuids = []
+        for atm in atoms:
+            this_uuid = atm.group_uuid
+            if this_uuid not in uuids:
+                # We need to get the parameters for this instance of
+                # the group and it's key to store the parameters under
+                uuids.append(this_uuid)
+                group_inst = self.database.parent.find(this_uuid)
+                key = group_inst.key()
+                params = group_inst.to_dict(include_time_stamp=True)
+                params.extend(group_inst.grpargs)
+                params_dict[key] = _recursively_convert_units(params)
+            pbar.update(1)
+
+        return final_dict
 
 class Database(object):
-    """Represents a Database of groups (all inheriting from :class:`Group`) that 
+
+        """Represents a Database of groups (all inheriting from :class:`Group`) that 
     are all related be the atomic configuration that they model.
     .. note:: See the list of attributes below which correspond to the sections
       in the YAML database specification file.
@@ -1118,12 +1157,15 @@ class Database(object):
                         "super": self.super_file()}
         split(subconfs, self.splits, file_targets, self.root, self.ran_seed, recalc=recalc)
         
-    def cleanup(self):
-        """Runs the cleanup methods of each database in the collection, in the
+    def extract(self, cleanup="default"):
+        """Runs the extract methods of each database in the collection, in the
         correct order.
+
+        Args:
+            cleanup (str): the level of cleanup to perform after extraction.
         """
         for dbname, db in self.isteps:
-            if not db.cleanup():
+            if not db.extract(cleanup=cleanup):
                 imsg = "Group {}:{} is not ready yet. Done."
                 msg.info(imsg.format(self.name, dbname))
                 break
@@ -1152,6 +1194,26 @@ class Database(object):
         from os import sys
         data = {"version":__version__,"python_version":sys.version,"name":self.name,
                 "root":self.root,"steps":self._settings,"uuid":self.uuid}
+        return data
+
+    def finalize(self):
+        """Finalizes the database to a dictionary that can be saved to an h5 file.
+        """
+        from matdb.atoms import _recursively_convert_units
+        
+        final_dict = self.to_dict()
+        final_dict["hash"] = self.hash()
+        final_dict["uuid"] = self.uuid
+        
+        for dbname, db in self.isteps:
+            final_dict["dbname"] = db.finalize()
+
+        for name, trani_perc in self.splits():
+            for f in glob(path.join(self.root,"{0}*-ids.pkl".format(name))):
+                final_dict[f.split(".pkl")[0]] = _recursively_convert_units(pickle.load(f))
+
+        return final_dict
+        
         
 class RecycleBin(Database):
     """A database of past calculations to be stored for later use.
@@ -1203,7 +1265,7 @@ class RecycleBin(Database):
     def setup(self):
         pass
 
-    def cleanup(self):
+    def extract(self):
         pass
     
     @property
@@ -1515,16 +1577,17 @@ class Controller(object):
         for dbname, seq in self.ifiltered(cfilter, dfilter):
             seq.setup(rerun)
 
-    def cleanup(self, cfilter=None, dfilter=None):
-        """Runs cleanup on each of the configuration's databases.
+    def extract(self, cfilter=None, dfilter=None, cleanup="default"):
+        """Runs extract on each of the configuration's databases.
         Args:
             cfilter (list): of `str` patterns to match against *configuration*
               names. This limits which configs are returned.
             dfilter (list): of `str` patterns to match against *database sequence*
               names. This limits which databases sequences are returned.
+            cleanup (str): the level of cleanup to perform after extraction.
         """
         for dbname, seq in self.ifiltered(cfilter, dfilter):
-            seq.cleanup()
+            seq.extract(cleanup=cleanup)
 
     def execute(self, recovery=False, cfilter=None, dfilter=None, env_vars=None):
         """Submits job array scripts for each database collection.
@@ -1604,7 +1667,11 @@ class Controller(object):
         hash_all += ' '
         hash_all += seq.rec_bin.hash_bin()
 
-        return str(sha1(hash_all).hexdigest())
+        hash_all = str(sha1(hash_all).hexdigest())
+        with open(path.join(self.root,"hash.txt"),"w+") as f:
+            f.write("{0} \n {1}".format(hash_all,str(datetime.now())))
+            
+        return hash_all
 
     def verify_hash(self, hash_cand, cfilter=None, dfilter=None):
         """Verifies that the the candidate hash matches this matdb
@@ -1622,3 +1689,31 @@ class Controller(object):
         """
 
         return hash_cand == self.hash_dbs(cfilter=cfilter, dfilter=dfilter)
+
+    def finalize(self, cfilter=None, dfilter=None):
+        """Creates the finalized version of the databases that were used for
+        fitting the potential. Stored in final_{matdb.version}.h5.
+
+        Args:
+            cfilter (list): of `str` patterns to match against *configuration*
+              names. This limits which configs are returned.
+            dfilter (list): of `str` patterns to match against *database sequence*
+              names. This limits which databases sequences are returned.
+        """
+
+        from matdb.utility import save_dict_to_h5
+        from matdb import __version__
+        
+        final_dict = self.versions.copy()
+        final_dict["hash"] = self.hash(cfilter=cfilter, dfilter=dfilter)
+        final_dict["yml_file"] = self.specs.copy()
+        for dbname, seq in self.ifiltered(cfilter, dfilter):
+            final_dict["dbname"] = seq.finalize()
+
+        if "rec_bin" in dfilter or dfilter is None or dfilter=="*":
+            final_dict["rec_bin"] = seq.rec_bin.finalize()
+
+        mdb_ver = ".".join(__version__)
+        target = path.join(self.root,"final_{}.h5".format(mdb_ver))
+        with h5py.File(target,"w") as hf:
+            save_dict_to_h5(hf,final_dict,'/')

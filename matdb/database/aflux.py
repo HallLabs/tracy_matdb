@@ -238,7 +238,7 @@ class Aflow(Group):
         """Executes the query against the AFLOW database and downloads the
         configurations specified by the query. Each is created in its own
         folder. However, the `atoms.json` files will not be created until
-        :meth:`cleanup` is called.
+        :meth:`extract` is called.
         """
         super(Aflow, self).setup(self._setup_configs, rerun)
 
@@ -287,7 +287,7 @@ class Aflow(Group):
 
                 #This creates the folder and configures the atoms object in the
                 #group. However, it does *not* create `atoms.json`, which
-                #happens only when cleanup is called.
+                #happens only when extract is called.
                 atoms = entry.atoms(quippy=True, keywords=self.keywords)                
                 cid = self.create(atoms, calcargs={"entry": entry})
                 self.index[entry.auid] = self.configs[cid]

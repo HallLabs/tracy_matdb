@@ -46,10 +46,13 @@ class LiquidGroup(Group):
         return (path.isfile(path.join(self.root, "output.xyz")) and
                 len(self.configs) == self._nsuccess)
 
-    def cleanup(self):
+    def extract(self, cleanup="default"):
         """Generates the XYZ database file for all the sub-configs in this
         liquid database.
 
+        Args:
+            cleanup (str): the level of cleanup to perform after extraction.
+        
         Returns:
            bool: True if the database is ready; this means that any other
            databases that rely on its outputs can be run.
@@ -59,7 +62,7 @@ class LiquidGroup(Group):
         if not self.mdbase.ready():
             return
         
-        if not super(LiquidGroup, self).cleanup():
+        if not super(LiquidGroup, self).extract(cleanup=cleanup):
             return
         
         return self.xyz(config_type="liq")

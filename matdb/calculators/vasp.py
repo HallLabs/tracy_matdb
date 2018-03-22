@@ -229,7 +229,7 @@ class AsyncVasp(Vasp, AsyncCalculator):
                     msg.info("{} not present for VASP execution.".format(f), 2)
         return all(present.values())
 
-    def can_cleanup(self, folder):
+    def can_extract(self, folder):
         """Returns True if the specified VASP folder has completed
         executing and the results are available for use.
         """
@@ -268,7 +268,7 @@ class AsyncVasp(Vasp, AsyncCalculator):
         """
         outcar = path.join(folder, "OUTCAR")
         outcars = path.isfile(outcar)
-        busy = not self.can_cleanup(folder)            
+        busy = not self.can_extract(folder)            
         return outcars and busy
 
     def create(self, rewrite=False):
@@ -280,12 +280,13 @@ class AsyncVasp(Vasp, AsyncCalculator):
         """
         self.write_input(self.atoms, self.folder)
 
-    def cleanup(self, folder):
+    def extract(self, folder, cleanup="default"):
         """Extracts results from completed calculations and sets them on the
         :class:`ase.Atoms` object.
 
         Args:
             folder (str): path to the folder in which the executable was run.
+            cleanup (str): the level of cleanup to perfor after extraction.
         """
         # Read output
         atoms_sorted = ase.io.read(path.join(folder,'CONTCAR'), format='vasp')
@@ -298,7 +299,7 @@ class AsyncVasp(Vasp, AsyncCalculator):
                 self.atoms.positions = atoms_sorted[self.resort].positions
                 self.atoms.cell = atoms_sorted.cell
 
-        # we need to move into the folder being cleaned up in order to
+        # we need to move into the folder being extracted in order to
         # let ase check the convergence
         with chdir(folder):
             self.converged = self.read_convergence()
@@ -309,6 +310,34 @@ class AsyncVasp(Vasp, AsyncCalculator):
             self.atoms.add_property("vasp_force", F)
             self.atoms.add_param("vasp_stress", S)
             self.atoms.add_param("vasp_energy", E)
+
+        self.cleanup(folder,clean_level=cleanup)
+
+    def cleanup(self, folder, clean_level="default"):
+        """Performs cleanup on the folder where the calculation was
+        performed. The clean_level determines which files get removed.
+
+        Args:
+            folder (str): the folder to be cleaned.
+            clean_level (str): the level of cleaning to be done.
+        """
+
+        light = ["CHG", "XDATCAR", "DOSCAR", "PCDAT"]
+        default =["CHGCAR", "WAVECAR", "IBZKPT", "OSZICAR",
+                  "CONTCAR", "EIGENVAL", "DOSCAR", "PCDAT"]
+        aggressive = ["vasprun.xml", "OUTCAR"]
+
+        if clean_level == "light":
+            rm_files = light
+        elif clean_level == "aggressive":
+            rm_files = light + default + aggressive
+        else:
+            rm_files = light + default
+        
+        for f in rm_files:
+            targot = path.join(folder,f)
+            if path.isfile(target):
+                remove(target)
 
     def to_dict(self, folder):
         """Writes the current version number of the code being run to a
