@@ -40,7 +40,8 @@ def band_plot(phondbs, fits=None, dim=2, npts=100, title="{} Phonon Spectrum",
     #Make sure we have bands calculated for each of the databases passed in.
     for phondb in phondbs:
         phondb.calc_bands()
-
+        
+    title = title.format(phondb.atoms.get_chemical_formula())
     colors = ['k', 'b', 'g', 'r', 'c', 'm', 'y' ]
     bands, style = {}, {}
     names, kpath = None, None
@@ -52,8 +53,8 @@ def band_plot(phondbs, fits=None, dim=2, npts=100, title="{} Phonon Spectrum",
             #characters. We only get names out from the first configuration; all
             #the others have to use the same one.
             names = ["${}$".format(n) if '\\' in n else n for n in names]
-        bands[phondb.parent.name] = phondb.bands
-        style[phondb.parent.name] = {"color": colors[dbi], "lw": 2}
+        bands[phondb.key] = phondb.bands
+        style[phondb.key] = {"color": colors[dbi], "lw": 2}
 
     #All of the phonon calculations use the same base atoms configuration. The
     #last `phondb` in the enumerated list is as good as any other.
@@ -64,10 +65,9 @@ def band_plot(phondbs, fits=None, dim=2, npts=100, title="{} Phonon Spectrum",
                                       Npts=npts, potname=fit.fqn)
             style[fit.fqn] = {"color": colors[len(phondbs)+fiti], "lw": 2}
 
-    title = title.format(phondb.atoms.get_chemical_formula())
     savefile = None
     if save:
-        savefile = path.join(phondb.parent.plotdir, save)
+        savefile = path.join(phondb.database.parent.plotdir, save)
                              
     bandplot(bands, names, title=title, outfile=savefile,
              figsize=figsize, style=style, nbands=nbands)
