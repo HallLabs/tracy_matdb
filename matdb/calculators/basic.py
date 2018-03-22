@@ -78,7 +78,7 @@ class AsyncCalculator(object):
         pass
 
     @abc.abstractmethod
-    def to_dict(self, folder):
+    def to_dict(self):
         """Writes the current version number of the code being run to a
         dictionary along with the parameters of the code.
 
@@ -88,8 +88,7 @@ class AsyncCalculator(object):
         pass
 
 class SyncCalculator(object):
-
-        """Represents a calculator such as :class:`ase.Calculator` that can be run
+    """Represents a calculator such as :class:`ase.Calculator` that can be run
     synchronously stages to compute properties (does not require a distributed
     or HCP environment).
 
@@ -137,7 +136,7 @@ class SyncCalculator(object):
         pass
 
     @abc.abstractmethod
-    def to_dict(self, folder):
+    def to_dict(self):
         """Writes the current version number of the code being run to a
         dictionary along with the parameters of the code.
 

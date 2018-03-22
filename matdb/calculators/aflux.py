@@ -103,7 +103,7 @@ class AsyncAflow(SyncCalculator):
         """
         pass
 
-    def to_dict(self, folder):
+    def to_dict(self):
         """Writes the current version number of the code being run to a
         dictionary along with the parameters of the code.
 

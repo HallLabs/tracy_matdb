@@ -3,6 +3,7 @@ code for some of the implementation.
 """
 
 import ase
+from ase.calculators.singlepoint import SinglePointCalculator
 import numpy as np
 from copy import deepcopy
 import h5py
@@ -293,17 +294,21 @@ class Atoms(ase.Atoms):
                 kwargs = data["calc_kwargs"] if 'calc_kwargs' in data else None
                 if args is not None:
                     if kwargs is not None:
-                        calc = calc(self, data["folder"], data["calc_ran_seed"], args, **kwargs)
+                        calc = calc(self, data["folder"], data["calc_contr_dir"],
+                                    data["calc_ran_seed"], args, **kwargs)
                     else:
-                        calc = calc(self, data["folder"], data["calc_ran_seed"], args)
+                        calc = calc(self, data["folder"], data["calc_contr_dir"],
+                                    data["calc_ran_seed"], args)
                 else: # pragma: no cover This case hasn't arrisen in
                       # any calculators we've tested so far but I'm
                       # keeping it here just to be safe and support
                       # the possibility with future expansions.
                     if kwargs is not None:
-                        calc = calc(self, data["folder"], data["calc_ran_seed"], **kwargs)
+                        calc = calc(self, data["folder"], data["calc_contr_dir"],
+                                    data["calc_ran_seed"], **kwargs)
                     else:
-                        calc = calc(self, data["folder"], data["calc_ran_seed"])
+                        calc = calc(self, data["folder"], data["calc_contr_dir"],
+                                    data["calc_ran_seed"])
                 self.set_calculator(calc)
 
         else:
@@ -335,9 +340,10 @@ class Atoms(ase.Atoms):
                     data["properties"].update(_recursively_convert_units({prop:value}))
 
         data["positions"] = np.array(self.positions)
-        if self.calc is not None:
-            calc_dict = self.calc.to_dict(self.calc.folder)
+        if self.calc is not None and not isinstance(self.calc, SinglePointCalculator):
+            calc_dict = self.calc.to_dict()
             data["calc"] = self.calc.name
+            data["calc_contr_dir"] = calc_dict["contr_dir"]
             if "version" in calc_dict:
                 data["calc_version"] = calc_dict["version"] 
             if hasattr(self.calc,"args"):

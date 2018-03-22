@@ -922,8 +922,7 @@ class Group(object):
         return final_dict
 
 class Database(object):
-
-        """Represents a Database of groups (all inheriting from :class:`Group`) that 
+    """Represents a Database of groups (all inheriting from :class:`Group`) that 
     are all related be the atomic configuration that they model.
     .. note:: See the list of attributes below which correspond to the sections
       in the YAML database specification file.
@@ -1257,7 +1256,7 @@ class RecycleBin(Database):
 
         hash_str = ""
         for atom in self.rset():
-            temp_atom = Atoms(atom):
+            temp_atom = Atoms(atom)
             hash_str += convert_dict_to_str(temp_atom.to_dict())
 
         return str(sha1(hash_str).hexdigest())

@@ -1,5 +1,18 @@
 # Revision History for `matdb`
 
+## Revision 1.1.1
+
+- Added the controll directory to the calling interface for the
+  creation of calculators in the `Atoms` object.
+- Added an check for `SinglePointCalculator` when reading the atoms
+  from hdf5 files (we don't over-write the `ase`
+  `SinglePointCalculator` so it dosen't have a `to_dict` method that
+  would save the required fields so instead we just skip the
+  calculator setup).
+- Removed the folder argument from the calculators `to_dict` method
+  since it isn't needed/used.
+
+
 ## Revision 1.1.0
 
 - The database finalize method has been implemented as described in
