@@ -97,23 +97,29 @@ class Hessian(Group):
             if not path.isdir(new_root):
                 mkdir(new_root)
             dbargs['root'] = new_root
-        super(Hessian, self).__init__(**dbargs)
         
         #Make sure that we override the global calculator default values with
-        #those settings that we know are needed for good phonon calculations.
+        #those settings that we know are needed for good phonon calculations. We
+        #also need to assign the parent here *before* the super.__init__ so that
+        #the recursive database lookup works.
+        self.dfpt = dfpt
+        self.parent = dbargs["parent"]
         calcargs = self.database.calculator.copy()
         if "calculator" in dbargs:
             if dbargs["calculator"] is not None and "name" in dbargs["calculator"]:
                 calcargs.update(dbargs["calculator"])
-                self._set_calc_defaults(calcargs)
-                dbargs["calculator"] = calcargs            
+        self._set_calc_defaults(calcargs)
+        dbargs["calculator"] = calcargs
 
+        #We only initialize now because we wanted to first update the dbargs for
+        #the calculator, etc.
+        super(Hessian, self).__init__(**dbargs)
+        
         if "dim" in phonopy:
             self.supercell = phonopy["dim"]
         else:
             self.supercell = None
             
-        self.dfpt = dfpt
         self.bandmesh = bandmesh
         self.dosmesh = dosmesh
         self.tolerance = tolerance
@@ -448,7 +454,7 @@ class Hessian(Group):
         """
         if self._kpath is None:
             from matdb.kpoints import parsed_kpath
-            self._kpath = parsed_kpath
+            self._kpath = parsed_kpath(self.atoms)
             
         return self._kpath    
     
@@ -462,10 +468,10 @@ class Hessian(Group):
             point labels; second is the list of points corresponding to those
             labels.
         """
-        from matdb.database import Database, Group
+        from matdb.database import Database
         if isinstance(self.parent, Database):
             return self.get_kpath()
-        elif isinstance(self.parent, DynMatrix):
+        elif isinstance(self.parent, Hessian):
             return self.parent.get_kpath()
     
     def calc_bands(self, recalc=False):
@@ -475,6 +481,7 @@ class Hessian(Group):
             recalc (bool): when True, recalculate the DOS, even if the
               file already exists.
         """
+        self._expand_sequence()
         bandfile = path.join(self.phonodir, "band.yaml")
         if not recalc and path.isfile(bandfile):
             return
