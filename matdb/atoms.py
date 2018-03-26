@@ -299,14 +299,13 @@ class Atoms(ase.Atoms):
                     else:
                         calc = calc(self, data["folder"], data["calc_contr_dir"],
                                     data["calc_ran_seed"], args)
-                else: # pragma: no cover This case hasn't arrisen in
-                      # any calculators we've tested so far but I'm
-                      # keeping it here just to be safe and support
-                      # the possibility with future expansions.
+                else: #pragma: no cover This case has never come up in
+                      #testing, however we wil keep it here to be
+                      #verbose.
                     if kwargs is not None:
                         calc = calc(self, data["folder"], data["calc_contr_dir"],
                                     data["calc_ran_seed"], **kwargs)
-                    else:
+                    else: 
                         calc = calc(self, data["folder"], data["calc_contr_dir"],
                                     data["calc_ran_seed"])
                 self.set_calculator(calc)
@@ -356,6 +355,8 @@ class Atoms(ase.Atoms):
                 data["calc_ran_seed"] = np.float64(self.calc.ran_seed)
             if hasattr(self.calc, "kpoints") and self.calc.kpoints is not None:
                 data["calc_kwargs"]["kpoints"] = _recursively_convert_units(self.calc.kpoints)
+            if hasattr(self.calc, "potcars") and self.calc.kpoints is not None:
+                data["calc_kwargs"]["potcars"] = _recursively_convert_units(self.calc.potcars)
             
         symbols = self.get_chemical_symbols()
         data["symbols"] = ''.join([i+str(symbols.count(i)) for i in set(symbols)])
@@ -518,7 +519,7 @@ class AtomsList(list):
                     msg.err("The data format {} isn't supported for reading AtomLists "
                             "from hdf5 files.".format(type(data.values()[0])))
             else:
-                atoms = [Atoms(**data)]
+                atoms = [Atoms(target,**kwargs)]
             if len(self) >0:
                 self.extend(atoms)
             else:

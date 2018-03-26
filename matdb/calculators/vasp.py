@@ -129,6 +129,9 @@ class AsyncVasp(Vasp, AsyncCalculator):
     tarball = ["vasprun.xml"]
 
     def __init__(self, atoms, folder, contr_dir, ran_seed, *args, **kwargs):
+        from matdb.utility import relpath
+        from os import environ
+        
         self.folder = path.abspath(path.expanduser(folder))
         self.kpoints = None
         if path.isdir(contr_dir):
@@ -162,6 +165,10 @@ class AsyncVasp(Vasp, AsyncCalculator):
         super(AsyncVasp, self).__init__(*args, **kwargs)
         if not path.isdir(self.folder):
             mkdir(self.folder)
+        pot_args = self.potcars.copy()
+        calc_args = self.kwargs.copy()
+        environ["VASP_PP_PATH"] = relpath(path.expanduser(pot_args["directory"]))
+            
         self.initialize(atoms)
 
     def write_input(self, atoms, directory='./'):
@@ -353,9 +360,10 @@ class AsyncVasp(Vasp, AsyncCalculator):
         # run vasp in the root directory in order to determine the
         # version number.
         if self.version is None:
-            data = execute("vasp",self.contr_dir)
+            data = execute(["vasp"],self.contr_dir)
             vasp_dict["version"] = data["output"][0].strip().split()[0]
             self.version = vasp_dict["version"]
+                
         else:
             vasp_dict["version"] = self.version
         # Files that need to be removed after being created by the

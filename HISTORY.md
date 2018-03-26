@@ -14,6 +14,10 @@
 - Fixed `datetime` import in `matdb/database/__init__.py`.
 - Removed duplicate `ran_seed` assignment in the database
   `Controller`.
+- Fixed the Vasp calculator so that the `environ` variable get set in
+  the `__init__` function.
+- Fixed bugs in the atoms reading and writing routines.
+- Added the Vasp version to the vasp stub.
 
 ## Revision 1.1.0
 
