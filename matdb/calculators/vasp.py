@@ -219,7 +219,8 @@ class AsyncVasp(Vasp, AsyncCalculator):
         """
         if not path.isdir(folder):
             return False
-        
+
+        sizeok = lambda x: stat(x).st_size > 25        
         required = ["INCAR", "POSCAR", "POTCAR"]
         if "kspacing" not in self.kwargs or "KSPACING" not in self.kwargs:
             required.append("KPOINTS")
@@ -227,8 +228,7 @@ class AsyncVasp(Vasp, AsyncCalculator):
         present = {}
         for rfile in required:
             target = path.join(folder, rfile)
-            sizeok = stat(target).st_size > 25
-            present[rfile] = path.isfile(target) and sizeok
+            present[rfile] = path.isfile(target) and sizeok(target)
 
         if not all(present.values()):
             for f, ok in present.items():
