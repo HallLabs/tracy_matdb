@@ -40,20 +40,6 @@ def compare_nested_dicts(dict1,dict2):
 
     return True
 
-def test_execute():
-    """Tests the execution via shell subprocess in a different folder.
-    """
-    from matdb.utility import execute, reporoot
-    sargs = ["pwd"]
-    target = path.join(reporoot, "matdb")
-    xres = execute(sargs, target, nlines=1)
-    assert xres["output"][0].decode("UTF-8").strip() == target
-
-    sargs = ["cat dummy-file"]
-    target = path.join(reporoot, "matdb")
-    xres = execute(sargs, target, nlines=1)
-    assert len(xres["error"]) > 0
-
 def test_cat(tmpdir):
     """Tests concatenation of multiple files.
     """
@@ -66,6 +52,20 @@ def test_cat(tmpdir):
     sargs = ["diff", "C.txt", outfile]
     xres = execute(sargs, path.join(reporoot, "tests/files"))
     assert len(xres["output"]) == 0
+
+def test_execution():
+    """Tests the execution via shell subprocess in a different folder.
+    """
+    from matdb.utility import execute, reporoot
+    sargs = ["pwd"]
+    target = path.join(reporoot, "matdb")
+    xres = execute(sargs, target, nlines=1, env_vars={"VASP_PP_PATH":"~/."})
+    assert xres["output"][0].decode("UTF-8").strip() == target
+
+    sargs = ["cat dummy-file"]
+    target = path.join(reporoot, "matdb")
+    xres = execute(sargs, target, nlines=1)
+    assert len(xres["error"]) > 0
 
 def test_symlink(tmpdir):
     """Tests symbolic linking of a file.
@@ -93,7 +93,6 @@ def test_slicer():
     """
 
     from matdb.utility import slicer
-
     obj = range(100)
 
     slicer(obj,[1])
@@ -373,44 +372,6 @@ def test_get_grid():
   'normal': [1, 2, 3]}}
 
     assert compare_nested_dicts(test,model)
-    
-def test_hdf5_in_out():
-    """Tests the writing of dictionaries to hdf5 and reading back out.
-    """
-
-    import h5py
-    from matdb.utility import load_dict_from_h5, save_dict_to_h5
-
-    dict_1_in = {"a":{"B":np.int64(1),"C":np.int64(3),"D":{"temp":np.array([10,11,12])}},
-                 "n":np.array([3,2]),"t":np.int64(5)}
-    dict_2_in = {"a":np.int64(10),"b":np.array([1,2,10])}
-
-    hf = h5py.File("temp.h5","w")
-    save_dict_to_h5(hf,dict_1_in,"/")
-    hf.close()
-
-    hf = h5py.File("temp.h5","r")
-    out = load_dict_from_h5(hf)
-    hf.close()
-    assert compare_nested_dicts(dict_1_in,out)
-    remove("temp.h5")
-    
-    hf = h5py.File("temp.h5","w")
-    save_dict_to_h5(hf,dict_2_in,"/")
-    hf.close()
-
-    hf = h5py.File("temp.h5","r")
-    out = load_dict_from_h5(hf)
-    hf.close()
-    assert compare_dicts(dict_2_in,out)
-    remove("temp.h5")
-
-    hf = h5py.File("temp.h5","w")
-
-    with pytest.raises(ValueError):
-        save_dict_to_h5(hf,{"a":2},"/")
-    hf.close()
-    remove("temp.h5")
 
 def test_linecount():
     """Tests the linecount method in utility.
@@ -418,6 +379,11 @@ def test_linecount():
     from matdb.utility import linecount
 
     assert linecount("temp") == 0
+
+    with open("temp.txt","w+") as f:
+        f.write("This is a test file. \n It is rather boring. \n. Thanks for listening.")
+    assert linecount("temp.txt") == 3
+    remove("temp.txt")
 
 def test_safeupdate():
     """Tests the safe_update method in utility.
@@ -447,6 +413,21 @@ def test_objupdate():
     al = obj_update(al,k,[[0.5,0.5,0.5]])
 
     assert np.allclose(al.positions,[[0.5,0.5,0.5]])
+
+    al = Atoms("Si",positions=[[0,0,0]])
+    c = Atoms("C",positions=[[0,0,0]])
+    k = "Si.positions"
+
+    temp = [{"Si":al},{"c":c}]
+    temp = obj_update(temp,k,[[0.5,0.5,0.5]])
+
+    assert np.allclose(temp[0]["Si"].positions,[[0.5,0.5,0.5]])
+
+    al = Atoms("Si",positions=[[0,0,0]])
+    temp = {"Si":[[0,0,0]]}
+    k = "Si"
+    temp = obj_update(temp,k,[[0.5,0.5,0.5]],copy=False)
+    assert np.allclose(temp["Si"],[[0.5,0.5,0.5]])
 
 def test_copyonce():
     """Tests the copyonce method in utility.
@@ -542,6 +523,11 @@ def test_load_datetime():
 
     assert out[1] == 10
 
+    data = [[1,[10,12]]]
+    out = load_datetime(data)
+    assert out[1] == [10,12]
+            
+
 def test_dbcate():
     """Tests missing lines in dbcat.
     """
@@ -551,6 +537,11 @@ def test_dbcate():
     dbcat(['temp1.txt'],'temp2.txt',sources=["temp3.txt"])
 
     assert not path.isfile('temp2.txt.json')
+    remove("temp2.txt")
+    
+    dbcat(['temp1.txt'],'temp2.txt')
+
+    assert path.isfile('temp2.txt')
     remove("temp2.txt")
 
 def test_getattrs():
@@ -566,3 +557,110 @@ def test_getattrs():
                                  [ 0.,  0.,  0.], [ 0.,  0.,  0.]]),
                        getattrs(at,'cell'))
     
+def test_chdir(tmpdir):
+    """Tests the chdir context manager.
+    """
+
+    from matdb.utility import chdir
+    from os import getcwd, mkdir
+    
+    target = str(tmpdir.join("chdir"))
+    if not path.isdir(target):
+        mkdir(target)
+    
+    with chdir(target):
+        assert getcwd() == target
+
+    cur_dir = getcwd()
+    try:
+        with chdir(str(tmpdir.join('not_chdir'))):
+            l = 1
+    except:
+        l = 1
+    assert getcwd() == cur_dir
+
+def test_dict_update():
+    """Tests dictionary update.
+    """
+
+    from matdb.utility import dict_update
+    
+    a = {"one":1, "two":2, "four":{"b":2}}
+    b = {"two":2.01, "three":3, "four":{"a":1}}
+
+    dict_update(a,b)
+    out = {"one":1, "two":2, "three":3, "four":{"a":1, "b":2}}
+
+    assert compare_nested_dicts(a,out)
+
+def test_rel_path():
+    """Tests the relative path. 
+    """
+
+    from matdb.utility import relpath
+
+    temp = relpath("./tests")
+    assert "matdb/tests" in temp
+
+def test_compare_tree(tmpdir):
+    """Tests the folder comparison method.
+    """
+
+    from os import mkdir
+    from matdb.utility import touch, compare_tree
+    test_dir = str(tmpdir.join("comp_tree"))
+    mkdir(test_dir)
+
+    touch(path.join(test_dir,"compute.pkl"))
+    touch(path.join(test_dir,"jobfile.sh"))
+    mkdir(path.join(test_dir,"phonopy"))
+    touch(path.join(test_dir,"phonopy","POSCAR"))
+    
+    folders = {
+        "__files__": ["compute.pkl","jobfile.sh"],
+        "phonopy": {
+            "__files__": ["POSCAR"]
+        },
+    }
+
+    compare_tree(test_dir,folders)
+
+def test_pgrid():
+    """Tests the paramater grid generation.
+    """
+
+    from matdb.utility import pgrid
+
+    opts = {"dim*":[1],"tum":[2],"leg":3}
+    ignore = ["leg"]
+
+    grid, keys = pgrid(opts,ignore)
+
+    assert keys == ["dim","tum"]
+    assert grid == [(1,[2])]
+
+def test_dict_to_str():
+    """Tests convertion of dict to str.
+    """
+    from matdb.utility import convert_dict_to_str
+    
+    in_dict = {"a":1, "b":{"c":2}}
+    out = convert_dict_to_str(in_dict)
+
+    assert out == "'a':'1';'b':''c':'2';';"
+
+def test_check_deps():
+    """Tests the dependency checker.
+    """
+
+    from matdb.utility import required_packages, check_deps
+
+    assert ["argparse", "ase", "backports.functools-lru-cache", "beautifulsoup4", "certifi", 
+            "chardet", "cycler", "h5py", "html5lib", "idna", "matplotlib", "mpld3", 
+            "numpy", "phenum", "phonopy", "pyparsing", "python-dateutil", "pytz", 
+            "PyYAML", "requests", "setuptools", "six", "subprocess32", "termcolor", 
+            "tqdm", "urllib3", "webencodings", "lazy_import", "seekpath"] == required_packages()
+
+    res = check_deps()
+
+    assert res["six"] is not None

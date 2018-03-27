@@ -17,7 +17,7 @@ def get_calculator_module(calcargs):
     
     try:
         mod = getmodule(cls)
-    except:
+    except: #pragma: no cover
         pass
 
     return mod

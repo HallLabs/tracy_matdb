@@ -879,7 +879,7 @@ class Group(object):
             if cleaned:
                 atoms = self.rset()
                 atoms_dict = {"atom_{}".format(Atoms(f).uuid): f for f in atoms}
-                from matdb.utility import save_dict_to_h5
+                from matdb.io import save_dict_to_h5
                 with h5py.File(target,"w") as hf:
                     save_dict_to_h5(hf,atoms_dict,'/')
             return cleaned                
@@ -1698,7 +1698,7 @@ class Controller(object):
               names. This limits which databases sequences are returned.
         """
 
-        from matdb.utility import save_dict_to_h5
+        from matdb.io import save_dict_to_h5
         from matdb import __version__
         
         final_dict = self.versions.copy()

@@ -425,7 +425,7 @@ def test_reading_multiple_files(tmpdir):
     
     from matdb.calculators import Vasp
     from matdb.atoms import Atoms as Atoms, AtomsList
-    from matdb.utility import save_dict_to_h5
+    from matdb.io import save_dict_to_h5
     import h5py
 
     target = str(tmpdir.join("read_atoms2"))

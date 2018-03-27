@@ -282,7 +282,7 @@ class Atoms(ase.Atoms):
 
         frmt = target.split('.')[-1]
         if frmt == "h5" or frmt == "hdf5":
-            from matdb.utility import load_dict_from_h5
+            from matdb.io import load_dict_from_h5
             with h5py.File(target,"r") as hf:
                 data = load_dict_from_h5(hf)
             if "atom" in data.keys()[0]:
@@ -376,7 +376,7 @@ class Atoms(ase.Atoms):
 
         frmt = target.split('.')[-1]
         if frmt == "h5" or frmt == "hdf5":
-            from matdb.utility import save_dict_to_h5
+            from matdb.io import save_dict_to_h5
             with h5py.File(target,"w") as hf:
                 data = self.to_dict()
                 save_dict_to_h5(hf,data,'/')
@@ -501,7 +501,7 @@ class AtomsList(list):
         """
         frmt = target.split('.')[-1]
         if frmt == "h5" or frmt == "hdf5":
-            from matdb.utility import load_dict_from_h5
+            from matdb.io import load_dict_from_h5
             with h5py.File(target,"r") as hf:
                 data = load_dict_from_h5(hf)
             # If the data was read in from and hdf5 file written by
@@ -542,7 +542,7 @@ class AtomsList(list):
 
         frmt = target.split('.')[-1]
         if frmt == "h5" or frmt == "hdf5":
-            from matdb.utility import save_dict_to_h5
+            from matdb.io import save_dict_to_h5
             with h5py.File(target,"w") as hf:
                 for atom in self:
                     data = atom.to_dict()

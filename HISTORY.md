@@ -18,6 +18,8 @@
   the `__init__` function.
 - Fixed bugs in the atoms reading and writing routines.
 - Added the Vasp version to the vasp stub.
+- Moved `save_dict_to_h5` from matdb/utility.py to matdb/io.py.
+- Fixed minor typos and bugs in the Vasp calculator.
 
 ## Revision 1.1.0
 

@@ -146,25 +146,25 @@ class AsyncVasp(Vasp, AsyncCalculator):
         # creation of the POTCAR file.
         self.potcars = kwargs.pop("potcars")
             
-        self.atoms = atoms
         self.args = args
         self.kwargs = kwargs
 
         # if 'xc' was set on either the kwargs or the potcars
         # dictionaries but not the other then we need to copy it over.
-
         if "xc" in self.kwargs and "xc" not in self.potcars:
             self.potcars["xc"] = self.kwargs["xc"]
         elif "xc" in self.potcars and "xc" not in self.kwargs:
             self.kwargs["xc"] = self.potcars["xc"]
         elif "xc" not in self.potcars and "xc" not in self.kwargs:
-            msg.err("'xc' must be provided as either a calculator keyword "
-                    "or a potcar keyword.")
+            raise ValueError("'xc' must be provided as either a calculator keyword "
+                             "or a potcar keyword.")
+
         self.ran_seed = ran_seed
         self.version = None
         super(AsyncVasp, self).__init__(*args, **kwargs)
         if not path.isdir(self.folder):
             mkdir(self.folder)
+        self.atoms = atoms
         pot_args = self.potcars.copy()
         calc_args = self.kwargs.copy()
         environ["VASP_PP_PATH"] = relpath(path.expanduser(pot_args["directory"]))
@@ -180,7 +180,7 @@ class AsyncVasp(Vasp, AsyncCalculator):
                    self.atoms_sorted,
                    symbol_count=self.symbol_count)
         self.write_incar(atoms, directory=directory)
-        self._write_potcar(directory=directory)
+        self._write_potcar()
         if self.kpoints is not None:
             write_kpoints(directory, self.kpoints, self.atoms)
         elif "kspacing" not in self.kwargs:
@@ -208,8 +208,7 @@ class AsyncVasp(Vasp, AsyncCalculator):
             else:
                 version = None
                 
-            calc = AsyncVasp(self.atoms,self.contr_dir,self.contr_dir,self.ran_seed,**calc_args)
-            calc.write_potcar(director=self.contr_dir)            
+            self.write_potcar(directory=self.contr_dir)            
 
         symlink(path.join(self.folder,"POTCAR"),POTCAR)        
 
@@ -311,7 +310,7 @@ class AsyncVasp(Vasp, AsyncCalculator):
         with chdir(folder):
             self.converged = self.read_convergence()
             self.set_results(self.atoms)
-            E = self.get_total_energy()
+            E = self.get_potential_energy(atoms=self.atoms)
             F = self.forces
             S = self.stress
             self.atoms.add_property("vasp_force", F)
@@ -342,7 +341,7 @@ class AsyncVasp(Vasp, AsyncCalculator):
             rm_files = light + default
         
         for f in rm_files:
-            targot = path.join(folder,f)
+            target = path.join(folder,f)
             if path.isfile(target):
                 remove(target)
 
@@ -359,11 +358,14 @@ class AsyncVasp(Vasp, AsyncCalculator):
 
         # run vasp in the root directory in order to determine the
         # version number.
+        if hasattr(self,"potcars"):
+            vasp_dict["kwargs"]["potcars"] = self.potcars
+        if hasattr(self,"kpoints"):
+            vasp_dict["kwargs"]["kpoints"] = self.kpoints
         if self.version is None:
             data = execute(["vasp"],self.contr_dir)
             vasp_dict["version"] = data["output"][0].strip().split()[0]
             self.version = vasp_dict["version"]
-                
         else:
             vasp_dict["version"] = self.version
         # Files that need to be removed after being created by the
