@@ -49,9 +49,6 @@ class SyncQuip(quippy.Potential, SyncCalculator):
                   "constraint":atoms.constraints, "info":info,
                   "n":len(atoms.positions)}
         return Atoms(**kwargs)
-        
-    def todict(self):
-        return {"calcargs": self.calcargs, "calckw": self.calckw}
 
     def calc(self,atoms,**kwargs):
         """Replaces the calc function with one that returns a matdb atoms object.

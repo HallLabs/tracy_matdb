@@ -1,4 +1,4 @@
-"""Tests the I/O functions for template hierarchy parsing in matdb.
+"""Tests the vasp calculator in matdb.
 """
 import pytest
 from matdb.atoms import Atoms

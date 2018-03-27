@@ -20,6 +20,7 @@
 - Added the Vasp version to the vasp stub.
 - Moved `save_dict_to_h5` from matdb/utility.py to matdb/io.py.
 - Fixed minor typos and bugs in the Vasp calculator.
+- Removed duplicate `todict` method from the `Quip` calculotar.
 
 ## Revision 1.1.0
 
