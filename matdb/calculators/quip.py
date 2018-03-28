@@ -76,7 +76,7 @@ class SyncQuip(quippy.Potential, SyncCalculator):
             if key=="force":
                 new_val = np.transpose(new_val)
             atoms.add_property(key,new_val)
-        if not np.allclose(atoms.positions,temp_A.positions):
+        if not np.allclose(atoms.positions,temp_A.positions): 
             atoms.positions = temp_A.positions
 
     def can_execute(self):

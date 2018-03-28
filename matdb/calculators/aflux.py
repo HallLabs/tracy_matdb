@@ -46,6 +46,7 @@ class AsyncAflow(SyncCalculator):
         self.kwargs["entry"] = self.entry
         self.folder = folder
         self.atoms = atoms
+        self.kwargs["entry"] = entry 
         
     @property
     def entry_file(self):
@@ -112,7 +113,7 @@ class AsyncAflow(SyncCalculator):
         """
         aflux_dict = {"folder":self.folder, "ran_seed":self.ran_seed,
                      "contr_dir":self.contr_dir, "kwargs": self.kwargs,
-                     "args": self.args}
+                      "args": self.args}
 
         # Need to determine how/what to store as aflux version number.
         # aflux_dict["version"] = 
