@@ -21,6 +21,9 @@
 - Moved `save_dict_to_h5` from matdb/utility.py to matdb/io.py.
 - Fixed minor typos and bugs in the Vasp calculator.
 - Removed duplicate `todict` method from the `Quip` calculotar.
+- Added entry to kwargs dict of `to_dict` method of the `aflux`
+  calculator.
+- Fixed some minor typos in the `database` classes.
 
 ## Revision 1.1.0
 
