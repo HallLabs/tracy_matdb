@@ -2,9 +2,7 @@
 """
 import pytest
 from matdb.atoms import Atoms
-from matdb.utility import reporoot, relpath
 from matdb.calculators import Quip
-from os import path, mkdir, remove
 import six
 import numpy as np
 from ase import Atoms as aseAtoms
