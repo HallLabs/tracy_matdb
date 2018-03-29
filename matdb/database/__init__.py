@@ -961,12 +961,14 @@ class Database(object):
         self.config = name.split('.')[0]
         self.root = root
         self.splits = {} if splits is None else splits
-        self.rec_bin = RecycleBin(parent,root,splits)
-        
+
+        print(self.root)
         if not path.isdir(self.root):
             from os import mkdir
             mkdir(self.root)
 
+        self.rec_bin = RecycleBin(parent,root,splits)
+        
         parrefs = ["species", "execution", "plotdir", "calculator"]
         for ref in parrefs:
             setattr(self, ref, getattr(parent, ref))
