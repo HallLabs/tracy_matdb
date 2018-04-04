@@ -109,12 +109,11 @@ class Simple(Group):
         super(Simple, self).setup(self._setup_configs, rerun)
             
     def _setup_configs(self, rerun):
-        """<<explanation of function.>>
-
+        """
         Args:
             rerun (bool): when True, recreate the folders even if they
               already exist. 
-        """        
+        """
         #We also don't want to setup again if we have the results already.
         if self.ready():
             return

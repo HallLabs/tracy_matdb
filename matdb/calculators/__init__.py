@@ -1,6 +1,10 @@
 from .vasp import AsyncVasp as Vasp
-from .quip import SyncQuip as Quip
 from .aflux import AsyncAflow as Aflow
+from matdb.msg import info
+try:
+    from .quip import SyncQuip as Quip
+except:
+    info("Could not load Quip Calculator.")
 
 def get_calculator_module(calcargs):
     """Returns the module corresponding to the calculator mentioned in

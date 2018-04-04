@@ -181,7 +181,7 @@ class AsyncVasp(Vasp, AsyncCalculator):
                    symbol_count=self.symbol_count)
         self.write_incar(atoms, directory=directory)
         # self._write_potcar()
-        self.write_potcar(directory=direct)
+        self.write_potcar(directory=directory)
         if self.kpoints is not None:
             write_kpoints(directory, self.kpoints, self.atoms)
         elif "kspacing" not in self.kwargs:

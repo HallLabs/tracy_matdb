@@ -911,14 +911,14 @@ def check_deps():
             name, version = pkg.strip().split("==")
         else:
             name, version = pkg, None
-        if name.lower() in req_pckgs:
+        if name in req_pckgs:
             count = version.count(".")
             if version is not None and (count in [1,2,3] and ("/" not in version
                                                               and ":" not in version
                                                               and  "-" not in version
                                                               and ".com" not in version)):
-                versions[name.lower()] = version
-                req_pckgs.remove(name.lower())
+                versions[name] = version
+                req_pckgs.remove(name)
             else: #pragma: no cover There won't be locally installed
                   #packages on the test machines.
                 msg.err("Cannot run `matdb` with locally installed package {} "
@@ -934,9 +934,9 @@ def required_packages():
     hard coded before each commit.
     """
 
-    return ["argparse", "ase", "backports.functools-lru-cache", "beautifulsoup4", "certifi",
+    return ["ase", "beautifulsoup4", "certifi",
             "chardet", "cycler", "h5py", "html5lib", "idna", "matplotlib", "mpld3",
             "numpy", "phenum", "phonopy", "pyparsing", "python-dateutil", "pytz",
-            "PyYAML", "requests", "setuptools", "six", "subprocess32", "termcolor",
-            "tqdm", "urllib3", "webencodings", "lazy_import", "seekpath"]
+            "PyYAML", "requests", "six", "subprocess32", "termcolor",
+            "tqdm", "urllib3", "webencodings", "lazy-import", "seekpath"]
 
