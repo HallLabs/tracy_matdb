@@ -5,7 +5,6 @@ from os import path, rename
 from matdb import msg
 from collections import OrderedDict
 import numpy as np
-import quippy
 from .basic import Trainer
 from matdb.utility import cat
 from glob import glob
@@ -39,14 +38,14 @@ class MTP(Trainer):
     """
     def __init__(self, controller=None, dbs=None, execution=None,
                  split=None, root=None, parent=None, dbfilter=None, **mtpargs):
-        self.name = "{}b".format(nb) if isinstance(nb, int) else "mtp"
+        self.name = "mtp"
         super(MTP, self).__init__(controller, dbs, execution, split, root,
                                   parent, dbfilter)
         self.controller = controller
         self.ncores = execution["ntasks"]
         self.root = root 
 
-        if mtpargs["relax"] is not None:
+        if "relax" in mtpargs and mtpargs["relax"] is not None:
             self._set_relax_ini(mtpargs["relax"])
         else:
             self._set_relax_ini({})
@@ -65,7 +64,7 @@ class MTP(Trainer):
 
         # we need access to the active learning set
         from matdb.database.active import Active
-        self.active = Active()
+t        self.active = Active()
         
         #Configure the fitting directory for this particular potential.
         from os import mkdir
@@ -127,13 +126,13 @@ class MTP(Trainer):
 
         self.relax = relax_args
         
-    def get_calculator(self):
-        """Returns an instance of :class:`ase.Calculator` using the latest
-        fitted GAP potential in this trainer.
-        """
-        from quippy.potential import Potential
-        if path.isfile(self.mtp_file):
-            return Potential("IP MTP", param_filename=self.mtp_file)
+    # def get_calculator(self):
+    #     """Returns an instance of :class:`ase.Calculator` using the latest
+    #     fitted GAP potential in this trainer.
+    #     """
+    #     from quippy.potential import Potential
+    #     if path.isfile(self.mtp_file):
+    #         return Potential("IP MTP", param_filename=self.mtp_file)
 
     def ready(self):
         """Determines if the potential is ready for use.

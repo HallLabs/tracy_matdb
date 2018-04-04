@@ -1,7 +1,7 @@
 """Implements a basic trainer that train material models.
 """
 import abc
-import quippy
+from matdb import atoms
 from os import path
 from matdb import msg
 
@@ -256,7 +256,7 @@ class Trainer(object):
             
     @property
     def validation(self):
-        """Returns a :class:`quippy.AtomsList` of configurations that can be
+        """Returns a :class:`atoms.AtomsList` of configurations that can be
         used for potential validation.
         """
         return self.configs("holdout")
@@ -288,8 +288,8 @@ class Trainer(object):
                 if path.isfile(filtdb):
                     continue
                 
-                al = quippy.AtomsList(dbfile)
-                nl = quippy.AtomsList()
+                al = atoms.AtomsList(dbfile)
+                nl = atoms.AtomsList()
                 for a in al:
                     #The 0 index here gets the function out; see comment above
                     #about the filters dictionary.
@@ -313,11 +313,11 @@ class Trainer(object):
 
         Args:
             kind (str): on of ['train', 'holdout', 'super'].
-            asatoms (bool): when True, return a :class:`quippy.AtomsList`
+            asatoms (bool): when True, return a :class:`atoms.AtomsList`
               object; otherwise just compile the file.
 
         Returns:
-            quippy.AtomsList: for the specified configuration class.
+            atoms.AtomsList: for the specified configuration class.
         """
         fmap = {
             "train": lambda seq, splt: seq.train_file(splt),
@@ -361,14 +361,14 @@ class Trainer(object):
             dbcat(cfiles, cfile)
 
         if asatoms:
-            return quippy.AtomsList(cfile)
+            return atoms.AtomsList(cfile)
     
     def validate(self, configs=None, energy=True, force=True, virial=True):
         """Validates the calculator in this training object against the `holdout.xyz`
         configurations in the source databases.
 
         Args:
-            configs (quippy.AtomsList): list of configurations to validate
+            configs (atoms.AtomsList): list of configurations to validate
               against. If not provided, built-in holdout set will be used.
             energy (bool): when True, validate the energies of each
               configuration.

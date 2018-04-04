@@ -540,6 +540,8 @@ class Group(object):
               already exists. 
         """
 
+        # import pudb
+        # pudb.set_trace()
         self._expand_sequence()
         
         if len(self.sequence) == 0:
@@ -779,8 +781,23 @@ class Group(object):
             for group in self.sequence.values():
                 allatoms.extend(group.config_atoms.values())
                 allconfigs.extend(group.configs.values())
-                
+
+        if len(allatoms) == 0:
+            allatoms = [self.atoms]
         for f, a in zip(allconfigs,tqdm(allatoms)):
+            with open(path.join(f,"uuid.txt"),"r") as f2:
+                uid = f2.readline().strip()
+                time_stamp = f2.readline().strip()
+            a.uuid = uid
+            a.time_stamp = time_stamp
+            a.group_uuid = self.uuid
+            lcargs = self.calcargs.copy()
+            del lcargs["name"]
+
+            calc = self.calc(a, f, self.database.parent.root,
+                             self.database.parent.ran_seed, **lcargs)
+            a.set_calculator(calc)
+
             ready[f] = a.calc.can_execute(f)
             done[f] = a.calc.can_extract(f)
         
@@ -864,9 +881,19 @@ class Group(object):
                     #exist.
                     continue
                 
-                atoms = self.config_atoms[cid]
-                atoms.calc.extract(folder, cleanup=cleanup)
-                atoms.write(path.join(folder,"atoms.h5"))
+                with open(path.join(folder,"uuid.txt"),"r") as f:
+                    uid = f.readline().strip()
+                    time_stamp = f.readline().strip()
+                self.atoms.uuid = uid
+                self.atoms.time_stamp = time_stamp
+                self.atoms.group_uuid = self.uuid
+                lcargs = self.calcargs.copy()
+                del lcargs["name"]                    
+                calc = self.calc(self.atoms, folder, self.database.parent.root,
+                                 self.database.parent.ran_seed, **lcargs)
+                self.atoms.set_calculator(calc)
+                self.atoms.calc.extract(folder, cleanup=cleanup)
+                self.atoms.write(path.join(folder,"atoms.h5"))
             return self.can_extract()
         elif len(self.sequence) >0:
             pbar = tqdm(total=len(self.sequence))
