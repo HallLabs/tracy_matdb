@@ -10,6 +10,13 @@ from .basic import Trainer
 from matdb.utility import cat
 from glob import glob
 
+def RepresentsInt(s):
+    try: 
+        int(s)
+        return True
+    except ValueError:
+        return False
+
 class MTP(Trainer):
     """Implements a simple wrapper around the MTP training functionality for
     creating MTP potentials.
@@ -166,6 +173,7 @@ class MTP(Trainer):
         from os import system, rename
         from matdb.utility import cat
         if path.isfile(path.join(target,"OUTCAR")):
+            self._parse_POSCAR(target)
             system("mlp convert-cfg {0}/OUTCAR {1}/diff.cfg --input-format=vasp-outcar >> outcar.txt".format(target,self.root))
             if path.isfile(path.join(self.root,"diff.cfg")):
                 if path.isfile(path.join(self.root,"train.cfg")):
@@ -179,6 +187,79 @@ class MTP(Trainer):
                         "{}".format(path.join(self.root,target)))
         else:
             msg.err("The folder {} didn't run.".format(path.join(self.root,target)))
+
+    def _parse_POSCAR(self,target):
+        """Changes the POTCAR and CONTCAR to have the correct concentration
+        string with the zeros intact.
+
+        Args:
+            target (str): the path to the directory in which a calculation 
+                was performed.
+        """
+        from os import rename
+
+        if not path.isfile(path.join(target,"CONTCAR")):
+            msg.err("Calculations for {0} directory didn't finish.".format(target))
+        else:
+            rename(path.join(target,"CONTCAR"),path.join(target,"CONTCAR_ase"))
+            rename(path.join(target,"POSCAR"),path.join(target,"POSCAR_ase"))
+
+            # We need to grad the first line of the POSCAR to
+            # determine the species present and the concentration
+            # string of the POSCAR.
+            with open(path.join(target,"POSCAR_ase"),"r") as f:
+                specs = f.readline().strip().split()
+                temp = f.readline()
+                for i in range(3):
+                    temp = f.readline()
+                concs = f.readline().strip().split()
+                if not RepresentsInt(concs[0]):
+                    concs = f.readline().strip().split()
+                if not RepresentsInt(concs[0]) or len(specs) != len(concs):
+                    msg.err("Could not Parse concentration from POSCAR in  "
+                            "{0}".format(target))
+
+            if self.species != specs:
+                new_concs = []
+                j = 0
+                for s in self.species:
+                    # if s isn't the same as the species in specs
+                    # then we've found one of the missing species
+                    if s != specs[j]:
+                        new_concs.append(0)
+                    else:
+                        new_concs.append(concs[j])
+                        j += 1
+            else:
+                new_concs = concs
+
+            with open(path.join(target,"POSCAR"),"w+") as new_f:
+                with open(path.join(target,"POSCAR_ase"),"w+") as old_f:
+                    for i, old_line in enumerate(old_f):
+                        if i== 0:
+                            new_f.write("{}\n".format(" ".join(self.species)))
+                        elif i in [5,6]:
+                            old_concs = line.strip().split()
+                            if RepresentsInt(old_concs[0]):
+                                new_f.write("  {}\n".format("   ".join(new_concs)))
+                            else:
+                                new_f.write(old_line)
+                        else:
+                            new_f.write(old_line)
+
+            with open(path.join(target,"CONTCAR"),"w+") as new_f:
+                with open(path.join(target,"CONTCAR_ase"),"w+") as old_f:
+                    for i, old_line in enumerate(old_f):
+                        if i== 0:
+                            new_f.write("{}\n".format(" ".join(self.species)))
+                        elif i in [5,6]:
+                            old_concs = line.strip().split()
+                            if RepresentsInt(old_concs[0]):
+                                new_f.write("  {}\n".format("   ".join(new_concs)))
+                            else:
+                                new_f.write(old_line)
+                        else:
+                            new_f.write(old_line)
 
     def _make_pot_initial(self):
 
@@ -307,6 +388,7 @@ class MTP(Trainer):
             # if the unrelaxed.cfg file exists we need to move it to
             # replace the existing 'to-relax.cfg' otherwise we need to
             # create the 'to-relax.cfg' file.
+            system("mlp calc-grade pot.mtp train.cfg train.cfg temp1.cfg")
             if path.isfile(path.join(self.root,"unrelaxed.cfg")):
                 from os import rename
                 rename(path.join(self.root,"unrelaxed.cfg"),path.join(self.root,"to-relax.cfg"))

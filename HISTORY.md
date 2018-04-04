@@ -1,5 +1,13 @@
 # Revision History for `matdb`
 
+## Revision 1.1.2
+
+- Added the `Simple` database to the repo for when configurations need
+  to be calculated without additional configurations being generated.
+- Changed the VASP calculator to use a local instead of a global POTCAR.
+- Fixed MTP method so that the POSCAR's get the zeros put back in
+  after a calculation.
+
 ## Revision 1.1.1
 
 - Added the controll directory to the calling interface for the
