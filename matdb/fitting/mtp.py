@@ -185,12 +185,28 @@ class MTP(Trainer):
             mapping = self._get_mapping(target)
             os.system("mlp convert-cfg {0}/OUTCAR {1}/diff.cfg --input-format=vasp-outcar >> outcar.txt".format(target,self.root))
             if path.isfile(path.join(self.root,"diff.cfg")):
+                rename(rename(path.join(self.root,"diff.cfg"),
+                              path.join(self.root,"diff_orig.cfg")))
+                with open(path.join(self.root,"diff_orig.cfg"),"r") as f_in:
+                    with open(path.join(self.root,"diff.cfg"),"w+") as f_out:
+                        for i, line_in in enumerate(f_in):
+                            if i==2:
+                                n_atoms = int(line_in.strip())
+                                fout.write(line_in)
+                            elif i >= 8 and i < 8+n_atoms:
+                                temp_line = line.strip().split()
+                                temp_line[1] = mapping[temp_line[1]]
+                                temp_line = "            {0}    {1}       {2}      {3}      "
+                                "{4}     {5}    {6}    {7}".format(*temp_line)
+                                f_out.write(temp_line)
+                            else:
+                                f_out.write(line_in)
                 if path.isfile(path.join(self.root,"train.cfg")):
-                    cat([path.join(self.root,"train.cfg"),path.join(self.root,"diff.cfg")],
+                    cat([path.join(self.root,"train.cfg"), path.join(self.root,"diff.cfg")],
                         path.join(self.root,"temp.cfg"))
-                    rename(path.join(self.root,"temp.cfg"),path.join(self.root,"train.cfg"))
+                    rename(path.join(self.root,"temp.cfg"), path.join(self.root,"train.cfg"))
                 else:
-                    rename(path.join(self.root,"diff.cfg"),path.join(self.root,"train.cfg"))
+                    rename(path.join(self.root,"diff.cfg"), path.join(self.root,"train.cfg"))
             else:
                 msg.err("There was an error making the config file for folder "
                         "{}".format(path.join(self.root,target)))
@@ -198,77 +214,30 @@ class MTP(Trainer):
             msg.err("The folder {} didn't run.".format(path.join(self.root,target)))
 
     def _get_mapping(self,target):
-        """Changes the POTCAR and CONTCAR to have the correct concentration
-        string with the zeros intact.
+        """Finds the species mappings for the atomic numbers found in the
+        trani.cfg file so that is will be correct.
 
         Args:
             target (str): the path to the directory in which a calculation 
                 was performed.
+
         """
         from os import rename
 
-        if not path.isfile(path.join(target,"CONTCAR")):
-            msg.err("Calculations for {0} directory didn't finish.".format(target))
+        if not path.isfile(path.join(target,"POSCAR")):
+            msg.err("Setup failed for {0}.".format(target))
         else:
-            rename(path.join(target,"CONTCAR"),path.join(target,"CONTCAR_ase"))
-            rename(path.join(target,"POSCAR"),path.join(target,"POSCAR_ase"))
-
-            # We need to grad the first line of the POSCAR to
-            # determine the species present and the concentration
-            # string of the POSCAR.
-            with open(path.join(target,"POSCAR_ase"),"r") as f:
+            # We need to grab the first line of the POSCAR to
+            # determine the species present.
+            with open(path.join(target,"POSCAR"),"r") as f:
                 specs = f.readline().strip().split()
-                temp = f.readline()
-                for i in range(3):
-                    temp = f.readline()
-                concs = f.readline().strip().split()
-                if not RepresentsInt(concs[0]):
-                    concs = f.readline().strip().split()
-                if not RepresentsInt(concs[0]) or len(specs) != len(concs):
-                    msg.err("Could not Parse concentration from POSCAR in  "
-                            "{0}".format(target))
 
-            if self.species != specs:
-                new_concs = []
-                j = 0
-                for s in self.species:
-                    # if s isn't the same as the species in specs
-                    # then we've found one of the missing species
-                    if s != specs[j]:
-                        new_concs.append(0)
-                    else:
-                        new_concs.append(concs[j])
-                        j += 1
-            else:
-                new_concs = concs
+            mapping = {}
+            j = 0
+            for i, s  in enumerate(specs):
+                mapping[i] = self.species.index(s)
 
-            with open(path.join(target,"POSCAR"),"w+") as new_f:
-                with open(path.join(target,"POSCAR_ase"),"w+") as old_f:
-                    for i, old_line in enumerate(old_f):
-                        if i== 0:
-                            new_f.write("{}\n".format(" ".join(self.species)))
-                        elif i in [5,6]:
-                            old_concs = line.strip().split()
-                            if RepresentsInt(old_concs[0]):
-                                new_f.write("  {}\n".format("   ".join(new_concs)))
-                            else:
-                                new_f.write(old_line)
-                        else:
-                            new_f.write(old_line)
-
-            with open(path.join(target,"CONTCAR"),"w+") as new_f:
-                with open(path.join(target,"CONTCAR_ase"),"w+") as old_f:
-                    for i, old_line in enumerate(old_f):
-                        if i== 0:
-                            new_f.write("{}\n".format(" ".join(self.species)))
-                        elif i in [5,6]:
-                            old_concs = line.strip().split()
-                            if RepresentsInt(old_concs[0]):
-                                new_f.write("  {}\n".format("   ".join(new_concs)))
-                            else:
-                                new_f.write(old_line)
-                        else:
-                            new_f.write(old_line)
+        return mapping
 
     def _make_pot_initial(self):
 
