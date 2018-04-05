@@ -7,7 +7,7 @@ import numpy as np
 from six import string_types
 from matdb.atoms import Atoms, AtomsList
 
-class Simple(Group):
+class Manual(Group):
     """<<Your description here>>.
     Args:
         atoms (matdb.atoms.Atoms): seed configuration that will be
@@ -26,20 +26,20 @@ class Simple(Group):
           calculations will be performed.
     """
 
-    def __init__(self, name="simple", **dbargs):
+    def __init__(self, name="manual", **dbargs):
         self.name = name
         self.seeded = True
         dbargs["prefix"] = "S1"
-        dbargs["cls"] = Simple
-        if "Simple" not in dbargs['root']:
+        dbargs["cls"] = Manual
+        if "Manual" not in dbargs['root']:
             from os import mkdir
-            new_root =path.join(dbargs['root'],"Simple")
+            new_root =path.join(dbargs['root'],"Manual")
             if not path.isdir(new_root):
                 mkdir(new_root)
             dbargs['root'] = new_root
-        super(Simple, self).__init__(**dbargs)
+        super(Manual, self).__init__(**dbargs)
 
-        self.nconfigs = len(self.configs)
+        self.nconfigs = 1
         
         #Make sure that we override the global calculator default values with
         #those settings that we know are needed for good phonon calculations.
@@ -113,7 +113,7 @@ class Simple(Group):
             rerun (bool): when True, recreate the folders even if they
               already exist. 
         """
-        super(Simple, self).setup(self._setup_configs, rerun)
+        super(Manual, self).setup(self._setup_configs, rerun)
             
     def _setup_configs(self, rerun):
         """
