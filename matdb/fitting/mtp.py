@@ -9,6 +9,7 @@ from .basic import Trainer
 from matdb.utility import cat
 from glob import glob
 import os
+from tqdm import tqdm
 
 def RepresentsInt(s):
     try: 
@@ -44,7 +45,10 @@ class MTP(Trainer):
                                   parent, dbfilter)
         self.controller = controller
         self.ncores = execution["ntasks"]
-        self.root = root 
+        if "mtp" not in self.root:
+            self.root = path.join(root,"mtp")
+        else:
+            self.root = root
 
         if "relax" in mtpargs and mtpargs["relax"] is not None:
             self._set_relax_ini(mtpargs["relax"])
@@ -163,11 +167,15 @@ class MTP(Trainer):
         from matdb.utility import cat
         if iteration == 1:
             for db in self.dbs:
+                pbar = tqdm(total=len(db.fitting_configs))
                 for config in db.fitting_configs:
                     self._create_train_cfg(config)
+                    pbar.update(1)
         else:
+            pbar = tqdm(total=len(self.active.last_iteration.values()))
             for config in self.active.last_iteration.values():
                 self._create_train_cfg(path.join(self.root,"train.cfg"),config)
+                pbar.update(1)
 
     def _create_train_cfg(self,target):
         """Creates a 'train.cfg' file for the calculation stored at the target
@@ -177,27 +185,24 @@ class MTP(Trainer):
             target (str): the path to the directory in which a calculation 
                 was performed.
         """
-        import pudb
-        pudb.set_trace()
         from os import rename
         from matdb.utility import cat
         if path.isfile(path.join(target,"OUTCAR")):
             mapping = self._get_mapping(target)
             os.system("mlp convert-cfg {0}/OUTCAR {1}/diff.cfg --input-format=vasp-outcar >> outcar.txt".format(target,self.root))
             if path.isfile(path.join(self.root,"diff.cfg")):
-                rename(rename(path.join(self.root,"diff.cfg"),
-                              path.join(self.root,"diff_orig.cfg")))
+                rename(path.join(self.root,"diff.cfg"),
+                       path.join(self.root,"diff_orig.cfg"))
                 with open(path.join(self.root,"diff_orig.cfg"),"r") as f_in:
                     with open(path.join(self.root,"diff.cfg"),"w+") as f_out:
                         for i, line_in in enumerate(f_in):
                             if i==2:
                                 n_atoms = int(line_in.strip())
-                                fout.write(line_in)
+                                f_out.write(line_in)
                             elif i >= 8 and i < 8+n_atoms:
-                                temp_line = line.strip().split()
-                                temp_line[1] = mapping[temp_line[1]]
-                                temp_line = "            {0}    {1}       {2}      {3}      "
-                                "{4}     {5}    {6}    {7}".format(*temp_line)
+                                temp_line = line_in.strip().split()
+                                temp_line[1] = mapping[int(temp_line[1])]
+                                temp_line = "            {0}    {1}       {2}      {3}      {4}     {5}    {6}    {7}".format(*temp_line)
                                 f_out.write(temp_line)
                             else:
                                 f_out.write(line_in)
