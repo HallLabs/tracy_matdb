@@ -160,13 +160,11 @@ class MTP(Trainer):
             iteration (int): the number of iterations of MTP has been 
                 through.
         """
-        import pudb
-        pudb.set_trace()
         from matdb.utility import cat
         if iteration == 1:
             for db in self.dbs:
-                for config in db.configs.values():
-                    self._create_train_cfg(path.join(self.root,"train.cfg"),config)
+                for config in db.fitting_configs:
+                    self._create_train_cfg(config)
         else:
             for config in self.active.last_iteration.values():
                 self._create_train_cfg(path.join(self.root,"train.cfg"),config)
@@ -179,10 +177,12 @@ class MTP(Trainer):
             target (str): the path to the directory in which a calculation 
                 was performed.
         """
+        import pudb
+        pudb.set_trace()
         from os import rename
         from matdb.utility import cat
         if path.isfile(path.join(target,"OUTCAR")):
-            self._parse_POSCAR(target)
+            mapping = self._get_mapping(target)
             os.system("mlp convert-cfg {0}/OUTCAR {1}/diff.cfg --input-format=vasp-outcar >> outcar.txt".format(target,self.root))
             if path.isfile(path.join(self.root,"diff.cfg")):
                 if path.isfile(path.join(self.root,"train.cfg")):
@@ -197,7 +197,7 @@ class MTP(Trainer):
         else:
             msg.err("The folder {} didn't run.".format(path.join(self.root,target)))
 
-    def _parse_POSCAR(self,target):
+    def _get_mapping(self,target):
         """Changes the POTCAR and CONTCAR to have the correct concentration
         string with the zeros intact.
 

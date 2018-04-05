@@ -145,6 +145,10 @@ class AsyncVasp(Vasp, AsyncCalculator):
         # remove the "potcars" section of the kwargs for latter use in
         # creation of the POTCAR file.
         self.potcars = kwargs.pop("potcars")
+        if "exec_path" in kwargs:
+            self.executable = kwargs.pop("exec_path")
+        else:
+            self.executable = None
             
         self.args = args
         self.kwargs = kwargs
@@ -364,9 +368,14 @@ class AsyncVasp(Vasp, AsyncCalculator):
         if hasattr(self,"kpoints"):
             vasp_dict["kwargs"]["kpoints"] = self.kpoints
         if self.version is None:
-            data = execute(["vasp"],self.contr_dir)
-            vasp_dict["version"] = data["output"][0].strip().split()[0]
-            self.version = vasp_dict["version"]
+            if self.executable is not None:
+                data = execute([self.executable],self.contr_dir,venv=True)
+                vasp_dict["version"] = data["output"][0].strip().split()[0]
+                self.version = vasp_dict["version"]
+            else:
+                msg.warn("VASP execution path not set in calculator. Could not "
+                         "determine VASP version.")
+                self.version = ""
         else:
             vasp_dict["version"] = self.version
         # Files that need to be removed after being created by the

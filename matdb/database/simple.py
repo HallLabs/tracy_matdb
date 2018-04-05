@@ -39,7 +39,7 @@ class Simple(Group):
             dbargs['root'] = new_root
         super(Simple, self).__init__(**dbargs)
 
-        self.nconfigs = len(self._seed)
+        self.nconfigs = len(self.configs)
         
         #Make sure that we override the global calculator default values with
         #those settings that we know are needed for good phonon calculations.
@@ -55,14 +55,18 @@ class Simple(Group):
         """Returns a :class:`matdb.atoms.AtomsList` for all configs in this
         group. 
         """
-        result = []
-        for config in self.configs:
-            folder = self.index[euid]
-            target = path.join(folder,"atoms.h5")
-            if path.isfile(target):
-                result.append(folder)
-
-        return configs
+        if len(self.sequence) == 0:
+            result = []
+            for folder in self.configs.values():
+                target = path.join(folder,"atoms.h5")
+                if path.isfile(target):
+                    result.append(folder)
+            return result
+        else:
+            result = []
+            for g in self.sequence.values():
+                result.extend(g.fitting_configs)
+            return result
 
     @property
     def rset(self):
@@ -81,7 +85,10 @@ class Simple(Group):
             #then we want to return <<your description of the rset here>>
 	    #If we are not, then we must a parameter grid of sequences
             #to select from.
-	    return [p.rset for p in self.sequence.values()]
+            result = []
+            for g in self.sequence.values():
+                result.extend(g.rset)
+	    return AtomsList(result)
 
     def ready(self):
         """Returns True if all the calculations have been completed.
