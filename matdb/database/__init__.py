@@ -1472,7 +1472,7 @@ class Controller(object):
             return self.uuids[pattern]
         
         if pattern == '*':
-            return self.find('*.*')
+            return self.find('*/*')
         
         from fnmatch import fnmatch
         if pattern.count('/') == 3:

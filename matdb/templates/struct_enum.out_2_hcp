@@ -1,15 +1,14 @@
- # <fortpy version="3" revision="247"></fortpy>
 hcp binary
 bulk
-  1.0000000       0.0000000       0.0000000        # a1 parent lattice vector
- 0.50000000      0.86602540       0.0000000        # a2 parent lattice vector
-  0.0000000       0.0000000       1.6329932        # a3 parent lattice vector
-    2 # Number of points in the multilattice
-  0.0000000       0.0000000       0.0000000        # d01 d-vector, labels: 0/1
- 0.50000000      0.28867513      0.81649658        # d02 d-vector, labels: 0/1
+  1.0000000       0.0000000       0.0000000
+ 0.50000000      0.86602540       0.0000000
+  0.0000000       0.0000000       1.6329932
+    2
+  0.0000000       0.0000000       0.0000000
+ 0.50000000      0.28867513      0.81649658
  2-nary case
-   1   6 # Starting and ending cell sizes for search
- 0.10000000E-03 # Epsilon (finite precision parameter)
+   1   6
+ 0.10000000E-03
 Concentration check:
     F
 full list of labelings (including incomplete labelings) is used

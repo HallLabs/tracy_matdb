@@ -8,6 +8,7 @@ import numpy as np
 from .basic import Trainer
 from matdb.utility import cat
 from glob import glob
+import os
 
 def RepresentsInt(s):
     try: 
@@ -51,7 +52,7 @@ class MTP(Trainer):
             self._set_relax_ini({})
 
         self.selection_limit = mtpargs["selection-limit"]
-        self.species = mtpargs["species"]        
+        self.species = controller.db.species
         
         self.mtp_file = "pot.mtp"
         if path.isfile(path.join(self.root,"status.txt")):
@@ -60,11 +61,18 @@ class MTP(Trainer):
                     old_status = line.strip().split()
                 self.iter_status = old_status[0]
         else:
-            self.stat_iter = None
+            self.iter_status = None
 
         # we need access to the active learning set
         from matdb.database.active import Active
-t        self.active = Active()
+        from matdb.database import Database
+        db_root = self.controller.db.root
+        steps = [{"type":"active.Active"}]
+        dbargs = {"root":db_root,
+                  "parent":Database("active", db_root, self.controller.db, steps, {}),
+                  "calculator":self.controller.db.calculator}
+        self.active = Active(**dbargs)
+        self._trainfile = path.join(self.root, "train.cfg")
         
         #Configure the fitting directory for this particular potential.
         from os import mkdir
@@ -139,9 +147,10 @@ t        self.active = Active()
         """
 
         pot_file = (path.isfile(path.join(self.root, self.mtp_file)))
-        stat = (self.iter_state == "done")
-        next_iter = (len(self.last_iteration) == 0)
-        return all(pot_file,stat,next_iter)
+        stat = (self.iter_status == "done")
+        next_iter = (len(self.active.last_iteration) == 0 if
+                     self.active.last_iteration is not None else False)
+        return all([pot_file,stat,next_iter])
 
     def _make_train_cfg(self,iteration):
         """Creates the 'train.cfg' file needed to train the potential from the
@@ -151,14 +160,15 @@ t        self.active = Active()
             iteration (int): the number of iterations of MTP has been 
                 through.
         """
-
+        import pudb
+        pudb.set_trace()
         from matdb.utility import cat
         if iteration == 1:
             for db in self.dbs:
                 for config in db.configs.values():
                     self._create_train_cfg(path.join(self.root,"train.cfg"),config)
         else:
-            for config in self.active.last_iter.values():
+            for config in self.active.last_iteration.values():
                 self._create_train_cfg(path.join(self.root,"train.cfg"),config)
 
     def _create_train_cfg(self,target):
@@ -169,11 +179,11 @@ t        self.active = Active()
             target (str): the path to the directory in which a calculation 
                 was performed.
         """
-        from os import system, rename
+        from os import rename
         from matdb.utility import cat
         if path.isfile(path.join(target,"OUTCAR")):
             self._parse_POSCAR(target)
-            system("mlp convert-cfg {0}/OUTCAR {1}/diff.cfg --input-format=vasp-outcar >> outcar.txt".format(target,self.root))
+            os.system("mlp convert-cfg {0}/OUTCAR {1}/diff.cfg --input-format=vasp-outcar >> outcar.txt".format(target,self.root))
             if path.isfile(path.join(self.root,"diff.cfg")):
                 if path.isfile(path.join(self.root,"train.cfg")):
                     cat([path.join(self.root,"train.cfg"),path.join(self.root,"diff.cfg")],
@@ -328,7 +338,7 @@ t        self.active = Active()
                     infile = path.join(_get_reporoot(),"matdb","templates",
                                        "struct_enum.out_{0}_{1}_sub".format(size,crystal))
                     args["input"] = infile
-                    for edge in combinations(range(len(species)),size):
+                    for edge in combinations(range(len(self.species)),size):
                         args["mapping"] = {i:j for i, j in enumerate(edge)}
                         _make_structures(args)
                 else:
@@ -368,10 +378,10 @@ t        self.active = Active()
             self._make_train_cfg(iter_count)
 
             #remove the selected.cfg and rexaed.cfg from the last iteration if they exist
-            if os.path.isfile(path.join(self.root,"selected.cfg")):
+            if path.isfile(path.join(self.root,"selected.cfg")):
                 from os import remove
                 remove(path.join(self.root,"selected.cfg"))
-            if os.path.isfile(path.join(self.root,"relaxed.cfg")):
+            if path.isfile(path.join(self.root,"relaxed.cfg")):
                 from os import remove
                 remove(path.join(self.root,"relaxed.cfg"))        
         
@@ -387,7 +397,7 @@ t        self.active = Active()
             # if the unrelaxed.cfg file exists we need to move it to
             # replace the existing 'to-relax.cfg' otherwise we need to
             # create the 'to-relax.cfg' file.
-            system("mlp calc-grade pot.mtp train.cfg train.cfg temp1.cfg")
+            os.system("mlp calc-grade pot.mtp train.cfg train.cfg temp1.cfg")
             if path.isfile(path.join(self.root,"unrelaxed.cfg")):
                 from os import rename
                 rename(path.join(self.root,"unrelaxed.cfg"),path.join(self.root,"to-relax.cfg"))
@@ -411,13 +421,12 @@ t        self.active = Active()
 
         # if selection is done
         if self.iter_status == "add":
-            from os import system
             from glob import glob
             from quippy.atoms import Atoms
-            system("mlp convert-cfg diff.cfg POSCAR --output-format=vasp-poscar")
-            system("cp selected.cfg selected.cfg_iter_{}".format(iter_count))
+            os.system("mlp convert-cfg diff.cfg POSCAR --output-format=vasp-poscar")
+            os.system("cp selected.cfg selected.cfg_iter_{}".format(iter_count))
             if path.isfile("relaxed.cfg"):
-                system("cp relaxed.cfg relaxed.cfg_iter_{}".format(iter_count))
+                os.system("cp relaxed.cfg relaxed.cfg_iter_{}".format(iter_count))
 
             new_confgs = []
             new_POSCARS = glob("POSCAR*")

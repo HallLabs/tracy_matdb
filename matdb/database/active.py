@@ -23,6 +23,9 @@ class Active(Group):
         dbargs['prefix'] = "Ac"
         dbargs['cls'] = Active
         dbargs['trainable'] = True
+        if "calculator" in dbargs:
+            self.calcargs = dbargs["calculator"].copy()
+            del dbargs["calculator"]
         if "Active" not in dbargs['root']:
             new_root =path.join(dbargs['root'],"Active")
             if not path.isdir(new_root):
@@ -32,7 +35,7 @@ class Active(Group):
 
         self.auids = None
         self._load_auids()
-        self.nconfigs = len(self.auids)
+        self.nconfigs = len(self.auids) if self.auids is not None else 0
         self.last_iteration = None
         cur_iter = len(glob("iter_*.pkl"))
         self.iter_file = path.join(self.root,"iter_{}.pkl".format(cur_iter))
