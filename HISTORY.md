@@ -1,7 +1,8 @@
 # Revision History for `matdb`
 
 ## Revision 1.1.2
-
+- Fixed the MTP method so that it correctly constructs the train.cfg
+  file.
 - Added the `Simple` database to the repo for when configurations need
   to be calculated without additional configurations being generated.
 - Changed the VASP calculator to use a local instead of a global POTCAR.

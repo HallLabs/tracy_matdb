@@ -6,7 +6,7 @@ from matdb import msg
 from collections import OrderedDict
 import numpy as np
 from .basic import Trainer
-from matdb.utility import cat
+from matdb.utility import cat, chdir
 from glob import glob
 import os
 from tqdm import tqdm
@@ -185,7 +185,6 @@ class MTP(Trainer):
             target (str): the path to the directory in which a calculation 
                 was performed.
         """
-        from os import rename
         from matdb.utility import cat
         if path.isfile(path.join(target,"OUTCAR")):
             mapping = self._get_mapping(target)
@@ -227,8 +226,6 @@ class MTP(Trainer):
                 was performed.
 
         """
-        from os import rename
-
         if not path.isfile(path.join(target,"POSCAR")):
             msg.err("Setup failed for {0}.".format(target))
         else:
@@ -303,23 +300,10 @@ class MTP(Trainer):
         
         msg.info("Setting up to-relax.cfg file.")
         for crystal in ["bcc","fcc","sc","hcp"]:
-            for size in range(2,len(self.species)+1):
-                # if the size we're currently on is smaller than the
-                # system in question then we need to loop over the
-                # different species mappings possible to correctly form
-                # all the edges/faces of the phase diagram.
-                if size != len(self.species):
-                    infile = path.join(_get_reporoot(),"matdb","templates",
-                                       "struct_enum.out_{0}_{1}_sub".format(size,crystal))
-                    args["input"] = infile
-                    for edge in combinations(range(len(self.species)),size):
-                        args["mapping"] = {i:j for i, j in enumerate(edge)}
-                        _make_structures(args)
-                else:
-                    infile = path.join(_get_reporoot(),"matdb","templates",
-                                       "struct_enum.out_{0}_{1}".format(size,crystal))
-                    args["input"] = infile
-                    _make_structures(args)
+            infile = path.join(_get_reporoot(),"matdb","templates",
+                               "struct_enum.out_{0}_{1}".format(len(self.species),crystal))
+            args["input"] = infile
+            _make_structures(args)
                     
         msg.info("to-relax.cfg file completed.")                   
         
@@ -330,7 +314,9 @@ class MTP(Trainer):
         .. note:: This method also configures the directory that the command
           will run in so that it has the relevant files.
         """
-        
+
+        import pudb
+        pudb.set_trace()
         if not path.isfile(path.join(self.root,"status.txt")):
             self.iter_status = "train"
             iter_count = 1
@@ -368,18 +354,18 @@ class MTP(Trainer):
                 f.write("relax {0}".format(iter_count))
 
         if self.iter_status == "relax":
+            # If pot has been trained
+            rename(path.join(self.root,"Trained.mtp_"), path.join(self.root,"pot.mtp"))
+            
             # if the unrelaxed.cfg file exists we need to move it to
             # replace the existing 'to-relax.cfg' otherwise we need to
             # create the 'to-relax.cfg' file.
-            os.system("mlp calc-grade pot.mtp train.cfg train.cfg temp1.cfg")
+            with chdir(self.root):
+                os.system("mlp calc-grade pot.mtp train.cfg train.cfg temp1.cfg")
             if path.isfile(path.join(self.root,"unrelaxed.cfg")):
-                from os import rename
                 rename(path.join(self.root,"unrelaxed.cfg"),path.join(self.root,"to-relax.cfg"))
             else:
                 self._make_to_relax_cfg()
-
-            # If pot has been trained
-            rename("Trained_mtp_","pot.mtp")
 
             # command to relax structures
             template = "mpirun -n {} mlp relax relax.ini --cfg-filename=to-relax.cfg".format(self.ncores)
