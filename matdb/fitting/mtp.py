@@ -104,7 +104,7 @@ class MTP(Trainer):
         if "fit" in relaxargs:
             relax_args["fit_setting"] = relaxargs["fit"]
         else:
-            relaxargs["fit_setting"] = "FALSE"
+            relax_args["fit_setting"] = "FALSE"
         
         if "site-weight" in relaxargs:
             relax_args["site_weight"] = relaxargs["site-weight"]
