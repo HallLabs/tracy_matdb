@@ -45,7 +45,7 @@ class MTP(Trainer):
             self._set_relax_ini({})
 
         self.selection_limit = mtpargs["selection-limit"]
-        self.species = mtpargs["species"]        
+        self.species = controller.species
         
         self.mtp_file = "pot.mtp"
         if path.isfile(path.join(self.root,"status.txt")):
@@ -119,14 +119,6 @@ class MTP(Trainer):
             relax_args["threshold_break"] = "10.0"
 
         self.relax = relax_args
-        
-    def get_calculator(self):
-        """Returns an instance of :class:`ase.Calculator` using the latest
-        fitted GAP potential in this trainer.
-        """
-        from quippy.potential import Potential
-        if path.isfile(self.mtp_file):
-            return Potential("IP MTP", param_filename=self.mtp_file)
 
     def ready(self):
         """Determines if the potential is ready for use.

@@ -24,6 +24,15 @@
 - Added entry to kwargs dict of `to_dict` method of the `aflux`
   calculator.
 - Fixed some minor typos in the `database` classes.
+- Fixed the last bugs in the required packages script, include
+  removing 'argparse' and 'setuptools' from the package list since
+  'pip freeze' dosen't list them.
+- Added an exception that gets printed if the 'Quip' calculator can't
+  be loaded. This try and except fixes import errors if the caculator
+  subpackage.
+- Fixed bugs in the enumerated database introduced by updates to
+  `phenum`.
+- Fixed hashing problem in enumerated database.
 
 ## Revision 1.1.0
 

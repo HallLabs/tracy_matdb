@@ -654,8 +654,8 @@ class Group(object):
 
             if path.isfile(path.join(target,"uuid.txt")):
                 with open(path.join(target,"uuid.txt"),"r") as f:
-                    uid = f.readine().strip()
-                    time_stamp = f.readine().strip()
+                    uid = f.readline().strip()
+                    time_stamp = f.readline().strip()
             else:
                 uid = str(uuid4())
                 time_stamp = str(datetime.now())

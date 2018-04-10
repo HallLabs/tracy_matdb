@@ -14,7 +14,6 @@ class Enumerated(Group):
     Args:
         sizes (list): a list containing the smallest and larges cell sizes to 
             include in the database.
-        species (list): the atomic species included in the system.
         lattice (list or str): either the name of the lattice to use 
             ('sc','fcc','bcc', 'hcp') or the atomic basis vectors to use.
         basis (list, optional): the atomic basis to use for the enumeration. 
@@ -117,7 +116,7 @@ class Enumerated(Group):
         enum_dict["eps"] = self.eps
         enum_dict["name"] = self.name
         enum_dict["rattle"] = self.rattle
-        enum_dict["ran_seed"] = self.ran_seed
+        enum_dict["rseed"] = self.ran_seed
         enum_dict["keep_supers"] = self.keep_supers
         enum_dict["displace"] = self.displace
         return enum_dict
@@ -231,7 +230,9 @@ class Enumerated(Group):
         self._expand_sequence()
         if len(self.sequence) == 0:
             return len(self.fitting_configs) == self.nconfigs
-        else:            
+        else:
+            for e in self.sequence.values():
+                temp=e.ready()
             return all(e.ready() for e in self.sequence.values())
     
     @property
@@ -382,10 +383,10 @@ class Enumerated(Group):
         remove("enum.in")
         [remove(f) for f in listdir('.') if f.startswith("polya.")]
         # extract the POSCARS
-        euids = _make_structures({"structures":None,"input":"enum.out",
-                                  "species":self.species,"rattle":self.rattle,
-                                  "mink":"t","outfile":"vasp.{}","displace":self.displace}
-                                 ,return_euids=True)
+        euids = _make_structures({"structures":None, "input":"enum.out",
+                                  "species":self.species, "rattle":self.rattle,
+                                  "mink":"t", "outfile":"vasp.{}", "displace":self.displace,
+                                  "config":"f", "remove_zeros":"f"}, return_euids=True)
 
         # Now we need to create the folder for each system we've enumerated
         if self.euids is None:
@@ -398,8 +399,8 @@ class Enumerated(Group):
                 chdir(home)
                 self.create(datoms,cid=dind)
                 chdir(current)
-                self.index[euids[count]] = self.configs[dind]
-                self.euids.append(euids[count])
+                self.index[str(euids[count].hexdigest())] = self.configs[dind]
+                self.euids.append(str(euids[count].hexdigest()))
         [remove(f) for f in listdir('.') if f.startswith("vasp.")]
 
         return dind
