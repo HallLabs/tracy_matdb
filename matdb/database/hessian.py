@@ -417,12 +417,17 @@ class Hessian(Group):
         
         #Otherwise, we need to calculate it from scratch. This depends on
         #whether we are using DFPT or frozen phonons.
-
-
         if not self.dfpt:
+            self.calc_forcesets()
             dim = ' '.join(map(str, self.supercell))
             xargs = ["phonopy", '--dim="{}"'.format(dim), "--writefc"]
-            execute(xargs, self.phonodir, venv=True)    
+            execute(xargs, self.phonodir, venv=True)
+
+            if not path.isfile(path.join(self.phonodir, "FORCE_CONSTANTS")):
+                msg.err("Cannot convert FORCE_SETS to FORCE_CONSTANTS")
+                msg.err(''.join(xargs["output"]))
+        else:
+            self.calc_fc()
         
         with chdir(self.phonodir):
             result = file_IO.parse_FORCE_CONSTANTS()
@@ -556,7 +561,7 @@ class Hessian(Group):
         #Make sure that phonopy actually produced files; otherwise show the output
         #(phonopy doesn't write to stderr, only stdout).
         if not path.isfile(fsets):#pragma: no cover
-            msg.std(''.join(xres["error"]))
+            msg.std(''.join(xres["output"]))
             msg.err("Couldn't create the FORCE_SETS.")
 
     def setup(self, rerun=False):

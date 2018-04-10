@@ -597,7 +597,7 @@ class Group(object):
                 xpath = path.join(self.root, "{}.".format(self.prefix))
                 asize = len(self.configs)
             
-            if path.isfile(target) and not rerun:
+            if (path.isfile(target) and not rerun) or asize == 0:
                 return
         
             # We use the global execution parameters and then any updates
@@ -642,7 +642,6 @@ class Group(object):
         Returns:
             int: new integer configuration id if one was auto-assigned.
         """
-
         if len(self.sequence)==0:
             if cid is None:
                 cid = len(self.configs) + 1
@@ -752,7 +751,7 @@ class Group(object):
                     return
                 db_setup(rerun)
                 with open(path.join(self.root,"compute.pkl"),"w+") as f:
-                    pickle.dump({"date":datetime.now(),"uuid":self.uuid},f)
+                    pickle.dump({"date": datetime.now(),"uuid":self.uuid},f)
             else:
                 pbar = tqdm(total=len(self.sequence))
                 for group in self.sequence.values():

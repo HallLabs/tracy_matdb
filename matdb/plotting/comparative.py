@@ -4,12 +4,15 @@ convergence runs against each other.
 """
 from os import path
 from tqdm import tqdm
+import numpy as np
+import matplotlib.pyplot as plt
+
 from matdb.atoms import Atoms
 from matdb.phonons import bandplot
 from matdb.utility import chdir
 from matdb.phonons import from_yaml, calc as phon_calc
 from matdb.kpoints import parsed_kpath
-            
+
 def band_plot(phondbs, fits=None, dim=2, npts=100, title="{} Phonon Spectrum",
               save=None, figsize=(10, 8), nbands=4, **kwargs):
     """Plots the phonon bands for the specified CLI args.
@@ -42,7 +45,8 @@ def band_plot(phondbs, fits=None, dim=2, npts=100, title="{} Phonon Spectrum",
         phondb.calc_bands()
         
     title = title.format(phondb.atoms.get_chemical_formula())
-    colors = ['k', 'b', 'g', 'r', 'c', 'm', 'y' ]
+    nlines = len(phondbs) + len(fits)
+    colors = plt.cm.nipy_spectral(np.linspace(0, 1, nlines))
     bands, style = {}, {}
     names, kpath = None, None
     
@@ -63,7 +67,7 @@ def band_plot(phondbs, fits=None, dim=2, npts=100, title="{} Phonon Spectrum",
             bands[fit.fqn] = phon_calc(phondb.atoms, fit, kpath,
                                       phondb.phonocache, supercell=dim,
                                       Npts=npts, potname=fit.fqn)
-            style[fit.fqn] = {"color": colors[len(phondbs)+fiti], "lw": 2}
+            style[fit.fqn] = {"color": colors[dbi+1+fiti], "lw": 2}
 
     savefile = None
     if save:

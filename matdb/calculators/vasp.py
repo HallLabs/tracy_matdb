@@ -164,11 +164,13 @@ class AsyncVasp(Vasp, AsyncCalculator):
         super(AsyncVasp, self).__init__(*args, **kwargs)
         if not path.isdir(self.folder):
             mkdir(self.folder)
+            
         self.atoms = atoms
         pot_args = self.potcars.copy()
         calc_args = self.kwargs.copy()
         environ["VASP_PP_PATH"] = relpath(path.expanduser(pot_args["directory"]))
             
+        self._check_potcar()
         self.initialize(atoms)
 
     def write_input(self, atoms, directory='./'):
@@ -187,28 +189,37 @@ class AsyncVasp(Vasp, AsyncCalculator):
             self.write_kpoints(directory=directory)
         self.write_sort_file(directory=directory)
 
+    def _check_potcar(self):
+        """Checks the directories needed to establish POTCAR files as symbolic
+        links for computation.
+        """
+        from matdb.utility import relpath
+        from os import environ
+        POTCAR = path.join(self.contr_dir,"POTCAR")
+        pot_args = self.potcars.copy()
+        environ["VASP_PP_PATH"] = relpath(path.expanduser(pot_args["directory"]))
+
+        if "version" in pot_args:
+            version = pot_args["version"]
+            del pot_args["version"]
+        else:
+            version = None
+
+        #Now make sure that the POTCAR versions match those specified in the
+        #matdb YML.
+            
     def _write_potcar(self):
         """Makes a symbolic link between the main POTCAR file for the database
         and the folder VASP will execute in."""
-
-        from matdb.utility import symlink, relpath
-        from os import environ
-        from matdb.atoms import Atoms
-
+        from matdb.utility import symlink
         POTCAR = path.join(self.contr_dir,"POTCAR")
+        calc_args = self.kwargs.copy()
+        
         # First we check to see if the POTCAR file already exists, if
         # it does then all we have to do is create the symbolic link.
         if not path.isfile(POTCAR):
-            pot_args = self.potcars.copy()
-            calc_args = self.kwargs.copy()
-            environ["VASP_PP_PATH"] = relpath(path.expanduser(pot_args["directory"]))
-            if "version" in pot_args:
-                version = pot_args["version"]
-                del pot_args["version"]
-            else:
-                version = None
-                
-            self.write_potcar(directory=self.contr_dir)            
+            calc = AsyncVasp(self.atoms,self.contr_dir,self.contr_dir,self.ran_seed,**calc_args)
+            calc.write_potcar(director=self.contr_dir)
 
         symlink(path.join(self.folder,"POTCAR"),POTCAR)        
 
