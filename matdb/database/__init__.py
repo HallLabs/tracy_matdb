@@ -11,7 +11,7 @@ from glob import glob
 from uuid import uuid4
 import abc
 import pickle
-import datetime
+from datetime import datetime
 from contextlib import contextmanager
 import ase.db
 from collections import OrderedDict
@@ -153,7 +153,7 @@ class Group(object):
             with open(path.join(
                     self.root,"{}_{}_uuid.txt".format(self._db_name,self.prefix)),"r") as f:
                 uid = f.readline().strip()
-                time_stamp = f.readline.strip()
+                time_stamp = f.readline().strip()
         else:
             uid = str(uuid4())
             time_stamp = str(datetime.now())
@@ -598,7 +598,7 @@ class Group(object):
                 xpath = path.join(self.root, "{}.".format(self.prefix))
                 asize = len(self.configs)
             
-            if path.isfile(target) and not rerun:
+            if (path.isfile(target) and not rerun) or asize == 0:
                 return
         
             # We use the global execution parameters and then any updates
@@ -643,7 +643,6 @@ class Group(object):
         Returns:
             int: new integer configuration id if one was auto-assigned.
         """
-
         if len(self.sequence)==0:
             if cid is None:
                 cid = len(self.configs) + 1
@@ -679,7 +678,7 @@ class Group(object):
             if calcargs is not None:
                 lcargs.update(calcargs)
                 
-            calc = self.calc(atoms, target, self,database.parent.root,
+            calc = self.calc(atoms, target, self.database.parent.root,
                              self.database.parent.ran_seed, **lcargs)
             calc.create()
             atoms.set_calculator(calc)
@@ -753,7 +752,7 @@ class Group(object):
                     return
                 db_setup(rerun)
                 with open(path.join(self.root,"compute.pkl"),"w+") as f:
-                    pickle.dump({"date":datetime.datetime.now(),"uuid":self.uuid},f)
+                    pickle.dump({"date": datetime.now(),"uuid":self.uuid},f)
             else:
                 pbar = tqdm(len(self.sequence))
                 for group in self.sequence.values():
@@ -922,8 +921,7 @@ class Group(object):
         return final_dict
 
 class Database(object):
-
-        """Represents a Database of groups (all inheriting from :class:`Group`) that 
+    """Represents a Database of groups (all inheriting from :class:`Group`) that 
     are all related be the atomic configuration that they model.
     .. note:: See the list of attributes below which correspond to the sections
       in the YAML database specification file.
@@ -1257,7 +1255,7 @@ class RecycleBin(Database):
 
         hash_str = ""
         for atom in self.rset():
-            temp_atom = Atoms(atom):
+            temp_atom = Atoms(atom)
             hash_str += convert_dict_to_str(temp_atom.to_dict())
 
         return str(sha1(hash_str).hexdigest())

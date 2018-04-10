@@ -117,6 +117,16 @@ class Hessian(Group):
         
         if "dim" in phonopy:
             self.supercell = phonopy["dim"]
+
+            #Make sure that the supercell matrix has positive determinant for
+            #phonopy; if it doesn't correct it.
+            if len(self.supercell) == 3:
+                scell = np.diag(self.supercell)
+            else:
+                scell = np.array(self.supercell).reshape(3,3)
+            det = np.linalg.det(scell)
+            if det < 0:
+                self.supercell = list(np.array(self.supercell)*-1)
         else:
             self.supercell = None
             
@@ -414,12 +424,17 @@ class Hessian(Group):
         
         #Otherwise, we need to calculate it from scratch. This depends on
         #whether we are using DFPT or frozen phonons.
-
-
         if not self.dfpt:
+            self.calc_forcesets()
             dim = ' '.join(map(str, self.supercell))
             xargs = ["phonopy", '--dim="{}"'.format(dim), "--writefc"]
-            execute(xargs, self.phonodir, venv=True)    
+            execute(xargs, self.phonodir, venv=True)
+
+            if not path.isfile(path.join(self.phonodir, "FORCE_CONSTANTS")):
+                msg.err("Cannot convert FORCE_SETS to FORCE_CONSTANTS")
+                msg.err(''.join(xargs["output"]))
+        else:
+            self.calc_fc()
         
         with chdir(self.phonodir):
             result = file_IO.parse_FORCE_CONSTANTS()
@@ -555,7 +570,7 @@ class Hessian(Group):
         #Make sure that phonopy actually produced files; otherwise show the output
         #(phonopy doesn't write to stderr, only stdout).
         if not path.isfile(fsets):#pragma: no cover
-            msg.std(''.join(xres["error"]))
+            msg.std(''.join(xres["output"]))
             msg.err("Couldn't create the FORCE_SETS.")
 
     def setup(self, rerun=False):
@@ -587,12 +602,17 @@ class Hessian(Group):
 
         if not self.is_setup():
             from ase.io import write
-
             write(path.join(self.phonodir, "POSCAR"), self.atoms, "vasp")        
             scell = ' '.join(map(str, self.supercell))
             sargs = ["phonopy", "-d", '--dim="{}"'.format(scell)]
             pres = execute(sargs, self.phonodir, venv=True)
 
+            #Make sure that phonopy produced the supercell. If it didn't, it
+            #should have printed an error to *stdout* because it doesn't know
+            #about stderr...
+            if not path.isfile(path.join(self.phonodir, "SPOSCAR")):
+                msg.err('\n'.join(pres["output"]))
+            
             from matdb.atoms import Atoms
             if not self.dfpt:
                 #Frozen phonons, create a config execution folder for each of

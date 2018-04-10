@@ -88,8 +88,7 @@ class AsyncCalculator(object):
         pass
 
 class SyncCalculator(object):
-
-        """Represents a calculator such as :class:`ase.Calculator` that can be run
+    """Represents a calculator such as :class:`ase.Calculator` that can be run
     synchronously stages to compute properties (does not require a distributed
     or HCP environment).
 

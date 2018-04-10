@@ -177,7 +177,7 @@ def run(args):
 
     #No matter what other options the user has chosen, we will have to create a
     #database controller for the specification they have given us.
-    from matdb.database.controller import Controller
+    from matdb.database import Controller
     cdb = Controller(args["dbspec"])
 
     #We allow any number of databases to be plotted together at the same
