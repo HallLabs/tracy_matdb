@@ -8,6 +8,8 @@
 - Changed the VASP calculator to use a local instead of a global POTCAR.
 - Fixed MTP method so that the POSCAR's get the zeros put back in
   after a calculation.
+- Added new slurm template.
+- Fixed more issues in the mtp commands.
 
 ## Revision 1.1.1
 

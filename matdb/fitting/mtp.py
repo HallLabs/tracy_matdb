@@ -21,7 +21,6 @@ def RepresentsInt(s):
 class MTP(Trainer):
     """Implements a simple wrapper around the MTP training functionality for
     creating MTP potentials.
-
     Args:
         controller (matdb.fitting.controller.Controller): fitting controller
           provides access to previous fitting steps and training/validation data.
@@ -30,7 +29,6 @@ class MTP(Trainer):
           the GAP fit.
         dbs (list): of `str` patterns from the database that should be included
           in the training and validation.
-
     Attributes:
         name (str): name of the folder in which all the fitting for this trainer
           takes place; defaults to `{n}b`.
@@ -85,7 +83,6 @@ class MTP(Trainer):
 
     def _set_relax_ini(self,relaxargs):
         """Sets the arguments for the relax.ini file.
-
         Args:
             relaxargs (dict): A dictionary containing keys for the weights.
         """
@@ -159,7 +156,6 @@ class MTP(Trainer):
     def _make_train_cfg(self,iteration):
         """Creates the 'train.cfg' file needed to train the potential from the
         databeses used.
-
         Args:
             iteration (int): the number of iterations of MTP has been 
                 through.
@@ -180,7 +176,6 @@ class MTP(Trainer):
     def _create_train_cfg(self,target):
         """Creates a 'train.cfg' file for the calculation stored at the target
         directory.
-
         Args:
             target (str): the path to the directory in which a calculation 
                 was performed.
@@ -220,11 +215,9 @@ class MTP(Trainer):
     def _get_mapping(self,target):
         """Finds the species mappings for the atomic numbers found in the
         trani.cfg file so that is will be correct.
-
         Args:
             target (str): the path to the directory in which a calculation 
                 was performed.
-
         """
         if not path.isfile(path.join(target,"POSCAR")):
             msg.err("Setup failed for {0}.".format(target))
@@ -310,7 +303,6 @@ class MTP(Trainer):
     def command(self):
         """Returns the command that is needed to train the GAP
         potentials specified by this object.
-
         .. note:: This method also configures the directory that the command
           will run in so that it has the relevant files.
         """
@@ -374,27 +366,27 @@ class MTP(Trainer):
 
         # if relaxation is done
         if self.iter_status == "select":
-            cat(glob("selected.cfg_*"),"selected.cfg")
+            cat(glob(path.join(self.root,"selected.cfg_*")), path.join(self.root,"selected.cfg"))
 
             # command to select next training set.
-            template = "mlp select-add pot.mtp traic.cfg selected.cfg diff.cfg -selection-limit={}".format(self.selection_limit)
+            template = "mlp select-add pot.mtp traic.cfg selected.cfg diff.cfg --selection-limit={}".format(self.selection_limit)
 
         # if selection is done
         if self.iter_status == "add":
-            from glob import glob
             from quippy.atoms import Atoms
-            os.system("mlp convert-cfg diff.cfg POSCAR --output-format=vasp-poscar")
-            os.system("cp selected.cfg selected.cfg_iter_{}".format(iter_count))
-            if path.isfile("relaxed.cfg"):
-                os.system("cp relaxed.cfg relaxed.cfg_iter_{}".format(iter_count))
+            with chdir(self.root):
+                os.system("mlp convert-cfg diff.cfg POSCAR --output-format=vasp-poscar")
+                os.system("cp selected.cfg selected.cfg_iter_{}".format(iter_count))
+                if path.isfile("relaxed.cfg"):
+                    os.system("cp relaxed.cfg relaxed.cfg_iter_{}".format(iter_count))
 
-            new_confgs = []
-            new_POSCARS = glob("POSCAR*")
-            for POSCAR in new_POSCARS:
-                new_configs.append(Atoms(POSCAR,format="POSCAR"))
+                new_confgs = []
+                new_POSCARS = glob("POSCAR*")
+                for POSCAR in new_POSCARS:
+                    new_configs.append(Atoms(POSCAR,format="POSCAR"))
 
-            self.active.add_configs(new_configs)
-            self.active.setup()
+                self.active.add_configs(new_configs)
+                self.active.setup()
             
             with open(path.join(self.root,"status.txt"),"w+") as f:
                 f.write("done {0}".format(iter_count))
@@ -403,7 +395,6 @@ class MTP(Trainer):
 
     def status(self, printed=True):
         """Returns or prints the current status of the MTP training.
-
         Args:
             printed (bool): when True, print the status to screen; otherwise,
               return a dictionary with the relevant quantities.
