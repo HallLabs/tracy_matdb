@@ -33,6 +33,8 @@
 - Fixed bugs in the enumerated database introduced by updates to
   `phenum`.
 - Fixed hashing problem in enumerated database.
+- Added `pre_comp_atoms.h5` to creation of folders in the group
+  class. It's removed after extraction has been completed.
 
 ## Revision 1.1.0
 

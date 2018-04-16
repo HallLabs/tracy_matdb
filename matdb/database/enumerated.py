@@ -6,6 +6,8 @@ from os import path, getcwd, chdir, remove, listdir, mkdir
 import numpy as np
 from six import string_types
 from matdb.atoms import Atoms, AtomsList
+from matdb.utility import copyonce
+from glob import glob
 
 class Enumerated(Group):
     """Sets up the calculations for a random sampling of structures from
@@ -102,7 +104,7 @@ class Enumerated(Group):
                              "and the second value is the largest cell size to include, "
                              "i.e., [10,12].")
         self.euids = None
-        self._load_euids()
+        self._load_euids()            
 
     def sub_dict(self):
         """Writes the attributes of this instance of the class to a dictionary.
@@ -373,7 +375,6 @@ class Enumerated(Group):
         """
         from phenum.enumeration import _enum_out
         from phenum.makeStr import _make_structures
-        from glob import glob
         _enum_out({"input":"enum.in","outfile":"enum.out",
                    "seed":self.ran_seed if self.ran_seed is None else self.ran_seed+dind+recurse,
                    "lattice":"lattice.in","distribution":["all",str(self.nconfigs-dind)],
@@ -399,6 +400,7 @@ class Enumerated(Group):
                 chdir(home)
                 self.create(datoms,cid=dind)
                 chdir(current)
+                copyonce(dposcar,path.join(self.configs[dind],"POSCAR_orig"))
                 self.index[str(euids[count].hexdigest())] = self.configs[dind]
                 self.euids.append(str(euids[count].hexdigest()))
         [remove(f) for f in listdir('.') if f.startswith("vasp.")]

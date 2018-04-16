@@ -214,12 +214,13 @@ class AsyncVasp(Vasp, AsyncCalculator):
         from matdb.utility import symlink
         POTCAR = path.join(self.contr_dir,"POTCAR")
         calc_args = self.kwargs.copy()
+        calc_args["potcars"] = self.potcars
         
         # First we check to see if the POTCAR file already exists, if
         # it does then all we have to do is create the symbolic link.
         if not path.isfile(POTCAR):
             calc = AsyncVasp(self.atoms,self.contr_dir,self.contr_dir,self.ran_seed,**calc_args)
-            calc.write_potcar(director=self.contr_dir)
+            calc.write_potcar(directory=self.contr_dir)
 
         symlink(path.join(self.folder,"POTCAR"),POTCAR)        
 

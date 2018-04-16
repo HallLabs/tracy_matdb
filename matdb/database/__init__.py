@@ -143,7 +143,10 @@ class Group(object):
                 try:
                     cid = int(folder.split('.')[1])
                     self.configs[cid] = path.join(self.root, folder)
-                    self.config_atoms[cid] = Atoms(path.join(self.configs[cid],"atoms.h5"))
+                    if path.isfile(path.join(self.configs[cid],"atoms.h5")):
+                        self.config_atoms[cid] = Atoms(path.join(self.configs[cid],"atoms.h5"))
+                    else:
+                        self.config_atoms[cid] = Atoms(path.join(self.configs[cid],"pre_comp_atoms.h5"))
                 except:
                     #The folder name doesn't follow our convention.
                     pass
@@ -681,7 +684,8 @@ class Group(object):
                              self.database.parent.ran_seed, **lcargs)
             calc.create()
             atoms.set_calculator(calc)
-
+            # Turns out we need this for some seedless configurations.
+            atoms.write(path.join(target,"pre_comp_atoms.h5"))
             #Finally, store the configuration for this folder.
             self.configs[cid] = target
             self.config_atoms[cid] = atoms
@@ -854,7 +858,7 @@ class Group(object):
         Args:
             cleanup (str): the level of cleanup to perform after 
               extraction.
-        """
+        """        
         self._expand_sequence()
         if len(self.sequence) == 0 and self.can_extract():
             for cid, folder in self.configs.items():
@@ -862,10 +866,12 @@ class Group(object):
                     #We don't need to recreate the atoms objects if they already
                     #exist.
                     continue
-                
-                atoms = self.config_atoms[cid]
+                from os import remove
+                atoms = self.config_atoms[cid]                
                 atoms.calc.extract(folder, cleanup=cleanup)
-                atoms.write(path.join(folder,"atoms.h5"))
+                atoms.write(path.join(folder, "atoms.h5"))
+                if path.isfile(path.join(folder, "pre_comp_atoms.h5")):
+                    remove(path.join(folder, "pre_comp_atoms.h5"))
             return self.can_extract()
         elif len(self.sequence) >0:
             pbar = tqdm(total=len(self.sequence))
