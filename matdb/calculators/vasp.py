@@ -129,6 +129,9 @@ class AsyncVasp(Vasp, AsyncCalculator):
     tarball = ["vasprun.xml"]
 
     def __init__(self, atoms, folder, contr_dir, ran_seed, *args, **kwargs):
+        from matdb.utility import relpath
+        from os import environ
+        
         self.folder = path.abspath(path.expanduser(folder))
         self.kpoints = None
         if path.isdir(contr_dir):
@@ -143,25 +146,30 @@ class AsyncVasp(Vasp, AsyncCalculator):
         # creation of the POTCAR file.
         self.potcars = kwargs.pop("potcars")
             
-        self.atoms = atoms
         self.args = args
         self.kwargs = kwargs
 
         # if 'xc' was set on either the kwargs or the potcars
         # dictionaries but not the other then we need to copy it over.
-
         if "xc" in self.kwargs and "xc" not in self.potcars:
             self.potcars["xc"] = self.kwargs["xc"]
         elif "xc" in self.potcars and "xc" not in self.kwargs:
             self.kwargs["xc"] = self.potcars["xc"]
         elif "xc" not in self.potcars and "xc" not in self.kwargs:
-            msg.err("'xc' must be provided as either a calculator keyword "
-                    "or a potcar keyword.")
+            raise ValueError("'xc' must be provided as either a calculator keyword "
+                             "or a potcar keyword.")
+
         self.ran_seed = ran_seed
         self.version = None
         super(AsyncVasp, self).__init__(*args, **kwargs)
         if not path.isdir(self.folder):
             mkdir(self.folder)
+            
+        self.atoms = atoms
+        pot_args = self.potcars.copy()
+        calc_args = self.kwargs.copy()
+        environ["VASP_PP_PATH"] = relpath(path.expanduser(pot_args["directory"]))
+            
         self._check_potcar()
         self.initialize(atoms)
 
@@ -206,12 +214,13 @@ class AsyncVasp(Vasp, AsyncCalculator):
         from matdb.utility import symlink
         POTCAR = path.join(self.contr_dir,"POTCAR")
         calc_args = self.kwargs.copy()
+        calc_args["potcars"] = self.potcars
         
         # First we check to see if the POTCAR file already exists, if
         # it does then all we have to do is create the symbolic link.
         if not path.isfile(POTCAR):
             calc = AsyncVasp(self.atoms,self.contr_dir,self.contr_dir,self.ran_seed,**calc_args)
-            calc.write_potcar(director=self.contr_dir)            
+            calc.write_potcar(directory=self.contr_dir)
 
         symlink(path.join(self.folder,"POTCAR"),POTCAR)        
 
@@ -313,7 +322,7 @@ class AsyncVasp(Vasp, AsyncCalculator):
         with chdir(folder):
             self.converged = self.read_convergence()
             self.set_results(self.atoms)
-            E = self.get_total_energy()
+            E = self.get_potential_energy(atoms=self.atoms)
             F = self.forces
             S = self.stress
             self.atoms.add_property("vasp_force", F)
@@ -344,11 +353,11 @@ class AsyncVasp(Vasp, AsyncCalculator):
             rm_files = light + default
         
         for f in rm_files:
-            targot = path.join(folder,f)
+            target = path.join(folder,f)
             if path.isfile(target):
                 remove(target)
 
-    def to_dict(self, folder):
+    def to_dict(self):
         """Writes the current version number of the code being run to a
         dictionary along with the parameters of the code.
 
@@ -361,8 +370,12 @@ class AsyncVasp(Vasp, AsyncCalculator):
 
         # run vasp in the root directory in order to determine the
         # version number.
+        if hasattr(self,"potcars"):
+            vasp_dict["kwargs"]["potcars"] = self.potcars
+        if hasattr(self,"kpoints"):
+            vasp_dict["kwargs"]["kpoints"] = self.kpoints
         if self.version is None:
-            data = execute("vasp",self.contr_dir)
+            data = execute(["vasp"],self.contr_dir)
             vasp_dict["version"] = data["output"][0].strip().split()[0]
             self.version = vasp_dict["version"]
         else:

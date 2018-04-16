@@ -1,6 +1,10 @@
 from .vasp import AsyncVasp as Vasp
-from .quip import SyncQuip as Quip
 from .aflux import AsyncAflow as Aflow
+from matdb.msg import info
+try:
+    from .quip import SyncQuip as Quip
+except:
+    info("Could not import the Quip calculator.")
 
 def get_calculator_module(calcargs):
     """Returns the module corresponding to the calculator mentioned in
@@ -17,7 +21,7 @@ def get_calculator_module(calcargs):
     
     try:
         mod = getmodule(cls)
-    except:
+    except: #pragma: no cover
         pass
 
     return mod

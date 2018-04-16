@@ -78,11 +78,9 @@ def execute(args, folder, wait=True, nlines=100, venv=None,
         kwargs["stderr"] = PIPE
     kwargs["cwd"] = folder
 
-    if venv is not None:
-        if isinstance(venv, string_types): # pragma: no cover No
-                                           # guarantee that virtual
-                                           # envs exist on testing
-                                           # machine.
+    if venv is not None: # pragma: no cover No guarantee that virtual
+                         # envs exist on testing machine.
+        if isinstance(venv, string_types): 
             vargs = ["virtualenvwrapper_derive_workon_home"]
             vres = execute(vargs, path.abspath("."))
             prefix = path.join(vres["output"][0].strip(), venv, "bin")
@@ -810,42 +808,6 @@ class ParameterGrid(collections.MutableSet):
             return len(self) == len(other) and list(self) == list(other)
         return set(self) == set(other) 
 
-def save_dict_to_h5(h5file, dic, path='/'):
-    """Saves a nested dictionary to an open hdf5 file.
-
-    Args:
-        h5file (file object): the h5 file to be saved to.
-        dic (dict): the dictionary to save.
-        path (str, optional): the path within the h5 file that the dict will be 
-            saved to. Default is '/'.
-    """
-    for key, item in dic.items():
-        if isinstance(item, (np.ndarray, np.int64, np.float64, str, bytes)):
-            h5file[path + key] = item
-        elif isinstance(item, dict):
-            save_dict_to_h5(h5file, item, path + key + '/')
-        else:
-            raise ValueError('Cannot save %s type'%type(item))
-
-def load_dict_from_h5(h5file, path='/'):
-    """Reads an open hdf5 file into a dictionary.
-
-    Args:
-        h5file (file object): the h5 file to be read.
-        path (str, optional): the path within the h5 file presently being 
-            read. Default is '/'.
-
-    Returns:
-        ans (dict): a dictionary containing the contents of the h5 file.
-    """
-    ans = {}
-    for key, item in h5file[path].items():
-        if isinstance(item, h5py._hl.dataset.Dataset):
-            ans[key] = item.value
-        elif isinstance(item, h5py._hl.group.Group):
-            ans[key] = load_dict_from_h5(h5file, path + key + '/')
-    return ans
-
 def is_uuid4(uuid_string):
     """Determines of the string passed in is a valid uuid4 string.
     """
@@ -940,35 +902,42 @@ def check_deps():
         A dictionary of the dependencies and their version numbers.
     """
 
-    from matdb.io import required_packages
-
-    req_pckgs = required_packages()
-    
+    req_pckgs = required_packages()    
     versions = {}
-
     instld_pckgs = [l.strip() for l in execute(["pip freeze"], ".", venv=True)["output"]]
 
-    for pkg_j in req_pckgs:
-        found = False
-        for pkg_i in instld_pckgs:
-            if "==" in pkg_i:
-                name, version = pkg_i.split("==")
-            else:
-                name, version = pkg_i, None
-                
-            if name.lower() == pkg_j.lower():
-                if (version is not None and (version.count(".") == 2 or
-                    version.count(".") == 3) and ("/" not in version
-                                                  and ":" not in version
-                                                  and  "-" not in version
-                                                  and ".com" not in version)):
-                    versions[pkg_j] = version
-                    found = True
-                    break
-                else:
-                    msg.err("Cannot run `matdb` with locally installed package {} "
-                            "as it would not be reproducable.".format(pkg_i))
-        if not found:
-            msg.err("Could not find required package {} in environment.".format(pkg_j))
+    for pkg in instld_pckgs:
+        if "==" in pkg:
+            name, version = pkg.strip().split("==")
+        else:
+            name, version = pkg, None
+        if name in req_pckgs:
+            count = version.count(".")
+            if (version is not None and (version.count(".") == 2 or
+                                         version.count(".") == 3) and ("/" not in version
+                                                                       and ":" not in version
+                                                                       and  "-" not in version
+                                                                       and ".com" not in version)):
+                versions[name] = version
+                req_pckgs.remove(name)
+            else: #pragma: no cover There won't be locally installed
+                  #packages on the test machines.
+                msg.err("Cannot run `matdb` with locally installed package {} "
+                        "as it would not be reproducable.".format(pkg))
+    if len(req_pckgs) >= 1:
+        for pkg in req_pckgs:
+            msg.err("Could not find required package {} in environment.".format(pkg))
 
     return versions
+
+def required_packages():
+    """Returns the list of required packages for matdb. These have to be
+    hard coded before each commit.
+    """
+
+    return ["ase", "backports.functools-lru-cache", "beautifulsoup4", "certifi",
+            "chardet", "cycler", "h5py", "html5lib", "idna", "matplotlib", "mpld3",
+            "numpy", "phenum", "phonopy", "pyparsing", "python-dateutil", "pytz",
+            "PyYAML", "requests", "six", "subprocess32", "termcolor",
+            "tqdm", "urllib3", "webencodings", "lazy-import", "seekpath"]
+

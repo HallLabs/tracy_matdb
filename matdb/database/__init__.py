@@ -143,7 +143,10 @@ class Group(object):
                 try:
                     cid = int(folder.split('.')[1])
                     self.configs[cid] = path.join(self.root, folder)
-                    self.config_atoms[cid] = Atoms(path.join(self.configs[cid],"atoms.h5"))
+                    if path.isfile(path.join(self.configs[cid],"atoms.h5")):
+                        self.config_atoms[cid] = Atoms(path.join(self.configs[cid],"atoms.h5"))
+                    else:
+                        self.config_atoms[cid] = Atoms(path.join(self.configs[cid],"pre_comp_atoms.h5"))
                 except:
                     #The folder name doesn't follow our convention.
                     pass
@@ -348,7 +351,6 @@ class Group(object):
         """Returns a dictionary of the parameters passed into the group instance.
         """
         from matdb import __version__
-        from datetime import datetime
         import sys
         
         kw_dict = self.grpargs.copy()
@@ -654,8 +656,8 @@ class Group(object):
 
             if path.isfile(path.join(target,"uuid.txt")):
                 with open(path.join(target,"uuid.txt"),"r") as f:
-                    uid = f.readine().strip()
-                    time_stamp = f.readine().strip()
+                    uid = f.readline().strip()
+                    time_stamp = f.readline().strip()
             else:
                 uid = str(uuid4())
                 time_stamp = str(datetime.now())
@@ -682,7 +684,8 @@ class Group(object):
                              self.database.parent.ran_seed, **lcargs)
             calc.create()
             atoms.set_calculator(calc)
-
+            # Turns out we need this for some seedless configurations.
+            atoms.write(path.join(target,"pre_comp_atoms.h5"))
             #Finally, store the configuration for this folder.
             self.configs[cid] = target
             self.config_atoms[cid] = atoms
@@ -754,7 +757,7 @@ class Group(object):
                 with open(path.join(self.root,"compute.pkl"),"w+") as f:
                     pickle.dump({"date": datetime.now(),"uuid":self.uuid},f)
             else:
-                pbar = tqdm(len(self.sequence))
+                pbar = tqdm(total=len(self.sequence))
                 for group in self.sequence.values():
                     group.setup(rerun=rerun)
                     pbar.update(1)
@@ -867,7 +870,7 @@ class Group(object):
         Args:
             cleanup (str): the level of cleanup to perform after 
               extraction.
-        """
+        """        
         self._expand_sequence()
         if len(self.sequence) == 0 and self.can_extract():
             for cid, folder in self.configs.items():
@@ -875,13 +878,15 @@ class Group(object):
                     #We don't need to recreate the atoms objects if they already
                     #exist.
                     continue
-                
-                atoms = self.config_atoms[cid]
+                from os import remove
+                atoms = self.config_atoms[cid]                
                 atoms.calc.extract(folder, cleanup=cleanup)
-                atoms.write(path.join(folder,"atoms.h5"))
+                atoms.write(path.join(folder, "atoms.h5"))
+                if path.isfile(path.join(folder, "pre_comp_atoms.h5")):
+                    remove(path.join(folder, "pre_comp_atoms.h5"))
             return self.can_extract()
         elif len(self.sequence) >0:
-            pbar = tqdm(len(self.sequence))
+            pbar = tqdm(total=len(self.sequence))
             cleaned = []
             for group in self.sequence.values():
                 cleaned.append(group.extract(cleanup=cleanup))
@@ -891,7 +896,7 @@ class Group(object):
             if cleaned:
                 atoms = self.rset()
                 atoms_dict = {"atom_{}".format(Atoms(f).uuid): f for f in atoms}
-                from matdb.utility import save_dict_to_h5
+                from matdb.io import save_dict_to_h5
                 with h5py.File(target,"w") as hf:
                     save_dict_to_h5(hf,atoms_dict,'/')
             return cleaned                
@@ -914,7 +919,7 @@ class Group(object):
         # The rset exists for a set of parameters. We want to know
         # which sets of parameters went into making the rset. 
         msg.info("Finalizing {}".format(self.name))
-        pbar = tqdm(len(atoms))
+        pbar = tqdm(total=len(atoms))
         params_dict = {}
         uuids = []
         for atm in atoms:
@@ -973,12 +978,14 @@ class Database(object):
         self.config = name.split('.')[0]
         self.root = root
         self.splits = {} if splits is None else splits
-        self.rec_bin = RecycleBin(parent,root,splits)
-        
+
+        print(self.root)
         if not path.isdir(self.root):
             from os import mkdir
             mkdir(self.root)
 
+        self.rec_bin = RecycleBin(parent,root,splits)
+        
         parrefs = ["species", "execution", "plotdir", "calculator"]
         for ref in parrefs:
             setattr(self, ref, getattr(parent, ref))
@@ -1361,7 +1368,7 @@ class Controller(object):
         self.collections = {}
         self.uuids = {}
         self.species = sorted([s for s in self.specs["species"]])
-        self.ran_seed = self.specs.get("ran_seed",0)
+        self.ran_seed = self.specs.get("random_seed",0)
         import random
         random.seed(self.ran_seed)
         
@@ -1369,7 +1376,6 @@ class Controller(object):
         self.calculator = self.specs.get("calculator", {})
 
         self.venv = self.specs.get("venv")
-        self.ran_seed = self.specs.get("random seed")
 
         # We need to split out the databases by user-given name to create
         # the sequences.
@@ -1711,7 +1717,7 @@ class Controller(object):
               names. This limits which databases sequences are returned.
         """
 
-        from matdb.utility import save_dict_to_h5
+        from matdb.io import save_dict_to_h5
         from matdb import __version__
         
         final_dict = self.versions.copy()

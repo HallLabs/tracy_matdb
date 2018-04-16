@@ -49,9 +49,6 @@ class SyncQuip(quippy.Potential, SyncCalculator):
                   "constraint":atoms.constraints, "info":info,
                   "n":len(atoms.positions)}
         return Atoms(**kwargs)
-        
-    def todict(self):
-        return {"calcargs": self.calcargs, "calckw": self.calckw}
 
     def calc(self,atoms,**kwargs):
         """Replaces the calc function with one that returns a matdb atoms object.
@@ -79,7 +76,7 @@ class SyncQuip(quippy.Potential, SyncCalculator):
             if key=="force":
                 new_val = np.transpose(new_val)
             atoms.add_property(key,new_val)
-        if not np.allclose(atoms.positions,temp_A.positions):
+        if not np.allclose(atoms.positions,temp_A.positions): 
             atoms.positions = temp_A.positions
 
     def can_execute(self):
