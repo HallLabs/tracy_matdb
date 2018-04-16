@@ -39,7 +39,7 @@ def _mimic_vasp(folder, xroot):
 @pytest.fixture()
 def Pd(tmpdir):
     from matdb.utility import relpath
-    from matdb.database.controller import Controller
+    from matdb.database import Controller
     from os import mkdir, symlink, remove, path
 
     target = relpath("./tests/Pd/matdb")
@@ -68,9 +68,9 @@ def dynPd(Pd):
     #First, we need to copy the FORCE_SETS and total_dos.dat files so that we
     #don't have to recompile those (they are tested elsewhere).
     from matdb.utility import symlink    
-    troot = path.join(reporoot, "tests", "data", "Pd", "dynmatrix")
+    troot = path.join(reporoot, "tests", "data", "Pd", "hessian")
     files = ["FORCE_SETS", "total_dos.dat", "mesh.yaml"]
-    for seq in Pd.find("dynmatrix/phonon/Pd/dim-*"):
+    for seq in Pd.find("hessian/phonon/Pd/dim-*"):
         for filename in files:
             target = path.join(seq.root, "phonopy", filename)
             source = path.join(troot, "{0}__{1}".format(filename, seq.parent.name))
@@ -83,7 +83,7 @@ def dynPd(Pd):
 #     """Tests the plotting of phonon bands for supercell convergence test in Pd.
 #     """
 #     from matdb.plotting.comparative import band_plot
-#     dbs = dynPd.find("Pd.phonon-*.dynmatrix")
+#     dbs = dynPd.find("Pd.phonon-*.hessian")
 #     target = str(tmpdir.join("Pd.phonon-convergence.pdf"))
 #     args = {
 #         "dim": 3,
@@ -96,15 +96,15 @@ def test_Pd_setup(Pd):
     """Makes sure the initial folders were setup according to the spec.
     """
     Pd.setup()
-    modelroot = path.join(Pd.root, "DynMatrix","phonon","Pd","dim-2.00")
-    assert Pd["DynMatrix/phonon/Pd/dim-2.00"].root == modelroot
+    modelroot = path.join(Pd.root, "Hessian","phonon","Pd","dim-2.00")
+    assert Pd["Hessian/phonon/Pd/dim-2.00"].root == modelroot
     
     #The matdb.yml file specifies the following databases:
-    dbs = ["DynMatrix/phonon/Pd/dim-{}".format(i) for i in ('2.00', '4.00', '16.00',
+    dbs = ["Hessian/phonon/Pd/dim-{}".format(i) for i in ('2.00', '4.00', '16.00',
                                                             '32.00', '27.00', '8.00')]
-    #Each one should have a folder for: ["dynmatrix", "modulations"]
+    #Each one should have a folder for: ["hessian", "modulations"]
     #On the first go, the modulations folder will be empty because the DFT
-    #calculations haven't been performed yet. However, dynmatrix should have DFT
+    #calculations haven't been performed yet. However, hessian should have DFT
     #folders ready to go.
     folders = {
         "__files__": ["compute.pkl","jobfile.sh"],
@@ -126,11 +126,11 @@ def test_Pd_setup(Pd):
 def test_steps(Pd):
     """Tests compilation of all steps in the database.
     """
-    assert Pd.steps() == ['dynmatrix/phonon']
+    assert Pd.steps() == ['hessian/phonon']
     Pd.setup()
-    steps = sorted(['dynmatrix/phonon/Pd/dim-2.00', 'dynmatrix/phonon/Pd/dim-4.00',
-                    'dynmatrix/phonon/Pd/dim-16.00', 'dynmatrix/phonon/Pd/dim-27.00',
-                    'dynmatrix/phonon/Pd/dim-32.00','dynmatrix/phonon/Pd/dim-8.00'])
+    steps = sorted(['hessian/phonon/Pd/dim-2.00', 'hessian/phonon/Pd/dim-4.00',
+                    'hessian/phonon/Pd/dim-16.00', 'hessian/phonon/Pd/dim-27.00',
+                    'hessian/phonon/Pd/dim-32.00','hessian/phonon/Pd/dim-8.00'])
     assert Pd.steps() == steps
     
     seqs = sorted(['Pd/dim-2.00', 'Pd/dim-16.00', 'Pd/dim-32.00',
@@ -140,64 +140,29 @@ def test_steps(Pd):
 def test_find(Pd):
     """Tests the find function with pattern matching.
     """
-    # assert Pd['Pd.modulate.dynmatrix'] is Pd['Pd.phonon-16.dynmatrix']
-
     Pd.setup()
-    steps = Pd.find("dynmatrix/phonon/Pd/dim-*")
-    model = ['dynmatrix', 'dynmatrix', 'dynmatrix', 'dynmatrix', 'dynmatrix', 'dynmatrix']
+    steps = Pd.find("hessian/phonon/Pd/dim-*")
+    model = ['hessian', 'hessian', 'hessian', 'hessian', 'hessian', 'hessian']
     assert model == [s.parent.name for s in steps]
-    model = [path.join(Pd.root,'DynMatrix/phonon/Pd/dim-2.00'),
-             path.join(Pd.root,'DynMatrix/phonon/Pd/dim-4.00'),
-             path.join(Pd.root,'DynMatrix/phonon/Pd/dim-8.00'),
-             path.join(Pd.root,'DynMatrix/phonon/Pd/dim-16.00'),
-             path.join(Pd.root,'DynMatrix/phonon/Pd/dim-27.00'),
-             path.join(Pd.root,'DynMatrix/phonon/Pd/dim-32.00')]
+    model = [path.join(Pd.root,'Hessian/phonon/Pd/dim-2.00'),
+             path.join(Pd.root,'Hessian/phonon/Pd/dim-4.00'),
+             path.join(Pd.root,'Hessian/phonon/Pd/dim-8.00'),
+             path.join(Pd.root,'Hessian/phonon/Pd/dim-16.00'),
+             path.join(Pd.root,'Hessian/phonon/Pd/dim-27.00'),
+             path.join(Pd.root,'Hessian/phonon/Pd/dim-32.00')]
     assert sorted(model) == sorted([s.root for s in steps])
 
-    steps = Pd.find("dynmatrix/phonon/Pd")
-    model = ['dynmatrix']
+    steps = Pd.find("hessian/phonon/Pd")
+    model = ['hessian']
     assert model == [s.parent.name for s in steps]
-    model = [path.join(Pd.root,'DynMatrix/phonon/Pd')]
+    model = [path.join(Pd.root,'Hessian/phonon/Pd')]
     assert model == [s.root for s in steps]
 
     # test uuid finding.
     assert all([Pd.find(s.uuid)==s for s in steps])
     
-# def test_Pd_modulation(dynPd):
-#     """Tests generation of modulated configurations along phonon modes.
-#     """
-#     from matdb.utility import symlink
-#     #Call setup again since we have force_sets and DOS available.
-#     dynPd.cleanup()
-#     dynPd.setup()
-
-#     folders = {
-#         "modulations": {
-#             "__files__": ["INCAR", "PRECALC", "jobfile.sh"]
-#         }
-#     }
-
-#     files = ["INCAR", "POSCAR", "POTCAR", "PRECALC", "KPOINTS"]
-#     for i in range(1, 6):
-#         key = "M.{0:d}".format(i)
-#         folders["modulations"][key] = {}
-#         folders["modulations"][key]["__files__"] = files
-
-#     from matdb.utility import compare_tree
-#     dbfolder = path.join(dynPd.root, "Pd.modulate")
-#     compare_tree(dbfolder, folders)    
-#     folder = path.join(reporoot, "tests", "data", "Pd", "modulations")
-#     dest = dynPd["Pd.modulate"].steps["modulations"].root
-#     for i in range(1,6):
-#         symlink(path.join(dest,"M.{}".format(i),"OUTCAR"),path.join(folder,"OUTCAR__M.{}".format(i)))
-#         symlink(path.join(dest,"M.{}".format(i),"output.xyz"),path.join(folder,"output.xyz__M.{}".format(i)))
-#     dynPd["Pd.modulate"].steps["modulations"].cleanup()
-#     dynPd["Pd.modulate"].steps["modulations"].ready()
-#     dynPd["Pd.modulate"].steps["modulations"].setup()
-#     # dynPd["Pd.modulate"].steps["modulations"].setup(rerun=True)
-    
 # @pytest.mark.skip()    
-def test_Pd_dynmatrix(Pd):
+def test_Pd_hessian(Pd):
     """Tests the `niterations` functionality and some of the standard
     methods of the class on simple Pd.
 
@@ -218,11 +183,11 @@ def test_Pd_dynmatrix(Pd):
     #`vasprun.xml` files that we linked to are not complete for all the
     #structures (on purpose).
     Pd.recover()
-    recoveries = ["dynmatrix/phonon/Pd/dim-16.00",
-                  "dynmatrix/phonon/Pd/dim-32.00",
-                  "dynmatrix/phonon/Pd/dim-27.00"]
-    okay = ["dynmatrix/phonon/Pd/dim-2.00",
-            "dynmatrix/phonon/Pd/dim-4.00"]
+    recoveries = ["hessian/phonon/Pd/dim-16.00",
+                  "hessian/phonon/Pd/dim-32.00",
+                  "hessian/phonon/Pd/dim-27.00"]
+    okay = ["hessian/phonon/Pd/dim-2.00",
+            "hessian/phonon/Pd/dim-4.00"]
     for rkey in recoveries:
         assert path.isfile(path.join(Pd[rkey].root, "recovery.sh"))
     for rkey in okay:
@@ -237,11 +202,11 @@ def test_Pd_dynmatrix(Pd):
     #complete for all the structures. This test that we can recover and execute
     #multiple times in order.
     Pd.recover()
-    recoveries = ["dynmatrix/phonon/Pd/dim-32.00"]
-    okay = ["dynmatrix/phonon/Pd/dim-2.00",
-            "dynmatrix/phonon/Pd/dim-16.00",
-            "dynmatrix/phonon/Pd/dim-4.00",
-            "dynmatrix/phonon/Pd/dim-27.00"]
+    recoveries = ["hessian/phonon/Pd/dim-32.00"]
+    okay = ["hessian/phonon/Pd/dim-2.00",
+            "hessian/phonon/Pd/dim-16.00",
+            "hessian/phonon/Pd/dim-4.00",
+            "hessian/phonon/Pd/dim-27.00"]
     for rkey in recoveries:
         assert path.isfile(path.join(Pd[rkey].root, "recovery.sh"))
     for rkey in okay:
@@ -253,11 +218,11 @@ def test_Pd_dynmatrix(Pd):
     _mimic_vasp(folder, Pd.root)
 
     Pd.recover()
-    okay = ["dynmatrix/phonon/Pd/dim-2.00",
-            "dynmatrix/phonon/Pd/dim-16.00",
-            "dynmatrix/phonon/Pd/dim-4.00",
-            "dynmatrix/phonon/Pd/dim-27.00",
-            "dynmatrix/phonon/Pd/dim-32.00"]
+    okay = ["hessian/phonon/Pd/dim-2.00",
+            "hessian/phonon/Pd/dim-16.00",
+            "hessian/phonon/Pd/dim-4.00",
+            "hessian/phonon/Pd/dim-27.00",
+            "hessian/phonon/Pd/dim-32.00"]
     for rkey in okay:
         assert not path.isfile(path.join(Pd[rkey].root, "recovery.sh"))
     
@@ -267,25 +232,3 @@ def test_Pd_dynmatrix(Pd):
     for rkey in okay:
         assert path.isfile(path.join(Pd[rkey].root, "phonopy", "FORCE_SETS"))
         assert path.isfile(path.join(Pd[rkey].root, "phonopy", "total_dos.dat"))
-    
-# def test_split(Pd):
-#     """Tests the splitting logic and that the ids from original
-#     randomization are saved correctly.
-#     """
-#     from os import remove, path, symlink
-    
-#     Pd.setup()
-#     Pd["Pd.phonon-4"]._split("A")
-#     remove(path.join(Pd["Pd.phonon-4"].root,"A-super.xyz"))
-#     Pd["Pd.phonon-4"]._split("A")
-
-#     POSCAR = relpath("./tests/Pd/POSCAR")
-#     output = path.join(Pd["Pd.phonon-4"].root,"output.xyz")
-#     symlink(POSCAR,output)
-#     list(Pd["Pd.phonon-4"].isteps)[0][1].configs = {"1":Pd["Pd.phonon-4"].root,"2":''}
-#     remove(path.join(Pd["Pd.phonon-4"].root,"A-super.xyz"))
-#     remove(path.join(Pd["Pd.phonon-4"].root,"A-ids.pkl"))
-#     Pd["Pd.phonon-4"]._split("A")
-#     remove(output)
-
-#     Pd.split()

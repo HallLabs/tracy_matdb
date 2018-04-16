@@ -1,5 +1,41 @@
 # Revision History for `matdb`
 
+## Revision 1.1.1
+
+- Added the controll directory to the calling interface for the
+  creation of calculators in the `Atoms` object.
+- Added an check for `SinglePointCalculator` when reading the atoms
+  from hdf5 files (we don't over-write the `ase`
+  `SinglePointCalculator` so it dosen't have a `to_dict` method that
+  would save the required fields so instead we just skip the
+  calculator setup).
+- Removed the folder argument from the calculators `to_dict` method
+  since it isn't needed/used.
+- Fixed `datetime` import in `matdb/database/__init__.py`.
+- Removed duplicate `ran_seed` assignment in the database
+  `Controller`.
+- Fixed the Vasp calculator so that the `environ` variable get set in
+  the `__init__` function.
+- Fixed bugs in the atoms reading and writing routines.
+- Added the Vasp version to the vasp stub.
+- Moved `save_dict_to_h5` from matdb/utility.py to matdb/io.py.
+- Fixed minor typos and bugs in the Vasp calculator.
+- Removed duplicate `todict` method from the `Quip` calculotar.
+- Added entry to kwargs dict of `to_dict` method of the `aflux`
+  calculator.
+- Fixed some minor typos in the `database` classes.
+- Fixed the last bugs in the required packages script, include
+  removing 'argparse' and 'setuptools' from the package list since
+  'pip freeze' dosen't list them.
+- Added an exception that gets printed if the 'Quip' calculator can't
+  be loaded. This try and except fixes import errors if the caculator
+  subpackage.
+- Fixed bugs in the enumerated database introduced by updates to
+  `phenum`.
+- Fixed hashing problem in enumerated database.
+- Added `pre_comp_atoms.h5` to creation of folders in the group
+  class. It's removed after extraction has been completed.
+
 ## Revision 1.1.0
 
 - The database finalize method has been implemented as described in

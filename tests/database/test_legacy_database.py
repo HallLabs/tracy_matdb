@@ -119,12 +119,28 @@ def test_rename(rendb):
     al = AtomsList(rendb._dbfile)
     assert len(al) == 80
 
+def test_ran_seed(tmpdir):
+    """Tests that the random seed gets set by the controller properly.
+    """
 
+    from matdb.utility import relpath
+    from matdb.database import Controller
 
+    target = relpath("./tests/general/ran_seed")
+    dbdir = str(tmpdir.join("general"))
+    mkdir(dbdir)
+    cntrl = Controller(target, dbdir)
+    
+    splits = {
+        "A": .5,
+        "B": .75
+    }
+    root = str(tmpdir.join("legacy"))
+    if not path.isdir(root):
+        mkdir(root)
+    folder = relpath("./tests/data/legacy")
+    
+    result = LegacyDatabase("AgPd-50", root, cntrl, splits, folder, "p-50-*.xyz",
+                            "ph")
 
-
-
-
-
-
-
+    assert result.ran_seed == 100

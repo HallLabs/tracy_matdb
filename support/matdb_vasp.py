@@ -14,3 +14,5 @@ for fname in files:
 
 if path.isfile("POSCAR"):
     symlink("CONTCAR","POSCAR")
+
+print("vasp.4.6.35 3Apr08 complex \n")

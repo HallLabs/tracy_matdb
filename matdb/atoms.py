@@ -3,6 +3,7 @@ code for some of the implementation.
 """
 
 import ase
+from ase.calculators.singlepoint import SinglePointCalculator
 import numpy as np
 from copy import deepcopy
 import h5py
@@ -281,7 +282,7 @@ class Atoms(ase.Atoms):
 
         frmt = target.split('.')[-1]
         if frmt == "h5" or frmt == "hdf5":
-            from matdb.utility import load_dict_from_h5
+            from matdb.io import load_dict_from_h5
             with h5py.File(target,"r") as hf:
                 data = load_dict_from_h5(hf)
             if "atom" in data.keys()[0]:
@@ -293,17 +294,20 @@ class Atoms(ase.Atoms):
                 kwargs = data["calc_kwargs"] if 'calc_kwargs' in data else None
                 if args is not None:
                     if kwargs is not None:
-                        calc = calc(self, data["folder"], data["calc_ran_seed"], args, **kwargs)
+                        calc = calc(self, data["folder"], data["calc_contr_dir"],
+                                    data["calc_ran_seed"], args, **kwargs)
                     else:
-                        calc = calc(self, data["folder"], data["calc_ran_seed"], args)
-                else: # pragma: no cover This case hasn't arrisen in
-                      # any calculators we've tested so far but I'm
-                      # keeping it here just to be safe and support
-                      # the possibility with future expansions.
+                        calc = calc(self, data["folder"], data["calc_contr_dir"],
+                                    data["calc_ran_seed"], args)
+                else: #pragma: no cover This case has never come up in
+                      #testing, however we wil keep it here to be
+                      #verbose.
                     if kwargs is not None:
-                        calc = calc(self, data["folder"], data["calc_ran_seed"], **kwargs)
-                    else:
-                        calc = calc(self, data["folder"], data["calc_ran_seed"])
+                        calc = calc(self, data["folder"], data["calc_contr_dir"],
+                                    data["calc_ran_seed"], **kwargs)
+                    else: 
+                        calc = calc(self, data["folder"], data["calc_contr_dir"],
+                                    data["calc_ran_seed"])
                 self.set_calculator(calc)
 
         else:
@@ -335,9 +339,10 @@ class Atoms(ase.Atoms):
                     data["properties"].update(_recursively_convert_units({prop:value}))
 
         data["positions"] = np.array(self.positions)
-        if self.calc is not None:
-            calc_dict = self.calc.to_dict(self.calc.folder)
+        if self.calc is not None and not isinstance(self.calc, SinglePointCalculator):
+            calc_dict = self.calc.to_dict()
             data["calc"] = self.calc.name
+            data["calc_contr_dir"] = calc_dict["contr_dir"]
             if "version" in calc_dict:
                 data["calc_version"] = calc_dict["version"] 
             if hasattr(self.calc,"args"):
@@ -350,6 +355,8 @@ class Atoms(ase.Atoms):
                 data["calc_ran_seed"] = np.float64(self.calc.ran_seed)
             if hasattr(self.calc, "kpoints") and self.calc.kpoints is not None:
                 data["calc_kwargs"]["kpoints"] = _recursively_convert_units(self.calc.kpoints)
+            if hasattr(self.calc, "potcars") and self.calc.kpoints is not None:
+                data["calc_kwargs"]["potcars"] = _recursively_convert_units(self.calc.potcars)
             
         symbols = self.get_chemical_symbols()
         data["symbols"] = ''.join([i+str(symbols.count(i)) for i in set(symbols)])
@@ -369,7 +376,7 @@ class Atoms(ase.Atoms):
 
         frmt = target.split('.')[-1]
         if frmt == "h5" or frmt == "hdf5":
-            from matdb.utility import save_dict_to_h5
+            from matdb.io import save_dict_to_h5
             with h5py.File(target,"w") as hf:
                 data = self.to_dict()
                 save_dict_to_h5(hf,data,'/')
@@ -494,7 +501,7 @@ class AtomsList(list):
         """
         frmt = target.split('.')[-1]
         if frmt == "h5" or frmt == "hdf5":
-            from matdb.utility import load_dict_from_h5
+            from matdb.io import load_dict_from_h5
             with h5py.File(target,"r") as hf:
                 data = load_dict_from_h5(hf)
             # If the data was read in from and hdf5 file written by
@@ -512,7 +519,7 @@ class AtomsList(list):
                     msg.err("The data format {} isn't supported for reading AtomLists "
                             "from hdf5 files.".format(type(data.values()[0])))
             else:
-                atoms = [Atoms(**data)]
+                atoms = [Atoms(target,**kwargs)]
             if len(self) >0:
                 self.extend(atoms)
             else:
@@ -535,7 +542,7 @@ class AtomsList(list):
 
         frmt = target.split('.')[-1]
         if frmt == "h5" or frmt == "hdf5":
-            from matdb.utility import save_dict_to_h5
+            from matdb.io import save_dict_to_h5
             with h5py.File(target,"w") as hf:
                 for atom in self:
                     data = atom.to_dict()

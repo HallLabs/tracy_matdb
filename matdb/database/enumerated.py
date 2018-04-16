@@ -6,6 +6,8 @@ from os import path, getcwd, chdir, remove, listdir, mkdir
 import numpy as np
 from six import string_types
 from matdb.atoms import Atoms, AtomsList
+from matdb.utility import copyonce
+from glob import glob
 
 class Enumerated(Group):
     """Sets up the calculations for a random sampling of structures from
@@ -14,7 +16,6 @@ class Enumerated(Group):
     Args:
         sizes (list): a list containing the smallest and larges cell sizes to 
             include in the database.
-        species (list): the atomic species included in the system.
         lattice (list or str): either the name of the lattice to use 
             ('sc','fcc','bcc', 'hcp') or the atomic basis vectors to use.
         basis (list, optional): the atomic basis to use for the enumeration. 
@@ -103,7 +104,7 @@ class Enumerated(Group):
                              "and the second value is the largest cell size to include, "
                              "i.e., [10,12].")
         self.euids = None
-        self._load_euids()
+        self._load_euids()            
 
     def sub_dict(self):
         """Writes the attributes of this instance of the class to a dictionary.
@@ -117,7 +118,7 @@ class Enumerated(Group):
         enum_dict["eps"] = self.eps
         enum_dict["name"] = self.name
         enum_dict["rattle"] = self.rattle
-        enum_dict["ran_seed"] = self.ran_seed
+        enum_dict["rseed"] = self.ran_seed
         enum_dict["keep_supers"] = self.keep_supers
         enum_dict["displace"] = self.displace
         return enum_dict
@@ -231,7 +232,9 @@ class Enumerated(Group):
         self._expand_sequence()
         if len(self.sequence) == 0:
             return len(self.fitting_configs) == self.nconfigs
-        else:            
+        else:
+            for e in self.sequence.values():
+                temp=e.ready()
             return all(e.ready() for e in self.sequence.values())
     
     @property
@@ -372,7 +375,6 @@ class Enumerated(Group):
         """
         from phenum.enumeration import _enum_out
         from phenum.makeStr import _make_structures
-        from glob import glob
         _enum_out({"input":"enum.in","outfile":"enum.out",
                    "seed":self.ran_seed if self.ran_seed is None else self.ran_seed+dind+recurse,
                    "lattice":"lattice.in","distribution":["all",str(self.nconfigs-dind)],
@@ -382,10 +384,10 @@ class Enumerated(Group):
         remove("enum.in")
         [remove(f) for f in listdir('.') if f.startswith("polya.")]
         # extract the POSCARS
-        euids = _make_structures({"structures":None,"input":"enum.out",
-                                  "species":self.species,"rattle":self.rattle,
-                                  "mink":"t","outfile":"vasp.{}","displace":self.displace}
-                                 ,return_euids=True)
+        euids = _make_structures({"structures":None, "input":"enum.out",
+                                  "species":self.species, "rattle":self.rattle,
+                                  "mink":"t", "outfile":"vasp.{}", "displace":self.displace,
+                                  "config":"f", "remove_zeros":"f"}, return_euids=True)
 
         # Now we need to create the folder for each system we've enumerated
         if self.euids is None:
@@ -398,8 +400,9 @@ class Enumerated(Group):
                 chdir(home)
                 self.create(datoms,cid=dind)
                 chdir(current)
-                self.index[euids[count]] = self.configs[dind]
-                self.euids.append(euids[count])
+                copyonce(dposcar,path.join(self.configs[dind],"POSCAR_orig"))
+                self.index[str(euids[count].hexdigest())] = self.configs[dind]
+                self.euids.append(str(euids[count].hexdigest()))
         [remove(f) for f in listdir('.') if f.startswith("vasp.")]
 
         return dind

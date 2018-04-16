@@ -6,6 +6,41 @@ from matdb.utility import reporoot, relpath
 from matdb.atoms import AtomsList
 from matdb.io import cfg_to_xyz
 import numpy as np
+import six
+
+def compare_dicts(dict1,dict2):
+    """Compares two dictionaries to see if they are the same.
+    """
+
+    if dict1.keys() != dict2.keys():
+        return False
+
+    for key in dict1:
+        if not np.allclose(dict1[key],dict2[key]):
+            return False
+
+    return True
+
+def compare_nested_dicts(dict1,dict2):
+    """Compares two dictionaries to see if they are the same.
+    """
+
+    if sorted(dict1.keys()) != sorted(dict2.keys()):
+        return False
+
+    for key in dict1:
+        if isinstance(dict1[key],dict):
+            res = compare_nested_dicts(dict1[key],dict2[key])
+            if not res:
+                return False
+            else:
+                continue
+        if not isinstance(dict1[key],six.string_types) and not np.allclose(dict1[key],dict2[key]):
+            return False
+        elif isinstance(dict1[key],six.string_types) and not dict1[key] == dict2[key]:
+            return False
+
+    return True
 
 def test_cfg(tmpdir):
     """Tests conversion of MTP's CFG format to XYZ.
@@ -128,3 +163,61 @@ def test_read_verts():
         ],
         'name': 'B'}
     assert B == modelB
+    
+def test_hdf5_in_out():
+    """Tests the writing of dictionaries to hdf5 and reading back out.
+    """
+
+    import h5py
+    from matdb.io import load_dict_from_h5, save_dict_to_h5
+    from os import remove
+
+    dict_1_in = {"a":{"B":np.int64(1),"C":np.int64(3),"D":{"temp":np.array([10,11,12])}},
+                 "n":np.array([3,2]),"t":np.int64(5)}
+    dict_2_in = {"a":np.int64(10),"b":np.array([1,2,10])}
+
+    hf = h5py.File("temp.h5","w")
+    save_dict_to_h5(hf,dict_1_in,"/")
+    hf.close()
+
+    hf = h5py.File("temp.h5","r")
+    out = load_dict_from_h5(hf)
+    hf.close()
+    assert compare_nested_dicts(dict_1_in,out)
+    remove("temp.h5")
+    
+    hf = h5py.File("temp.h5","w")
+    save_dict_to_h5(hf,dict_2_in,"/")
+    hf.close()
+
+    hf = h5py.File("temp.h5","r")
+    out = load_dict_from_h5(hf)
+    hf.close()
+    assert compare_dicts(dict_2_in,out)
+    remove("temp.h5")
+
+    hf = h5py.File("temp.h5","w")
+
+    with pytest.raises(ValueError):
+        save_dict_to_h5(hf,{"a":2},"/")
+    hf.close()
+    remove("temp.h5")
+
+def test_vasp_xyz(tmpdir):
+    """Tests vasp to xyz function.
+    """
+    from matdb.io import vasp_to_xyz
+    from os import remove
+
+    target = "vasp.xyz"
+    model = vasp_to_xyz(relpath("tests/files/io_convert/"), target,
+                        properties=["species", "pos", "z"],
+                        parameters=["energy", "virial"], config_type="temp")
+
+    assert model
+
+    model = vasp_to_xyz(relpath("tests/files/io_convert/"), target, config_type="temp")
+    assert model
+
+    remove(relpath("tests/files/io_convert/vasp.xyz"))
+    remove(relpath("tests/files/io_convert/vasp.xyz.idx"))   

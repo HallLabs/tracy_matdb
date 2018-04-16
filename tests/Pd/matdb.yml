@@ -5,12 +5,6 @@ species:
   - 'Pd'
 # If the POTCAR names are non-standard, include the *suffix* after the
 # element name here.
-potcars:
-  directory: './tests/vasp'
-  xc: 'PBE'
-  version: '28Jan2005'
-  setups:
-    Pd: '_pv'
 # Directory in which the database folder system will be created.
 root: './tests/Pd'
 venv: 'matdb-dev'
@@ -31,6 +25,12 @@ calculator:
   kpoints:
     method: 'mueller'
     mindistance: 20
+  potcars:
+    directory: './tests/vasp'
+    xc: 'PBE'
+    version: '28Jan2005'
+    setups:
+      Pd: '_pv'
 # Parameters for the job arrays that will be submitted for each
 # database. These can be overridden in each database below as well.
 execution:
@@ -56,7 +56,7 @@ databases:
   #by PhononDatabase.
   - name: 'phonon'
     steps:
-      - type: "phonon.DynMatrix"
+      - type: "hessian.Hessian"
         seeds: ["POSCAR:Pd"]
         calculator:
           kpoints:
@@ -75,15 +75,7 @@ databases:
             reshape: [3,3]
         bandmesh: [13, 13, 13]
         dosmesh: [10, 10, 10]
-  # - name: 'modulate'
-  #   steps:
-  #     - "dynmatrix.phonon.dim-16"
-  #     - type: "phonon.Modulation"
-  #       nconfigs: 5
-  #       sampling: 'uniform'
-  #       amplitude:
-  #         Pd: 10
-          
+
 fitting:
   dbs: ['*']
   execution:

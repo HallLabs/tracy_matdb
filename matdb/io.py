@@ -6,6 +6,7 @@ import ase
 from os import path
 from matdb.atoms import Atoms, AtomsList
 from ase.calculators.singlepoint import SinglePointCalculator
+import h5py
 
 _rxcfg = re.compile(r"[a-z\s:\n]+", re.I)
 
@@ -178,8 +179,8 @@ def vasp_to_xyz(folder, outfile="output.xyz", recalc=0,
         
     p = ','.join(properties)
     P = ','.join(parameters)
-    renames = [("energy", "dft_energy"), ("force", "dft_force"),
-               ("virial", "dft_virial")]
+    renames = [("energy", "vasp_energy"), ("force", "vasp_force"),
+               ("virial", "vasp_virial")]
     sargs = ["convert.py", "-I", "vasprun.xml", "-p", p, "-P", P, "-f", "xyz"]
     for s, d in renames:
         sargs.append("-n")
@@ -300,13 +301,38 @@ def read(context, yfile):
     _unpack_obj(ncontext, result, lcontext)
     return result
 
-def required_packages():
-    """Returns the list of required packages for matdb. These have to be
-    hard coded before each commit.
-    """
+def save_dict_to_h5(h5file, dic, path='/'):
+    """Saves a nested dictionary to an open hdf5 file.
 
-    return ["argparse", "backports.functools-lru-cache", "beautifulsoup4", "certifi",
-            "chardet", "cycler", "h5py", "html5lib", "idna", "matplotlib", "mpld3",
-            "numpy", "phenum", "phonopy", "pyparsing", "python-dateutil", "pytz",
-            "PyYAML", "requests", "setuptools", "six", "subprocess32", "termcolor",
-            "tqdm", "urllib3", "webencodings", "lazy_import", "ase", "seekpath"]
+    Args:
+        h5file (file object): the h5 file to be saved to.
+        dic (dict): the dictionary to save.
+        path (str, optional): the path within the h5 file that the dict will be 
+            saved to. Default is '/'.
+    """
+    for key, item in dic.items():
+        if isinstance(item, (np.ndarray, np.int64, np.float64, str, bytes)):
+            h5file[path + key] = item
+        elif isinstance(item, dict):
+            save_dict_to_h5(h5file, item, path + key + '/')
+        else:
+            raise ValueError('Cannot save %s type'%type(item))
+
+def load_dict_from_h5(h5file, path='/'):
+    """Reads an open hdf5 file into a dictionary.
+
+    Args:
+        h5file (file object): the h5 file to be read.
+        path (str, optional): the path within the h5 file presently being 
+            read. Default is '/'.
+
+    Returns:
+        ans (dict): a dictionary containing the contents of the h5 file.
+    """
+    ans = {}
+    for key, item in h5file[path].items():
+        if isinstance(item, h5py._hl.dataset.Dataset):
+            ans[key] = item.value
+        elif isinstance(item, h5py._hl.group.Group):
+            ans[key] = load_dict_from_h5(h5file, path + key + '/')
+    return ans

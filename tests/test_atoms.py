@@ -69,7 +69,7 @@ def test_hdf5(tmpdir):
     atSi = Atoms("Si8",positions=[[0,0,0],[0.25,0.25,0.25],[0.5,0.5,0],[0.75,0.75,0.25],
                                   [0.5,0,0.5],[0.75,0.25,0.75],[0,0.5,0.5],[0.25,0.75,0.75]],
                  cell=[5.43,5.43,5.43])
-    potSW = Quip(atSi, target, 0, ["IP SW"])
+    potSW = Quip(atSi, target, '.', 0, ["IP SW"])
     atSi.set_calculator(potSW)
     potSW.calc(atSi, energy=True, force=True, virial=True)
     atSi.properties["rand"] = np.random.randint(0, 100, 8)
@@ -130,7 +130,7 @@ def test_Atoms_creation(tmpdir):
     assert np.allclose(atR.cell,atSi.cell)
     remove(path.join(target,"temp.xyz"))
 
-    potSW = Quip(atSi, target, 0, ["IP SW"])
+    potSW = Quip(atSi, target, '.', 0, ["IP SW"])
     potSW.results["energy"] = 1234
     potSW.results["force"] = np.random.randint(0, 100, (8,3))
     atSi = Atoms("Si8",positions=[[0,0,0],[0.25,0.25,0.25],[0.5,0.5,0],[0.75,0.75,0.25],
@@ -157,7 +157,7 @@ def test_AtomsList_creation(tmpdir):
     at1 = Atoms("Si8",positions=[[0,0,0],[0.25,0.25,0.25],[0.5,0.5,0],[0.75,0.75,0.25],
                                   [0.5,0,0.5],[0.75,0.25,0.75],[0,0.5,0.5],[0.25,0.75,0.75]],
                  cell=[5.43,5.43,5.43],info={"rand":10})
-    potSW = Quip(at1, target, 0, ["IP SW"])
+    potSW = Quip(at1, target, '.', 0, ["IP SW"])
     potSW.results["energy"] = 1234
     potSW.results["force"] = np.random.randint(0, 100, (8,3))
     at1 = Atoms("Si8",positions=[[0,0,0],[0.25,0.25,0.25],[0.5,0.5,0],[0.75,0.75,0.25],
@@ -167,7 +167,7 @@ def test_AtomsList_creation(tmpdir):
     at2 = Atoms("S6",positions=[[0,0,0],[0.25,0.25,0.25],[0.5,0.5,0],[0.75,0.75,0.25],
                                   [0.5,0,0.5],[0.75,0.25,0.75]],
                  cell=[6.43,5.43,4.43],info={"rand":10},calculator=potSW)
-    potSW = Quip(at2, target, 0, ["IP SW"])
+    potSW = Quip(at2, target, '.', 0, ["IP SW"])
     potSW.results["energy"] = 4321
     potSW.results["force"] = np.random.randint(0, 100, (6,3))
     at2 = Atoms("S6",positions=[[0,0,0],[0.25,0.25,0.25],[0.5,0.5,0],[0.75,0.75,0.25],
@@ -345,7 +345,7 @@ def test_ase_atoms_conversion(tmpdir):
     assert np.allclose(aR.positions, atSi.positions)
     assert aR.calc == atSi.calc 
     
-    potSW = Quip(atSi, target, 0, ["IP SW"])
+    potSW = Quip(atSi, target, '.', 0, ["IP SW"])
     atSi.set_calculator(potSW)
 
     aR = matAtoms(atSi)
@@ -353,3 +353,124 @@ def test_ase_atoms_conversion(tmpdir):
     assert np.allclose(aR.positions, atSi.positions)
     assert aR.calc == atSi.calc 
     
+def test_to_dict(tmpdir):
+    """Tests the conversion of atoms to dictionaries.
+    """
+    
+    from matdb.calculators import Vasp
+    from matdb.atoms import Atoms as Atoms
+
+    target = str(tmpdir.join("atoms_dict"))
+    if not path.isdir(target):
+        mkdir(target)
+
+    atSi = Atoms("Si8",positions=[[0,0,0],[0.25,0.25,0.25],[0.5,0.5,0],[0.75,0.75,0.25],
+                                  [0.5,0,0.5],[0.75,0.25,0.75],[0,0.5,0.5],[0.25,0.75,0.75]],
+                 cell=[5.43,5.43,5.43])
+
+    kwargs = {"encut":400, "kpoints": {"rmin": 50},
+              "potcars":{"xc": "pbe", "directory": "./tests/vasp"}}
+    
+    calc = Vasp(atSi, target, '.', 0, **kwargs)
+
+    atSi.set_calculator(calc)
+    atSi.group_uuid = "123456"
+    Sidict = atSi.to_dict()
+
+    
+    assert "calc" in Sidict
+    assert "calc_kwargs" in Sidict
+    assert Sidict["calc_kwargs"]["encut"] == 400
+    assert Sidict["group_uuid"] == "123456"
+    assert "potcars" in Sidict["calc_kwargs"]
+    assert "kpoints" in Sidict["calc_kwargs"]
+
+def test_read_atoms(tmpdir):
+    """Tests the reading of atoms objects from files.
+    """
+    
+    from matdb.calculators import Vasp
+    from matdb.atoms import Atoms as Atoms
+
+    target = str(tmpdir.join("read_atoms"))
+    if not path.isdir(target):
+        mkdir(target)
+
+    atSi = Atoms("Si8",positions=[[0,0,0],[0.25,0.25,0.25],[0.5,0.5,0],[0.75,0.75,0.25],
+                                  [0.5,0,0.5],[0.75,0.25,0.75],[0,0.5,0.5],[0.25,0.75,0.75]],
+                 cell=[5.43,5.43,5.43])
+
+    kwargs = {"encut":400, "kpoints": {"rmin": 50},
+              "potcars":{"xc": "pbe", "directory": "./tests/vasp"}}
+    
+    calc = Vasp(atSi, target, '.', 0, **kwargs)
+
+    atSi.set_calculator(calc)
+    atSi.group_uuid = "123456"
+
+    temp = target=path.join(target,"temp.h5")
+    atSi.write(temp)
+
+    atR = Atoms(temp)
+    
+    assert atR.calc.name == "Vasp"
+    assert hasattr(atR.calc,"potcars")
+    assert atR.calc.kwargs["encut"] == 400
+    assert np.allclose(atR.positions,[[0,0,0],[0.25,0.25,0.25],[0.5,0.5,0],[0.75,0.75,0.25],
+                                  [0.5,0,0.5],[0.75,0.25,0.75],[0,0.5,0.5],[0.25,0.75,0.75]])
+    
+def test_reading_multiple_files(tmpdir):
+    """Tests the reading in of multiple atoms objects to an AtomsList.
+    """
+    
+    from matdb.calculators import Vasp
+    from matdb.atoms import Atoms as Atoms, AtomsList
+    from matdb.io import save_dict_to_h5
+    import h5py
+
+    target = str(tmpdir.join("read_atoms2"))
+    if not path.isdir(target):
+        mkdir(target)
+
+    atSi = Atoms("Si8",positions=[[0,0,0],[0.25,0.25,0.25],[0.5,0.5,0],[0.75,0.75,0.25],
+                                  [0.5,0,0.5],[0.75,0.25,0.75],[0,0.5,0.5],[0.25,0.75,0.75]],
+                 cell=[5.43,5.43,5.43])
+
+    kwargs = {"encut":400, "kpoints": {"rmin": 50},
+              "potcars":{"xc": "pbe", "directory": "./tests/vasp"}}
+    
+    calc = Vasp(atSi, target, '.', 0, **kwargs)
+    atSi.set_calculator(calc)
+
+    temp = path.join(target,"temp.h5")
+    atSi.write(temp)    
+
+    atSi2 = Atoms("Si8",positions=[[0,0,0],[0.25,0.25,0.25],[0.5,0.5,0],[0.75,0.75,0.25],
+                                  [0.5,0,0.5],[0.75,0.25,0.75],[0,0.5,0.5],[0.25,0.75,0.75]],
+                 cell=[6.43,6.43,6.43])
+
+    kwargs = {"encut":600, "kpoints": {"rmin": 50},
+              "potcars":{"xc": "pbe", "directory": "./tests/vasp"}}
+    
+    calc = Vasp(atSi2, target, '.', 0, **kwargs)
+    atSi2.set_calculator(calc)
+    temp2 = path.join(target,"temp2.h5")
+    atSi2.write(temp2)
+
+    atRL = AtomsList([temp,temp2])
+
+    assert len(atRL) == 2
+    assert atRL[0].calc.kwargs["encut"] == 400
+    assert atRL[1].calc.kwargs["encut"] == 600    
+
+    atom_dict = {"atom_1":temp, "atom_2": temp2}
+
+    temp3 = path.join(target,"temp3.h5")
+    with h5py.File(temp3,"w") as hf:
+        save_dict_to_h5(hf,atom_dict,'/')
+
+    atRL = AtomsList(temp3)
+
+    assert len(atRL) == 2
+    assert atRL[0].calc.kwargs["encut"] == 400
+    assert atRL[1].calc.kwargs["encut"] == 600    
