@@ -667,7 +667,7 @@ class Group(object):
             if path.isfile(path.join(target,"atoms.h5")) and rewrite:
                 from os import rename
                 back_up_path = back_up_path.replace('/','.')+'.atoms.h5'
-                new_path = path.join(self.rec_bin.root,"{}-atotms.h5".format(uid))
+                new_path = path.join(self.rec_bin.root,"{}-atoms.h5".format(uid))
                 rename(path.join(target,'atoms.h5'),new_path)
                 self.database.parent.uuids[uid] = new_path
                 uid = str(uuid4())
@@ -773,24 +773,34 @@ class Group(object):
               information; otherwise, return a dict of the numbers involved
         """
         from numpy import count_nonzero as cnz
+        self._expand_sequence()        
         ready = {}
         done = {}
 
+        summaries = {}
+        if len(self.sequence) > 0:
+            for group in tqdm(self.sequence.values()):
+                subsummary = group.status(False)
+                summaries[group.key] = subsummary
+
         allatoms = list(self.config_atoms.values())
         allconfigs = list(self.configs.values())
-        if len(self.sequence) > 0:
-            for group in self.sequence.values():
-                allatoms.extend(group.config_atoms.values())
-                allconfigs.extend(group.configs.values())
-                
-        for f, a in zip(allconfigs,tqdm(allatoms)):
+        for f, a in zip(allconfigs,allatoms):
             ready[f] = a.calc.can_execute(f)
             done[f] = a.calc.can_extract(f)
-        
-        rdata, ddata = cnz(ready.values()), cnz(done.values())
-        N = len(self.configs)        
-        is_busy = self.is_executing()
 
+        N = len(self.configs)
+        is_busy = self.is_executing()
+        
+        for groupname, summary in summaries.items():
+            ready.update({"{}.{}".format(groupname, k): v
+                          for k, v in summary["ready"].items()})
+            done.update({"{}.{}".format(groupname, k): v
+                          for k, v in summary["done"].items()})
+            N += summary["stats"]["N"]
+            is_busy = is_busy and summary["busy"]
+            
+        rdata, ddata = cnz(ready.values()), cnz(done.values())
         rmsg = "ready to execute {}/{};".format(rdata, N)
         dmsg = "finished executing {}/{};".format(ddata, N)
         busy = " busy executing..." if is_busy else ""
@@ -798,7 +808,7 @@ class Group(object):
         if print_msg:
             return "{} {}{}".format(rmsg, dmsg, busy)
         else:
-            return {
+            result = {
                 "ready": ready,
                 "done": done,
                 "stats": {
@@ -808,6 +818,7 @@ class Group(object):
                 },
                 "busy": is_busy
             }
+            return result
         
     def can_extract(self):
         """Runs post-execution routines to clean-up the calculations. This super class
@@ -967,7 +978,6 @@ class Database(object):
         self.root = root
         self.splits = {} if splits is None else splits
 
-        print(self.root)
         if not path.isdir(self.root):
             from os import mkdir
             mkdir(self.root)
