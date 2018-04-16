@@ -788,7 +788,6 @@ class Group(object):
         for f, a in zip(allconfigs,allatoms):
             ready[f] = a.calc.can_execute(f)
             done[f] = a.calc.can_extract(f)
-            print(f, done[f])
 
         N = len(self.configs)
         is_busy = self.is_executing()
@@ -979,7 +978,6 @@ class Database(object):
         self.root = root
         self.splits = {} if splits is None else splits
 
-        print(self.root)
         if not path.isdir(self.root):
             from os import mkdir
             mkdir(self.root)
