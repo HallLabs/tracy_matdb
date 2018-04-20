@@ -134,14 +134,6 @@ class MTP(Trainer):
             relax_args["threshold_break"] = "10.0"
 
         self.relax = relax_args
-        
-    # def get_calculator(self):
-    #     """Returns an instance of :class:`ase.Calculator` using the latest
-    #     fitted GAP potential in this trainer.
-    #     """
-    #     from quippy.potential import Potential
-    #     if path.isfile(self.mtp_file):
-    #         return Potential("IP MTP", param_filename=self.mtp_file)
 
     def ready(self):
         """Determines if the potential is ready for use.
@@ -307,8 +299,6 @@ class MTP(Trainer):
           will run in so that it has the relevant files.
         """
 
-        import pudb
-        pudb.set_trace()
         if not path.isfile(path.join(self.root,"status.txt")):
             self.iter_status = "train"
             iter_count = 1
@@ -366,31 +356,45 @@ class MTP(Trainer):
 
         # if relaxation is done
         if self.iter_status == "select":
+            from matdb.atoms import Atoms
             cat(glob(path.join(self.root,"selected.cfg_*")), path.join(self.root,"selected.cfg"))
 
             # command to select next training set.
-            template = "mlp select-add pot.mtp traic.cfg selected.cfg diff.cfg --selection-limit={}".format(self.selection_limit)
-
-        # if selection is done
-        if self.iter_status == "add":
-            from quippy.atoms import Atoms
             with chdir(self.root):
+                os.system("mlp select-add pot.mtp train.cfg selected.cfg diff.cfg --selection-limit={}".format(self.selection_limit))
+
+                # Now add the selected atoms to the Active database.
                 os.system("mlp convert-cfg diff.cfg POSCAR --output-format=vasp-poscar")
                 os.system("cp selected.cfg selected.cfg_iter_{}".format(iter_count))
                 if path.isfile("relaxed.cfg"):
                     os.system("cp relaxed.cfg relaxed.cfg_iter_{}".format(iter_count))
 
-                new_confgs = []
+                new_configs = []
                 new_POSCARS = glob("POSCAR*")
+                # Here We need to re-write the POSCARs so that they
+                # have the correct species.
                 for POSCAR in new_POSCARS:
-                    new_configs.append(Atoms(POSCAR,format="POSCAR"))
+                    # We need to put the correct species into the
+                    # title of the POSCAR so that ASE can read it
+                    pos_file = []
+                    with open(POSCAR, 'r') as f:
+                        for line in f:
+                            pos_file.append(line)
+                    pos_file[0] = "{0} : {1}".format(" ".join(self.species), pos_file[0])
+                    with open(POSCAR, 'w+') as f:
+                        for line in pos_file:
+                            f.write(line)
+                            
+                    new_configs.append(Atoms(POSCAR,format="vasp"))
 
-                self.active.add_configs(new_configs)
+                self.active.add_configs(new_configs, iter_count)
                 self.active.setup()
+                self.active.execute()
             
             with open(path.join(self.root,"status.txt"),"w+") as f:
                 f.write("done {0}".format(iter_count))
-            
+            template = ''
+
         return template
 
     def status(self, printed=True):

@@ -334,9 +334,9 @@ class AsyncVasp(Vasp, AsyncCalculator):
         """
 
         light = ["CHG", "XDATCAR", "DOSCAR", "PCDAT"]
-        default =["CHGCAR", "WAVECAR", "IBZKPT", "OSZICAR",
-                  "CONTCAR", "EIGENVAL", "DOSCAR", "PCDAT"]
-        aggressive = ["vasprun.xml", "OUTCAR"]
+        default =["CHGCAR", "WAVECAR", "IBZKPT", 
+                  "EIGENVAL", "DOSCAR", "PCDAT"]
+        aggressive = ["vasprun.xml", "OUTCAR", "CONTCAR", "OSZICAR"]
 
         if clean_level == "light":
             rm_files = light

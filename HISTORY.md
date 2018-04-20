@@ -10,6 +10,9 @@
   after a calculation.
 - Added new slurm template.
 - Fixed more issues in the mtp commands.
+- Implemented a re-write of the POTCAR by the mtp method that the ASE
+  read can get the species from the title.
+- Debugged Active Group setup.
 
 ## Revision 1.1.1
 
