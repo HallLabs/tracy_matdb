@@ -225,7 +225,7 @@ class Trainer(object):
         pass
 
     def extras(self):
-        """Returns a list of extra XYZ training files that should be included in
+        """Returns a list of extra training files that should be included in
         the database training. This is used by some trainers that create
         additional configurations as part of the training.
 
@@ -358,6 +358,11 @@ class Trainer(object):
                 filtered = self._filter_dbs(seq.name, nfiles)
                 cfiles.extend(filtered)
 
+            #If this is the training file, we need to append any extras; these
+            #are files that have additional trainer-specific configs to include.
+            if kind == "train":
+                cfiles.extend(self.extras())
+                
             #First, save the configurations to a single file.
             dbcat(cfiles, cfile)
 
