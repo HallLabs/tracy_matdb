@@ -207,25 +207,6 @@ class Trainer(object):
         self._invert_filters()
         self.configs("train", False)
 
-    @property
-    def energy_name(self):
-        """Returns the name of the energy property that this trainer writes onto
-        an atoms object when using its calculator to calculate energy.
-        """
-        return "{}_energy".format(self.key)
-    @property
-    def force_name(self):
-        """Returns the name of the force property that this trainer writes onto
-        an atoms object when using its calculator to calculate force.
-        """
-        return "{}_force".format(self.key)
-    @property
-    def virial_name(self):
-        """Returns the name of the virial property that this trainer writes onto
-        an atoms object when using its calculator to calculate virial.
-        """
-        return "{}_virial".format(self.key)
-        
     @abc.abstractmethod
     def get_calculator(self):
         """Constructs an :ase:`Calculator` instance using the fitted potential
@@ -413,13 +394,13 @@ class Trainer(object):
         result = {}
         if energy:
             result["e_ref"] = np.array(getattr(al, "{}_energy".format(refkey)))
-            result["e_ip"] = np.array(getattr(al, self.energy_name))
+            result["e_ip"] = np.array(getattr(al, self.calculator.energy_name))
         if forces:
             result["f_ref"] = np.array(getattr(al, "{}_force".format(refkey))).flatten()
-            result["f_ip"] = np.array(getattr(al, self.force_name)).flatten()
+            result["f_ip"] = np.array(getattr(al, self.calculator.force_name)).flatten()
         if virial:
             result["v_ref"] = np.array(getattr(al, "{}_virial".format(refkey))).flatten()
-            result["v_ip"] = np.array(getattr(al, self.virial_name)).flatten()
+            result["v_ip"] = np.array(getattr(al, self.calculator.virial_name)).flatten()
 
         return result
     
