@@ -10,12 +10,12 @@
 """
 import ase
 from ase.calculators.vasp import Vasp
-from os import path, stat, mkdir, remove
+from os import path, stat, mkdir, remove, environ
 import mmap
 from matdb.calculators.basic import AsyncCalculator
 from matdb import msg
 from matdb.kpoints import custom as write_kpoints
-from matdb.utility import chdir, execute
+from matdb.utility import chdir, execute, relpath
 
 def phonon_defaults(d, dfpt=False):
     """Adds the usual settings for the INCAR file when performing frozen-phonon
@@ -129,9 +129,7 @@ class AsyncVasp(Vasp, AsyncCalculator):
     tarball = ["vasprun.xml"]
 
     def __init__(self, atoms, folder, contr_dir, ran_seed, *args, **kwargs):
-        from matdb.utility import relpath
-        from os import environ
-        
+        self.init_calc(kwargs)
         self.folder = path.abspath(path.expanduser(folder))
         self.kpoints = None
         if path.isdir(contr_dir):
