@@ -22,6 +22,7 @@ calculators = lazy_import.lazy_module("matdb.calculators")
 from matdb.atoms import Atoms, AtomsList
 from tqdm import tqdm
 from hashlib import sha1
+from matdb.database.utility import split
 
 class Group(object):
     """Represents a collection of material configurations (varying in
@@ -1132,44 +1133,59 @@ class Database(object):
     def train_file(self, split):
         """Returns the full path to the h5 database file that can be
         used for training.
+
         Args:
             split (str): name of the split to use.
         """
-        return path.join(self.root, "{}-train.h5")
+        return path.join(self.root, "{}-train.h5".format(split))
 
     def holdout_file(self, split):
         """Returns the full path to the h5 database file that can be
         used to validate the potential fit.
+
         Args:
             split (str): name of the split to use.
         """
-        return path.join(self.root, "{}-holdout.h5")
+        return path.join(self.root, "{}-holdout.h5".format(split))
 
     def super_file(self, split):
         """Returns the full path to the h5 database file that can be
         used to *super* validate the potential fit.
+
         Args:
             split (str): name of the split to use.
         """
-        return path.join(self.root, "{}-super.h5")
+        return path.join(self.root, "{}-super.h5".format(split))
 
     def split(self, recalc=0):
         """Splits the database multiple times, one for each `split` setting in
         the database specification.
         """
-        from matdb.database.utility import split
-
-        # Generater the list
-        subconfs = []
+        subconfs = AtomsList()
         for dbname, db in self.isteps:
-            if len(db.rset) == 0 or not db.trainable:
+            if not db.trainable:
                 continue
-                    
-            for configpath in db.rset.values():
-                subconfs.append(configpath)
 
-        file_targets = {"train": self.train_file(), "holdout": self.holdout_file(),
-                        "super": self.super_file()}
+            ekey, fkey, vkey = ["{}_{}".format(db.calculator.key, q)
+                                for q in ["energy", "force", "virial"]]            
+            for atconf in db.fitting_configs:
+                #We need to rename the parameters and properties of the individual atoms
+                #objects to match the refkey and global choice of "ref_energy",
+                #"ref_force" and "ref_virial".
+                ati = atconf.copy()
+                energy = ati.params[ekey]
+                force = ati.properties[fkey]
+                virial = ati.params[vkey]
+                ati.params["ref_energy"] = energy
+                ati.properties["ref_force"] = force
+                ati.params["ref_virial"] = virial
+                del ati.params[ekey]
+                del ati.properties[fkey]
+                del ati.params[vkey]
+                subconfs.append(ati)
+                
+        file_targets = {"train": self.train_file, "holdout": self.holdout_file,
+                        "super": self.super_file}
         split(subconfs, self.splits, file_targets, self.root, self.ran_seed, recalc=recalc)
         
     def extract(self, cleanup="default"):

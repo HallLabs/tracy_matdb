@@ -5,7 +5,7 @@ from matdb.atoms import AtomsList
 from os import path
 import numpy as np
 
-def split(atlist, splits, targets, dbdir, ran_seed, refkey, dbfile=None, recalc=0):
+def split(atlist, splits, targets, dbdir, ran_seed, dbfile=None, recalc=0):
     """Splits the :class:`matdb.atoms.AtomsList` multiple times, one for
     each `split` setting in the database specification.
 
@@ -18,8 +18,6 @@ def split(atlist, splits, targets, dbdir, ran_seed, refkey, dbfile=None, recalc=
           name. The dictionary must have the format {"train": file_name, 
           "holdout": file_name, "super": file_name}.
         dbdir (str): the root directory for the database.
-        refkey (str): calculator key to use when extracting values, for example
-          "vasp_energy" has a `refkey` of "vasp".
         dbfile (str): the _dbfile for a legacy database.
         ran_seed (int or float): the random seed for the splits (i.e. the controllers
           random seed).
@@ -62,22 +60,6 @@ def split(atlist, splits, targets, dbdir, ran_seed, refkey, dbfile=None, recalc=
         else:
             subconfs = atlist
 
-        #We need to rename the parameters and properties of the individual atoms
-        #objects to match the refkey and global choice of "ref_energy",
-        #"ref_force" and "ref_virial".
-        ekey, fkey, vkey = ["{}_{}".format(refkey, q)
-                            for q in ["energy", "force", "virial"]]
-        for ati in atlist:
-            energy = ati.params[ekey]
-            force = ati.properties[fkey]
-            virial = ati.params[vkey]
-            ati.params["ref_energy"] = energy
-            ati.properties["ref_force"] = force
-            ati.params["ref_virial"] = virial
-            del ati.params[ekey]
-            del ati.properties[fkey]
-            del ati.params[vkey]
-            
         if path.isfile(idfile):
             with open(idfile, 'rb') as f:
                 data = load(f)
