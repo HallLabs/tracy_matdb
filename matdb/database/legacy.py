@@ -15,9 +15,9 @@ def _atoms_conform(dbfile, energy, force, virial):
 
     Args:
         dbfile (str): name of the database file to check.
-        energy (str): name of the parameter that describes DFT/reference energy.
-        force (str): name of the parameter that describes DFT/reference forces.
-        virial (str): name of the parameter that describes DFT/reference virial
+        energy (str): name of the parameter that describes reference energy.
+        force (str): name of the parameter that describes reference forces.
+        virial (str): name of the parameter that describes reference virial
           tensor.
 
     Returns:
@@ -25,7 +25,7 @@ def _atoms_conform(dbfile, energy, force, virial):
         target parameter names and values are source parameter names. If the
         dictionary has no values, then all the required parameters are already
         in the atoms object. `force` is a boolean that is True if `force` must
-        be copied to `dft_force` to conform with `matdb` conventions.
+        be copied to `ref_force` to conform with `matdb` conventions.
     """
     emsg = "Cannot find {0} under parameter name {1}."
     params = {}
@@ -41,12 +41,12 @@ def _atoms_conform(dbfile, energy, force, virial):
     if virial not in a.params:# pragma: no cover
         raise ValueError(emsg.format("virial", virial))
 
-    if energy != "dft_energy":
-        params["dft_energy"] = energy
-    if force != "dft_force":
+    if energy != "ref_energy":
+        params["ref_energy"] = energy
+    if force != "ref_force":
         doforce = True
-    if virial != "dft_virial":
-        params["dft_virial"] = virial
+    if virial != "ref_virial":
+        params["ref_virial"] = virial
 
     if "config_type" not in a.params:
         params["config_type"] = None
@@ -81,8 +81,8 @@ class LegacyDatabase(object):
           database.
     """
     def __init__(self, name=None, root=None, controller=None, splits=None,
-                 folder=None, pattern=None, config_type=None, energy="dft_energy",
-                 force="dft_force", virial="dft_virial", limit=None):
+                 folder=None, pattern=None, config_type=None, energy="ref_energy",
+                 force="ref_force", virial="ref_virial", limit=None):
         self.name = name
         self.root = path.join(root, self.name)
         if not path.isdir(self.root):
@@ -183,7 +183,7 @@ class LegacyDatabase(object):
                                 del ai.info[source]
 
                     if doforce:
-                        ai.add_property("dft_force",ai.properties[force])
+                        ai.add_property("ref_force",ai.properties[force])
                         del ai.properties[force]
 
                 al.write(outpath)
@@ -212,23 +212,32 @@ class LegacyDatabase(object):
         with chdir(folder):
             dbcat(self.dbfiles, self._dbfull, config_type=self.config_type, docat=False)
         
-    def train_file(self):
+    def train_file(self, split):
         """Returns the full path to the XYZ database file that can be
         used for training.
-        """
-        return path.join(self.root, "{}-train.h5")
 
-    def holdout_file(self):
+        Args:
+            split (str): name of the split to use.
+        """
+        return path.join(self.root, "{}-train.h5".format(split))
+
+    def holdout_file(self, split):
         """Returns the full path to the XYZ database file that can be
         used to validate the potential fit.
-        """
-        return path.join(self.root, "{}-holdout.h5")
 
-    def super_file(self):
+        Args:
+            split (str): name of the split to use.
+        """
+        return path.join(self.root, "{}-holdout.h5".format(split))
+
+    def super_file(self, split):
         """Returns the full path to the XYZ database file that can be
         used to *super* validate the potential fit.
+
+        Args:
+            split (str): name of the split to use.
         """
-        return path.join(self.root, "{}-super.h5")
+        return path.join(self.root, "{}-super.h5".format(split))
                 
     def split(self, recalc=0):
         """Splits the database multiple times, one for each `split` setting in
@@ -239,8 +248,8 @@ class LegacyDatabase(object):
         # Get the AtomsList object
         subconfs = AtomsList(self._dbfile)
         
-        file_targets = {"train": self.train_file(), "holdout": self.holdout_file(),
-                        "super": self.super_file()}
+        file_targets = {"train": self.train_file, "holdout": self.holdout_file,
+                        "super": self.super_file}
         
         split(subconfs, self.splits, file_targets, self.root, self.ran_seed,
               dbfile=self._dbfile, recalc=recalc)
