@@ -70,8 +70,10 @@ class Hessian(Group):
           when selecting the "best" calculation from a parameter grid.
         dfpt (bool): when True, calculate the force constants using Density
           Functional Perturbation Theory.
+
     .. note:: Additional attributes are also exposed by the super class
       :class:`Group`.
+
     Attributes:
         name (str): name of this database type relative to the over database
           collection. This is also the name of the folder in which all of its
@@ -199,6 +201,8 @@ class Hessian(Group):
         #zip!
         evals, evecs = np.linalg.eigh(self.H)
         natoms = len(evals)/3
+        eratio = (np.max(evals)/np.min(evals))**1.5
+        
         for l, v in zip(*(evals, evecs.T)):
             #The eigenvalues should all be positive. There may be some really
             #small ones that are essentially zero, but slightly negative.
@@ -216,7 +220,7 @@ class Hessian(Group):
             #This custom scaling reweights by eigenvalue so that larger
             #eigenvalues get fitted more closely. The 0.1 is our "default_sigma"
             #for hessian.
-            atc.params.set_value("hessian_csigma", 0.1/np.sqrt(l))
+            atc.params.set_value("hessian_csigma", 0.1/(l/eratio))
             atc.params.set_value("n_hessian", 1)
             configs.append(atc)
 
