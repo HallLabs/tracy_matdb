@@ -14,6 +14,10 @@ class AsyncCalculator(object):
     """
     key = None    
     __metaclass__ = abc.ABCMeta
+
+    def init_calc(self, kwargs):
+        if "key" in kwargs:
+            self.key = kwargs.pop("key")
     
     @abc.abstractmethod
     def can_execute(self, folder):
@@ -96,6 +100,10 @@ class SyncCalculator(object):
         key (str): short, lower-case name to identify the calculator type.
     """
     key = None
+
+    def init_calc(self, kwargs):
+        if "key" in kwargs:
+            self.key = kwargs.pop("key")
     
     @abc.abstractmethod
     def can_execute(self):
