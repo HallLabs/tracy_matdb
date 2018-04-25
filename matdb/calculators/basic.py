@@ -18,7 +18,26 @@ class AsyncCalculator(object):
     def init_calc(self, kwargs):
         if "key" in kwargs:
             self.key = kwargs.pop("key")
-    
+
+    @property
+    def energy_name(self):
+        """Returns the name of the energy property that this trainer writes onto
+        an atoms object when using its calculator to calculate energy.
+        """
+        return "{}_energy".format(self.key)
+    @property
+    def force_name(self):
+        """Returns the name of the force property that this trainer writes onto
+        an atoms object when using its calculator to calculate force.
+        """
+        return "{}_force".format(self.key)
+    @property
+    def virial_name(self):
+        """Returns the name of the virial property that this trainer writes onto
+        an atoms object when using its calculator to calculate virial.
+        """
+        return "{}_virial".format(self.key)
+            
     @abc.abstractmethod
     def can_execute(self, folder):
         """Returns `True` if the specified folder is ready to execute using the
@@ -104,7 +123,26 @@ class SyncCalculator(object):
     def init_calc(self, kwargs):
         if "key" in kwargs:
             self.key = kwargs.pop("key")
-    
+
+    @property
+    def energy_name(self):
+        """Returns the name of the energy property that this trainer writes onto
+        an atoms object when using its calculator to calculate energy.
+        """
+        return "{}_energy".format(self.key)
+    @property
+    def force_name(self):
+        """Returns the name of the force property that this trainer writes onto
+        an atoms object when using its calculator to calculate force.
+        """
+        return "{}_force".format(self.key)
+    @property
+    def virial_name(self):
+        """Returns the name of the virial property that this trainer writes onto
+        an atoms object when using its calculator to calculate virial.
+        """
+        return "{}_virial".format(self.key)
+            
     @abc.abstractmethod
     def can_execute(self):
         """Returns `True` if this calculation can calculate properties for the
