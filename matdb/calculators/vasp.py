@@ -323,9 +323,9 @@ class AsyncVasp(Vasp, AsyncCalculator):
             E = self.get_potential_energy(atoms=self.atoms)
             F = self.forces
             S = self.stress
-            self.atoms.add_property("vasp_force", F)
-            self.atoms.add_param("vasp_stress", S)
-            self.atoms.add_param("vasp_energy", E)
+            self.atoms.add_property(self.force_name, F)
+            self.atoms.add_param(self.virial_name, S*self.atoms.get_volume())
+            self.atoms.add_param(self.energy_name, E)
 
         self.cleanup(folder,clean_level=cleanup)
 
