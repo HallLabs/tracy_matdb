@@ -9,6 +9,7 @@ import quippy
 from .basic import Trainer
 from matdb.calculators import Quip
 from matdb.atoms import AtomsList
+from matdb.database.hessian import Hessian
 
 def update_nbody(settings):
     """Adds the usual n-body settings to the specified dictionary. This function
@@ -135,7 +136,7 @@ class GAP(Trainer):
           Hessian group's seed configurations. These are added to the training
           database *without* any energy/force/virial information.
         teach_sparse (dict): key-value pairs for the `teach_sparse` executable.
-        gapargs (dict): parameters for the n-body potential.
+        gap (dict): parameters for the n-body potential.
 
     Attributes:
         name (str): name of the folder in which all the fitting for this trainer
@@ -156,8 +157,7 @@ class GAP(Trainer):
         self.name = "{}b".format(nb) if nb > 0 else "mb"
         super(GAP, self).__init__(**trainargs)
         self.nb = nb
-        self.controller = controller
-        self.e0 = controller.e0
+        self.e0 = self.controller.e0
         self.sigmas = sigmas
         self.gap = {} if gap is None else gap.copy()
         self.params.update(self.gap)
@@ -184,7 +184,14 @@ class GAP(Trainer):
         #If we are doing hessian training, copy the seed configuration and
         #updates its hessian attributes. Calculating delta uses seed
         #configurations anyway.
-        self.seeds = [(seq.atoms.copy(), seq) for seq in self.dbs]
+        self.seeds = []
+        for dbi in self.dbs:
+            for group in dbi.steps.values():
+                if not group.trainable:
+                    continue
+                group._expand_sequence()
+                self.seeds.append((group.atoms.copy(), group))
+                
         self._sparse_points()
         self.compile()
 
@@ -312,15 +319,17 @@ class GAP(Trainer):
         #Determine how many random configs we need to generate.
         hessians = [seed for seed, db in self.seeds
                     if isinstance(db, Hessian)]
-        n_ratio = int(np.ceil(float(n_random)/len(hessians)))        
+        n_ratio = int(np.ceil(float(self.n_random)/len(hessians)))        
         N = n_ratio * len(hessians)
+        msg.info("Generating {0:d} random configs as sparse points.".format(N))
         
         result = AtomsList()
-        for i in range(N):
-            atRand = atEmpty.copy()
-            p = atRand.get_positions()
-            atRand.set_positions(p  + 0.1*2*(np.random.random_sample(p.shape)))
-            result.append(atRand)
+        for hseed in hessians:
+            for i in range(n_ratio):
+                atRand = hseed.copy()
+                p = atRand.get_positions()
+                atRand.set_positions(p  + 0.1*2*(np.random.random_sample(p.shape)))
+                result.append(atRand)
 
         result.write(self.sparse_file)
 
