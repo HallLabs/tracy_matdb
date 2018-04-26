@@ -10,6 +10,7 @@ from matdb.utility import getattrs
 from matdb import msg
 from matdb.utility import chdir, dbcat, execute
 from matdb.atoms import AtomsList
+from matdb.database import Database
 
 class Trainer(object):
     """Represents an algorithm that can use a :class:`Database` (or set of
@@ -112,7 +113,7 @@ class Trainer(object):
         """str: path to the XYZ training file that will be passed to the training
         command.
         """
-        self._holdfile = path.join(self.root, "holdout.h5")
+        self._holdoutfile = path.join(self.root, "holdout.h5")
         """str: path to the XYZ validation file that will be passed to the training
         command.
         """
@@ -128,8 +129,8 @@ class Trainer(object):
         """Finds all dbs that match the patterns supplied for training.
         """
         for dbpat in self._dbs:
-            if '/' in dbpat:
-                pat, split = dbpat.split('/')
+            if ':' in dbpat:
+                pat, split = dbpat.split(':')
             else:
                 pat, split = dbpat, None
 
@@ -137,7 +138,7 @@ class Trainer(object):
             self.dbs.extend(matches)
             if split is not None:
                 for match in matches:
-                    self.cust_splits[match.name] = split        
+                    self.cust_splits[match.fqn] = split        
         
     def _invert_filters(self):
         """Inverts any available db filters for this trainer for optimization
@@ -330,7 +331,7 @@ class Trainer(object):
             "holdout": lambda seq, splt: seq.holdout_file(splt),
             "super": lambda seq, splt: seq.super_file(splt)
         }
-        smap = {getattr(self, "_{}file".format(t))
+        smap = {t: getattr(self, "_{}file".format(t))
                 for t in ["train", "holdout", "super"]}
         cfile = smap[kind]
 
