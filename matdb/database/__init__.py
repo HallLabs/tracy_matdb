@@ -23,6 +23,7 @@ from matdb.atoms import Atoms, AtomsList
 from tqdm import tqdm
 from hashlib import sha1
 from matdb.database.utility import split
+from matdb.database.legacy import LegacyDatabase
 
 class Group(object):
     """Represents a collection of material configurations (varying in
@@ -1407,12 +1408,10 @@ class Controller(object):
                 self.legacy[cpspec["name"]] = LegacyDatabase(**cpspec)
             else:
                 dbname = dbspec["name"]
-                if dbname not in self.collections:
-                    self.collections[dbname] = {}
                 steps = dbspec["steps"]
                 db = Database(dbname, self.root, self,
                               steps, self.specs.get("splits"))
-                self.collections[dbname][dbspec["name"]] = db
+                self.collections[dbname] = db
 
         from os import mkdir
         if not path.isdir(self.plotdir):
@@ -1478,46 +1477,48 @@ class Controller(object):
             return self.uuids[pattern]
         
         if pattern == '*':
-            return self.find('*.*')
+            return self.find('*/*')
         
         from fnmatch import fnmatch
         if pattern.count('/') == 3:
-            groupname, dbname, seed, params = pattern.split('/')
+            dbname, groupname, seed, params = pattern.split('/')
         elif pattern.count('/') == 2:
-            groupname, dbname, seed = pattern.split('/')
+            dbname, groupname, seed = pattern.split('/')
             params = None
         elif pattern.count('/') == 1:
-            groupname, dbname = pattern.split('/')
+            dbname, groupname = pattern.split('/')
             params = None
             seed = None
         else:
-            #We must be searching legacy databases; match the pattern against
-            #those.
-            return [li for ln, li in self.legacy.items() if fnmatch(ln, pattern)]
+            #We must be searching legacy databases or the pattern given is to
+            #match a *database* and not a group.
+            dbname = pattern
+            groupname, params, seed = None, None, None
         
         colls = [v for k, v in self.collections.items() if fnmatch(k, dbname)]
-
+        colls.extend([li for ln, li in self.legacy.items() if fnmatch(ln, pattern)])
         result = []
-        for coll in colls:
-            dbs = [dbi for dbn, dbi in coll.items() if fnmatch(dbn, dbname)]
-            for dbi in dbs:
-                groups = [groupi for groupn, groupi in dbi.steps.items()
-                        if fnmatch(groupn, groupname)]
-
-                for group in groups:
-                    group._expand_sequence()
-                    if len(group.sequence) > 0 and seed is not None:
-                        seeds = [si for sn, si in group.sequence.items()
-                                 if fnmatch(sn, seed)]
-                        for seedi in seeds:
-                            seedi._expand_sequence()
-                            if len(seedi.sequence) > 0 and params is not None:
-                                result.extend([si for sn, si in seedi.sequence.items()
-                                               if fnmatch(sn, params)])
-                            else:
-                                result.append(seedi)
-                    else:
-                        result.append(group)
+        for dbi in colls:
+            if isinstance(dbi, LegacyDatabase) or groupname is None:
+                result.append(dbi)
+                continue
+            
+            groups = [groupi for groupn, groupi in dbi.steps.items()
+                      if fnmatch(groupn, groupname)]
+            for group in groups:
+                group._expand_sequence()
+                if len(group.sequence) > 0 and seed is not None:
+                    seeds = [si for sn, si in group.sequence.items()
+                             if fnmatch(sn, seed)]
+                    for seedi in seeds:
+                        seedi._expand_sequence()
+                        if len(seedi.sequence) > 0 and params is not None:
+                            result.extend([si for sn, si in seedi.sequence.items()
+                                           if fnmatch(sn, params)])
+                        else:
+                            result.append(seedi)
+                else:
+                    result.append(group)
 
         if groupname == '*':
             #Add all the possible legacy databases.
