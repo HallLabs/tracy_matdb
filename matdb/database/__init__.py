@@ -237,7 +237,7 @@ class Group(object):
                                                                 obj_ins.prefix)),"w+") as f:
                         f.write("{0} \n {1}".format(obj_ins.uuid,obj_ins.time_stamp))
                     self.database.parent.uuids[obj_ins.uuid] = obj_ins
-                    obj_ins.setup(rerun=True)
+                    obj_ins.setup(rerun=1)
 
     @property
     def key(self):
@@ -568,12 +568,13 @@ class Group(object):
                                                       env_vars=env_vars))
             return all(already_executed)
 
-    def recover(self, rerun=False):
+    def recover(self, rerun=0):
         """Compiles a list of all DFT runs that didn't complete and compiles the
         `failures` file. Creates a jobfile to re-run the failed
         folders only.
+
         Args:
-            rerun (bool): when True, recreate the jobfile even if it
+            rerun (int): when > 0, recreate the jobfile even if it
               already exists. 
         """
 
@@ -610,11 +611,11 @@ class Group(object):
             for group in self.sequence.values():
                 group.recover(rerun=rerun)
                     
-    def jobfile(self, rerun=False, recovery=False):
+    def jobfile(self, rerun=0, recovery=False):
         """Creates the job array file to run each of the sub-configurations in
         this database.
         Args:
-            rerun (bool): when True, recreate the jobfile even if it
+            rerun (int): when > 0, recreate the jobfile even if it
               already exists. 
             recovery (bool): when True, configure the jobfile to run
               recovery jobs for those that have previously failed. This uses a
@@ -634,7 +635,7 @@ class Group(object):
                 xpath = path.join(self.root, "{}.".format(self.prefix))
                 asize = len(self.configs)
             
-            if (path.isfile(target) and not rerun) or asize == 0:
+            if (path.isfile(target) and rerun == 0) or asize == 0:
                 return
         
             # We use the global execution parameters and then any updates
@@ -768,14 +769,14 @@ class Group(object):
 
         return result
             
-    def setup(self, db_setup, rerun =False):
+    def setup(self, db_setup, rerun=0):
         """Performs the setup of the database using the `db_setup` function
         passed in by the specific group instance.
         
         Args:
             db_setup (function): a function that will perform the setup for each
                 group independently.
-            rerun (bool): default value is False.
+            rerun (int): values > 0 cause rerunning of the setup at different granularity.
         """
         if self.prev is None or self.prev.can_extract():
             #Before we attempt to setup the folders, we first need to construct
@@ -785,7 +786,7 @@ class Group(object):
             self._expand_sequence()
             if len(self.sequence) == 0:
                 ok = self.is_setup()
-                if ok and not rerun:
+                if ok and rerun == 0:
                     return
                 db_setup(rerun)
                 with open(path.join(self.root,"compute.pkl"),"w+") as f:
@@ -912,7 +913,7 @@ class Group(object):
                     #exist.
                     continue
                 from os import remove
-                atoms = self.config_atoms[cid]                
+                atoms = self.config_atoms[cid]
                 atoms.calc.extract(folder, cleanup=cleanup)
                 atoms.write(path.join(folder, "atoms.h5"))
                 if path.isfile(path.join(folder, "pre_comp_atoms.h5")):
@@ -1112,11 +1113,11 @@ class Database(object):
             else:
                 raise StopIteration()
             
-    def recover(self, rerun=False):
+    def recover(self, rerun=0):
         """Runs recovery on this database to determine which configs failed and
         then create a jobfile to requeue them for compute.
         Args:
-            rerun (bool): when True, recreate the jobfile even if it
+            rerun (int): when > 0, recreate the jobfile even if it
               already exists. 
         """
         for dbname, db in self.steps.items():
@@ -1235,16 +1236,17 @@ class Database(object):
                 break
         msg.blank()
             
-    def setup(self, rerun=False):
+    def setup(self, rerun=0):
         """Sets up the database collection by generating the POTCAR file and
         initializing any databases that haven't already been initialized.
         .. note:: The db setup functions are setup to only execute once, and then
            only if their dependencies have completed their calculations. This
            method can, therefore, be safely called repeatedly between different
            terminal sessions.
+
         Args:
-            rerun (bool): when True, recreate the folders even if they
-              already exist. 
+            rerun (int): when > 0, recreate the folders even if they
+              already exist. Higher levels redo more of the work.
         """
         for dbname, db in self.isteps:
             msg.info("Setting up database {}:{}".format(self.name, dbname))
@@ -1336,26 +1338,23 @@ class RecycleBin(Database):
     def isteps(self):
         pass
     
-    def recover(self, rerun=False):
+    def recover(self, rerun=0):
         pass
 
-    def split(self, recalc=0, cfilter=None, dfilter=None):
+    def split(self, recalc=0, dfilter=None):
         """Splits the total available data in the recycle bin.
         Args:
             recalc (int): when non-zero, re-split the data and overwrite any
               existing *.h5 files. This parameter decreases as
               rewrites proceed down the stack. To re-calculate
               lower-level h5 files, increase this value.
-            cfilter (list): of `str` patterns to match against *configuration*
-              names. This limits which configs are returned.
             dfilter (list): of `str` patterns to match against *database sequence*
               names. This limits which databases sequences are returned.
         """
-
         from matdb.utility import chdir
 
         with chdir(self.root):
-            super(RecycleBin,self).split(recalc=recalc,cfilter=cfilter,dfilter=dfilter)
+            super(RecycleBin,self).split(recalc=recalc, dfilter=dfilter)
     
     def status(self, busy=False):
         pass
@@ -1623,11 +1622,11 @@ class Controller(object):
             msg.err("The group name {0} could not be found in the steps of "
                     "the database {1}".format(group.lower(),coll.steps.values()))
                         
-    def setup(self, rerun=False, dfilter=None):
+    def setup(self, rerun=0, dfilter=None):
         """Sets up each of configuration's databases.
 
         Args:
-            rerun (bool): when True, recreate the folders even if they
+            rerun (int): when > 0, recreate the folders even if they
               already exist.
             dfilter (list): of `str` patterns to match against *database*
               names. This limits which databases sequences are returned.
