@@ -191,9 +191,6 @@ class GAP(Trainer):
                     continue
                 group._expand_sequence()
                 self.seeds.append((group.atoms.copy(), group))
-                
-        self._sparse_points()
-        self.compile()
 
     def get_calculator(self):
         """Returns an instance of :class:`ase.Calculator` using the latest
@@ -341,6 +338,8 @@ class GAP(Trainer):
           will run in so that it has the relevant files.
         """
         #Generate any random sparse points and the seed XYZ training file.
+        self.compile()
+        self._sparse_points()
         self._create_xyz()
 
         template = ("teach_sparse at_file={train_file} \\\n"
