@@ -339,6 +339,7 @@ class Atoms(ase.Atoms):
                     data["properties"].update(_recursively_convert_units({prop:value}))
 
         data["positions"] = np.array(self.positions)
+        data["cell"] = np.array(self.cell)
         if self.calc is not None and not isinstance(self.calc, SinglePointCalculator):
             calc_dict = self.calc.to_dict()
             data["calc"] = self.calc.name
