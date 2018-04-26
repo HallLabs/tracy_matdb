@@ -44,9 +44,6 @@ script_options = {
     "--rerun": {"action": "store_true",
                 "help": ("Re-run the specified option, even if it has already "
                          "been done before.")},
-    "--cfilter": {"nargs": "+",
-                 "help": ("Specify a list of patterns to match against _config_ "
-                          "names that should be *included*.")},
     "--dfilter": {"nargs": "+",
                   "help": ("Specify a list of patterns to match against _database_ "
                            "names that should be *included*.")},
@@ -93,17 +90,17 @@ def run(args):
     from matdb.database import Controller
     cdb = Controller(args["dbspec"])
     if args["s"]:
-        cdb.setup(args["rerun"])
+        cdb.setup(args["rerun"], args["dfilter"])
     if args["x"]:
-        cdb.execute(args["recover"], args["cfilter"], args["dfilter"])
+        cdb.execute(args["recover"], args["dfilter"])
     if args["e"]:
-        cdb.extract(cleanup=args["clean"])    
+        cdb.extract(args["dfilter"], cleanup=args["clean"])    
 
     if args["recover"] and not args["x"]:
-        cdb.recover(args["recover"], args["cfilter"], args["dfilter"])
+        cdb.recover(args["rerun"], args["dfilter"])
         
     if args["status"]:
-        cdb.status(args["busy"], args["cfilter"], args["dfilter"])
+        cdb.status(args["busy"], args["dfilter"])
         
 if __name__ == '__main__': # pragma: no cover
     run(_parser_options())
