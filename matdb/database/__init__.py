@@ -1460,21 +1460,17 @@ class Controller(object):
             tdict["db"] = self
             self.trainers = TController(**tdict)
 
-    def ifiltered(self, cfilter=None, dfilter=None):
-        """Returns a *filtered* generator over sequences in the config collections of
-        this object.
+    def ifiltered(self, dfilter=None):
+        """Returns a *filtered* generator over databases in the collections of this object.
+
         Args:
-            cfilter (list): of `str` patterns to match against *configuration*
-              names. This limits which configs are returned.
-            dfilter (list): of `str` patterns to match against *database sequence*
-              names. This limits which databases sequences are returned.
+            dfilter (list): of `str` patterns to match against *database*
+              names. This limits which databases are returned.
         """
         from fnmatch import fnmatch
-        for name, coll in self.collections.items():
-            if cfilter is None or any(fnmatch(name, c) for c in cfilter):
-                for dbn, seq in coll.items():
-                    if dfilter is None or any(fnmatch(dbn, d) for d in dfilter):
-                        yield (dbn, seq)
+        for name, dbi in self.collections.items():
+            if dfilter is None or any(fnmatch(name, d) for d in dfilter):
+                yield (name, dbi)
 
     def relpaths(self, pattern):
         """Finds the relative paths for the seed configurations within the databases that 
@@ -1627,76 +1623,70 @@ class Controller(object):
             msg.err("The group name {0} could not be found in the steps of "
                     "the database {1}".format(group.lower(),coll.steps.values()))
                         
-    def setup(self, rerun=False, cfilter=None, dfilter=None):
+    def setup(self, rerun=False, dfilter=None):
         """Sets up each of configuration's databases.
+
         Args:
             rerun (bool): when True, recreate the folders even if they
               already exist.
-            cfilter (list): of `str` patterns to match against *configuration*
-              names. This limits which configs are returned.
-            dfilter (list): of `str` patterns to match against *database sequence*
+            dfilter (list): of `str` patterns to match against *database*
               names. This limits which databases sequences are returned.
         """
-        for dbname, seq in self.ifiltered(cfilter, dfilter):
-            seq.setup(rerun)
+        for dbname, dbi in self.ifiltered(dfilter):
+            dbi.setup(rerun)
 
-    def extract(self, cfilter=None, dfilter=None, cleanup="default"):
+    def extract(self, dfilter=None, cleanup="default"):
         """Runs extract on each of the configuration's databases.
+
         Args:
-            cfilter (list): of `str` patterns to match against *configuration*
-              names. This limits which configs are returned.
-            dfilter (list): of `str` patterns to match against *database sequence*
-              names. This limits which databases sequences are returned.
+            dfilter (list): of `str` patterns to match against *database*
+              names. This limits which databases are returned.
             cleanup (str): the level of cleanup to perform after extraction.
         """
-        for dbname, seq in self.ifiltered(cfilter, dfilter):
-            seq.extract(cleanup=cleanup)
+        for dbname, dbi in self.ifiltered(dfilter):
+            dbi.extract(cleanup=cleanup)
 
-    def execute(self, recovery=False, cfilter=None, dfilter=None, env_vars=None):
+    def execute(self, recovery=False, dfilter=None, env_vars=None):
         """Submits job array scripts for each database collection.
+
         Args:
             recovery (bool): when True, submit the script for running recovery
               jobs.
-            cfilter (list): of `str` patterns to match against configuration
-              names. This limits which configs status is retrieved for.
-            dfilter (list): of `str` patterns to match against *database sequence*
-              names. This limits which databases sequences are returned.
+            dfilter (list): of `str` patterns to match against *database*
+              names. This limits which databases are returned.
             env_vars (dict): of environment variables to set before calling the
               execution. The variables will be set back after execution.
         """
-        for dbname, seq in self.ifiltered(cfilter, dfilter):
-            seq.execute(recovery, env_vars=env_vars)
+        for dbname, dbi in self.ifiltered(dfilter):
+            dbi.execute(recovery, env_vars=env_vars)
 
-    def recover(self, rerun=False, cfilter=None, dfilter=None):
+    def recover(self, rerun=False, dfilter=None):
         """Runs recovery on this database to determine which configs failed and
         then create a jobfile to requeue them for compute.
+
         Args:
             rerun (bool): when True, recreate the jobfile even if it
               already exists. 
-            cfilter (list): of `str` patterns to match against configuration
-              names. This limits which configs status is retrieved
-              for.
-            dfilter (list): of `str` patterns to match against *database sequence*
-              names. This limits which databases sequences are returned.
+            dfilter (list): of `str` patterns to match against *database*
+              names. This limits which databases are returned.
         """
-        for dbname, seq in self.ifiltered(cfilter, dfilter):
-            seq.recover(rerun) 
+        for dbname, dbi in self.ifiltered(dfilter):
+            dbi.recover(rerun) 
                 
-    def status(self, busy=False, cfilter=None, dfilter=None):
-        """Prints status messages for each of the configuration's
-        databases.
+    def status(self, busy=False, dfilter=None):
+        """Prints status messages for each of the configuration's databases.
+
         Args:
             busy (bool): when True, print a list of the configurations that are
               still busy being computed in DFT.
-            cfilter (list): of `str` patterns to match against configuration
-              names. This limits which configs status is retrieved for.
-            dfilter (list): of `str` patterns to match against *database sequence*
-              names. This limits which databases sequences are returned.
-        """
-        for dbname, seq in self.ifiltered(cfilter, dfilter):
-            seq.status(busy)
+            dfilter (list): of `str` patterns to match against *database*
+              names. This limits which databases are returned.
 
-    def split(self, recalc=0, cfilter=None, dfilter=None):
+        """
+        for dbname, dbi in self.ifiltered(dfilter):
+            dbi.status(busy)
+
+    def split(self, recalc=0, dfilter=None):
         """Splits the total available data in all databases into a training and holdout
         set.
 
@@ -1705,25 +1695,21 @@ class Controller(object):
               existing *.h5 files. This parameter decreases as
               rewrites proceed down the stack. To re-calculate
               lower-level h5 files, increase this value.
-            cfilter (list): of `str` patterns to match against *configuration*
-              names. This limits which configs are returned.
             dfilter (list): of `str` patterns to match against *database sequence*
               names. This limits which databases sequences are returned.
         """
-        for dbname, seq in self.ifiltered(cfilter, dfilter):
-            seq.split(recalc)
+        for dbname, dbi in self.ifiltered(dfilter):
+            dbi.split(recalc)
 
-    def hash_dbs(self, cfilter=None, dfilter=None):
+    def hash_dbs(self, dfilter=None):
         """Hashes the databases into a single hash. 
         
         Args:
-            cfilter (list): of `str` patterns to match against *configuration*
-              names. This limits which configs are returned.
-            dfilter (list): of `str` patterns to match against *database sequence*
-              names. This limits which databases sequences are returned.
+            dfilter (list): of `str` patterns to match against *database*
+              names. This limits which databases are returned.
         """
         hash_all = ''
-        for dbname, seq in self.ifiltered(cfilter, dfilter):
+        for dbname, seq in self.ifiltered(dfilter):
             hash_all += ' '
             hash_all += seq.hash_db()
 
@@ -1736,41 +1722,35 @@ class Controller(object):
             
         return hash_all
 
-    def verify_hash(self, hash_cand, cfilter=None, dfilter=None):
-        """Verifies that the the candidate hash matches this matdb
-        controller's dabateses
+    def verify_hash(self, hash_cand, dfilter=None):
+        """Verifies that the the candidate hash matches this matdb controller's databases.
 
         Args:
             hash_cand (str): The candidate hash to check.
-            cfilter (list): of `str` patterns to match against *configuration*
-              names. This limits which configs are returned.
-            dfilter (list): of `str` patterns to match against *database sequence*
-              names. This limits which databases sequences are returned.
+            dfilter (list): of `str` patterns to match against *database*
+              names. This limits which databases are returned.
 
         Returns:
             True if the hash matches the databases.
         """
+        return hash_cand == self.hash_dbs(dfilter=dfilter)
 
-        return hash_cand == self.hash_dbs(cfilter=cfilter, dfilter=dfilter)
-
-    def finalize(self, cfilter=None, dfilter=None):
+    def finalize(self, dfilter=None):
         """Creates the finalized version of the databases that were used for
         fitting the potential. Stored in final_{matdb.version}.h5.
 
         Args:
-            cfilter (list): of `str` patterns to match against *configuration*
-              names. This limits which configs are returned.
-            dfilter (list): of `str` patterns to match against *database sequence*
-              names. This limits which databases sequences are returned.
+            dfilter (list): of `str` patterns to match against *database*
+              names. This limits which databases are returned.
         """
 
         from matdb.io import save_dict_to_h5
         from matdb import __version__
         
         final_dict = self.versions.copy()
-        final_dict["hash"] = self.hash(cfilter=cfilter, dfilter=dfilter)
+        final_dict["hash"] = self.hash(dfilter=dfilter)
         final_dict["yml_file"] = self.specs.copy()
-        for dbname, seq in self.ifiltered(cfilter, dfilter):
+        for dbname, seq in self.ifiltered(dfilter):
             final_dict["dbname"] = seq.finalize()
 
         if "rec_bin" in dfilter or dfilter is None or dfilter=="*":
