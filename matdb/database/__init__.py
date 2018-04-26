@@ -263,6 +263,20 @@ class Group(object):
             except:
                 raise
         return result
+
+    @property
+    def iconfigs(self):
+        """Provides a generator over all the configurations in this group and its
+        children.
+        """
+        self._expand_sequence()
+        if len(self.sequence) > 0:
+            for group in self.sequence.values():
+                for atoms in group.iconfigs:
+                    yield atoms
+        else:
+            for atoms in self.config_atoms.values():
+                yield atoms
     
     def _expand_sequence(self):
         """Recursively expands the nested groups to populate :attr:`sequence`.
