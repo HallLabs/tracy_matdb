@@ -143,7 +143,10 @@ class Group(object):
                 try:
                     cid = int(folder.split('.')[1])
                     self.configs[cid] = path.join(self.root, folder)
-                    self.config_atoms[cid] = Atoms(path.join(self.configs[cid],"atoms.h5"))
+                    if path.isfile(path.join(self.configs[cid],"atoms.h5")):
+                        self.config_atoms[cid] = Atoms(path.join(self.configs[cid],"atoms.h5"))
+                    else:
+                        self.config_atoms[cid] = Atoms(path.join(self.configs[cid],"pre_comp_atoms.h5"))
                 except:
                     #The folder name doesn't follow our convention.
                     pass
@@ -597,7 +600,7 @@ class Group(object):
                 xpath = path.join(self.root, "{}.".format(self.prefix))
                 asize = len(self.configs)
             
-            if path.isfile(target) and not rerun:
+            if (path.isfile(target) and not rerun) or asize == 0:
                 return
         
             # We use the global execution parameters and then any updates
@@ -642,7 +645,6 @@ class Group(object):
         Returns:
             int: new integer configuration id if one was auto-assigned.
         """
-
         if len(self.sequence)==0:
             if cid is None:
                 cid = len(self.configs) + 1
@@ -654,8 +656,8 @@ class Group(object):
 
             if path.isfile(path.join(target,"uuid.txt")):
                 with open(path.join(target,"uuid.txt"),"r") as f:
-                    uid = f.readine().strip()
-                    time_stamp = f.readine().strip()
+                    uid = f.readline().strip()
+                    time_stamp = f.readline().strip()
             else:
                 uid = str(uuid4())
                 time_stamp = str(datetime.now())
@@ -665,7 +667,7 @@ class Group(object):
             if path.isfile(path.join(target,"atoms.h5")) and rewrite:
                 from os import rename
                 back_up_path = back_up_path.replace('/','.')+'.atoms.h5'
-                new_path = path.join(self.rec_bin.root,"{}-atotms.h5".format(uid))
+                new_path = path.join(self.rec_bin.root,"{}-atoms.h5".format(uid))
                 rename(path.join(target,'atoms.h5'),new_path)
                 self.database.parent.uuids[uid] = new_path
                 uid = str(uuid4())
@@ -682,7 +684,8 @@ class Group(object):
                              self.database.parent.ran_seed, **lcargs)
             calc.create()
             atoms.set_calculator(calc)
-
+            # Turns out we need this for some seedless configurations.
+            atoms.write(path.join(target,"pre_comp_atoms.h5"))
             #Finally, store the configuration for this folder.
             self.configs[cid] = target
             self.config_atoms[cid] = atoms
@@ -752,7 +755,7 @@ class Group(object):
                     return
                 db_setup(rerun)
                 with open(path.join(self.root,"compute.pkl"),"w+") as f:
-                    pickle.dump({"date":datetime.now(),"uuid":self.uuid},f)
+                    pickle.dump({"date": datetime.now(),"uuid":self.uuid},f)
             else:
                 pbar = tqdm(total=len(self.sequence))
                 for group in self.sequence.values():
@@ -770,39 +773,34 @@ class Group(object):
               information; otherwise, return a dict of the numbers involved
         """
         from numpy import count_nonzero as cnz
+        self._expand_sequence()        
         ready = {}
         done = {}
 
+        summaries = {}
+        if len(self.sequence) > 0:
+            for group in tqdm(self.sequence.values()):
+                subsummary = group.status(False)
+                summaries[group.key] = subsummary
+
         allatoms = list(self.config_atoms.values())
         allconfigs = list(self.configs.values())
-        if len(self.sequence) > 0:
-            for group in self.sequence.values():
-                allatoms.extend(group.config_atoms.values())
-                allconfigs.extend(group.configs.values())
-
-        if len(allatoms) == 0:
-            allatoms = [self.atoms]
-        for f, a in zip(allconfigs,tqdm(allatoms)):
-            with open(path.join(f,"uuid.txt"),"r") as f2:
-                uid = f2.readline().strip()
-                time_stamp = f2.readline().strip()
-            a.uuid = uid
-            a.time_stamp = time_stamp
-            a.group_uuid = self.uuid
-            lcargs = self.calcargs.copy()
-            del lcargs["name"]
-
-            calc = self.calc(a, f, self.database.parent.root,
-                             self.database.parent.ran_seed, **lcargs)
-            a.set_calculator(calc)
-
+        for f, a in zip(allconfigs,allatoms):
             ready[f] = a.calc.can_execute(f)
             done[f] = a.calc.can_extract(f)
-        
-        rdata, ddata = cnz(ready.values()), cnz(done.values())
-        N = len(self.configs)        
-        is_busy = self.is_executing()
 
+        N = len(self.configs)
+        is_busy = self.is_executing()
+        
+        for groupname, summary in summaries.items():
+            ready.update({"{}.{}".format(groupname, k): v
+                          for k, v in summary["ready"].items()})
+            done.update({"{}.{}".format(groupname, k): v
+                          for k, v in summary["done"].items()})
+            N += summary["stats"]["N"]
+            is_busy = is_busy and summary["busy"]
+            
+        rdata, ddata = cnz(ready.values()), cnz(done.values())
         rmsg = "ready to execute {}/{};".format(rdata, N)
         dmsg = "finished executing {}/{};".format(ddata, N)
         busy = " busy executing..." if is_busy else ""
@@ -810,7 +808,7 @@ class Group(object):
         if print_msg:
             return "{} {}{}".format(rmsg, dmsg, busy)
         else:
-            return {
+            result = {
                 "ready": ready,
                 "done": done,
                 "stats": {
@@ -820,6 +818,7 @@ class Group(object):
                 },
                 "busy": is_busy
             }
+            return result
         
     def can_extract(self):
         """Runs post-execution routines to clean-up the calculations. This super class
@@ -870,7 +869,7 @@ class Group(object):
         Args:
             cleanup (str): the level of cleanup to perform after 
               extraction.
-        """
+        """        
         self._expand_sequence()
         if len(self.sequence) == 0 and self.can_extract():
             for cid, folder in self.configs.items():
@@ -878,20 +877,12 @@ class Group(object):
                     #We don't need to recreate the atoms objects if they already
                     #exist.
                     continue
-                
-                with open(path.join(folder,"uuid.txt"),"r") as f:
-                    uid = f.readline().strip()
-                    time_stamp = f.readline().strip()
-                self.atoms.uuid = uid
-                self.atoms.time_stamp = time_stamp
-                self.atoms.group_uuid = self.uuid
-                lcargs = self.calcargs.copy()
-                del lcargs["name"]                    
-                calc = self.calc(self.atoms, folder, self.database.parent.root,
-                                 self.database.parent.ran_seed, **lcargs)
-                self.atoms.set_calculator(calc)
-                self.atoms.calc.extract(folder, cleanup=cleanup)
-                self.atoms.write(path.join(folder,"atoms.h5"))
+                from os import remove
+                atoms = self.config_atoms[cid]                
+                atoms.calc.extract(folder, cleanup=cleanup)
+                atoms.write(path.join(folder, "atoms.h5"))
+                if path.isfile(path.join(folder, "pre_comp_atoms.h5")):
+                    remove(path.join(folder, "pre_comp_atoms.h5"))
             return self.can_extract()
         elif len(self.sequence) >0:
             pbar = tqdm(total=len(self.sequence))
@@ -986,12 +977,13 @@ class Database(object):
         self.config = name.split('.')[0]
         self.root = root
         self.splits = {} if splits is None else splits
-        self.rec_bin = RecycleBin(parent,root,splits)
-        
+
         if not path.isdir(self.root):
             from os import mkdir
             mkdir(self.root)
 
+        self.rec_bin = RecycleBin(parent,root,splits)
+        
         parrefs = ["species", "execution", "plotdir", "calculator"]
         for ref in parrefs:
             setattr(self, ref, getattr(parent, ref))

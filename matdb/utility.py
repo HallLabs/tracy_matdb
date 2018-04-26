@@ -904,7 +904,7 @@ def check_deps():
 
     req_pckgs = required_packages()    
     versions = {}
-    instld_pckgs = execute(["pip freeze"], ".", venv=True)["output"]
+    instld_pckgs = [l.strip() for l in execute(["pip freeze"], ".", venv=True)["output"]]
 
     for pkg in instld_pckgs:
         if "==" in pkg:

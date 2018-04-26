@@ -4,7 +4,7 @@ from matdb.msg import info
 try:
     from .quip import SyncQuip as Quip
 except:
-    info("Could not load Quip Calculator.")
+    info("Could not import the Quip calculator.")
 
 def get_calculator_module(calcargs):
     """Returns the module corresponding to the calculator mentioned in
