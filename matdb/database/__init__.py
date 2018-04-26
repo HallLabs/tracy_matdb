@@ -246,6 +246,24 @@ class Group(object):
         """
         return path.basename(self.root)
 
+    @property
+    def calculator(self):
+        """Returns a representative calculator for the group. This will be the calculator
+        attached to one of the :attr:`config_atoms` in the expanded group.
+        """
+        if len(self.config_atoms) == 0:
+            self._expand_sequence()
+
+        result = None
+        if len(self.sequence) > 0:
+            result = next(iter(self.sequence.values())).calculator
+        else:
+            try:
+                result = next(iter(self.config_atoms.values())).get_calculator()
+            except:
+                raise
+        return result
+    
     def _expand_sequence(self):
         """Recursively expands the nested groups to populate :attr:`sequence`.
         """
