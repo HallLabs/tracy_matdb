@@ -41,9 +41,9 @@ script_options = {
                 "help": ("Determines status of the databases "
                          "based on presence of completed VASP "
                          "directories. Sanity check before `-x`.")},
-    "--rerun": {"action": "store_true",
+    "--rerun": {"type": int, "default": 0,
                 "help": ("Re-run the specified option, even if it has already "
-                         "been done before.")},
+                         "been done before. Higher values re-run at a deeper level.")},
     "--dfilter": {"nargs": "+",
                   "help": ("Specify a list of patterns to match against _database_ "
                            "names that should be *included*.")},
