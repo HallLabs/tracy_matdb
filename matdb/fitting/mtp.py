@@ -54,7 +54,7 @@ class MTP(Trainer):
             self._set_relax_ini({})
 
         self.selection_limit = mtpargs["selection-limit"]
-        self.species = controller.species
+        self.species = controller.db.species
 
         self.mtp_file = "pot.mtp"
         if path.isfile(path.join(self.root,"status.txt")):

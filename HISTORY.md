@@ -1,5 +1,9 @@
 # Revision History for `matdb`
 
+## Revision 1.1.3
+- Changed the VASP calculator to use a series of POTCARs stored in the
+  POTCARS dir.
+
 ## Revision 1.1.2
 - Fixed the MTP method so that it correctly constructs the train.cfg
   file.
