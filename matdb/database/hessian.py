@@ -13,7 +13,7 @@ from phonopy.structure.atoms import Atoms as PhonopyAtoms
 from phonopy.cui.phonopy_argparse import get_parser
 from phonopy.cui.settings import PhonopyConfParser
 from matdb import msg
-from matdb.atoms import Atoms
+from matdb.atoms import Atoms, AtomsList
 from matdb.phonons import roll as roll_fc
 
 def unroll_fc(fc):
@@ -169,26 +169,25 @@ class Hessian(Group):
         group. This list includes a single *duplicated* configuration for each
         of the eigenvalue/eigenvector combinations of the Hessian matrix.
         """
-        configs = quippy.AtomsList()
+        configs = AtomsList()
 
-        #Start with the configuration that has energy, force and virial
-        #information from the VASP computation. This is the result of relaxing
-        #the pure structure before we created our supercells. Get this from the
-        #relax step in the previous group.
-        #TODO: implement the relaxation Group...
-        atBase = self.atoms.copy()
-
+        #Start with a configuration that has energy, force and virial
+        #information from the VASP computation. We just grab the first of the
+        #config_atoms from this sequence or its children.
+        atBase = next(self.iconfigs)
+        atcalc = atBase.get_calculator()
+        
         #Make sure that energy, force and virial information was found. 
-        assert atBase.energy < 0
-        assert atBase.force.T.shape[1] == 3
-        assert atBase.virial.T.shape == (3, 3)
+        assert getattr(atBase, atcalc.energy_name) < 0
+        assert getattr(atBase, atcalc.force_name).T.shape[1] == 3
+        assert getattr(atBase, atcalc.virial_name).T.shape == (3, 3)
         configs.append(atBase)
 
-        #Now, make a copy of the base atoms object, delete the force, energy and
-        #virial information so that we have just the lattice and positions. We
-        #will add the eigenvalue and eigenvectors *individually* because they
-        #each need different scaling for sigma in the GAP fit.
-        atEmpty = atBase.copy()
+        #Now, make a copy of the base atoms object; this object only has the
+        #lattice and positions. We will add the eigenvalue and eigenvectors
+        #*individually* because they each need different scaling for sigma in
+        #the GAP fit.
+        atEmpty = self.atoms.copy()
         for k in atEmpty.params:
             if "energy" in k or "virial" in k:
                 del atEmpty.params[k]
