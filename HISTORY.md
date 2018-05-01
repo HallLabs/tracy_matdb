@@ -1,5 +1,9 @@
 # Revision History for `matdb`
 
+## Revision 1.1.2
+
+- Removed assignments to empty dicts from the function definitions.
+
 ## Revision 1.1.1
 
 - Added the controll directory to the calling interface for the
