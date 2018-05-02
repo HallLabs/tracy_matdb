@@ -96,14 +96,14 @@ class Prototypes(Group):
                 cand_path = path.join(template_root, "uniqueBinaries")
             elif k.lower() == "ternary":
                 cand_path = path.join(template_root, "uniqueTernaries")
-            else:
+            else: # pragma: no cover
                 msg.warn("Must specify the system size, i.e., unary, binary, or "
                          "ternary. {} not recognized".format(k))
                 continue
             if isinstance(v,list):
                 for prot in v:
                     files = glob("{0}/*{1}*".format(cand_path,prot))
-                    if len(files) < 1:
+                    if len(files) < 1: # pragma: no cover
                         msg.warn("No prototypes of size {0} matched the string "
                                  "{1}".format(k, prot))
                     else:
@@ -117,7 +117,7 @@ class Prototypes(Group):
                 shuffle(files)
                 keep = files[:v]
                 self.structs[k.lower()] = keep
-            else:
+            else: #pragma: no cover
                 msg.err("Couldn't parse {0} structs for {1} case. Must be either "
                         "a list of file names, 'all', or an int.".format(v, k))
 
@@ -209,7 +209,7 @@ class Prototypes(Group):
                     hash_str = "{0}-{1}".format(fpath.split("/")[-1],"".join(perm))
                     hash_str = str(sha1(hash_str).hexdigest())
                     if hash_str not in self.puuids:
-                        self.puuids.append()
+                        self.puuids.append(hash_str)
                         self._correct_poscar(fpath, path.join(self.root, "POSCAR"), perm)
                         datoms = Atoms(path.join(self.root, "POSCAR"),format="vasp")
                         self.create(datoms)
@@ -238,7 +238,7 @@ class Prototypes(Group):
         elif size == "ternary":
             r = 3
             res = self.order["ternary"] if "ternary" in self.order.keys() else None
-        else:
+        else: # pragma: no cover
             msg.err("{} is not a valid prototype size.".format(size))
             return None
             
@@ -289,7 +289,7 @@ class Prototypes(Group):
         """
         if self.puuids is None:
             self.puuids = self.load_pkl(self.puuid_file)
-        return self.euids
+        return self.puuids
     
     @property
     def puuid_file(self):
