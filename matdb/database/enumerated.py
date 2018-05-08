@@ -118,7 +118,7 @@ class Enumerated(Group):
         enum_dict["eps"] = self.eps
         enum_dict["name"] = self.name
         enum_dict["rattle"] = self.rattle
-        enum_dict["rseed"] = self.ran_seed
+        enum_dict["ran_seed"] = self.ran_seed
         enum_dict["keep_supers"] = self.keep_supers
         enum_dict["displace"] = self.displace
         return enum_dict

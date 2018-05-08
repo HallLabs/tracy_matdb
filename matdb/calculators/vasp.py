@@ -376,8 +376,11 @@ class AsyncVasp(Vasp, AsyncCalculator):
             vasp_dict["kwargs"]["kpoints"] = self.kpoints
         if self.version is None:
             data = execute(["vasp"],self.contr_dir)
-            vasp_dict["version"] = data["output"][0].strip().split()[0]
-            self.version = vasp_dict["version"]
+            try:
+                vasp_dict["version"] = data["output"][0].strip().split()[0]
+                self.version = vasp_dict["version"]
+            except:
+                pass
         else:
             vasp_dict["version"] = self.version
         # Files that need to be removed after being created by the

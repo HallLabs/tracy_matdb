@@ -90,7 +90,7 @@ class Group(object):
         
         self.cls = cls
         self.parent = parent
-        self.execution = execution if execution is not None esle {}
+        self.execution = execution if execution is not None else {}
         self.atoms = None
         
         self._trainable = trainable
@@ -1005,6 +1005,7 @@ class Database(object):
             if not hasattr(module, clsname):# pragma: no cover
                 #We haven't implemented this database type yet, just skip the
                 #initialization for now.
+                msg.warn("The {0} group has not been implemented yet.".format(clsname))
                 continue
             
             cls = getattr(module, clsname)

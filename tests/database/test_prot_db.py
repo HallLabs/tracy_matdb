@@ -12,6 +12,8 @@ def compare_nested_dicts(dict1,dict2):
     """Compares two dictionaries to see if they are the same.
     """
 
+    print(dict1)
+    print(dict2)
     if sorted(dict1.keys()) != sorted(dict2.keys()):
         print("H1", dict1.keys(), dict2.keys())
         return False
@@ -24,7 +26,7 @@ def compare_nested_dicts(dict1,dict2):
                 return False
             else:
                 continue
-        print(dict1[key], dict2[key], key)
+        print("H3",dict1[key], dict2[key], key)
         if isinstance(dict1[key], list) and not dict1[key] == dict2[key]:
             return False
             return False
@@ -52,10 +54,10 @@ def test_setup(CoNiTi):
     """
 
     assert not CoNiTi.collections['prototype']['prototype'].steps['prototype'].is_setup()
-    
+
     CoNiTi.setup()
 
-    db = "Prototypes/prototype/"
+    db = "Prototypes/prototype/ord-1"
 
     folders = {
         "__files__": ["compute.pkl", "jobfile.sh", "prototype_P_uuid.txt", "puuids.pkl"]}
@@ -70,25 +72,24 @@ def test_setup(CoNiTi):
     assert CoNiTi.collections['prototype']['prototype'].steps['prototype'].is_setup()
 
     prot = CoNiTi.collections['prototype']['prototype'].steps['prototype']
-    assert len(prot.puuids) == 169
+    assert len(prot.sequence['ord-1'].puuids) == 169
 
     assert not prot.ready()
-    # We need to fake some VASP output so that we can cleanup the
-    # database and get the rset
 
-    src = relpath("./tests/data/Pd/complete/OUTCAR__DynMatrix_phonon_Pd_dim-2.00")
+    # We need to create fake atoms.h5 objects so that the system will
+    # think that VASP has run and the caculations have been extracted.
     dbfolder = path.join(CoNiTi.root,db)
     for j in range(1,170):
-        dest = path.join(dbfolder,"P.{}".format(j),"OUTCAR")
-        symlink(src,dest)
-            
-        src = path.join(dbfolder,"P.{}".format(j),"POSCAR")
-        dest = path.join(dbfolder,"P.{}".format(j),"CONTCAR")
+        src = path.join(dbfolder,"P.{}".format(j),"pre_comp_atoms.h5")
+        dest = path.join(dbfolder,"P.{}".format(j),"atoms.h5")
         symlink(src,dest)
 
-    prot.extract()
     assert len(prot.rset) == 169
     assert len(prot.fitting_configs) == 169
+
+    # We run the setup one more time to ensure quick returns
+    assert prot.ready()
+    prot._setup_configs(False)
 
 def test_to_dict(CoNiTi):
     """Tests the to dict method.
@@ -99,10 +100,16 @@ def test_to_dict(CoNiTi):
 
     out = prot.to_dict()
     print(out)
-    model = {'name': 'prototype', 'calculator': None, 'trainable': False, 'prefix': 'P',
-     'order': {'ternary': [['Co', 'Ni', 'Ti']]}, 'ran_seed': 10, 'config_type': None,
-     'version': __version__, 'override': {}, 'execution': None, 'root': prot.root,
-     'structs': {'unary': 'all', 'binary': 10, 'ternary': 10}, 'nconfigs': None}
+    model = {'name': 'prototype', 'trainable': False, 'prefix': 'P',
+             'calculator': {'kpoints': {'method': 'mueller', 'mindistance': 40},
+                            'pp': 'pbe', 'nsw': 1, 'name': 'Vasp',
+                            'potcars': {'directory': './tests/vasp', 'xc': 'PBE'}},
+             'order': {'ternary': [['Co', 'Ni', 'Ti']]}, 'ran_seed': 10, 'config_type': None,
+             'version': __version__, 'override': {}, 'execution': None, 'root': prot.root,
+             'structs': {'unary': 'all',
+                         'binary': ['b210_', 'b20_', 'b211_', 'b212_', 'b215_',
+                                    'b216_', 'b217_', 'b218_', 'b219_', 'b221_'],
+                         'ternary': 10}, 'nconfigs': None}
     # some things we can't know before hand like the python version
     # and the datetime stamp for these entries we simply need to
     # verify that they are present.

@@ -9,7 +9,7 @@ from six import string_types
 from matdb.atoms import Atoms, AtomsList
 from glob import glob
 from phenum.element_data import get_lattice_parameter
-from matdb.utility import _get_reporoot
+from matdb.utility import _get_reporoot, chdir
 from copy import deepcopy
 from hashlib import sha1
 
@@ -67,7 +67,6 @@ class Prototypes(Group):
         if "calculator" in dbargs:
             if dbargs["calculator"] is not None and "name" in dbargs["calculator"]:
                 calcargs.update(dbargs["calculator"])
-                self._set_calc_defaults(calcargs)
                 dbargs["calculator"] = calcargs
 
         # The prototypes are saved into the file prototypes.tar.gz, if
@@ -75,19 +74,21 @@ class Prototypes(Group):
         template_root = path.join(_get_reporoot(), "matdb", "templates")
         if not path.isdir(path.join(template_root, "uniqueUnaries")):
             import tarfile
-            tarf = path.join(template_root, "prototypes.tar.gz")
-            tar = tarfile.open(tarf, "r:gz")
-            tar.extractall()
-            tar.close()
+            with chdir(template_root):
+                tarf = "prototypes.tar.gz"
+                tar = tarfile.open(tarf, "r:gz")
+                tar.extractall()
+                tar.close()
 
         # parse the structs to make a list of paths to the source folders for the
         if self.ran_seed is not None:
             import random
             random.seed(self.ran_seed)
-            
+
         self.puuids = None
         self._load_puuids()
-        
+        self.nconfigs = 0
+
         self.structs = {}
         for k,v in structs.items():
             if k.lower() == "unary":
@@ -101,13 +102,14 @@ class Prototypes(Group):
                          "ternary. {} not recognized".format(k))
                 continue
             if isinstance(v,list):
+                self.structs[k.lower()] = []
                 for prot in v:
                     files = glob("{0}/*{1}*".format(cand_path,prot))
                     if len(files) < 1: # pragma: no cover
                         msg.warn("No prototypes of size {0} matched the string "
                                  "{1}".format(k, prot))
                     else:
-                        self.structs[k.lower()] = files
+                        self.structs[k.lower()].extend(files)
             elif isinstance(v, str) and v == "all":
                 files = glob("{0}/*".format(cand_path))
                 self.structs[k.lower()] = files
@@ -120,6 +122,16 @@ class Prototypes(Group):
             else: #pragma: no cover
                 msg.err("Couldn't parse {0} structs for {1} case. Must be either "
                         "a list of file names, 'all', or an int.".format(v, k))
+                
+            if self.order is not None and  k.lower() in self.order.keys():
+                self.nconfigs += len(self.structs[k.lower()])*len(self.order[k.lower()])
+            else:
+                if k.lower() == "unary":
+                    self.nconfigs += len(self.structs[k.lower()])*3
+                elif k.lower() == "binary" or k.lower() == "ternary":
+                    self.nconfigs += len(self.structs[k.lower()])*6
+                else: #pragma: no cover
+                    continue
 
     @property
     def fitting_configs(self):
@@ -127,9 +139,13 @@ class Prototypes(Group):
         group. 
         """
         configs = AtomsList()
-        for config in self.config_atoms:
-            configs.append(config)
-
+        if len(self.sequence) == 0:
+            for config in self.config_atoms.values():
+                configs.append(config)
+        else:
+            for seq in self.sequence.values():
+                configs.extend(seq.fitting_configs)
+                
         return configs
                 
     def sub_dict(self):
@@ -149,19 +165,26 @@ class Prototypes(Group):
         if len(self.sequence) == 0:
             #We are at the bottom of the stack; 
             return self.fitting_configs
-        else:
+        else: 
             #Check where we are in the stack. If we are just below the database,
             #then we want to return <<your description of the rset here>>
 	    #If we are not, then we must a parameter grid of sequences
             #to select from.
-	    return [p.rset for p in self.sequence.values()]
+	    return [res for p in self.sequence.values() for res in p.rset]
 
     def ready(self):
         """Returns True if all the calculations have been completed.
         """
         self._expand_sequence()
         if len(self.sequence) == 0:
-            return len(self.fitting_configs) == self.nconfigs
+            if len(self.configs) >= 1:
+                result = True
+                for config in self.configs.values():
+                    if not path.isfile(path.join(config, "atoms.h5")):
+                        result = False
+                        break
+            else:
+                result = False
             if not result:
                 msg.std("{} is not ready. Exiting.".format(self.root), 2)
             return result
@@ -195,7 +218,7 @@ class Prototypes(Group):
               already exist.
         """        
         #We also don't want to setup again if we have the results already.
-        if self.ready():
+        if self.ready() and not rerun:
             return
 
         if self.puuids is None:
