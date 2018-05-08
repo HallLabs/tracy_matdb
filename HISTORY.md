@@ -1,5 +1,14 @@
 # Revision History for `matdb`
 
+## Revision 1.1.4
+- Removed assignments to empty dicts from the function definitions as
+  mention in Issue [#56](/../../issues/56).
+- Added a warning when a database group being requested hasn't been
+  implemented yet.
+- Implemented the Prototypes database group.
+- Added an exception for when the VASP executable can't be found when
+  trying to determine the VASP version.
+
 ## Revision 1.1.3
 - Changed the VASP calculator to use a series of POTCARs stored in the
   POTCARS dir.

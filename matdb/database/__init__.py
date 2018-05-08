@@ -50,7 +50,6 @@ class Group(object):
         override (dict): a dictionary of with uuids or paths as the
           keys and a dictionary containing parameter: value pairs for
           parameters that need to be adjusted.
-
     Attributes:
         atoms (matdb.atoms.Atoms): a single atomic configuration from
           which many others may be derived using MD, phonon
@@ -68,12 +67,11 @@ class Group(object):
         pgrid (ParamaterGrid): The ParameterGrid for the database.
         grpargs (dict): default arguments to construct the new groups; will
           be overridden by any parameter grid specs.
-
     """
     seeded = False
     def __init__(self, cls=None, root=None, parent=None, prefix='S', pgrid=None,
                  nconfigs=None, calculator=None, seeds=None,
-                 config_type=None, execution={}, trainable=False, override = {},
+                 config_type=None, execution=None, trainable=False, override=None,
                  rec_bin=None):
         if isinstance(parent, Database):
             #Because we allow the user to override the name of the group, we
@@ -92,7 +90,7 @@ class Group(object):
         
         self.cls = cls
         self.parent = parent
-        self.execution = execution
+        self.execution = execution if execution is not None else {}
         self.atoms = None
         
         self._trainable = trainable
@@ -168,7 +166,7 @@ class Group(object):
         self.uuid = uid
         self.database.parent.uuids[str(self.uuid)] = self
 
-        self.override = override.copy()
+        self.override = override.copy() if override is not None else {}
         if bool(override):
             for k,v in override:
                 obj_ins = self.database.controller.find(k)
@@ -288,7 +286,6 @@ class Group(object):
     def _expand_seeds(self, seeds):
         """Expands explicitly listed seed wildcard patterns to populate the
         :attr:`seeds` dict.
-
         Args:
             seeds (list, str, matdb.atoms.Atoms): The location of the files that will be
               read into to make the atoms object or an atoms object.
@@ -630,7 +627,6 @@ class Group(object):
                     
     def create(self, atoms, cid=None, rewrite=False, sort=None, calcargs=None):
         """Creates a folder within this group to calculate properties.
-
         Args:
             atoms (matdb.atoms.Atoms): atomic configuration to run.
             cid (int): integer configuration id; if not specified, defaults to
@@ -641,7 +637,6 @@ class Group(object):
               supercell writes work correctly.
             calcargs (dict): additional config-specific arguments for the
               calculator that will be created and attached to the atoms object.
-
         Returns:
             int: new integer configuration id if one was auto-assigned.
         """
@@ -865,7 +860,6 @@ class Group(object):
 
     def extract(self, cleanup="default"):
         """Creates a hdf5 file for each atoms object in the group.
-
         Args:
             cleanup (str): the level of cleanup to perform after 
               extraction.
@@ -1011,6 +1005,7 @@ class Database(object):
             if not hasattr(module, clsname):# pragma: no cover
                 #We haven't implemented this database type yet, just skip the
                 #initialization for now.
+                msg.warn("The {0} group has not been implemented yet.".format(clsname))
                 continue
             
             cls = getattr(module, clsname)
@@ -1175,7 +1170,6 @@ class Database(object):
     def extract(self, cleanup="default"):
         """Runs the extract methods of each database in the collection, in the
         correct order.
-
         Args:
             cleanup (str): the level of cleanup to perform after extraction.
         """
@@ -1232,7 +1226,6 @@ class Database(object):
         
 class RecycleBin(Database):
     """A database of past calculations to be stored for later use.
-
     Args:
         parent (Controller): instance controlling multiple configurations.
         root (str): root directory in which the 'RecycleBin' folder will 
@@ -1329,7 +1322,6 @@ class Controller(object):
           specifies all information for constructing the set of databases.
         tmpdir (str): path to a temporary directory to use for the
           database. This is for unit testing purposes.
-
     Attributes:
         specs (dict): the parsed settings from the YAML configuration file.
         collections (dict): keys are configuration names listed in attribute
@@ -1650,7 +1642,6 @@ class Controller(object):
     def split(self, recalc=0, cfilter=None, dfilter=None):
         """Splits the total available data in all databases into a training and holdout
         set.
-
         Args:
             recalc (int): when non-zero, re-split the data and overwrite any
               existing *.h5 files. This parameter decreases as
@@ -1690,14 +1681,12 @@ class Controller(object):
     def verify_hash(self, hash_cand, cfilter=None, dfilter=None):
         """Verifies that the the candidate hash matches this matdb
         controller's dabateses
-
         Args:
             hash_cand (str): The candidate hash to check.
             cfilter (list): of `str` patterns to match against *configuration*
               names. This limits which configs are returned.
             dfilter (list): of `str` patterns to match against *database sequence*
               names. This limits which databases sequences are returned.
-
         Returns:
             True if the hash matches the databases.
         """
@@ -1707,7 +1696,6 @@ class Controller(object):
     def finalize(self, cfilter=None, dfilter=None):
         """Creates the finalized version of the databases that were used for
         fitting the potential. Stored in final_{matdb.version}.h5.
-
         Args:
             cfilter (list): of `str` patterns to match against *configuration*
               names. This limits which configs are returned.

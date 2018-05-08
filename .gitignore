@@ -1,3 +1,6 @@
+# unpacked prototypes database
+matdb/templates/unique*
+
 # Mac Stuff
 .DS_Store
 
