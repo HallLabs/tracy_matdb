@@ -24,12 +24,12 @@ class Prototypes(Group):
           be stored.
         parent (matdb.database.Database): parent sequence to which this database
           belongs. Could also be another :class:`Hessian`.
-        structs (dict): a dictionary stating either the number or the file names
+        structures (dict): a dictionary stating either the number or the file names
           of the unary, binary, and ternary sized systems.
         ran_seed (int): a random seed to use that would override the global seed.
-        order (dict): A dictionary of lists that would specify the
-          atomic orderings to restrict the configurations to. For
-          example to only use A:B orderings and no B:A orderings the
+        permutations (dict): A dictionary of lists that would specify the
+          atomic permutations to restrict the configurations to. For
+          example to only use A:B  and no B:A permutations the
           dict would be {"binary": [["A","B"]]}, where A and B were
           replaced with the correct atomic species.
 	  
@@ -43,7 +43,7 @@ class Prototypes(Group):
 	<<Additional attributes your database group will have>>.
 
     """
-    def __init__(self, name="prototype", structs=None, ran_seed=None, order=None, **dbargs):
+    def __init__(self, name="prototype", structures=None, ran_seed=None, permutations=None, **dbargs):
         self.name = name
         self.seeded = False
         dbargs["prefix"] = "P"
@@ -56,9 +56,9 @@ class Prototypes(Group):
             dbargs['root'] = new_root
         super(Prototypes, self).__init__(**dbargs)
 
-        self.in_structs = structs
+        self.in_structures = structures
         self.ran_seed = ran_seed
-        self.order = order
+        self.permutations = permutations
         self.species = self.database.parent.species
         
         #Make sure that we override the global calculator default values with
@@ -80,7 +80,7 @@ class Prototypes(Group):
                 tar.extractall()
                 tar.close()
 
-        # parse the structs to make a list of paths to the source folders for the
+        # parse the structures to make a list of paths to the source folders for the
         if self.ran_seed is not None:
             import random
             random.seed(self.ran_seed)
@@ -89,8 +89,8 @@ class Prototypes(Group):
         self._load_puuids()
         self.nconfigs = 0
 
-        self.structs = {}
-        for k,v in structs.items():
+        self.structures = {}
+        for k,v in structures.items():
             if k.lower() == "unary":
                 cand_path = path.join(template_root, "uniqueUnaries")
             elif k.lower() == "binary":
@@ -102,34 +102,34 @@ class Prototypes(Group):
                          "ternary. {} not recognized".format(k))
                 continue
             if isinstance(v,list):
-                self.structs[k.lower()] = []
+                self.structures[k.lower()] = []
                 for prot in v:
                     files = glob("{0}/*{1}*".format(cand_path,prot))
                     if len(files) < 1: # pragma: no cover
                         msg.warn("No prototypes of size {0} matched the string "
                                  "{1}".format(k, prot))
                     else:
-                        self.structs[k.lower()].extend(files)
+                        self.structures[k.lower()].extend(files)
             elif isinstance(v, str) and v == "all":
                 files = glob("{0}/*".format(cand_path))
-                self.structs[k.lower()] = files
+                self.structures[k.lower()] = files
             elif isinstance(v, int):
                 from random import shuffle
                 files = glob("{0}/*".format(cand_path))
                 shuffle(files)
                 keep = files[:v]
-                self.structs[k.lower()] = keep
+                self.structures[k.lower()] = keep
             else: #pragma: no cover
-                msg.err("Couldn't parse {0} structs for {1} case. Must be either "
+                msg.err("Couldn't parse {0} structures for {1} case. Must be either "
                         "a list of file names, 'all', or an int.".format(v, k))
                 
-            if self.order is not None and  k.lower() in self.order.keys():
-                self.nconfigs += len(self.structs[k.lower()])*len(self.order[k.lower()])
+            if self.permutations is not None and  k.lower() in self.permutations.keys():
+                self.nconfigs += len(self.structures[k.lower()])*len(self.permutations[k.lower()])
             else:
                 if k.lower() == "unary":
-                    self.nconfigs += len(self.structs[k.lower()])*3
+                    self.nconfigs += len(self.structures[k.lower()])*3
                 elif k.lower() == "binary" or k.lower() == "ternary":
-                    self.nconfigs += len(self.structs[k.lower()])*6
+                    self.nconfigs += len(self.structures[k.lower()])*6
                 else: #pragma: no cover
                     continue
 
@@ -151,8 +151,8 @@ class Prototypes(Group):
     def sub_dict(self):
         """Returns a dict needed to initialize the class.
         """
-        args = {"structs": self.in_structs, "ran_seed": self.ran_seed,
-                "order": self.order, "prefix": self.prefix, "name": self.name}
+        args = {"structures": self.in_structures, "ran_seed": self.ran_seed,
+                "permutations": self.permutations, "prefix": self.prefix, "name": self.name}
         return args
 
     @property
@@ -226,7 +226,7 @@ class Prototypes(Group):
         if not self.is_setup():
             from itertools import product
             # Loop over the sizes in the saved structures
-            for k, v in self.structs.items():
+            for k, v in self.structures.items():
                 perms = self._get_perms(k)
                 for fpath, perm in product(v,perms):
                     hash_str = "{0}-{1}".format(fpath.split("/")[-1],"".join(perm))
@@ -254,13 +254,13 @@ class Prototypes(Group):
         res = None
         if size == "unary":
             r = 1
-            res = self.order["unary"] if "unary" in self.order.keys() else None
+            res = self.permutations["unary"] if "unary" in self.permutations.keys() else None
         elif size == "binary":
             r = 2
-            res = self.order["binary"] if "binary" in self.order.keys() else None
+            res = self.permutations["binary"] if "binary" in self.permutations.keys() else None
         elif size == "ternary":
             r = 3
-            res = self.order["ternary"] if "ternary" in self.order.keys() else None
+            res = self.permutations["ternary"] if "ternary" in self.permutations.keys() else None
         else: # pragma: no cover
             msg.err("{} is not a valid prototype size.".format(size))
             return None

@@ -104,9 +104,10 @@ def test_to_dict(CoNiTi):
              'calculator': {'kpoints': {'method': 'mueller', 'mindistance': 40},
                             'pp': 'pbe', 'nsw': 1, 'name': 'Vasp',
                             'potcars': {'directory': './tests/vasp', 'xc': 'PBE'}},
-             'order': {'ternary': [['Co', 'Ni', 'Ti']]}, 'ran_seed': 10, 'config_type': None,
+             'permutations': {'ternary': [['Co', 'Ni', 'Ti']]}, 'ran_seed': 10,
+             'config_type': None,
              'version': __version__, 'override': {}, 'execution': None, 'root': prot.root,
-             'structs': {'unary': 'all',
+             'structures': {'unary': 'all',
                          'binary': ['b210_', 'b20_', 'b211_', 'b212_', 'b215_',
                                     'b216_', 'b217_', 'b218_', 'b219_', 'b221_'],
                          'ternary': 10}, 'nconfigs': None}

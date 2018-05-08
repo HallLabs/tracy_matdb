@@ -1,0 +1,66 @@
+title: 'CoNiTi Prototypes'
+# Ordered list of species; this is the same order as should be in the
+# POTCAR file for VASP calculations.
+species:
+  - 'Co'
+  - 'Ni'
+  - 'Ti'
+# If the POTCAR names are non-standard, include the *suffix* after the
+# element name here.
+# Directory in which the database folder system will be created.
+root: '~/temp/CoNiTi'
+venv: 'matdb-dev'
+# Parameters for the job arrays that will be submitted for each
+# database. These can be overridden in each database below as well.
+execution:
+  template: 'run_array_ml.sh'
+  time: 4
+  ntasks: 1
+  nodes: 1
+  mem_per_cpu: 4
+  job_name: 'CoNiTi DB'
+  partition: 'physics'
+  array_limit: 50
+  modules_load: ['mkl/11.2.0']
+  exec_path: 'vasp'
+#Different split parameters to apply globally to all database types.
+splits:
+  A: 0.4
+  B: 0.2
+# Next, we include a list of all the databases we want to create. A
+# database following this pattern is created *for each* of the seed
+# configurations listed above.
+databases:
+  #The PhononBase class generates the dynamical matrix that is needed
+  #by PhononDatabase.
+  - name: 'prototype'
+    steps:
+      - type: "prototype.Prototypes"
+        structures:
+          unary: 'all'
+          binary: ["b210_", "b20_", "b211_", "b212_", "b215_", "b216_", "b217_", "b218_", "b219_", "b221_"]
+          ternary: 10
+        permutations*:
+          - ternary: [["Co","Ni","Ti"]]
+        ran_seed: 10
+        calculator:
+          name: Vasp
+          nsw: 1
+          pp: 'pbe'
+          kpoints:
+            method: 'mueller'
+            mindistance: 40
+          potcars:
+            directory: './tests/vasp'
+            xc: 'PBE'
+                
+calculator:
+  name: Vasp
+  nsw: 1
+  pp: 'pbe'
+  kpoints:
+    method: 'mueller'
+    mindistance: 30
+  potcars:
+    directory: './tests/vasp'
+    xc: 'PBE'
