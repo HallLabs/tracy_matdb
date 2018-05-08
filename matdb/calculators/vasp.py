@@ -10,12 +10,14 @@
 """
 import ase
 from ase.calculators.vasp import Vasp
-from os import path, stat, mkdir, remove
+from os import path, stat, mkdir, remove, rename
 import mmap
 from matdb.calculators.basic import AsyncCalculator
 from matdb import msg
 from matdb.kpoints import custom as write_kpoints
 from matdb.utility import chdir, execute
+from hashlib import sha1
+import re
 
 def phonon_defaults(d, dfpt=False):
     """Adds the usual settings for the INCAR file when performing frozen-phonon
@@ -138,6 +140,11 @@ class AsyncVasp(Vasp, AsyncCalculator):
             self.contr_dir = contr_dir
         else:
             msg.err("{} is not a valid directory.".format(contr_dir))
+
+        # We will store all the unique potcars in a single
+        # directory. If it doesn't exist then create it.
+        if not path.isdir(path.join(contr_dir,"POTCARS")):
+            mkdir(path.join(contr_dir,"POTCARS"))
             
         if "kpoints" in kwargs:
             self.kpoints = kwargs.pop("kpoints")
@@ -145,6 +152,10 @@ class AsyncVasp(Vasp, AsyncCalculator):
         # remove the "potcars" section of the kwargs for latter use in
         # creation of the POTCAR file.
         self.potcars = kwargs.pop("potcars")
+        if "exec_path" in kwargs:
+            self.executable = kwargs.pop("exec_path")
+        else:
+            self.executable = None
             
         self.args = args
         self.kwargs = kwargs
@@ -167,11 +178,19 @@ class AsyncVasp(Vasp, AsyncCalculator):
             
         self.atoms = atoms
         pot_args = self.potcars.copy()
-        calc_args = self.kwargs.copy()
         environ["VASP_PP_PATH"] = relpath(path.expanduser(pot_args["directory"]))
             
-        self._check_potcar()
         self.initialize(atoms)
+        # The POTCAR file is either stored in a file who's name is a
+        # hashed string of the species and versions or needs to be
+        # created at that location.
+        this_potcar = ""
+        for pot in self.ppp_list:
+            for spec, ver in self.potcars["versions"].items():
+                if spec in pot:
+                    this_potcar += "{0}{1}".format(spec, ver)
+        self.this_potcar = str(sha1(this_potcar).hexdigest())
+        self._check_potcar()
 
     def write_input(self, atoms, directory='./'):
         """Overload of the ASE input writer that handles the k-points using our
@@ -195,34 +214,61 @@ class AsyncVasp(Vasp, AsyncCalculator):
         """
         from matdb.utility import relpath
         from os import environ
-        POTCAR = path.join(self.contr_dir,"POTCAR")
-        pot_args = self.potcars.copy()
-        environ["VASP_PP_PATH"] = relpath(path.expanduser(pot_args["directory"]))
 
-        if "version" in pot_args:
-            version = pot_args["version"]
-            del pot_args["version"]
+        if "versions" in self.potcars:
+            versions = self.potcars["versions"]
         else:
-            version = None
+            msg.err("POTCAR versions must be specified for each species in the "
+                    "yml file.")
 
-        #Now make sure that the POTCAR versions match those specified in the
-        #matdb YML.
+        if path.isfile(path.join(self.contr_dir, "POTCARS", self.this_potcar)):
+            with open(path.join(self.contr_dir, "POTCARS", self.this_potcar), "r") as potfile:
+                for line in potfile:
+                    if self.potcars["xc"] in line and "=" not in line:
+                        ver_line = line.strip().split()
+                        spec = ver_line[1].split("_")[0]
+                        ver = ver_line[2]
+                        if spec in versions.keys():
+                            if not versions[spec] == ver:
+                                msg.err("The version {0} of the POTCAR for {1} does not "
+                                        "match the requested version {2}".format(versions[spec],
+                                                                                 spec, ver))
+                        else:
+                            msg.err("The species found in the POTCAR {0} is not in the system "
+                                    "being studied".format(line))
+
+        else:
+            for potfile in self.ppp_list:
+                with open(potfile, "r") as f:
+                    ver_line = f.readline().strip().split()
+                spec = ver_line[1].split("_")[0]
+                ver = ver_line[2]
+                if spec in versions.keys():
+                    if not versions[spec] == ver:
+                        msg.err("The version {0} of the POTCAR for {1} does not "
+                                "match the requested version {2}".format(versions[spec],
+                                                                         spec, ver))
+                else:
+                    msg.err("The species found in the POTCAR {0} is not in the system "
+                            "being studied".format(spec))                        
             
     def _write_potcar(self):
         """Makes a symbolic link between the main POTCAR file for the database
         and the folder VASP will execute in."""
         from matdb.utility import symlink
-        POTCAR = path.join(self.contr_dir,"POTCAR")
+       
+        POTCAR_DIR = path.join(self.contr_dir,"POTCARS")
         calc_args = self.kwargs.copy()
         calc_args["potcars"] = self.potcars
         
         # First we check to see if the POTCAR file already exists, if
         # it does then all we have to do is create the symbolic link.
-        if not path.isfile(POTCAR):
-            calc = AsyncVasp(self.atoms,self.contr_dir,self.contr_dir,self.ran_seed,**calc_args)
-            calc.write_potcar(directory=self.contr_dir)
-
-        symlink(path.join(self.folder,"POTCAR"),POTCAR)        
+        if not path.isfile(path.join(POTCAR_DIR, self.this_potcar)):
+            calc = AsyncVasp(self.atoms, POTCAR_DIR, self.contr_dir, self.ran_seed, **calc_args)
+            calc.write_potcar(directory=POTCAR_DIR)
+            rename(path.join(POTCAR_DIR,"POTCAR"), path.join(POTCAR_DIR, self.this_potcar))
+            
+        symlink(path.join(self.folder, "POTCAR"), path.join(POTCAR_DIR, self.this_potcar))
 
     def can_execute(self, folder):
         """Returns True if the specified folder is ready to execute VASP
@@ -264,10 +310,10 @@ class AsyncVasp(Vasp, AsyncCalculator):
         with open(outcar, 'r') as f:
             # memory-map the file, size 0 means whole file
             m = mmap.mmap(f.fileno(), 0, prot=mmap.PROT_READ)  
-            i = m.rfind('free  energy')
-            # we look for this second line to verify that VASP wasn't
+            # we look for 'free  energy' to verify that VASP wasn't
             # terminated during runtime for memory or time
             # restrictions
+            i = m.rfind('free  energy')
             if i > 0:
                 # seek to the location and get the rest of the line.
                 m.seek(i)
@@ -341,9 +387,9 @@ class AsyncVasp(Vasp, AsyncCalculator):
         """
 
         light = ["CHG", "XDATCAR", "DOSCAR", "PCDAT"]
-        default =["CHGCAR", "WAVECAR", "IBZKPT", "OSZICAR",
-                  "CONTCAR", "EIGENVAL", "DOSCAR", "PCDAT"]
-        aggressive = ["vasprun.xml", "OUTCAR"]
+        default =["CHGCAR", "WAVECAR", "IBZKPT", 
+                  "EIGENVAL", "DOSCAR", "PCDAT"]
+        aggressive = ["vasprun.xml", "OUTCAR", "CONTCAR", "OSZICAR"]
 
         if clean_level == "light":
             rm_files = light
@@ -375,9 +421,17 @@ class AsyncVasp(Vasp, AsyncCalculator):
         if hasattr(self,"kpoints"):
             vasp_dict["kwargs"]["kpoints"] = self.kpoints
         if self.version is None:
-            data = execute(["vasp"],self.contr_dir)
-            vasp_dict["version"] = data["output"][0].strip().split()[0]
-            self.version = vasp_dict["version"]
+            if self.executable is not None:
+                data = execute([self.executable],self.contr_dir,venv=True)
+                try:
+                    vasp_dict["version"] = data["output"][0].strip().split()[0]
+                    self.version = vasp_dict["version"]
+                except:
+                    msg.warn("Error attempting to get VASP version.")
+            else:
+                msg.warn("VASP execution path not set in calculator. Could not "
+                         "determine VASP version.")
+                self.version = ""
         else:
             vasp_dict["version"] = self.version
         # Files that need to be removed after being created by the

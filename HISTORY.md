@@ -1,5 +1,23 @@
 # Revision History for `matdb`
 
+## Revision 1.1.3
+- Changed the VASP calculator to use a series of POTCARs stored in the
+  POTCARS dir.
+
+## Revision 1.1.2
+- Fixed the MTP method so that it correctly constructs the train.cfg
+  file.
+- Added the `Simple` database to the repo for when configurations need
+  to be calculated without additional configurations being generated.
+- Changed the VASP calculator to use a local instead of a global POTCAR.
+- Fixed MTP method so that the POSCAR's get the zeros put back in
+  after a calculation.
+- Added new slurm template.
+- Fixed more issues in the mtp commands.
+- Implemented a re-write of the POTCAR by the mtp method that the ASE
+  read can get the species from the title.
+- Debugged Active Group setup.
+
 ## Revision 1.1.1
 
 - Added the controll directory to the calling interface for the
