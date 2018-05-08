@@ -5,15 +5,22 @@ from os import path, rename
 from matdb import msg
 from collections import OrderedDict
 import numpy as np
-import quippy
 from .basic import Trainer
-from matdb.utility import cat
+from matdb.utility import cat, chdir
 from glob import glob
+import os
+from tqdm import tqdm
+
+def RepresentsInt(s):
+    try: 
+        int(s)
+        return True
+    except ValueError:
+        return False
 
 class MTP(Trainer):
     """Implements a simple wrapper around the MTP training functionality for
     creating MTP potentials.
-
     Args:
         controller (matdb.fitting.controller.Controller): fitting controller
           provides access to previous fitting steps and training/validation data.
@@ -22,7 +29,6 @@ class MTP(Trainer):
           the GAP fit.
         dbs (list): of `str` patterns from the database that should be included
           in the training and validation.
-
     Attributes:
         name (str): name of the folder in which all the fitting for this trainer
           takes place; defaults to `{n}b`.
@@ -32,21 +38,24 @@ class MTP(Trainer):
     """
     def __init__(self, controller=None, dbs=None, execution=None,
                  split=None, root=None, parent=None, dbfilter=None, **mtpargs):
-        self.name = "{}b".format(nb) if isinstance(nb, int) else "mtp"
+        self.name = "mtp"
         super(MTP, self).__init__(controller, dbs, execution, split, root,
                                   parent, dbfilter)
         self.controller = controller
         self.ncores = execution["ntasks"]
-        self.root = root 
+        if "mtp" not in self.root:
+            self.root = path.join(root,"mtp")
+        else:
+            self.root = root
 
-        if mtpargs["relax"] is not None:
+        if "relax" in mtpargs and mtpargs["relax"] is not None:
             self._set_relax_ini(mtpargs["relax"])
         else:
             self._set_relax_ini({})
 
         self.selection_limit = mtpargs["selection-limit"]
-        self.species = controller.species
-        
+        self.species = controller.db.species
+
         self.mtp_file = "pot.mtp"
         if path.isfile(path.join(self.root,"status.txt")):
             with open(path.join(self.root,"status.txt"),"r") as f:
@@ -54,11 +63,18 @@ class MTP(Trainer):
                     old_status = line.strip().split()
                 self.iter_status = old_status[0]
         else:
-            self.stat_iter = None
+            self.iter_status = None
 
         # we need access to the active learning set
         from matdb.database.active import Active
-        self.active = Active()
+        from matdb.database import Database
+        db_root = self.controller.db.root
+        steps = [{"type":"active.Active"}]
+        dbargs = {"root":db_root,
+                  "parent":Database("active", db_root, self.controller.db, steps, {}),
+                  "calculator":self.controller.db.calculator}
+        self.active = Active(**dbargs)
+        self._trainfile = path.join(self.root, "train.cfg")
         
         #Configure the fitting directory for this particular potential.
         from os import mkdir
@@ -67,7 +83,6 @@ class MTP(Trainer):
 
     def _set_relax_ini(self,relaxargs):
         """Sets the arguments for the relax.ini file.
-
         Args:
             relaxargs (dict): A dictionary containing keys for the weights.
         """
@@ -86,7 +101,7 @@ class MTP(Trainer):
         if "fit" in relaxargs:
             relax_args["fit_setting"] = relaxargs["fit"]
         else:
-            relaxargs["fit_setting"] = "FALSE"
+            relax_args["fit_setting"] = "FALSE"
         
         if "site-weight" in relaxargs:
             relax_args["site_weight"] = relaxargs["site-weight"]
@@ -125,52 +140,91 @@ class MTP(Trainer):
         """
 
         pot_file = (path.isfile(path.join(self.root, self.mtp_file)))
-        stat = (self.iter_state == "done")
-        next_iter = (len(self.last_iteration) == 0)
-        return all(pot_file,stat,next_iter)
+        stat = (self.iter_status == "done")
+        next_iter = (len(self.active.last_iteration) == 0 if
+                     self.active.last_iteration is not None else False)
+        return all([pot_file,stat,next_iter])
 
     def _make_train_cfg(self,iteration):
         """Creates the 'train.cfg' file needed to train the potential from the
         databeses used.
-
         Args:
             iteration (int): the number of iterations of MTP has been 
                 through.
         """
-
         from matdb.utility import cat
         if iteration == 1:
             for db in self.dbs:
-                for config in db.configs.values():
-                    self._create_train_cfg(path.join(self.root,"train.cfg"),config)
+                pbar = tqdm(total=len(db.fitting_configs))
+                for config in db.fitting_configs:
+                    self._create_train_cfg(config)
+                    pbar.update(1)
         else:
-            for config in self.active.last_iter.values():
+            pbar = tqdm(total=len(self.active.last_iteration.values()))
+            for config in self.active.last_iteration.values():
                 self._create_train_cfg(path.join(self.root,"train.cfg"),config)
+                pbar.update(1)
 
     def _create_train_cfg(self,target):
         """Creates a 'train.cfg' file for the calculation stored at the target
         directory.
-
         Args:
             target (str): the path to the directory in which a calculation 
                 was performed.
         """
-        from os import system, rename
         from matdb.utility import cat
         if path.isfile(path.join(target,"OUTCAR")):
-            system("mlp convert-cfg {0}/OUTCAR {1}/diff.cfg --input-format=vasp-outcar >> outcar.txt".format(target,self.root))
+            mapping = self._get_mapping(target)
+            os.system("mlp convert-cfg {0}/OUTCAR {1}/diff.cfg --input-format=vasp-outcar >> outcar.txt".format(target,self.root))
             if path.isfile(path.join(self.root,"diff.cfg")):
+                rename(path.join(self.root,"diff.cfg"),
+                       path.join(self.root,"diff_orig.cfg"))
+                with open(path.join(self.root,"diff_orig.cfg"),"r") as f_in:
+                    with open(path.join(self.root,"diff.cfg"),"w+") as f_out:
+                        for i, line_in in enumerate(f_in):
+                            if i==2:
+                                n_atoms = int(line_in.strip())
+                                f_out.write(line_in)
+                            elif i >= 8 and i < 8+n_atoms:
+                                temp_line = line_in.strip().split()
+                                temp_line[1] = mapping[int(temp_line[1])]
+                                temp_line = "            {0}    {1}       {2}      {3}      {4}     {5}    {6}    {7}".format(*temp_line)
+                                f_out.write(temp_line)
+                            else:
+                                f_out.write(line_in)
                 if path.isfile(path.join(self.root,"train.cfg")):
-                    cat([path.join(self.root,"train.cfg"),path.join(self.root,"diff.cfg")],
+                    cat([path.join(self.root,"train.cfg"), path.join(self.root,"diff.cfg")],
                         path.join(self.root,"temp.cfg"))
-                    rename(path.join(self.root,"temp.cfg"),path.join(self.root,"train.cfg"))
+                    rename(path.join(self.root,"temp.cfg"), path.join(self.root,"train.cfg"))
                 else:
-                    rename(path.join(self.root,"diff.cfg"),path.join(self.root,"train.cfg"))
+                    rename(path.join(self.root,"diff.cfg"), path.join(self.root,"train.cfg"))
             else:
                 msg.err("There was an error making the config file for folder "
                         "{}".format(path.join(self.root,target)))
         else:
             msg.err("The folder {} didn't run.".format(path.join(self.root,target)))
+
+    def _get_mapping(self,target):
+        """Finds the species mappings for the atomic numbers found in the
+        trani.cfg file so that is will be correct.
+        Args:
+            target (str): the path to the directory in which a calculation 
+                was performed.
+        """
+        if not path.isfile(path.join(target,"POSCAR")):
+            msg.err("Setup failed for {0}.".format(target))
+        else:
+            # We need to grab the first line of the POSCAR to
+            # determine the species present.
+            with open(path.join(target,"POSCAR"),"r") as f:
+                specs = f.readline().strip().split()
+
+            mapping = {}
+            j = 0
+            for i, s  in enumerate(specs):
+                mapping[i] = self.species.index(s)
+
+        return mapping
 
     def _make_pot_initial(self):
 
@@ -231,34 +285,20 @@ class MTP(Trainer):
         
         msg.info("Setting up to-relax.cfg file.")
         for crystal in ["bcc","fcc","sc","hcp"]:
-            for size in range(2,len(self.species)+1):
-                # if the size we're currently on is smaller than the
-                # system in question then we need to loop over the
-                # different species mappings possible to correctly form
-                # all the edges/faces of the phase diagram.
-                if size != len(self.species):
-                    infile = path.join(_get_reporoot(),"matdb","templates",
-                                       "struct_enum.out_{0}_{1}_sub".format(size,crystal))
-                    args["input"] = infile
-                    for edge in combinations(range(len(species)),size):
-                        args["mapping"] = {i:j for i, j in enumerate(edge)}
-                        _make_structures(args)
-                else:
-                    infile = path.join(_get_reporoot(),"matdb","templates",
-                                       "struct_enum.out_{0}_{1}".format(size,crystal))
-                    args["input"] = infile
-                    _make_structures(args)
+            infile = path.join(_get_reporoot(),"matdb","templates",
+                               "struct_enum.out_{0}_{1}".format(len(self.species),crystal))
+            args["input"] = infile
+            _make_structures(args)
                     
         msg.info("to-relax.cfg file completed.")                   
         
     def command(self):
         """Returns the command that is needed to train the GAP
         potentials specified by this object.
-
         .. note:: This method also configures the directory that the command
           will run in so that it has the relevant files.
         """
-        
+
         if not path.isfile(path.join(self.root,"status.txt")):
             self.iter_status = "train"
             iter_count = 1
@@ -280,10 +320,10 @@ class MTP(Trainer):
             self._make_train_cfg(iter_count)
 
             #remove the selected.cfg and rexaed.cfg from the last iteration if they exist
-            if os.path.isfile(path.join(self.root,"selected.cfg")):
+            if path.isfile(path.join(self.root,"selected.cfg")):
                 from os import remove
                 remove(path.join(self.root,"selected.cfg"))
-            if os.path.isfile(path.join(self.root,"relaxed.cfg")):
+            if path.isfile(path.join(self.root,"relaxed.cfg")):
                 from os import remove
                 remove(path.join(self.root,"relaxed.cfg"))        
         
@@ -296,17 +336,18 @@ class MTP(Trainer):
                 f.write("relax {0}".format(iter_count))
 
         if self.iter_status == "relax":
+            # If pot has been trained
+            rename(path.join(self.root,"Trained.mtp_"), path.join(self.root,"pot.mtp"))
+            
             # if the unrelaxed.cfg file exists we need to move it to
             # replace the existing 'to-relax.cfg' otherwise we need to
             # create the 'to-relax.cfg' file.
+            with chdir(self.root):
+                os.system("mlp calc-grade pot.mtp train.cfg train.cfg temp1.cfg")
             if path.isfile(path.join(self.root,"unrelaxed.cfg")):
-                from os import rename
                 rename(path.join(self.root,"unrelaxed.cfg"),path.join(self.root,"to-relax.cfg"))
             else:
                 self._make_to_relax_cfg()
-
-            # If pot has been trained
-            rename("Trained_mtp_","pot.mtp")
 
             # command to relax structures
             template = "mpirun -n {} mlp relax relax.ini --cfg-filename=to-relax.cfg".format(self.ncores)
@@ -315,37 +356,49 @@ class MTP(Trainer):
 
         # if relaxation is done
         if self.iter_status == "select":
-            cat(glob("selected.cfg_*"),"selected.cfg")
+            from matdb.atoms import Atoms
+            cat(glob(path.join(self.root,"selected.cfg_*")), path.join(self.root,"selected.cfg"))
 
             # command to select next training set.
-            template = "mlp select-add pot.mtp traic.cfg selected.cfg diff.cfg -selection-limit={}".format(self.selection_limit)
+            with chdir(self.root):
+                os.system("mlp select-add pot.mtp train.cfg selected.cfg diff.cfg --selection-limit={}".format(self.selection_limit))
 
-        # if selection is done
-        if self.iter_status == "add":
-            from os import system
-            from glob import glob
-            from quippy.atoms import Atoms
-            system("mlp convert-cfg diff.cfg POSCAR --output-format=vasp-poscar")
-            system("cp selected.cfg selected.cfg_iter_{}".format(iter_count))
-            if path.isfile("relaxed.cfg"):
-                system("cp relaxed.cfg relaxed.cfg_iter_{}".format(iter_count))
+                # Now add the selected atoms to the Active database.
+                os.system("mlp convert-cfg diff.cfg POSCAR --output-format=vasp-poscar")
+                os.system("cp selected.cfg selected.cfg_iter_{}".format(iter_count))
+                if path.isfile("relaxed.cfg"):
+                    os.system("cp relaxed.cfg relaxed.cfg_iter_{}".format(iter_count))
 
-            new_confgs = []
-            new_POSCARS = glob("POSCAR*")
-            for POSCAR in new_POSCARS:
-                new_configs.append(Atoms(POSCAR,format="POSCAR"))
+                new_configs = []
+                new_POSCARS = glob("POSCAR*")
+                # Here We need to re-write the POSCARs so that they
+                # have the correct species.
+                for POSCAR in new_POSCARS:
+                    # We need to put the correct species into the
+                    # title of the POSCAR so that ASE can read it
+                    pos_file = []
+                    with open(POSCAR, 'r') as f:
+                        for line in f:
+                            pos_file.append(line)
+                    pos_file[0] = "{0} : {1}".format(" ".join(self.species), pos_file[0])
+                    with open(POSCAR, 'w+') as f:
+                        for line in pos_file:
+                            f.write(line)
+                            
+                    new_configs.append(Atoms(POSCAR,format="vasp"))
 
-            self.active.add_configs(new_configs)
-            self.active.setup()
+                self.active.add_configs(new_configs, iter_count)
+                self.active.setup()
+                self.active.execute()
             
             with open(path.join(self.root,"status.txt"),"w+") as f:
                 f.write("done {0}".format(iter_count))
-            
+            template = ''
+
         return template
 
     def status(self, printed=True):
         """Returns or prints the current status of the MTP training.
-
         Args:
             printed (bool): when True, print the status to screen; otherwise,
               return a dictionary with the relevant quantities.

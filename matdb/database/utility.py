@@ -4,6 +4,7 @@ from uuid import uuid4
 from matdb.atoms import AtomsList
 from os import path
 import numpy as np
+from glob import glob
 
 def split(atlist, splits, targets, dbdir, ran_seed, dbfile=None, recalc=0):
     """Splits the :class:`matdb.atoms.AtomsList` multiple times, one for

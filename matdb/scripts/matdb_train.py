@@ -99,7 +99,7 @@ def run(args):
 
     #No matter what other options the user has chosen, we will have to create a
     #database controller for the specification they have given us.
-    from matdb.database.controller import Controller
+    from matdb.database import Controller
     cdb = Controller(args["dbspec"])
     if args["xyz"]:
         cdb.split(cdb.trainers.split, recalc=args["recalc"])

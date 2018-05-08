@@ -887,10 +887,10 @@ class Group(object):
             cleaned = all(cleaned)
             pbar.close()
             if cleaned:
-                atoms = self.rset()
-                atoms_dict = {"atom_{}".format(Atoms(f).uuid): f for f in atoms}
+                atoms = self.rset
+                atoms_dict = {"atom_{}".format(f.uuid): f.to_dict() for f in atoms}
                 from matdb.io import save_dict_to_h5
-                with h5py.File(target,"w") as hf:
+                with h5py.File(path.join(self.root,"rset.h5"),"w") as hf:
                     save_dict_to_h5(hf,atoms_dict,'/')
             return cleaned                
         else:
@@ -1454,7 +1454,7 @@ class Controller(object):
             return self.uuids[pattern]
         
         if pattern == '*':
-            return self.find('*.*')
+            return self.find('*/*')
         
         from fnmatch import fnmatch
         if pattern.count('/') == 3:
