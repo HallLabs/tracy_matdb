@@ -52,7 +52,8 @@ class Group(object):
           parameters that need to be adjusted.
         transforms (dict): a dictionary of transformations to apply to the
           seeds of the database before calculations are performed. Format is 
-          {"name":{"transform": import path, "args": dict of keyword args}}.
+          {"name": {"args": dict of keyword args}}, where the "name" keyword
+          is the fully qualified path to the function.
 
     Attributes:
         atoms (matdb.atoms.Atoms): a single atomic configuration from
@@ -679,10 +680,8 @@ class Group(object):
 
             trans_atoms = Atoms()
             trans_atoms.copy_from(atoms)
-            for name, trans in self.transforms.items():
-                function = trans["function"]
-                func_args = trans["args"]
-                import function as func
+            for name, func_args in self.transforms.items():
+                import name as func
                 trans_atoms = func(trans_atoms, **func_args)
 
             trans_atoms.uuid = uid
