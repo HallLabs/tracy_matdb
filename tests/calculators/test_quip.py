@@ -2,7 +2,8 @@
 """
 import pytest
 from matdb.atoms import Atoms
-from matdb.calculators import Quip
+#from matdb.calculators import Quip
+Quip = pytest.importorskip('matdb.calculators.Quip')
 import six
 import numpy as np
 from ase import Atoms as aseAtoms

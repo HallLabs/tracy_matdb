@@ -5,7 +5,7 @@ import pytest
 @pytest.fixture()
 def legDB(tmpdir):
     from matdb.utility import relpath, reporoot
-    from matdb.database.controller import Controller
+    from matdb.database import Controller
     from os import mkdir
 
     target = relpath("./tests/legacy/matdb")

@@ -299,6 +299,7 @@ def compare_tree(folder, model):
             continue
 
         target = path.join(folder, foldname)
+        print target
         assert path.isdir(target)
         compare_tree(target, tree)
 

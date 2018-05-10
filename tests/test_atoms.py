@@ -60,7 +60,8 @@ def test_hdf5(tmpdir):
     """Tests whether an atoms object with calculated parameters can be saved to
     JSON and then restored.
     """
-    from matdb.calculators import Quip
+    #from matdb.calculators import Quip
+    Quip = pytest.importorskip('matdb.calculators.Quip')
     from matdb.atoms import Atoms
     target = str(tmpdir.join("to_hdf5"))
     if not path.isdir(target):
@@ -94,7 +95,8 @@ def test_hdf5(tmpdir):
 def test_Atoms_creation(tmpdir):
     """Tests the initialization of the atoms objcet.
     """
-    from matdb.calculators import Quip
+    #from matdb.calculators import Quip
+    Quip = pytest.importorskip('matdb.calculators.Quip')
     from matdb.atoms import Atoms
     from ase.atoms import Atoms as aseAtoms
     atSi = Atoms("Si8",positions=[[0,0,0],[0.25,0.25,0.25],[0.5,0.5,0],[0.75,0.75,0.25],
@@ -147,7 +149,8 @@ def test_Atoms_creation(tmpdir):
 def test_AtomsList_creation(tmpdir):
     """Tests the creation of the AtomsList object. 
     """
-    from matdb.calculators import Quip
+    #from matdb.calculators import Quip
+    Quip = pytest.importorskip('matdb.calculators.Quip')
     from matdb.atoms import Atoms, AtomsList
 
     target = str(tmpdir.join("make_AtomsList"))
@@ -329,7 +332,8 @@ def test_ase_atoms_conversion(tmpdir):
     """Tests the conversion of an ase atoms objcet to a 'matdb.atoms.Atoms' object. 
     """
 
-    from matdb.calculators import Quip
+    #from matdb.calculators import Quip
+    Quip = pytest.importorskip('matdb.calculators.Quip')
     from matdb.atoms import Atoms as matAtoms
     from ase.atoms import Atoms
     target = str(tmpdir.join("from_ase"))

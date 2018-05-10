@@ -96,24 +96,18 @@ def test_Pd_setup(Pd):
     """Makes sure the initial folders were setup according to the spec.
     """
     Pd.setup()
-    modelroot = path.join(Pd.root, "Hessian","phonon","Pd","dim-2.00")
-    assert Pd["Hessian/phonon/Pd/dim-2.00"].root == modelroot
+    modelroot = path.join(Pd.root, "Manual","phonon","Pd")
+    assert Pd["Manual/phonon/Pd/"].root == modelroot
     
-    #The matdb.yml file specifies the following databases:
-    dbs = ["Hessian/phonon/Pd/dim-{}".format(i) for i in ('2.00', '4.00', '16.00',
-                                                            '32.00', '27.00', '8.00')]
+    #The matdb.yml file specifies the following database:
+    dbs = ["Manual/phonon/Pd/"]
     #Each one should have a folder for: ["hessian", "modulations"]
     #On the first go, the modulations folder will be empty because the DFT
     #calculations haven't been performed yet. However, hessian should have DFT
     #folders ready to go.
     folders = {
         "__files__": ["compute.pkl","jobfile.sh"],
-        "phonopy": {
-            "__files__": ["POSCAR", "POSCAR-001", "disp.yaml", "phonopy_disp.yaml"]
-        },
-        "phoncache": {},
-        "kpaths": {},
-        "W.1": {
+        "S1.1": {
             "__files__": ["INCAR", "POSCAR", "POTCAR", "PRECALC", "KPOINTS"]
         }
     }
@@ -126,11 +120,11 @@ def test_Pd_setup(Pd):
 def test_steps(Pd):
     """Tests compilation of all steps in the database.
     """
-    assert Pd.steps() == ['hessian/phonon']
+    assert Pd.steps() == ['manual/phonon']
     Pd.setup()
-    steps = sorted(['hessian/phonon/Pd/dim-2.00', 'hessian/phonon/Pd/dim-4.00',
-                    'hessian/phonon/Pd/dim-16.00', 'hessian/phonon/Pd/dim-27.00',
-                    'hessian/phonon/Pd/dim-32.00','hessian/phonon/Pd/dim-8.00'])
+    steps = sorted(['manual/phonon/Pd/dim-2.00', 'manual/phonon/Pd/dim-4.00',
+                    'manual/phonon/Pd/dim-16.00', 'manual/phonon/Pd/dim-27.00',
+                    'manual/phonon/Pd/dim-32.00','manual/phonon/Pd/dim-8.00'])
     assert Pd.steps() == steps
     
     seqs = sorted(['Pd/dim-2.00', 'Pd/dim-16.00', 'Pd/dim-32.00',
@@ -141,21 +135,21 @@ def test_find(Pd):
     """Tests the find function with pattern matching.
     """
     Pd.setup()
-    steps = Pd.find("hessian/phonon/Pd/dim-*")
-    model = ['hessian', 'hessian', 'hessian', 'hessian', 'hessian', 'hessian']
+    steps = Pd.find("maual/phonon/Pd/dim-*")
+    model = ['manual', 'manual', 'manual','manual','manual','manual']
     assert model == [s.parent.name for s in steps]
-    model = [path.join(Pd.root,'Hessian/phonon/Pd/dim-2.00'),
-             path.join(Pd.root,'Hessian/phonon/Pd/dim-4.00'),
-             path.join(Pd.root,'Hessian/phonon/Pd/dim-8.00'),
-             path.join(Pd.root,'Hessian/phonon/Pd/dim-16.00'),
-             path.join(Pd.root,'Hessian/phonon/Pd/dim-27.00'),
-             path.join(Pd.root,'Hessian/phonon/Pd/dim-32.00')]
+    model = [path.join(Pd.root,'Manual/phonon/Pd/dim-2.00'),
+             path.join(Pd.root,'Manual/phonon/Pd/dim-4.00'),
+             path.join(Pd.root,'Manual/phonon/Pd/dim-8.00'),
+             path.join(Pd.root,'Manual/phonon/Pd/dim-16.00'),
+             path.join(Pd.root,'Manual/phonon/Pd/dim-27.00'),
+             path.join(Pd.root,'Manual/phonon/Pd/dim-32.00')]
     assert sorted(model) == sorted([s.root for s in steps])
 
-    steps = Pd.find("hessian/phonon/Pd")
-    model = ['hessian']
+    steps = Pd.find("manual/phonon/Pd")
+    model = ['manual']
     assert model == [s.parent.name for s in steps]
-    model = [path.join(Pd.root,'Hessian/phonon/Pd')]
+    model = [path.join(Pd.root,'Manual/phonon/Pd')]
     assert model == [s.root for s in steps]
 
     # test uuid finding.

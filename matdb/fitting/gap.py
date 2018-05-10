@@ -5,7 +5,7 @@ from os import path
 from matdb import msg
 from collections import OrderedDict
 import numpy as np
-import quippy
+#import quippy
 from .basic import Trainer
 
 def update_nbody(settings):

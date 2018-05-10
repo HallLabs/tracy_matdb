@@ -1,10 +1,14 @@
 """Tests the phonon database interface.
 """
 import pytest
-from matdb.database.phonon import DynMatrix, Calibration, Modulation
+#from matdb.database.phonon import DynMatrix, Calibration, Modulation
+DynMatrix = pytest.importorskip('matdb.database.phonon.DynMatrix')
+Calibration = pytest.importorskip('matdb.database.phonon.Calibration')
+Modulation = pytest.importorskip('matdb.database.phonon.Modulation')
 from matdb.utility import relpath
 from os import mkdir, path, symlink
-import quippy
+#import quippy
+quippy = pytest.importorskip('quippy')
 import numpy as np
 
 def compare_dicts(dict1,dict2):

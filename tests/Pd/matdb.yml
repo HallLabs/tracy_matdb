@@ -28,7 +28,8 @@ calculator:
   potcars:
     directory: './tests/vasp'
     xc: 'PBE'
-    version: '28Jan2005'
+    versions:
+      One: '28Jan2005'
     setups:
       Pd: '_pv'
 # Parameters for the job arrays that will be submitted for each
@@ -56,73 +57,9 @@ databases:
   #by PhononDatabase.
   - name: 'phonon'
     steps:
-      - type: "hessian.Hessian"
+      - type: "simple.Manual"
         seeds: ["POSCAR:Pd"]
         calculator:
           kpoints:
             method: 'mueller'
             mindistance: 30
-        phonopy:
-          dim*:
-            - [2, 0, 0, 0, 2, 0, 0, 0, 2]
-            - [0, 1, 1, 1, 0, 1, 1, 1, 0]
-            - [0, 2, 2, 2, 0, 2, 2, 2, 0]
-            - [-2, 2, 2, 2, -2, 2, 2, 2, -2]
-            - [-1, 1, 1, 1, -1, 1, 1, 1, -1]
-            - [3, 0, 0, 0, 3, 0, 0, 0, 3]
-          dim_suffix:
-            func: "linalg:det"
-            reshape: [3,3]
-        bandmesh: [13, 13, 13]
-        dosmesh: [10, 10, 10]
-
-fitting:
-  dbs: ['*']
-  execution:
-    template: 'run_teachsparse_ml.sh'
-    time: 10
-    ntasks: 8
-    nodes: 1
-    mem_per_cpu: 5
-    job_name: 'AgPd GAP'
-  e0:
-    Pd: -1.45835775
-  plotting:
-    plots: 'efdzv'
-    subset: 'super'
-  fits:
-    - name: "2b"
-      dbs: ["Pd.phonon-*"]
-      steps:
-        - type: "gap.GAP"
-          nb: 2
-          cutoff: 6.0
-          cutoff_transition_width: 1.0
-          n_sparse: 20
-          split: ""
-          sigmas:
-            __: [.001, 0.01, 0.1, 1.0]
-            liq: [.005, 0.03, 0.2, 1.0]
-          delta: 0.5
-      execution:
-        time: 1
-        ntasks: 1
-      niterations:
-        - split: "A"
-          suffix: "A"
-          delta*: [0.5, 0.4, 0.3]
-          sigmas.liq*:
-            - [.005, 0.03, 0.2, 1.0]
-            - [.01, 0.1, 0.2, 1.0]
-        - split: "B"
-          suffix: "B"
-    - name: "2b3b"
-      split: "B"
-      steps:
-        - "2b-B.2b"
-        - type: "gap.GAP"
-          nb: 3
-          cutoff: 3.5
-          cutoff_transition_width: 0.5
-          n_sparse: 200
-          delta: 0.5

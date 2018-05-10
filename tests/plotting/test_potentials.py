@@ -6,7 +6,8 @@ helpful in deciding how to proceed with a GAP fit.
   directly and ignore tests for the others since they are tested indirectly.
 """
 import pytest
-import quippy
+#import quippy
+quippt = pytest.importorskip('quippy')
 from os import path
 import matplotlib.pyplot as plt
 

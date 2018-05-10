@@ -242,6 +242,14 @@ class Group(object):
         """
         return path.basename(self.root)
 
+    def split(self, recalc=0):
+        print 'Test implementation Group function split'
+        return self.parent.split(recalc)
+
+    def train_file(self, split):
+        print 'Test imlementation of Group function train_file'
+        return self.parent.train_file(split)
+
     def _expand_sequence(self):
         """Recursively expands the nested groups to populate :attr:`sequence`.
         """
@@ -967,6 +975,7 @@ class Database(object):
         rec_bin (RecycleBin): instance of the recycling bin database.
     """
     def __init__(self, name, root, parent, steps, splits):
+        print 'Initializing database: ', name
         self.name = name
         self.config = name.split('.')[0]
         self.root = root
@@ -1156,6 +1165,7 @@ class Database(object):
 
         # Generater the list
         subconfs = []
+        print self.isteps
         for dbname, db in self.isteps:
             if len(db.rset) == 0 or not db.trainable:
                 continue
@@ -1547,7 +1557,7 @@ class Controller(object):
         """
         if key.count('/') == 3:
             group, dbname, seed, params = key.split('/')
-        elif key.count('.') == 2:
+        elif key.count('/') == 2:
             group, dbname, seed = key.split('/')
             seed = None
         else:

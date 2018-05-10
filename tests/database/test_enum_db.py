@@ -4,7 +4,8 @@ import pytest
 from matdb.database.enumerated import Enumerated
 from matdb.utility import relpath
 from os import mkdir, path, symlink, remove
-import quippy
+#import quippy
+quippy = pytest.importorskip('quippy')
 import numpy as np
 import six
 
