@@ -5,6 +5,7 @@ from matdb.calculators.basic import SyncCalculator
 from quippy.atoms import Atoms
 import quippy
 import numpy as np
+from os import path
 
 class SyncQuip(quippy.Potential, SyncCalculator):
     """Implements a synchronous `matdb` calculator for QUIP potentials.
@@ -14,9 +15,10 @@ class SyncQuip(quippy.Potential, SyncCalculator):
         folder (str): path to the directory where the calculation should take
           place.
         contr_dir (str): The absolute path of the controller's root directory.
-        ran_seed (int or float): the random seed to be used for this calculator.
+        ran_seed (int or float): the random seed to be used for this calculator.    
     """
     def __init__(self, atoms, folder, contr_dir, ran_seed, *args, **kwargs):
+        self.init_calc(kwargs)
         self.args = args[0]
         self.kwargs = kwargs
         self.ran_seed = ran_seed
@@ -27,6 +29,16 @@ class SyncQuip(quippy.Potential, SyncCalculator):
         self.folder = folder
         self.name = "Quip"
 
+        if self.key is None:
+            #Set default keys; for a GAP potential, we use the name of the
+            #file. For other potential types, we just use the type of the
+            #potential.
+            if self.args[0].lower() == "ip gap":
+                pfile = self.kwargs.get("param_filename")
+                self.key = path.splitext(pfile)[0]
+            else:
+                self.key = self.args[0].split()[1].lower()
+        
     def _convert_atoms(self,atoms):
         """Converts an :class:`matdb.atoms.Atoms` object to a
         :class:`quippy.atoms.Atoms` object.
@@ -66,7 +78,7 @@ class SyncQuip(quippy.Potential, SyncCalculator):
                 new_val = np.array(val)
             else:
                 new_val = val
-            atoms.add_param(key,new_val)
+            atoms.add_param("{}_{}".format(self.key, key),new_val)
 
         for key, val in temp_A.properties.items():
             if isinstance(val,np.ndarray):
@@ -75,7 +87,7 @@ class SyncQuip(quippy.Potential, SyncCalculator):
                 new_val = val
             if key=="force":
                 new_val = np.transpose(new_val)
-            atoms.add_property(key,new_val)
+            atoms.add_property("{}_{}".format(self.key, key),new_val)
         if not np.allclose(atoms.positions,temp_A.positions): 
             atoms.positions = temp_A.positions
 

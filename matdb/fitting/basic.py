@@ -1,13 +1,20 @@
 """Implements a basic trainer that train material models.
 """
 import abc
-from matdb import atoms
 from os import path
+from fnmatch import fnmatch
+from tqdm import tqdm
+from six import string_types
+import operator
+from matdb.utility import getattrs
 from matdb import msg
+from matdb.utility import chdir, dbcat, execute
+from matdb.atoms import AtomsList
+from matdb.database import Database
 
 class Trainer(object):
-    """Represents an algorithm that can use a :class:`DatabaseSequence` (or set of
-    sequences) to produce a multi-component potential.
+    """Represents an algorithm that can use a :class:`Database` (or set of
+    databases) to produce a multi-component potential.
 
     .. note:: This object provides the following methods that must be overriden:
     
@@ -48,11 +55,15 @@ class Trainer(object):
         dbfilter (dict): keys are attributes on individual :class:`Atoms`
           objects; values are dictionaries with keys `operator`, `value` and
           `dbs` as described above.
+        root (str): path to the root directory in which this trainer's own
+          folder will be created.
 
     Attributes:
         fqn (str): fully-qualified name of the trainer.
         cust_splits (dict): keys are database sequence names; values are custom
           splits that should be used for that particular database sequence.
+        root (str): path to the trainer's root directory.
+
     """
     def __init__(self, controller=None, dbs=None, execution={}, split=None,
                  root=None, parent=None, dbfilter=None):
@@ -63,6 +74,9 @@ class Trainer(object):
         self.split = split
         self.params = {}
         self._dbs = ['*.*'] if dbs is None else dbs
+        """list: of `str` patterns to match against databases from the builder
+        context of `matdb`.
+        """
         if not isinstance(self._dbs, (list, set, tuple)):
             self._dbs = [self._dbs]
 
@@ -95,19 +109,18 @@ class Trainer(object):
         self._calculator = None
         """ase.Calculator: potential for the fitted file in this Trainer.
         """
-        self._trainfile = path.join(self.root, "train.xyz")
+        self._trainfile = path.join(self.root, "train.h5")
         """str: path to the XYZ training file that will be passed to the training
         command.
         """
-        self._holdfile = path.join(self.root, "holdout.xyz")
+        self._holdoutfile = path.join(self.root, "holdout.h5")
         """str: path to the XYZ validation file that will be passed to the training
         command.
         """
-        self._superfile = path.join(self.root, "super.xyz")
+        self._superfile = path.join(self.root, "super.h5")
         """str: path to the XYZ super validation file that will be passed to the
         training command.
         """
-
         self._jobfile = path.join(self.root, "jobfile.sh")
         """str: path to the jobfile for the current trainer.
         """
@@ -116,8 +129,8 @@ class Trainer(object):
         """Finds all dbs that match the patterns supplied for training.
         """
         for dbpat in self._dbs:
-            if '/' in dbpat:
-                pat, split = dbpat.split('/')
+            if ':' in dbpat:
+                pat, split = dbpat.split(':')
             else:
                 pat, split = dbpat, None
 
@@ -125,16 +138,12 @@ class Trainer(object):
             self.dbs.extend(matches)
             if split is not None:
                 for match in matches:
-                    self.cust_splits[match.name] = split        
+                    self.cust_splits[match.fqn] = split        
         
     def _invert_filters(self):
         """Inverts any available db filters for this trainer for optimization
         purposes.
         """
-        from fnmatch import fnmatch
-        from six import string_types
-        import operator
-        from matdb.utility import getattrs
         
         alldbs = [db.name for db in self.dbs]        
         for attr, spec in self.dbfilter.items():
@@ -174,7 +183,7 @@ class Trainer(object):
                 self._dbfilters[db][attr] = (opf, vals)
         
     def _update_split_params(self):
-        """Updates the parameters set for the trainer to include the splits.
+        """Updates the parameter set for the trainer to include the splits.
         """
         if len(self.dbs) > 0:
             _splitavg = []
@@ -194,11 +203,11 @@ class Trainer(object):
             #globally and cached, we don't have to worry about inconsistencies.
             return
         
-        #Setup the train.xyz file for the set of databases specified in the
+        #Setup the train.h5 file for the set of databases specified in the
         #source patterns.
         self._invert_filters()
         self.configs("train", False)
-        
+
     @abc.abstractmethod
     def get_calculator(self):
         """Constructs an :ase:`Calculator` instance using the fitted potential
@@ -217,7 +226,7 @@ class Trainer(object):
         pass
 
     def extras(self):
-        """Returns a list of extra XYZ training files that should be included in
+        """Returns a list of extra training files that should be included in
         the database training. This is used by some trainers that create
         additional configurations as part of the training.
 
@@ -249,14 +258,13 @@ class Trainer(object):
         fitted GAP potential in this trainer.
         """
         if self._calculator is None:
-            from matdb.utility import chdir
             with chdir(self.root):
                 self._calculator = self.get_calculator()
         return self._calculator
             
     @property
     def validation(self):
-        """Returns a :class:`atoms.AtomsList` of configurations that can be
+        """Returns a :class:`matdb.AtomsList` of configurations that can be
         used for potential validation.
         """
         return self.configs("holdout")
@@ -273,7 +281,6 @@ class Trainer(object):
         Returns:
             list: of `str` paths to include in the database from this sequence.
         """
-        from matdb.utility import dbcat
         if len(self.dbfilter) > 0 and seqname in self._dbfilters:
             filtered = []
             #The filters values have a function and a list of the actual values
@@ -284,12 +291,12 @@ class Trainer(object):
             
             for dbfile in dbfiles:
                 dbname = path.basename(path.dirname(dbfile))
-                filtdb = path.join(self.root, "__{}.xyz".format(dbname))
+                filtdb = path.join(self.root, "__{}.h5".format(dbname))
                 if path.isfile(filtdb):
                     continue
                 
-                al = atoms.AtomsList(dbfile)
-                nl = atoms.AtomsList()
+                al = AtomsList(dbfile)
+                nl = AtomsList()
                 for a in al:
                     #The 0 index here gets the function out; see comment above
                     #about the filters dictionary.
@@ -313,27 +320,22 @@ class Trainer(object):
 
         Args:
             kind (str): on of ['train', 'holdout', 'super'].
-            asatoms (bool): when True, return a :class:`atoms.AtomsList`
+            asatoms (bool): when True, return a :class:`matdb.AtomsList`
               object; otherwise just compile the file.
 
         Returns:
-            atoms.AtomsList: for the specified configuration class.
+            matdb.AtomsList: for the specified configuration class.
         """
         fmap = {
             "train": lambda seq, splt: seq.train_file(splt),
             "holdout": lambda seq, splt: seq.holdout_file(splt),
             "super": lambda seq, splt: seq.super_file(splt)
         }
-        smap = {
-            "train": self._trainfile,
-            "holdout": self._holdfile,
-            "super": self._superfile
-        }
+        smap = {t: getattr(self, "_{}file".format(t))
+                for t in ["train", "holdout", "super"]}
         cfile = smap[kind]
 
         if not path.isfile(cfile):
-            from matdb.utility import dbcat
-            from fnmatch import fnmatch
             cfiles = []
             for seq in self.dbs:
                 #We need to split to get training data. If the split has already
@@ -357,18 +359,26 @@ class Trainer(object):
                 filtered = self._filter_dbs(seq.name, nfiles)
                 cfiles.extend(filtered)
 
+            #If this is the training file, we need to append any extras; these
+            #are files that have additional trainer-specific configs to include.
+            if kind == "train":
+                cfiles.extend(self.extras())
+                
             #First, save the configurations to a single file.
             dbcat(cfiles, cfile)
 
         if asatoms:
-            return atoms.AtomsList(cfile)
+            return AtomsList(cfile)
     
-    def validate(self, configs=None, energy=True, force=True, virial=True):
-        """Validates the calculator in this training object against the `holdout.xyz`
+    def validate(self, refkey, configs=None, energy=True, force=True, virial=True):
+        """Validates the calculator in this training object against the `holdout.h5`
         configurations in the source databases.
 
         Args:
-            configs (atoms.AtomsList): list of configurations to validate
+            refkey (str): name of the key on the atoms objects that the
+              interatomic potential should be compared against; i.e., these are
+              the reference energies, forces and virials to validate against.
+            configs (matdb.AtomsList): list of configurations to validate
               against. If not provided, built-in holdout set will be used.
             energy (bool): when True, validate the energies of each
               configuration.
@@ -378,11 +388,10 @@ class Trainer(object):
               configuration.         
 
         Returns:
-            dict: with keys ["*_dft", "*_pot"] where the values are
+            dict: with keys ["*_ref", "*_pot"] where the values are
             reference-calculated and potential-calculated predictions for the
             energies, force components or virial components.
         """
-        from tqdm import tqdm
         for a in tqdm(self.validation if configs is None else configs):
             a.set_cutoff(self.calculator.cutoff())
             a.calc_connect()
@@ -390,14 +399,14 @@ class Trainer(object):
 
         result = {}
         if energy:
-            result["e_ref"] = np.array(al.dft_energy)
-            result["e_pot"] = np.array(al.energy)
+            result["e_ref"] = np.array(getattr(al, "{}_energy".format(refkey)))
+            result["e_ip"] = np.array(getattr(al, self.calculator.energy_name))
         if forces:
-            result["f_ref"] = np.array(al.dft_force.flatten())
-            result["f_pot"] = np.array(al.force.flatten())
+            result["f_ref"] = np.array(getattr(al, "{}_force".format(refkey))).flatten()
+            result["f_ip"] = np.array(getattr(al, self.calculator.force_name)).flatten()
         if virial:
-            result["v_ref"] = np.array(al.dft_virial.flatten())
-            result["v_pot"] = np.array(al.virial.flatten())
+            result["v_ref"] = np.array(getattr(al, "{}_virial".format(refkey))).flatten()
+            result["v_ip"] = np.array(getattr(al, self.calculator.virial_name)).flatten()
 
         return result
     
@@ -416,30 +425,26 @@ class Trainer(object):
             return False
 
         if not path.isfile(self._trainfile):
-            from matdb.msg import std
-            std("train.xyz missing in {}; can't execute.".format(self.root))
+            msg.std("train.h5 missing in {}; can't execute.".format(self.root))
             return False
         
         # We must have what we need to execute. Compile the command and submit.
-        from matdb.utility import execute
         cargs = ["sbatch", self._jobfile]
         if dryrun:
-            from matdb.msg import okay
-            okay("Executed {} in {}".format(' '.join(cargs), self.root))
+            msg.okay("Executed {} in {}".format(' '.join(cargs), self.root))
             return True
         else:
             xres = execute(cargs, self.root)
 
         if len(xres["output"]) > 0 and "Submitted" in xres["output"][0]:
-            from matdb.msg import okay
-            okay("{}: {}".format(self.root, xres["output"][0].strip()))
+            msg.okay("{}: {}".format(self.root, xres["output"][0].strip()))
             return True
         else:
             return False
             
     def jobfile(self):
         """Creates the job file for training the potential. This includes creating
-        folders, the training XYZ file and setting up any other dependencies
+        folders, the training file and setting up any other dependencies
         required by the trainer.
 
         .. note:: This method also runs :meth:`command`, which configures the

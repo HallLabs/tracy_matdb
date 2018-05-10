@@ -22,6 +22,8 @@ calculators = lazy_import.lazy_module("matdb.calculators")
 from matdb.atoms import Atoms, AtomsList
 from tqdm import tqdm
 from hashlib import sha1
+from matdb.database.utility import split
+from matdb.database.legacy import LegacyDatabase
 
 class Group(object):
     """Represents a collection of material configurations (varying in
@@ -239,7 +241,7 @@ class Group(object):
                                                                 obj_ins.prefix)),"w+") as f:
                         f.write("{0} \n {1}".format(obj_ins.uuid,obj_ins.time_stamp))
                     self.database.parent.uuids[obj_ins.uuid] = obj_ins
-                    obj_ins.setup(rerun=True)
+                    obj_ins.setup(rerun=1)
 
     @property
     def key(self):
@@ -248,6 +250,38 @@ class Group(object):
         """
         return path.basename(self.root)
 
+    @property
+    def calculator(self):
+        """Returns a representative calculator for the group. This will be the calculator
+        attached to one of the :attr:`config_atoms` in the expanded group.
+        """
+        if len(self.config_atoms) == 0:
+            self._expand_sequence()
+
+        result = None
+        if len(self.sequence) > 0:
+            result = next(iter(self.sequence.values())).calculator
+        else:
+            try:
+                result = next(iter(self.config_atoms.values())).get_calculator()
+            except:
+                raise
+        return result
+
+    @property
+    def iconfigs(self):
+        """Provides a generator over all the configurations in this group and its
+        children.
+        """
+        self._expand_sequence()
+        if len(self.sequence) > 0:
+            for group in self.sequence.values():
+                for atoms in group.iconfigs:
+                    yield atoms
+        else:
+            for atoms in self.config_atoms.values():
+                yield atoms
+    
     def _expand_sequence(self):
         """Recursively expands the nested groups to populate :attr:`sequence`.
         """
@@ -537,12 +571,13 @@ class Group(object):
                                                       env_vars=env_vars))
             return all(already_executed)
 
-    def recover(self, rerun=False):
+    def recover(self, rerun=0):
         """Compiles a list of all DFT runs that didn't complete and compiles the
         `failures` file. Creates a jobfile to re-run the failed
         folders only.
+
         Args:
-            rerun (bool): when True, recreate the jobfile even if it
+            rerun (int): when > 0, recreate the jobfile even if it
               already exists. 
         """
 
@@ -579,11 +614,11 @@ class Group(object):
             for group in self.sequence.values():
                 group.recover(rerun=rerun)
                     
-    def jobfile(self, rerun=False, recovery=False):
+    def jobfile(self, rerun=0, recovery=False):
         """Creates the job array file to run each of the sub-configurations in
         this database.
         Args:
-            rerun (bool): when True, recreate the jobfile even if it
+            rerun (int): when > 0, recreate the jobfile even if it
               already exists. 
             recovery (bool): when True, configure the jobfile to run
               recovery jobs for those that have previously failed. This uses a
@@ -603,7 +638,7 @@ class Group(object):
                 xpath = path.join(self.root, "{}.".format(self.prefix))
                 asize = len(self.configs)
             
-            if (path.isfile(target) and not rerun) or asize == 0:
+            if (path.isfile(target) and rerun == 0) or asize == 0:
                 return
         
             # We use the global execution parameters and then any updates
@@ -749,14 +784,14 @@ class Group(object):
 
         return result
             
-    def setup(self, db_setup, rerun =False):
+    def setup(self, db_setup, rerun=0):
         """Performs the setup of the database using the `db_setup` function
         passed in by the specific group instance.
         
         Args:
             db_setup (function): a function that will perform the setup for each
                 group independently.
-            rerun (bool): default value is False.
+            rerun (int): values > 0 cause rerunning of the setup at different granularity.
         """
         if self.prev is None or self.prev.can_extract():
             #Before we attempt to setup the folders, we first need to construct
@@ -766,7 +801,7 @@ class Group(object):
             self._expand_sequence()
             if len(self.sequence) == 0:
                 ok = self.is_setup()
-                if ok and not rerun:
+                if ok and rerun == 0:
                     return
                 db_setup(rerun)
                 with open(path.join(self.root,"compute.pkl"),"w+") as f:
@@ -892,7 +927,7 @@ class Group(object):
                     #exist.
                     continue
                 from os import remove
-                atoms = self.config_atoms[cid]                
+                atoms = self.config_atoms[cid]
                 atoms.calc.extract(folder, cleanup=cleanup)
                 atoms.write(path.join(folder, "atoms.h5"))
                 if path.isfile(path.join(folder, "pre_comp_atoms.h5")):
@@ -1093,11 +1128,11 @@ class Database(object):
             else:
                 raise StopIteration()
             
-    def recover(self, rerun=False):
+    def recover(self, rerun=0):
         """Runs recovery on this database to determine which configs failed and
         then create a jobfile to requeue them for compute.
         Args:
-            rerun (bool): when True, recreate the jobfile even if it
+            rerun (int): when > 0, recreate the jobfile even if it
               already exists. 
         """
         for dbname, db in self.steps.items():
@@ -1147,44 +1182,59 @@ class Database(object):
     def train_file(self, split):
         """Returns the full path to the h5 database file that can be
         used for training.
+
         Args:
             split (str): name of the split to use.
         """
-        return path.join(self.root, "{}-train.h5")
+        return path.join(self.root, "{}-train.h5".format(split))
 
     def holdout_file(self, split):
         """Returns the full path to the h5 database file that can be
         used to validate the potential fit.
+
         Args:
             split (str): name of the split to use.
         """
-        return path.join(self.root, "{}-holdout.h5")
+        return path.join(self.root, "{}-holdout.h5".format(split))
 
     def super_file(self, split):
         """Returns the full path to the h5 database file that can be
         used to *super* validate the potential fit.
+
         Args:
             split (str): name of the split to use.
         """
-        return path.join(self.root, "{}-super.h5")
+        return path.join(self.root, "{}-super.h5".format(split))
 
     def split(self, recalc=0):
         """Splits the database multiple times, one for each `split` setting in
         the database specification.
         """
-        from matdb.database.utility import split
-
-        # Generater the list
-        subconfs = []
+        subconfs = AtomsList()
         for dbname, db in self.isteps:
-            if len(db.rset) == 0 or not db.trainable:
+            if not db.trainable:
                 continue
-                    
-            for configpath in db.rset.values():
-                subconfs.append(configpath)
 
-        file_targets = {"train": self.train_file(), "holdout": self.holdout_file(),
-                        "super": self.super_file()}
+            ekey, fkey, vkey = ["{}_{}".format(db.calculator.key, q)
+                                for q in ["energy", "force", "virial"]]            
+            for atconf in db.fitting_configs:
+                #We need to rename the parameters and properties of the individual atoms
+                #objects to match the refkey and global choice of "ref_energy",
+                #"ref_force" and "ref_virial".
+                ati = atconf.copy()
+                energy = ati.params[ekey]
+                force = ati.properties[fkey]
+                virial = ati.params[vkey]
+                ati.params["ref_energy"] = energy
+                ati.properties["ref_force"] = force
+                ati.params["ref_virial"] = virial
+                del ati.params[ekey]
+                del ati.properties[fkey]
+                del ati.params[vkey]
+                subconfs.append(ati)
+                
+        file_targets = {"train": self.train_file, "holdout": self.holdout_file,
+                        "super": self.super_file}
         split(subconfs, self.splits, file_targets, self.root, self.ran_seed, recalc=recalc)
         
     def extract(self, cleanup="default"):
@@ -1200,16 +1250,17 @@ class Database(object):
                 break
         msg.blank()
             
-    def setup(self, rerun=False):
+    def setup(self, rerun=0):
         """Sets up the database collection by generating the POTCAR file and
         initializing any databases that haven't already been initialized.
         .. note:: The db setup functions are setup to only execute once, and then
            only if their dependencies have completed their calculations. This
            method can, therefore, be safely called repeatedly between different
            terminal sessions.
+
         Args:
-            rerun (bool): when True, recreate the folders even if they
-              already exist. 
+            rerun (int): when > 0, recreate the folders even if they
+              already exist. Higher levels redo more of the work.
         """
         for dbname, db in self.isteps:
             msg.info("Setting up database {}:{}".format(self.name, dbname))
@@ -1300,26 +1351,23 @@ class RecycleBin(Database):
     def isteps(self):
         pass
     
-    def recover(self, rerun=False):
+    def recover(self, rerun=0):
         pass
 
-    def split(self, recalc=0, cfilter=None, dfilter=None):
+    def split(self, recalc=0, dfilter=None):
         """Splits the total available data in the recycle bin.
         Args:
             recalc (int): when non-zero, re-split the data and overwrite any
               existing *.h5 files. This parameter decreases as
               rewrites proceed down the stack. To re-calculate
               lower-level h5 files, increase this value.
-            cfilter (list): of `str` patterns to match against *configuration*
-              names. This limits which configs are returned.
             dfilter (list): of `str` patterns to match against *database sequence*
               names. This limits which databases sequences are returned.
         """
-
         from matdb.utility import chdir
 
         with chdir(self.root):
-            super(RecycleBin,self).split(recalc=recalc,cfilter=cfilter,dfilter=dfilter)
+            super(RecycleBin,self).split(recalc=recalc, dfilter=dfilter)
     
     def status(self, busy=False):
         pass
@@ -1403,12 +1451,10 @@ class Controller(object):
                 self.legacy[cpspec["name"]] = LegacyDatabase(**cpspec)
             else:
                 dbname = dbspec["name"]
-                if dbname not in self.collections:
-                    self.collections[dbname] = {}
                 steps = dbspec["steps"]
                 db = Database(dbname, self.root, self,
                               steps, self.specs.get("splits"))
-                self.collections[dbname][dbspec["name"]] = db
+                self.collections[dbname] = db
 
         from os import mkdir
         if not path.isdir(self.plotdir):
@@ -1425,21 +1471,17 @@ class Controller(object):
             tdict["db"] = self
             self.trainers = TController(**tdict)
 
-    def ifiltered(self, cfilter=None, dfilter=None):
-        """Returns a *filtered* generator over sequences in the config collections of
-        this object.
+    def ifiltered(self, dfilter=None):
+        """Returns a *filtered* generator over databases in the collections of this object.
+
         Args:
-            cfilter (list): of `str` patterns to match against *configuration*
-              names. This limits which configs are returned.
-            dfilter (list): of `str` patterns to match against *database sequence*
-              names. This limits which databases sequences are returned.
+            dfilter (list): of `str` patterns to match against *database*
+              names. This limits which databases are returned.
         """
         from fnmatch import fnmatch
-        for name, coll in self.collections.items():
-            if cfilter is None or any(fnmatch(name, c) for c in cfilter):
-                for dbn, seq in coll.items():
-                    if dfilter is None or any(fnmatch(dbn, d) for d in dfilter):
-                        yield (dbn, seq)
+        for name, dbi in self.collections.items():
+            if dfilter is None or any(fnmatch(name, d) for d in dfilter):
+                yield (name, dbi)
 
     def relpaths(self, pattern):
         """Finds the relative paths for the seed configurations within the databases that 
@@ -1478,42 +1520,44 @@ class Controller(object):
         
         from fnmatch import fnmatch
         if pattern.count('/') == 3:
-            groupname, dbname, seed, params = pattern.split('/')
+            dbname, groupname, seed, params = pattern.split('/')
         elif pattern.count('/') == 2:
-            groupname, dbname, seed = pattern.split('/')
+            dbname, groupname, seed = pattern.split('/')
             params = None
         elif pattern.count('/') == 1:
-            groupname, dbname = pattern.split('/')
+            dbname, groupname = pattern.split('/')
             params = None
             seed = None
         else:
-            #We must be searching legacy databases; match the pattern against
-            #those.
-            return [li for ln, li in self.legacy.items() if fnmatch(ln, pattern)]
+            #We must be searching legacy databases or the pattern given is to
+            #match a *database* and not a group.
+            dbname = pattern
+            groupname, params, seed = None, None, None
         
         colls = [v for k, v in self.collections.items() if fnmatch(k, dbname)]
-
+        colls.extend([li for ln, li in self.legacy.items() if fnmatch(ln, pattern)])
         result = []
-        for coll in colls:
-            dbs = [dbi for dbn, dbi in coll.items() if fnmatch(dbn, dbname)]
-            for dbi in dbs:
-                groups = [groupi for groupn, groupi in dbi.steps.items()
-                        if fnmatch(groupn, groupname)]
-
-                for group in groups:
-                    group._expand_sequence()
-                    if len(group.sequence) > 0 and seed is not None:
-                        seeds = [si for sn, si in group.sequence.items()
-                                 if fnmatch(sn, seed)]
-                        for seedi in seeds:
-                            seedi._expand_sequence()
-                            if len(seedi.sequence) > 0 and params is not None:
-                                result.extend([si for sn, si in seedi.sequence.items()
-                                               if fnmatch(sn, params)])
-                            else:
-                                result.append(seedi)
-                    else:
-                        result.append(group)
+        for dbi in colls:
+            if isinstance(dbi, LegacyDatabase) or groupname is None:
+                result.append(dbi)
+                continue
+            
+            groups = [groupi for groupn, groupi in dbi.steps.items()
+                      if fnmatch(groupn, groupname)]
+            for group in groups:
+                group._expand_sequence()
+                if len(group.sequence) > 0 and seed is not None:
+                    seeds = [si for sn, si in group.sequence.items()
+                             if fnmatch(sn, seed)]
+                    for seedi in seeds:
+                        seedi._expand_sequence()
+                        if len(seedi.sequence) > 0 and params is not None:
+                            result.extend([si for sn, si in seedi.sequence.items()
+                                           if fnmatch(sn, params)])
+                        else:
+                            result.append(seedi)
+                else:
+                    result.append(group)
 
         if groupname == '*':
             #Add all the possible legacy databases.
@@ -1590,76 +1634,70 @@ class Controller(object):
             msg.err("The group name {0} could not be found in the steps of "
                     "the database {1}".format(group.lower(),coll.steps.values()))
                         
-    def setup(self, rerun=False, cfilter=None, dfilter=None):
+    def setup(self, rerun=0, dfilter=None):
         """Sets up each of configuration's databases.
+
         Args:
-            rerun (bool): when True, recreate the folders even if they
+            rerun (int): when > 0, recreate the folders even if they
               already exist.
-            cfilter (list): of `str` patterns to match against *configuration*
-              names. This limits which configs are returned.
-            dfilter (list): of `str` patterns to match against *database sequence*
+            dfilter (list): of `str` patterns to match against *database*
               names. This limits which databases sequences are returned.
         """
-        for dbname, seq in self.ifiltered(cfilter, dfilter):
-            seq.setup(rerun)
+        for dbname, dbi in self.ifiltered(dfilter):
+            dbi.setup(rerun)
 
-    def extract(self, cfilter=None, dfilter=None, cleanup="default"):
+    def extract(self, dfilter=None, cleanup="default"):
         """Runs extract on each of the configuration's databases.
+
         Args:
-            cfilter (list): of `str` patterns to match against *configuration*
-              names. This limits which configs are returned.
-            dfilter (list): of `str` patterns to match against *database sequence*
-              names. This limits which databases sequences are returned.
+            dfilter (list): of `str` patterns to match against *database*
+              names. This limits which databases are returned.
             cleanup (str): the level of cleanup to perform after extraction.
         """
-        for dbname, seq in self.ifiltered(cfilter, dfilter):
-            seq.extract(cleanup=cleanup)
+        for dbname, dbi in self.ifiltered(dfilter):
+            dbi.extract(cleanup=cleanup)
 
-    def execute(self, recovery=False, cfilter=None, dfilter=None, env_vars=None):
+    def execute(self, recovery=False, dfilter=None, env_vars=None):
         """Submits job array scripts for each database collection.
+
         Args:
             recovery (bool): when True, submit the script for running recovery
               jobs.
-            cfilter (list): of `str` patterns to match against configuration
-              names. This limits which configs status is retrieved for.
-            dfilter (list): of `str` patterns to match against *database sequence*
-              names. This limits which databases sequences are returned.
+            dfilter (list): of `str` patterns to match against *database*
+              names. This limits which databases are returned.
             env_vars (dict): of environment variables to set before calling the
               execution. The variables will be set back after execution.
         """
-        for dbname, seq in self.ifiltered(cfilter, dfilter):
-            seq.execute(recovery, env_vars=env_vars)
+        for dbname, dbi in self.ifiltered(dfilter):
+            dbi.execute(recovery, env_vars=env_vars)
 
-    def recover(self, rerun=False, cfilter=None, dfilter=None):
+    def recover(self, rerun=False, dfilter=None):
         """Runs recovery on this database to determine which configs failed and
         then create a jobfile to requeue them for compute.
+
         Args:
             rerun (bool): when True, recreate the jobfile even if it
               already exists. 
-            cfilter (list): of `str` patterns to match against configuration
-              names. This limits which configs status is retrieved
-              for.
-            dfilter (list): of `str` patterns to match against *database sequence*
-              names. This limits which databases sequences are returned.
+            dfilter (list): of `str` patterns to match against *database*
+              names. This limits which databases are returned.
         """
-        for dbname, seq in self.ifiltered(cfilter, dfilter):
-            seq.recover(rerun) 
+        for dbname, dbi in self.ifiltered(dfilter):
+            dbi.recover(rerun) 
                 
-    def status(self, busy=False, cfilter=None, dfilter=None):
-        """Prints status messages for each of the configuration's
-        databases.
+    def status(self, busy=False, dfilter=None):
+        """Prints status messages for each of the configuration's databases.
+
         Args:
             busy (bool): when True, print a list of the configurations that are
               still busy being computed in DFT.
-            cfilter (list): of `str` patterns to match against configuration
-              names. This limits which configs status is retrieved for.
-            dfilter (list): of `str` patterns to match against *database sequence*
-              names. This limits which databases sequences are returned.
-        """
-        for dbname, seq in self.ifiltered(cfilter, dfilter):
-            seq.status(busy)
+            dfilter (list): of `str` patterns to match against *database*
+              names. This limits which databases are returned.
 
-    def split(self, recalc=0, cfilter=None, dfilter=None):
+        """
+        for dbname, dbi in self.ifiltered(dfilter):
+            dbi.status(busy)
+
+    def split(self, recalc=0, dfilter=None):
         """Splits the total available data in all databases into a training and holdout
         set.
         Args:
@@ -1667,25 +1705,21 @@ class Controller(object):
               existing *.h5 files. This parameter decreases as
               rewrites proceed down the stack. To re-calculate
               lower-level h5 files, increase this value.
-            cfilter (list): of `str` patterns to match against *configuration*
-              names. This limits which configs are returned.
             dfilter (list): of `str` patterns to match against *database sequence*
               names. This limits which databases sequences are returned.
         """
-        for dbname, seq in self.ifiltered(cfilter, dfilter):
-            seq.split(recalc)
+        for dbname, dbi in self.ifiltered(dfilter):
+            dbi.split(recalc)
 
-    def hash_dbs(self, cfilter=None, dfilter=None):
+    def hash_dbs(self, dfilter=None):
         """Hashes the databases into a single hash. 
         
         Args:
-            cfilter (list): of `str` patterns to match against *configuration*
-              names. This limits which configs are returned.
-            dfilter (list): of `str` patterns to match against *database sequence*
-              names. This limits which databases sequences are returned.
+            dfilter (list): of `str` patterns to match against *database*
+              names. This limits which databases are returned.
         """
         hash_all = ''
-        for dbname, seq in self.ifiltered(cfilter, dfilter):
+        for dbname, seq in self.ifiltered(dfilter):
             hash_all += ' '
             hash_all += seq.hash_db()
 
@@ -1698,38 +1732,34 @@ class Controller(object):
             
         return hash_all
 
-    def verify_hash(self, hash_cand, cfilter=None, dfilter=None):
-        """Verifies that the the candidate hash matches this matdb
-        controller's dabateses
+    def verify_hash(self, hash_cand, dfilter=None):
+        """Verifies that the the candidate hash matches this matdb controller's databases.
+
         Args:
             hash_cand (str): The candidate hash to check.
-            cfilter (list): of `str` patterns to match against *configuration*
-              names. This limits which configs are returned.
-            dfilter (list): of `str` patterns to match against *database sequence*
-              names. This limits which databases sequences are returned.
+            dfilter (list): of `str` patterns to match against *database*
+              names. This limits which databases are returned.
+
         Returns:
             True if the hash matches the databases.
         """
+        return hash_cand == self.hash_dbs(dfilter=dfilter)
 
-        return hash_cand == self.hash_dbs(cfilter=cfilter, dfilter=dfilter)
-
-    def finalize(self, cfilter=None, dfilter=None):
+    def finalize(self, dfilter=None):
         """Creates the finalized version of the databases that were used for
         fitting the potential. Stored in final_{matdb.version}.h5.
         Args:
-            cfilter (list): of `str` patterns to match against *configuration*
-              names. This limits which configs are returned.
-            dfilter (list): of `str` patterns to match against *database sequence*
-              names. This limits which databases sequences are returned.
+            dfilter (list): of `str` patterns to match against *database*
+              names. This limits which databases are returned.
         """
 
         from matdb.io import save_dict_to_h5
         from matdb import __version__
         
         final_dict = self.versions.copy()
-        final_dict["hash"] = self.hash(cfilter=cfilter, dfilter=dfilter)
+        final_dict["hash"] = self.hash(dfilter=dfilter)
         final_dict["yml_file"] = self.specs.copy()
-        for dbname, seq in self.ifiltered(cfilter, dfilter):
+        for dbname, seq in self.ifiltered(dfilter):
             final_dict["dbname"] = seq.finalize()
 
         if "rec_bin" in dfilter or dfilter is None or dfilter=="*":

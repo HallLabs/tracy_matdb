@@ -31,9 +31,10 @@ def split(atlist, splits, targets, dbdir, ran_seed, dbfile=None, recalc=0):
     from matdb.utility import dbcat
     
     for name, train_perc in splits.items():
-        train_file = targets["train"].format(name)
-        holdout_file = targets["holdout"].format(name)
-        super_file = targets["super"].format(name)
+        train_file = targets["train"](name)
+        holdout_file = targets["holdout"](name)
+        super_file = targets["super"](name)
+        
         if (path.isfile(train_file) and path.isfile(holdout_file)
             and path.isfile(super_file)):
             if recalc <= 0:

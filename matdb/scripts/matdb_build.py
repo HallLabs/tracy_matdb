@@ -41,12 +41,9 @@ script_options = {
                 "help": ("Determines status of the databases "
                          "based on presence of completed VASP "
                          "directories. Sanity check before `-x`.")},
-    "--rerun": {"action": "store_true",
+    "--rerun": {"type": int, "default": 0,
                 "help": ("Re-run the specified option, even if it has already "
-                         "been done before.")},
-    "--cfilter": {"nargs": "+",
-                 "help": ("Specify a list of patterns to match against _config_ "
-                          "names that should be *included*.")},
+                         "been done before. Higher values re-run at a deeper level.")},
     "--dfilter": {"nargs": "+",
                   "help": ("Specify a list of patterns to match against _database_ "
                            "names that should be *included*.")},
@@ -93,17 +90,17 @@ def run(args):
     from matdb.database import Controller
     cdb = Controller(args["dbspec"])
     if args["s"]:
-        cdb.setup(args["rerun"])
+        cdb.setup(args["rerun"], args["dfilter"])
     if args["x"]:
-        cdb.execute(args["recover"], args["cfilter"], args["dfilter"])
-    if args["t"]:
-        cdb.extract(cleanup=args["clean"])    
+        cdb.execute(args["recover"], args["dfilter"])
+    if args["e"]:
+        cdb.extract(args["dfilter"], cleanup=args["clean"])    
 
     if args["recover"] and not args["x"]:
-        cdb.recover(args["recover"], args["cfilter"], args["dfilter"])
+        cdb.recover(args["rerun"], args["dfilter"])
         
     if args["status"]:
-        cdb.status(args["busy"], args["cfilter"], args["dfilter"])
+        cdb.status(args["busy"], args["dfilter"])
         
 if __name__ == '__main__': # pragma: no cover
     run(_parser_options())
