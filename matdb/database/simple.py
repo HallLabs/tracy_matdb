@@ -8,14 +8,13 @@ from six import string_types
 from matdb.atoms import Atoms, AtomsList
 
 class Manual(Group):
-    """<<Your description here>>.
+    """A basic group that just sets up a calculator for each atoms object
+    specified by the user.
+
     Args:
-        atoms (matdb.atoms.Atoms): seed configuration that will be
-          displaced to generate the database.
-        root (str): path to the folder where the database directories will
-          be stored.
-        parent (matdb.database.Database): parent sequence to which this database
-          belongs. Could also be another :class:`Hessian`.
+        name (str): the name of the database group.
+        extractable (bool): True if a calculation is to be performed.
+        dbargs (dict): a dictionary of arguments for the Group class.
 	  
     .. note:: Additional attributes are also exposed by the super class
       :class:`Group`.
@@ -26,8 +25,9 @@ class Manual(Group):
           calculations will be performed.
     """
 
-    def __init__(self, name="manual", **dbargs):
+    def __init__(self, name="manual", extractable=True, **dbargs):
         self.name = name
+        self.extractable = extractable
         self.seeded = True
         dbargs["prefix"] = "S1"
         dbargs["cls"] = Manual
@@ -38,6 +38,9 @@ class Manual(Group):
                 mkdir(new_root)
             dbargs['root'] = new_root
         super(Manual, self).__init__(**dbargs)
+
+        if not self.extractable:
+            self._trainable = False
 
         self.nconfigs = 1
         
@@ -70,7 +73,8 @@ class Manual(Group):
 
     @property
     def rset(self):
-        """
+        """Returns the reusable set to the next database group.
+
         Returns:
             list: of :class:`matdb.atoms.Atoms`
         """
@@ -82,7 +86,7 @@ class Manual(Group):
             return result
         else:
             #Check where we are in the stack. If we are just below the database,
-            #then we want to return <<your description of the rset here>>
+            #then we want to return the atoms objects for all database entries.
 	    #If we are not, then we must a parameter grid of sequences
             #to select from.
             result = []
@@ -90,24 +94,8 @@ class Manual(Group):
                 result.extend(g.rset)
 	    return AtomsList(result)
 
-    def ready(self):
-        """Returns True if all the calculations have been completed.
-        """
-        self._expand_sequence()
-        if len(self.sequence) == 0:
-            return len(self.configs) == 1
-        else:
-            ready = False
-            for p in self.sequence.values():
-                if not p.ready():
-                    msg.std("{} is not ready. Exiting.".format(p.root), 2)
-                    break
-            else:
-                ready = True
-            return ready
-
     def setup(self, rerun=False):
-        """<<explanation of setup function.>>
+        """Creates a folder for each seed configuration.
 
         Args:
             rerun (bool): when True, recreate the folders even if they
@@ -126,28 +114,35 @@ class Manual(Group):
             return
 
         if not self.is_setup():
-            self.create(self.atoms)
+            self.create(self.atoms, extractable=self.extractable)
 
-        self.jobfile(rerun)
+        if self.extractable:
+            self.jobfile(rerun)
             
     def ready(self):
-        """Returns True if all the phonon calculations have been completed, the
-        force sets have been created, and the DOS has been calculated.
+        """Returns True if all the calculations have been completed.
         """
         self._expand_sequence()
         if len(self.sequence) == 0:
-            return False
+            if not self.extractable and self.is_setup():
+                return True
+            else:
+                if len(self.fitting_configs) == len(self._seed):
+                    return True
+                else:
+                    return False
         else:
             ready = False
             for p in self.sequence.values():
                 if not p.ready():
                     msg.std("{} is not ready. Exiting.".format(p.root), 2)
+                    ready = False
                     break
-            else:
-                ready = True
+                else:
+                    ready = True
             return ready
 
     def sub_dict(self):
         """Writes the attributes of this instance of the class to a dictionary.
         """
-        return {}
+        return {"name": self.name, "extractable": self.extractable}
