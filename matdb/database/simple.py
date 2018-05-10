@@ -146,3 +146,13 @@ class Manual(Group):
         """Writes the attributes of this instance of the class to a dictionary.
         """
         return {"name": self.name, "extractable": self.extractable}
+
+    def can_extract(self):
+        """Runs post-execution routines to clean-up the calculations. This super class
+        implementation only checks that each of the sub-config directories has
+        the necessary files needed for extraction of output.
+        """
+        if not self.extractable:
+            return self.is_setup()
+        else:
+            return super(Manual, self).can_extract()

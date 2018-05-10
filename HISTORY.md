@@ -2,10 +2,12 @@
 
 ## Revision 1.1.5
 - Updated the Manual Group so that it can take an optional extractable
-  flag which disapbles calulations when set to fals.
+  flag which disapbles calulations when set to false.
 - Updated `database/__init__.py' so that the user can input a
   transformation dictionary that will change the seed files passed in
   according to a transformation function.
+- Created `can_extract()` method for the `Manual` group.
+- Fixed missing `msg` import in `database/utility.py`.
 
 ## Revision 1.1.4
 - Removed assignments to empty dicts from the function definitions as
