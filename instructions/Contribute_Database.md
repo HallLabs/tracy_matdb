@@ -32,23 +32,28 @@ you will need to replace with code that matches you're use
 case. They are indicated by `<<` and `>>` tokens.
 
 Examples of completed groups that make good references for
-developers are [enumeration
+developers are [manual group](../matdb/matdb/database/simple.py), [enumeration
 group](../matdb/matdb/database/enumeration.py) and the [hessian
 group](../matdb/matdb/database/hessian.py).
 
-Details for what each replacement should be are given below.
+Details for what each replacement should be are given below. If your
+group can generate configurations that would be used only as seed
+configurations for other groups, i.e., no calculations need to be
+performed on your group, then use the code relating to the
+`extractable` key word that`s surrounded in <<Optional>> <<End
+Optional>> flags.
 
 ```
 class <<Group_Name>>(Group):
     """<<Your description here>>.
     Args:
-        atoms (matdb.atoms.Atoms): seed configuration that will be
-          displaced to generate the database.
-        root (str): path to the folder where the database directories will
-          be stored.
-        parent (matdb.database.Database): parent sequence to which this database
-          belongs. Could also be another :class:`Hessian`.
+        name (str): the database name.
 	<<Additional arguments your database group will require>>.
+	<<Optional>>
+        extractable (bool): True if a calculation is to be performed.
+	<<End Optional>>
+	dbargs (dict): dictionary of arguments to be passed to the 
+	  `Group` class.
 	  
     .. note:: Additional attributes are also exposed by the super class
       :class:`Group`.
@@ -61,9 +66,13 @@ class <<Group_Name>>(Group):
     """
 
     <<All groups must have an __init__ function>>.
-    def __init__(self, name=<<your groups default name>>, <<your group args>>, **dbargs):
+    def __init__(self, name=<<your groups default name>>, <<your group args>>, 
+    	        <<Optional>>extractable=True,<<End Optional>> **dbargs):
         self.name = name
         self.seeded = <<True if your group uses a seed configuration, False otherwise>>
+	<<Optional>>
+	self.extractable = extractable
+	<<End Optional>>
         dbargs["prefix"] = <<your group prefix>>
         dbargs["cls"] = <<Group_Name>>
         if <<Group_Name>> not in dbargs['root']:
@@ -92,10 +101,14 @@ class <<Group_Name>>(Group):
         group. 
         """
 
-	<<Some method that returns the configurations from the group
-	that would get used by the fitters.>>
-
-        return configs
+        if len(self.sequence) == 0:
+            <<Some method that returns the configurations from the group
+	    that would get used by the fitters.>>
+        else:
+            result = []
+            for g in self.sequence.values():
+                result.extend(g.fitting_configs)
+            return result
                 
     def sub_dict(self):
         """Returns a dict needed to initialize the class.
@@ -118,7 +131,10 @@ class <<Group_Name>>(Group):
             #then we want to return <<your description of the rset here>>
 	    #If we are not, then we must a parameter grid of sequences
             #to select from.
-	    return [p.rset for p in self.sequence.values()]
+            result = []
+            for g in self.sequence.values():
+                result.extend(g.rset)
+	    return AtomsList(result)
 
     def ready(self):
         """Returns True if all the calculations have been completed.
@@ -161,12 +177,24 @@ class <<Group_Name>>(Group):
 
         if not self.is_setup():
 	    <<code to setup the group's configurations. This code must
-	    make use of the self.crate(atoms_obj) method implemnted in
+	    make use of the self.crate(atoms_obj<<Optional>>,
+	    extractable=self.extractable<<End Optional>>) method implemnted in
 	    the maine `Group` class.>>
 
         # Last of all, create the job file to execute the job array.
         self.jobfile(rerun)
 
+    <<Optional>>
+    def can_extract(self):
+        """Runs post-execution routines to clean-up the calculations. This super class
+        implementation only checks that each of the sub-config directories has
+        the necessary files needed for extraction of output.
+        """
+        if not self.extractable:
+            return self.is_setup()
+        else:
+            return super(Manual, self).can_extract()
+    <<End Optional>>
     <<Any additional methods, or properties your group will need.>>
 ```
 

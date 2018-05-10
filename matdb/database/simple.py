@@ -25,7 +25,8 @@ class Manual(Group):
           calculations will be performed.
     """
 
-    def __init__(self, name="manual", extractable=True, **dbargs):
+    def __init__(self, name="manual", extractable=True,
+                 **dbargs):
         self.name = name
         self.extractable = extractable
         self.seeded = True
@@ -136,10 +137,9 @@ class Manual(Group):
             for p in self.sequence.values():
                 if not p.ready():
                     msg.std("{} is not ready. Exiting.".format(p.root), 2)
-                    ready = False
                     break
-                else:
-                    ready = True
+            else:
+                ready = True
             return ready
 
     def sub_dict(self):

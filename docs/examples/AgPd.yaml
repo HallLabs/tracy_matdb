@@ -4,34 +4,13 @@ title: 'AgPd Alloy Database'
 species:
   - 'Pd'
   - 'Ag'
-# If the POTCAR names are non-standard, include the *suffix* after the
-# element name here.
-potcars:
-  directory: '/fslhome/glh43/src'
-  pseudo: 'paw_PBE'
-  version: '04Jan2005'
-  pd: '_pv'
 # Directory in which the database folder system will be created.
 root: '~/compute/AgPd'
-# List the names of files in the root directory that serve as seed
-# configurations for sub-sampling to create additional configs. The
-# name keyword decides what the folder name will be called in which
-# all sub-sampled configurations are created.
-configs:
-  # - name: 'Pd'
-  #   poscar: 'POSCAR-Pd'
-  - name: 'PdAg25'
-    poscar: 'POSCAR-25'
-  - name: 'PdAg50'
-    poscar: 'POSCAR-50'
-  - name: 'PdAg75'
-    poscar: 'POSCAR-75'
-  # - name: 'Ag'
-  #   poscar: 'POSCAR-Ag'
-# These are global settings for INCAR that will be applied to *all*
-# the VASP calculations in all databases. They can be overridden in
-# each database.
-incar:
+# These are global settings for INCAR, POTCAR, and KPOINTS that will
+# be applied to *all* the VASP calculations in all databases. They can
+# be overridden in each database.
+calculator:
+  name: 'Vasp'
   prec: 'a'
   encut: 400
   isym: 0
@@ -40,11 +19,20 @@ incar:
   ediff: '1e-5'
   ismear: 1
   sigma: 0.1
-# We use Mueller k-points exclusively. These kpoint settings apply to
-# all database calculations.
-kpoints:
-  includegamma: True
-  mindistance: 20
+  # If the POTCAR names are non-standard, include the them in the
+  # setups dict with the correct suffix after the element name
+  # here. You must supply the versions for the potentials.
+
+  potcars:
+    directory: '/fslhome/glh43/src'
+    xc: 'PBE'
+    versions:
+      Pd: '28Jan2005'
+    setups:
+      Pd: '_pv'
+  kpoints:
+    includegamma: True
+    mindistance: 20
 # Parameters for the job arrays that will be submitted for each
 # database. These can be overridden in each database below as well.
 execution:
@@ -63,34 +51,15 @@ execution:
 databases:
   #The PhononBase class generates the dynamical matrix that is needed
   #by PhononDatabase.
-  - type: 'phonon.PhononBase'
+  - type: 'hessian.Hessian'
     kpoints:
       mindistance: 30
-    phonons:
+    phonopy:
       dim: [2, 2, 2]
       mp: [20, 20, 20]
-  - type: 'phonon.PhononDatabase'
+  - type: 'hessian.Hessian'
     nconfigs: 100
     sampling: 'uniform'
-    calibrate: 6
-    phonons:
+    phonopy:
       dim: [2, 2, 2]
       mesh: [13, 13, 13]
-    amplitude:
-      PdAg25: 12
-      PdAg50: 15
-      PdAg75: 18
-  # - type: 'liquid.LiquidDatabase'
-  #   nconfigs: 1000
-  #   samplerate: 100
-  #   tstart:
-  #     PdAg25: 2766
-  #     PdAg50: 3063
-  #     PdAg75: 3360
-  #   tend:
-  #     PdAg25: 2766
-  #     PdAg50: 3063
-  #     PdAg75: 3360
-  #   incar:
-  #     smass: 3
-  #     potim: 1.
