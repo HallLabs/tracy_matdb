@@ -43,7 +43,8 @@ class Prototypes(Group):
 	<<Additional attributes your database group will have>>.
 
     """
-    def __init__(self, name="prototype", structures=None, ran_seed=None, permutations=None, **dbargs):
+    def __init__(self, name="prototype", structures=None, ran_seed=None, permutations=None,
+                 **dbargs):
         self.name = name
         self.seeded = False
         dbargs["prefix"] = "P"

@@ -50,6 +50,11 @@ class Group(object):
         override (dict): a dictionary of with uuids or paths as the
           keys and a dictionary containing parameter: value pairs for
           parameters that need to be adjusted.
+        transforms (dict): a dictionary of transformations to apply to the
+          seeds of the database before calculations are performed. Format is 
+          {"name": {"args": dict of keyword args}}, where the "name" keyword
+          is the fully qualified path to the function.
+
     Attributes:
         atoms (matdb.atoms.Atoms): a single atomic configuration from
           which many others may be derived using MD, phonon
@@ -72,7 +77,7 @@ class Group(object):
     def __init__(self, cls=None, root=None, parent=None, prefix='S', pgrid=None,
                  nconfigs=None, calculator=None, seeds=None,
                  config_type=None, execution=None, trainable=False, override=None,
-                 rec_bin=None):
+                 rec_bin=None, transforms = None):
         if isinstance(parent, Database):
             #Because we allow the user to override the name of the group, we
             #have to expand our root to use that name over here. However, for
@@ -92,6 +97,7 @@ class Group(object):
         self.parent = parent
         self.execution = execution if execution is not None else {}
         self.atoms = None
+        self.transforms = transforms if transforms is not None else {}
         
         self._trainable = trainable
         self.is_seed_listed = None
@@ -625,7 +631,8 @@ class Group(object):
             for group in self.sequence.values():
                 group.jobfile(rerun=rerun, recovery=recovery)
                     
-    def create(self, atoms, cid=None, rewrite=False, sort=None, calcargs=None):
+    def create(self, atoms, cid=None, rewrite=False, sort=None, calcargs=None,
+               extractable=True):
         """Creates a folder within this group to calculate properties.
         Args:
             atoms (matdb.atoms.Atoms): atomic configuration to run.
@@ -637,6 +644,10 @@ class Group(object):
               supercell writes work correctly.
             calcargs (dict): additional config-specific arguments for the
               calculator that will be created and attached to the atoms object.
+            extractable (bool): True if the creation needs to write files for
+              later calculation and extraction. If False then we just write
+              an atoms.h5 object for later use as a seed for another group.
+
         Returns:
             int: new integer configuration id if one was auto-assigned.
         """
@@ -666,26 +677,35 @@ class Group(object):
                 rename(path.join(target,'atoms.h5'),new_path)
                 self.database.parent.uuids[uid] = new_path
                 uid = str(uuid4())
-                    
-            atoms.uuid = uid
-            atoms.time_stamp = time_stamp
-            atoms.group_uuid = self.uuid
+
+            trans_atoms = Atoms()
+            trans_atoms.copy_from(atoms)
+            for name, func_args in self.transforms.items():
+                import name as func
+                trans_atoms = func(trans_atoms, **func_args)
+
+            trans_atoms.uuid = uid
+            trans_atoms.time_stamp = time_stamp
+            trans_atoms.group_uuid = self.uuid
             lcargs = self.calcargs.copy()
             del lcargs["name"]
             if calcargs is not None:
                 lcargs.update(calcargs)
                 
-            calc = self.calc(atoms, target, self.database.parent.root,
+            calc = self.calc(trans_atoms, target, self.database.parent.root,
                              self.database.parent.ran_seed, **lcargs)
             calc.create()
-            atoms.set_calculator(calc)
+            trans_atoms.set_calculator(calc)
             # Turns out we need this for some seedless configurations.
-            atoms.write(path.join(target,"pre_comp_atoms.h5"))
+            if extractable:
+                trans_atoms.write(path.join(target,"pre_comp_atoms.h5"))
+            else:
+                trans_atoms.write(path.join(target,"atoms.h5"))
             #Finally, store the configuration for this folder.
             self.configs[cid] = target
-            self.config_atoms[cid] = atoms
+            self.config_atoms[cid] = trans_atoms
 
-            self.database.parent.uuids[uid] = atoms
+            self.database.parent.uuids[uid] = trans_atoms
             return cid
         else:
             for group in self.sequence.values():
