@@ -7,6 +7,7 @@ import numpy as np
 from six import string_types
 from glob import glob
 from matdb.atoms import AtomsList, Atoms
+from tqdm import tqdm
 
 class Active(Group):
     """Sets up the calculations for a set of configurations that are being
@@ -23,6 +24,9 @@ class Active(Group):
         dbargs['prefix'] = "Ac"
         dbargs['cls'] = Active
         dbargs['trainable'] = True
+        if "calculator" in dbargs:
+            self.calcargs = dbargs["calculator"].copy()
+            del dbargs["calculator"]
         if "Active" not in dbargs['root']:
             new_root =path.join(dbargs['root'],"Active")
             if not path.isdir(new_root):
@@ -32,7 +36,7 @@ class Active(Group):
 
         self.auids = None
         self._load_auids()
-        self.nconfigs = len(self.auids)
+        self.nconfigs = len(self.auids) if self.auids is not None else 0
         self.last_iteration = None
         cur_iter = len(glob("iter_*.pkl"))
         self.iter_file = path.join(self.root,"iter_{}.pkl".format(cur_iter))
@@ -111,23 +115,29 @@ class Active(Group):
         # of the active learning have already been visited by
         # constructing their auids and then verifying that the auid
         # hasn't been visited before.
-        dind = len(self.auids)
+        dind = len(self.auids) if self.auids is not None else 0
         iter_ind = 0
-        from hashlib import sha1 
+        from hashlib import sha1
+        pbar = tqdm(total=len(self.new_configs))        
         for config in self.new_configs:
-            auid = sha1(''.join(tuple(tuple([tuple(i) for i in config.cell]),
+            auid = sha1(''.join(map(str, (tuple([tuple(i) for i in config.cell]),
                         tuple([tuple(i) for i in config.positions]),
-                        tuple(config.get_chemical_symbols()))).encode('utf-8'))
-            if auid in self.auids:
-                self.nconfigs -= 1
-                continue
+                        tuple(config.get_chemical_symbols())))).encode('utf-8'))
+            if self.auids is not None:
+                if auid in self.auids:
+                    self.nconfigs -= 1
+                    continue
+            else:
+                self.auids = []    
             
             dind += 1
             self.create(config,cid=dind)
-            self.index[auid] = self.configs[dind]
+            self.index[auid.hexdigest()] = self.configs[dind]
             self.last_iteration[iter_ind] = self.configs[dind]
-            self.auids.append(auid)
+            self.auids.append(auid.hexdigest())
             iter_ind += 1
+            pbar.update(1)
+        pbar.close()
             
         self.jobfile(rerun)
         self.save_index()

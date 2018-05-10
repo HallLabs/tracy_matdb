@@ -52,6 +52,10 @@ class Group(object):
         override (dict): a dictionary of with uuids or paths as the
           keys and a dictionary containing parameter: value pairs for
           parameters that need to be adjusted.
+        transforms (dict): a dictionary of transformations to apply to the
+          seeds of the database before calculations are performed. Format is 
+          {"name": {"args": dict of keyword args}}, where the "name" keyword
+          is the fully qualified path to the function.
 
     Attributes:
         atoms (matdb.atoms.Atoms): a single atomic configuration from
@@ -70,13 +74,12 @@ class Group(object):
         pgrid (ParamaterGrid): The ParameterGrid for the database.
         grpargs (dict): default arguments to construct the new groups; will
           be overridden by any parameter grid specs.
-
     """
     seeded = False
     def __init__(self, cls=None, root=None, parent=None, prefix='S', pgrid=None,
                  nconfigs=None, calculator=None, seeds=None,
-                 config_type=None, execution={}, trainable=False, override = {},
-                 rec_bin=None):
+                 config_type=None, execution=None, trainable=False, override=None,
+                 rec_bin=None, transforms = None):
         if isinstance(parent, Database):
             #Because we allow the user to override the name of the group, we
             #have to expand our root to use that name over here. However, for
@@ -94,8 +97,9 @@ class Group(object):
         
         self.cls = cls
         self.parent = parent
-        self.execution = execution
+        self.execution = execution if execution is not None else {}
         self.atoms = None
+        self.transforms = transforms if transforms is not None else {}
         
         self._trainable = trainable
         self.is_seed_listed = None
@@ -170,7 +174,7 @@ class Group(object):
         self.uuid = uid
         self.database.parent.uuids[str(self.uuid)] = self
 
-        self.override = override.copy()
+        self.override = override.copy() if override is not None else {}
         if bool(override):
             for k,v in override:
                 obj_ins = self.database.controller.find(k)
@@ -322,7 +326,6 @@ class Group(object):
     def _expand_seeds(self, seeds):
         """Expands explicitly listed seed wildcard patterns to populate the
         :attr:`seeds` dict.
-
         Args:
             seeds (list, str, matdb.atoms.Atoms): The location of the files that will be
               read into to make the atoms object or an atoms object.
@@ -663,9 +666,9 @@ class Group(object):
             for group in self.sequence.values():
                 group.jobfile(rerun=rerun, recovery=recovery)
                     
-    def create(self, atoms, cid=None, rewrite=False, sort=None, calcargs=None):
+    def create(self, atoms, cid=None, rewrite=False, sort=None, calcargs=None,
+               extractable=True):
         """Creates a folder within this group to calculate properties.
-
         Args:
             atoms (matdb.atoms.Atoms): atomic configuration to run.
             cid (int): integer configuration id; if not specified, defaults to
@@ -676,6 +679,9 @@ class Group(object):
               supercell writes work correctly.
             calcargs (dict): additional config-specific arguments for the
               calculator that will be created and attached to the atoms object.
+            extractable (bool): True if the creation needs to write files for
+              later calculation and extraction. If False then we just write
+              an atoms.h5 object for later use as a seed for another group.
 
         Returns:
             int: new integer configuration id if one was auto-assigned.
@@ -706,26 +712,35 @@ class Group(object):
                 rename(path.join(target,'atoms.h5'),new_path)
                 self.database.parent.uuids[uid] = new_path
                 uid = str(uuid4())
-                    
-            atoms.uuid = uid
-            atoms.time_stamp = time_stamp
-            atoms.group_uuid = self.uuid
+
+            trans_atoms = Atoms()
+            trans_atoms.copy_from(atoms)
+            for name, func_args in self.transforms.items():
+                import name as func
+                trans_atoms = func(trans_atoms, **func_args)
+
+            trans_atoms.uuid = uid
+            trans_atoms.time_stamp = time_stamp
+            trans_atoms.group_uuid = self.uuid
             lcargs = self.calcargs.copy()
             del lcargs["name"]
             if calcargs is not None:
                 lcargs.update(calcargs)
                 
-            calc = self.calc(atoms, target, self.database.parent.root,
+            calc = self.calc(trans_atoms, target, self.database.parent.root,
                              self.database.parent.ran_seed, **lcargs)
             calc.create()
-            atoms.set_calculator(calc)
+            trans_atoms.set_calculator(calc)
             # Turns out we need this for some seedless configurations.
-            atoms.write(path.join(target,"pre_comp_atoms.h5"))
+            if extractable:
+                trans_atoms.write(path.join(target,"pre_comp_atoms.h5"))
+            else:
+                trans_atoms.write(path.join(target,"atoms.h5"))
             #Finally, store the configuration for this folder.
             self.configs[cid] = target
-            self.config_atoms[cid] = atoms
+            self.config_atoms[cid] = trans_atoms
 
-            self.database.parent.uuids[uid] = atoms
+            self.database.parent.uuids[uid] = trans_atoms
             return cid
         else:
             for group in self.sequence.values():
@@ -900,7 +915,6 @@ class Group(object):
 
     def extract(self, cleanup="default"):
         """Creates a hdf5 file for each atoms object in the group.
-
         Args:
             cleanup (str): the level of cleanup to perform after 
               extraction.
@@ -928,10 +942,10 @@ class Group(object):
             cleaned = all(cleaned)
             pbar.close()
             if cleaned:
-                atoms = self.rset()
-                atoms_dict = {"atom_{}".format(Atoms(f).uuid): f for f in atoms}
+                atoms = self.rset
+                atoms_dict = {"atom_{}".format(f.uuid): f.to_dict() for f in atoms}
                 from matdb.io import save_dict_to_h5
-                with h5py.File(target,"w") as hf:
+                with h5py.File(path.join(self.root,"rset.h5"),"w") as hf:
                     save_dict_to_h5(hf,atoms_dict,'/')
             return cleaned                
         else:
@@ -1046,6 +1060,7 @@ class Database(object):
             if not hasattr(module, clsname):# pragma: no cover
                 #We haven't implemented this database type yet, just skip the
                 #initialization for now.
+                msg.warn("The {0} group has not been implemented yet.".format(clsname))
                 continue
             
             cls = getattr(module, clsname)
@@ -1225,7 +1240,6 @@ class Database(object):
     def extract(self, cleanup="default"):
         """Runs the extract methods of each database in the collection, in the
         correct order.
-
         Args:
             cleanup (str): the level of cleanup to perform after extraction.
         """
@@ -1283,7 +1297,6 @@ class Database(object):
         
 class RecycleBin(Database):
     """A database of past calculations to be stored for later use.
-
     Args:
         parent (Controller): instance controlling multiple configurations.
         root (str): root directory in which the 'RecycleBin' folder will 
@@ -1377,7 +1390,6 @@ class Controller(object):
           specifies all information for constructing the set of databases.
         tmpdir (str): path to a temporary directory to use for the
           database. This is for unit testing purposes.
-
     Attributes:
         specs (dict): the parsed settings from the YAML configuration file.
         collections (dict): keys are configuration names listed in attribute
@@ -1688,7 +1700,6 @@ class Controller(object):
     def split(self, recalc=0, dfilter=None):
         """Splits the total available data in all databases into a training and holdout
         set.
-
         Args:
             recalc (int): when non-zero, re-split the data and overwrite any
               existing *.h5 files. This parameter decreases as
@@ -1737,7 +1748,6 @@ class Controller(object):
     def finalize(self, dfilter=None):
         """Creates the finalized version of the databases that were used for
         fitting the potential. Stored in final_{matdb.version}.h5.
-
         Args:
             dfilter (list): of `str` patterns to match against *database*
               names. This limits which databases are returned.

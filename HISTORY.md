@@ -1,5 +1,41 @@
 # Revision History for `matdb`
 
+## Revision 1.1.5
+- Updated the Manual Group so that it can take an optional extractable
+  flag which disapbles calulations when set to false.
+- Updated `database/__init__.py' so that the user can input a
+  transformation dictionary that will change the seed files passed in
+  according to a transformation function.
+- Created `can_extract()` method for the `Manual` group.
+- Fixed missing `msg` import in `database/utility.py`.
+
+## Revision 1.1.4
+- Removed assignments to empty dicts from the function definitions as
+  mention in Issue [#56](/../../issues/56).
+- Added a warning when a database group being requested hasn't been
+  implemented yet.
+- Implemented the Prototypes database group.
+- Added an exception for when the VASP executable can't be found when
+  trying to determine the VASP version.
+
+## Revision 1.1.3
+- Changed the VASP calculator to use a series of POTCARs stored in the
+  POTCARS dir.
+
+## Revision 1.1.2
+- Fixed the MTP method so that it correctly constructs the train.cfg
+  file.
+- Added the `Simple` database to the repo for when configurations need
+  to be calculated without additional configurations being generated.
+- Changed the VASP calculator to use a local instead of a global POTCAR.
+- Fixed MTP method so that the POSCAR's get the zeros put back in
+  after a calculation.
+- Added new slurm template.
+- Fixed more issues in the mtp commands.
+- Implemented a re-write of the POTCAR by the mtp method that the ASE
+  read can get the species from the title.
+- Debugged Active Group setup.
+
 ## Revision 1.1.1
 
 - Added the controll directory to the calling interface for the

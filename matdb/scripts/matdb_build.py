@@ -34,7 +34,7 @@ script_options = {
            "help": ("Submit the job array file for each database that has "
                     "folders ready to run. If --recover is specified, then "
                     "the recovery jobfile is submitted instead.")},
-    "-e": {"action": "store_true",
+    "-t": {"action": "store_true",
            "help": ("Process the databases that have completed execution "
                     "so that results can be extracted.")},
     "--status": {"action": "store_true",

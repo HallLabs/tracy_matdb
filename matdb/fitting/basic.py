@@ -192,7 +192,7 @@ class Trainer(object):
                     splt = self.cust_splits[db]
                     _splitavg.append(1 if splt == '*' else splt)
                 else:
-                    _splitavg.append(db.splits[self.split])
+                    _splitavg.append(db.database.splits[self.split])
             self.params["split"] = sum(_splitavg)/len(self.dbs)
         
     def compile(self):
