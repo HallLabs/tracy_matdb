@@ -10,12 +10,12 @@
 """
 import ase
 from ase.calculators.vasp import Vasp
-from os import path, stat, mkdir, remove, rename
+from os import path, stat, mkdir, remove, environ, rename
 import mmap
 from matdb.calculators.basic import AsyncCalculator
 from matdb import msg
 from matdb.kpoints import custom as write_kpoints
-from matdb.utility import chdir, execute
+from matdb.utility import chdir, execute, relpath
 from hashlib import sha1
 import re
 
@@ -131,9 +131,7 @@ class AsyncVasp(Vasp, AsyncCalculator):
     tarball = ["vasprun.xml"]
 
     def __init__(self, atoms, folder, contr_dir, ran_seed, *args, **kwargs):
-        from matdb.utility import relpath
-        from os import environ
-        
+        self.init_calc(kwargs)
         self.folder = path.abspath(path.expanduser(folder))
         self.kpoints = None
         if path.isdir(contr_dir):
@@ -212,9 +210,6 @@ class AsyncVasp(Vasp, AsyncCalculator):
         """Checks the directories needed to establish POTCAR files as symbolic
         links for computation.
         """
-        from matdb.utility import relpath
-        from os import environ
-
         if "versions" in self.potcars:
             versions = self.potcars["versions"]
         else:
@@ -371,9 +366,9 @@ class AsyncVasp(Vasp, AsyncCalculator):
             E = self.get_potential_energy(atoms=self.atoms)
             F = self.forces
             S = self.stress
-            self.atoms.add_property("vasp_force", F)
-            self.atoms.add_param("vasp_stress", S)
-            self.atoms.add_param("vasp_energy", E)
+            self.atoms.add_property(self.force_name, F)
+            self.atoms.add_param(self.virial_name, S*self.atoms.get_volume())
+            self.atoms.add_param(self.energy_name, E)
 
         self.cleanup(folder,clean_level=cleanup)
 

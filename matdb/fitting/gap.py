@@ -7,6 +7,9 @@ from collections import OrderedDict
 import numpy as np
 #import quippy
 from .basic import Trainer
+from matdb.calculators import Quip
+from matdb.atoms import AtomsList
+from matdb.database.hessian import Hessian
 
 def update_nbody(settings):
     """Adds the usual n-body settings to the specified dictionary. This function
@@ -111,11 +114,11 @@ def _rescale_3body(atoms, settings):
 
 class GAP(Trainer):
     """Implements a simple wrapper around the GAP training functionality for
-    creating `distance_Nb` GAP potentials.
+    creating GAP potentials.
 
     Args:
         nb (int): number of bodies to include in the model. Usually one of 2, 3
-          or 4 for `distance_Nb` calculations. Use "soap" for many-body.
+          or 4 for `distance_Nb` calculations. Use -1 for many-body.
         controller (matdb.fitting.controller.Controller): fitting controller
           provides access to previous fitting steps and training/validation data.
         sigmas (dict): of `float` specifies the expected variance in the energy,
@@ -129,8 +132,11 @@ class GAP(Trainer):
           in the training and validation.
         ogaps (list): of `str` trainer FQNs for previous gaps that were fitted,
           whose parameters should be included in the final GAP IP.
+        n_random (int): number of random configs to "rattle" using the
+          Hessian group's seed configurations. These are added to the training
+          database *without* any energy/force/virial information.
         teach_sparse (dict): key-value pairs for the `teach_sparse` executable.
-        gapargs (dict): parameters for the n-body potential.
+        gap (dict): parameters for the n-body potential.
 
     Attributes:
         name (str): name of the folder in which all the fitting for this trainer
@@ -143,24 +149,20 @@ class GAP(Trainer):
           the seed configuration :class:`quippy.Atoms` objects and `seq` is the
           database sequence that was derived from it. The atoms objects may have
           additional with hessian information attached if `hessfit=True`.
-        hessfit (bool): when True, the trainer is performing a hessian-based fit
-          over the configurations (as opposed to using the entire configuration
-          library).
         params (dict): key-value pairs that are parameters for the model
           fitting.
     """
-    def __init__(self, nb=None, controller=None, dbs=None, execution=None,
-                 split=None, sigmas=None, ogaps=None, teach_sparse=None,
-                 root=None, parent=None, dbfilter=None, **gapargs):
-        self.name = "{}b".format(nb) if isinstance(nb, int) else "soap"
-        super(GAP, self).__init__(controller, dbs, execution, split, root,
-                                  parent, dbfilter)
+    def __init__(self, nb=None, sigmas=None, ogaps=None, teach_sparse=None,
+                 gap=None, n_random=0, **trainargs):
+        self.name = "{}b".format(nb) if nb > 0 else "mb"
+        super(GAP, self).__init__(**trainargs)
         self.nb = nb
-        self.controller = controller
-        self.e0 = controller.e0
+        self.e0 = self.controller.e0
         self.sigmas = sigmas
-        self.gap = gapargs
+        self.gap = {} if gap is None else gap.copy()
         self.params.update(self.gap)
+        self.n_random = n_random
+        self.params["n_random"] = n_random
 
         #We have to run the descriptor string to populate the parameters
         #correctly.
@@ -171,7 +173,6 @@ class GAP(Trainer):
         self.ogaps = [] if ogaps is None else [controller[gap] for gap in ogaps]
         self.gp_file = "{}.xml".format(self.name)
         self.teach_sparse = {} if teach_sparse is None else teach_sparse
-        self.hessfit = "hessian_delta" in self.teach_sparse
         
         #Configure the fitting directory for this particular set of
         #potentials. This way, we can get separate directories if the number of
@@ -183,16 +184,20 @@ class GAP(Trainer):
         #If we are doing hessian training, copy the seed configuration and
         #updates its hessian attributes. Calculating delta uses seed
         #configurations anyway.
-        self.seeds = [(seq.atoms.copy(), seq) for seq in self.dbs]
-        self.compile()
+        self.seeds = []
+        for dbi in self.dbs:
+            for group in dbi.steps.values():
+                if not group.trainable:
+                    continue
+                group._expand_sequence()
+                self.seeds.append((group.atoms.copy(), group))
 
     def get_calculator(self):
         """Returns an instance of :class:`ase.Calculator` using the latest
         fitted GAP potential in this trainer.
         """
-        from quippy.potential import Potential
         if path.isfile(self.gp_file):
-            return Potential("IP GAP", param_filename=self.gp_file)
+            return Quip("IP GAP", param_filename=self.gp_file)
 
     def ready(self):
         return path.isfile(path.join(self.root, self.gp_file))
@@ -218,13 +223,13 @@ class GAP(Trainer):
                 delta = float(f.read().strip())
             return delta
 
-        if self.nb == 2:
-            al = quippy.AtomsList(self._trainfile)
+        if len(self.ogaps) == 0:
+            al = AtomsList(self._trainfile)
             rms = np.std(al.dft_energy)
             msg.info("2B: {0:.3f} data variance.".format(rms), 2)
         else:
-            ens = self.validate(force=False, virial=False)
-            rms = np.std(ens["e_ref"]-ens["e_pot"])
+            ens = self.ogaps[-1].validate("ref", force=False, virial=False)
+            rms = np.std(ens["e_ref"]-ens["e_ip"])
             msg.info("{0}: {1:.3f} RMS error.".format(self.latest, rms), 2)
         
         #We use the first seed configuration in the database and calculate how
@@ -235,7 +240,7 @@ class GAP(Trainer):
         scalers = {
             2: _rescale_2body,
             3: _rescale_3body,
-            "soap": lambda a, s: 1.
+            -1: lambda a, s: 1.
         }
         scaling = scalers[self.nb](atoms, self.gap)
             
@@ -248,50 +253,6 @@ class GAP(Trainer):
             f.write("{0:.8f}".format(delta))
 
         return delta
-            
-    def _get_hessians(self):
-        """Extracts the hessian matrix and assigns its eigenvalues and eigenvectors to
-        relevant properties on copies of the seed configuration atoms objects.
-        """
-        for atc, seq in self.seeds:
-            dmatrix = seq.steps["dynmatrix"].dmatrix
-            eigvecs, eigvals = dmatrix["eigvecs"], dmatrix["eigvals"]
-            
-            ni = 0
-            for i, e in enumerate(eigvals):
-                if not np.isclose(e, 0.0):
-                    ni = ni + 1
-                    hsingle = hname.format(ni)
-                    atc.add_property(hsingle, 0.0, n_cols=3)
-                    H = np.reshape(eigvecs[:,i], (atc.n, 3)).T
-                    setattr(atc, hsingle, H)
-                    atc.params.set_value(hsingle, e)
-            if ni > 0:
-                atc.params.set_value("n_hessian", ni)
-
-            #Also add the zero forces. TODO: get the actual forces from the
-            #relaxed DFT calculation.
-            atc.add_property("force", 0.0, n_cols=3)
-            
-    def extras(self):
-        """Writes the h_train.xyz file that is needed for the Hessian-based
-        training program.
-        """
-        if not self.hessfit:
-            return []
-        
-        self._get_hessians()
-        outpath = path.join(self.root, "hessians.xyz")
-        if not path.isfile(outpath):
-            import quippy.cinoutput as qcio
-            try:
-                out = qcio.CInOutputWriter(outpath)
-                for a in self.seeds.values():
-                    a.write(out)
-            finally:
-                out.close()
-
-        return [outpath]
                 
     def desc_str(self, spacer="  "):
         """Returns the descriptor string for this training object, if it
@@ -301,11 +262,8 @@ class GAP(Trainer):
         if "delta" not in pdict:
             pdict["delta"] = self._get_delta()        
         
-        if pdict.get("sparse_method") == "file":
-            pdict["sparse_file"] = "soap_sparse_points.dat"
-
         #Add default parameters for the parameters.
-        if self.nb == "soap":
+        if self.nb < 0:
             update_soap(pdict)
         else:
             update_nbody(pdict)
@@ -316,7 +274,7 @@ class GAP(Trainer):
         self.params.update(pdict)
                 
         settings = []
-        settings.append("soap" if self.nb == "soap" else "distance_Nb")
+        settings.append("soap" if self.nb < 0 else "distance_Nb")
         settings.append(dict_to_str(pdict, spacer="  "))
         settings.append("add_species")
         settings.append("")
@@ -324,59 +282,53 @@ class GAP(Trainer):
 
         joiner = " \\\n  {0}".format(spacer)
         return joiner.join(settings)
-                
-    def _soap_sparse_points(self, recalc=False):
-        """Calculates the hessian sparse points for hessian-based training.
+
+    def _create_xyz(self):
+        """Creates the training.xyz file that `teach_sparse` needs to use.
+        """
+        target = path.join(self.root, "train.xyz")
+        if not path.isfile(target):
+            al = AtomsList(self._trainfile)
+            ol = quippy.AtomsList()
+            ol.extend(al)
+            ol.write()
+
+    @property
+    def sparse_file(self):
+        """Returns the path to the sparse point file that includes random
+        configurations to include in the training set, but which have no
+        energy/force/virial information.
+        """
+        return path.join(self.root, "sparse_points.h5")
+        
+    def _sparse_points(self, recalc=False):
+        """Creates random sparse points by rattling atoms for hessian-based training.
 
         Args:
             recalc (bool): when True, recalculate the sparse points even if the
               file already exists.
         """
-        #TODO, this calculation isn't good. We have to fix the config_types
-        #problem mentioned below.
-        raise NotImplementedError()
-        spfile = path.join(self.root, "soap_sparse_points.dat")
-        if path.isfile(spfile) and not recalc:
+        if self.n_random == 0:
+            return
+        if path.isfile(self.sparse_file) and not recalc:
             return
 
-        #Determine how many sparse points we need to generate. We may use a
-        #different number of sparse points for different config_types. Check the
-        #config type of each seed configuration.
-        n_sparse = self.gap.get("n_sparse")
-        n_ratio = int(np.ceil(float(n_sparse)/len(self.seeds)))
+        #Determine how many random configs we need to generate.
+        hessians = [seed for seed, db in self.seeds
+                    if isinstance(db, Hessian)]
+        n_ratio = int(np.ceil(float(self.n_random)/len(hessians)))        
+        N = n_ratio * len(hessians)
+        msg.info("Generating {0:d} random configs as sparse points.".format(N))
         
-        #Reset n_sparse to be this whole number.
-        n_sparse = n_ratio * len(self.seeds)
-        
-        desc = quippy.Descriptor(self._desc_str("soap"))
+        result = AtomsList()
+        for hseed in hessians:
+            for i in range(n_ratio):
+                atRand = hseed.copy()
+                p = atRand.get_positions()
+                atRand.set_positions(p  + 0.1*2*(np.random.random_sample(p.shape)))
+                result.append(atRand)
 
-        #Run each of the seed configurations once until we hit the ratio
-        #limit.
-        spoints = {}
-        for name, atc in self.seeds.items():
-            seed_pts = []
-            n_seed = int(np.ceil(float(n_ratio)/atc.n))
-            for ni in range(n_seed):
-                atRand = atc.copy()
-                quippy.randomise(atRand.pos, 0.2)
-                atRand.set_cutoff(desc.cutoff())
-                atRand.calc_connect()
-
-                n_descriptors, n_cross = desc.descriptor_sizes(atRand)
-                d = quippy.fzeros((desc.dimensions(), n_descriptors))
-                desc.calc(atRand, d)
-                d = np.array(d)
-                
-                #We need to add some ones to the SOAP descriptor; they represent
-                #the relative weights of each of the sparse points. We weight
-                #them all equally.
-                seed_pts.append(np.vstack((np.ones(atRand.n), d)))
-                
-            spoints[name] = np.hstack(seed_pts)[:,0:n_ratio].T
-
-        assert sum([v.shape[0] for v in spoints.values()]) == n_sparse
-        allpoints = np.hstack([v.flatten() for v in spoints.values()])
-        np.savetxt(spfile, allpoints)
+        result.write(self.sparse_file)
 
     def command(self):
         """Returns the `teach_sparse` command that is needed to train the GAP
@@ -385,11 +337,10 @@ class GAP(Trainer):
         .. note:: This method also configures the directory that the command
           will run in so that it has the relevant files.
         """
-        if self.hessfit:
-            #Generate the sparse points file and the seed configuration XYZ
-            #training file.
-            if (self.nb == "soap" and self.gap.get("sparse_method") == "file"):
-                self._soap_sparse_points()
+        #Generate any random sparse points and the seed XYZ training file.
+        self.compile()
+        self._sparse_points()
+        self._create_xyz()
 
         template = ("teach_sparse at_file={train_file} \\\n"
                     "  gap={{ \\\n"
@@ -434,9 +385,9 @@ class GAP(Trainer):
 
         #Add in the names of the energy, force and virial parameters
         #from dft.
-        tsattrs["energy_parameter_name"] = "dft_energy"
-        tsattrs["force_parameter_name"] = "dft_force"
-        tsattrs["virial_parameter_name"] = "dft_virial"
+        tsattrs["energy_parameter_name"] = "ref_energy"
+        tsattrs["force_parameter_name"] = "ref_force"
+        tsattrs["virial_parameter_name"] = "ref_virial"
         tsattrs["config_type_parameter_name"] = "config_type"
         
         if len(custom) > 0:

@@ -1,7 +1,7 @@
 """Since some potential fitting requires multi-step processes, we need to
 implement controller objects that keep the various training steps ordered
 correctly, and provide easy access to relevant data from previous steps. This
-module supplies objects (similar in spirit to :mod:`matdb.database.controller`
+module supplies objects (similar in spirit to :mod:`matdb.database.__init__`
 for producting sequences of training objects that can be repeated across
 parameter grids.
 """
@@ -174,8 +174,8 @@ class TController(object):
     """Controller for handling sequences of training steps.
 
     Args:
-        db (matdb.database.controller.Controller): controller for the available
-          data sets to use.
+        db (matdb.database.Controller): controller for the available data sets
+          to use.
         root (str): path to the root directory for the system.
         fits (dict): key-value pairs defining the list of fitters to try out.
         e0 (list): of `float` values indicating the *isolated* atom energy in

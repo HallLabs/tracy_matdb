@@ -20,7 +20,7 @@ def deprecated(func):
     return new_func
 
 def exhandler(function, parser):
-    """If -examples was specified in 'args', the specified function
+    """If --examples was specified in 'args', the specified function
     is called and the application exits.
 
     :arg function: the function that prints the examples.
@@ -44,13 +44,13 @@ def _common_parser():
     """
     import argparse
     parser = argparse.ArgumentParser(add_help=False)
-    parser.add_argument("-examples", action="store_true",
+    parser.add_argument("--examples", action="store_true",
                         help="See detailed help and examples for this script.")
     parser.add_argument("--verbose", default=0, type=int,
                         help="See verbose output as the script runs.")
-    parser.add_argument('-action', nargs=1, choices=['save','print'], default='print',
+    parser.add_argument('--action', nargs=1, choices=['save','print'], default='print',
                         help="Specify what to do with the output (print or save)")
-    parser.add_argument("-debug", action="store_true",
+    parser.add_argument("--debug", action="store_true",
                         help="Print verbose calculation information for debugging.")
 
     return parser
