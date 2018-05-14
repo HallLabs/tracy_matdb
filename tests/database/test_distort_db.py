@@ -2,11 +2,12 @@
 """
 import pytest
 from os import mkdir, path, symlink, remove
+from matdb.database import distortion
 from matdb.utility import relpath
 
 @pytest.fixture()
 def AlMg(tmpdir):
-    """Test the functionality of the distortions group for a small seed
+    """Test the functionality of the distortion group for a small seed
     configuration where the number of possible random combinations is limited
     and repition is more likely.
 
@@ -35,14 +36,14 @@ def AlMg(tmpdir):
 
 
 def test_AlMg_setup(AlMg):
-    """Test the setup of the substitutions database.
+    """Test the setup of the distortion database.
     """
     assert not AlMg.collections[
-        'distortions'].steps['Distortions'].is_setup()
+        'distortion'].steps['Distortion'].is_setup()
 
     AlMg.setup()
 
-    dbs = "Distortions/distortions/Al6Mg4"
+    dbs = "Distortion/distortion/Al6Mg4"
 
     folders = {
         "__files__": ["compute.pkl", "duids.pkl", "jobfile.sh", "index.json"],
@@ -97,16 +98,16 @@ def test_AlMg_setup(AlMg):
     dbfolder = path.join(AlMg.root, dbs)
     compare_tree(dbfolder, folders)
 
-    assert AlMg.collections['distortions'].steps[
-        'Distortions'].is_setup()
+    assert AlMg.collections['distortion'].steps[
+        'Distortion'].is_setup()
 
     # test the duid and index creation for the entire database.
     assert path.isfile(path.join(AlMg.root,
-                                 "Distortions/distortions/duids.pkl"))
+                                 "Distortion/distortion/duids.pkl"))
     assert path.isfile(path.join(AlMg.root,
-                                 "Distortions/distortions/index.json"))
+                                 "Distortion/distortion/index.json"))
 
-    dist = AlMg.collections['distortions'].steps['Distortions']
+    dist = AlMg.collections['distortion'].steps['Distortion']
     assert len(dist.duids) == 50
 
     # assert not enum.ready()

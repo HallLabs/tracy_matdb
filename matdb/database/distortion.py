@@ -8,12 +8,12 @@ from matdb import msg
 import numpy as np
 
 
-class Distortions(Group):
-    '''Distortions.py: Group to create from a seed configuration and distorts
+class Distortion(Group):
+    '''Distortion.py: Group to create from a seed configuration and distorts
     the atom positions or displaces the atoms randomly within a normal
     distribution of some standard deviation, std.
     Args:
-        name (str): Distortions: 'Dist'
+        name (str): Distortion: 'Dist'
         rattle (float): the standard deviation of the normal distribution
             of atom deviations.
         ran_seed (hashable):(=1 default) seed for the normal distribution
@@ -22,7 +22,7 @@ class Distortions(Group):
             (i.e 1==Same Cell Volume as atom_seed)
         cov_diag=(float): value along the diagonal of the 9x9 covariance
             matrix. Related to the standard deviaton of the lattice vector
-            distortions
+            distortion
         min_index (int):(default=0) Default choice with the same ran_seed would
             produce the same choices of volume factor matrices.
         dbargs (dict): dictionary of arguments to be passed to the
@@ -42,22 +42,22 @@ class Distortions(Group):
         rattle (float): the amount to rattle the atoms in the config by.
 
     Returns:
-        distortions (np.n darray): an array of atoms objects of length
+        distortion (np.n darray): an array of atoms objects of length
              num_cells with distorted atom positions according to the normal
              distribution specified.
     '''
     def __init__(self, rattle=0, ran_seed=None, volume_factor=1.0,
-                 cov_diag=1, min_index=0, name="Distortions", **dbargs):
+                 cov_diag=1, min_index=0, name="Distortion", **dbargs):
         self.name = name
         self.seeded = True
         dbargs['prefix'] = "D"
-        dbargs['cls'] = Distortions
-        if "Distortions" not in dbargs['root']:
-            new_root = path.join(dbargs['root'], "Distortions")
+        dbargs['cls'] = Distortion
+        if "Distortion" not in dbargs['root']:
+            new_root = path.join(dbargs['root'], "Distortion")
             if not path.isdir(new_root):
                 mkdir(new_root)
             dbargs['root'] = new_root
-        super(Distortions, self).__init__(**dbargs)
+        super(Distortion, self).__init__(**dbargs)
         calcargs = self.database.calculator.copy()
         if "calculator" in dbargs:
             if dbargs["calculator"] is not None and "name" in dbargs[
@@ -168,7 +168,7 @@ class Distortions(Group):
             rerun (bool): when True, recreate the folders even if they
              already exist.
         """
-        super(Distortions, self).setup(self._setup_configs, rerun)
+        super(Distortion, self).setup(self._setup_configs, rerun)
         if len(self.sequence) != 0:
             self.index = {}
             self.duids = []
@@ -179,7 +179,7 @@ class Distortions(Group):
         self.save_pkl(self.duids, self.duid_file)
 
     def _setup_configs(self, rerun=False):
-        """Loops over the distortions routine until the desired number of
+        """Loops over the distortion routine until the desired number of
         configurations have been reached
         Attributes:
             dists(): length nconfigs AtomsList
@@ -188,7 +188,7 @@ class Distortions(Group):
                  group class.
         """
         from hashlib import sha1
-        dists = self._get_distortions()
+        dists = self._get_distortion()
 
         if self.duids is None:
             self.duids = []
@@ -221,15 +221,15 @@ class Distortions(Group):
                 (self.volume_factor/det(matrix))**(1./3)*matrix)
         return scaling_matrix
 
-    def _get_distortions(self):
+    def _get_distortion(self):
         """Perform the duplication of the atom_seed and displacement of atom cells.
         Attributes:
             volume_factor (int): the volume factor of the repeated cells
                  (i.e 1==Same Cell Volume as atom_seed)
             cell_choice (ase.Atoms): each repeated atom_seed is rattled and
-                 saved to to the distortions array.
+                 saved to to the distortion array.
         Returns:
-            distortions (np.n darray): an array of atoms objects of length
+            distortion (np.n darray): an array of atoms objects of length
                  num_cells with distorted atom positions according to the
                  normal distribution specified.
         """

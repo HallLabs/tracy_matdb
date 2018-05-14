@@ -1,4 +1,4 @@
-title: 'AlMg Distortions'
+title: 'AlMg Distortion'
 # Ordered list of species; this is the same order as should be in the
 # POTCAR file for VASP calculations.
 species:
@@ -55,9 +55,9 @@ splits:
 # database following this pattern is created *for each* of the seed
 # configurations listed above.
 databases:
-  - name: 'distortions'
+  - name: 'distortion'
     steps:
-      - type: "distortions.Distortions"
+      - type: "distortion.Distortion"
         seeds: ['vasp:Al6Mg4']
         rattle: 0.05
         nconfigs: 50
