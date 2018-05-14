@@ -1,0 +1,67 @@
+title: 'AlMg Distortion'
+# Ordered list of species; this is the same order as should be in the
+# POTCAR file for VASP calculations.
+species:
+  - 'Al'
+  - 'Mg'
+# If the POTCAR names are non-standard, include the *suffix* after the
+# element name here.
+# Directory in which the database folder system will be created.
+root: './tests/AlMg'
+venv: 'matdb-dev'
+# Define the calculator to use for this Database
+calculator:
+  name: 'Vasp'
+  prec: 'a'   
+  encut: 400
+  isym: 0
+  lwave: False
+  lreal: 'auto'
+  ediff: 0.00001
+  ismear: 1
+  sigma: 0.1
+  pp: 'pbe'
+  # We use Mueller k-points exclusively. These kpoint settings apply to
+  # all database calculations.
+  kpoints:
+    method: 'mueller'
+    mindistance: 20
+  potcars:
+    directory: './tests/vasp'
+    xc: 'PBE'
+    versions:
+      Al: '04Jan2001'
+      Mg: '13Apr2007'
+    setups:
+      Mg: '_pv'
+# Parameters for the job arrays that will be submitted for each
+# database. These can be overridden in each database below as well.
+execution:
+  template: 'run_array_ml.sh'
+  time: 4
+  ntasks: 1
+  nodes: 1
+  mem_per_cpu: 4
+  job_name: 'Pd DB'
+  partition: 'physics'
+  array_limit: 50
+  modules_load: ['mkl/11.2.0']
+  exec_path: 'vasp'
+#Different split parameters to apply globally to all database types.
+splits:
+  A: 0.4
+  B: 0.2
+# Next, we include a list of all the databases we want to create. A
+# database following this pattern is created *for each* of the seed
+# configurations listed above.
+databases:
+  - name: 'distortion'
+    steps:
+      - type: "distortion.Distortion"
+        seeds: ['vasp:Al6Mg4']
+        rattle: 0.05
+        nconfigs: 50
+        ran_seed: 12
+        volume_factor: 1.3
+        cov_diag: 0.001
+        min_index: 0
