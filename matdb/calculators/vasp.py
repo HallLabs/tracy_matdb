@@ -177,7 +177,6 @@ class AsyncVasp(Vasp, AsyncCalculator):
         self.atoms = atoms
         pot_args = self.potcars.copy()
         environ["VASP_PP_PATH"] = relpath(path.expanduser(pot_args["directory"]))
-            
         self.initialize(atoms)
         # The POTCAR file is either stored in a file who's name is a
         # hashed string of the species and versions or needs to be
