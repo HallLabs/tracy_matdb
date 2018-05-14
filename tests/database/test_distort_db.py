@@ -1,10 +1,8 @@
 """Tests the  group interface.
 """
 import pytest
-# from matdb.database.distortions import Distortions
 from os import mkdir, path, symlink, remove
-# import numpy as np
-
+from matdb.utility import relpath
 
 @pytest.fixture()
 def AlMg(tmpdir):
@@ -40,78 +38,79 @@ def test_AlMg_setup(AlMg):
     """Test the setup of the substitutions database.
     """
     assert not AlMg.collections[
-        'distortions'].steps['Dist'].is_setup()
+        'distortions'].steps['Distortions'].is_setup()
 
     AlMg.setup()
 
-    dbs = "dist/distortions/Al6Mg4"
-    '''
+    dbs = "Distortions/distortions/Al6Mg4"
+
     folders = {
-        "__files__": ["compute.pkl", "suids.pkl", "jobfile.sh", "index.json"],
-        "S.1": {
+        "__files__": ["compute.pkl", "duids.pkl", "jobfile.sh", "index.json"],
+        "D.1": {
             "__files__": ["INCAR", "PRECALC", "POSCAR"]
         },
-        "S.2": {
+        "D.2": {
             "__files__": ["INCAR", "PRECALC", "POSCAR"]
         },
-        "S.3": {
+        "D.3": {
             "__files__": ["INCAR", "PRECALC", "POSCAR"]
         },
-        "S.4": {
+        "D.4": {
             "__files__": ["INCAR", "PRECALC", "POSCAR"]
         },
-        "S.5": {
+        "D.5": {
             "__files__": ["INCAR", "PRECALC", "POSCAR"]
         },
-        "S.6": {
+        "D.6": {
             "__files__": ["INCAR", "PRECALC", "POSCAR"]
         },
-        "S.7": {
+        "D.7": {
             "__files__": ["INCAR", "PRECALC", "POSCAR"]
         },
-        "S.8": {
+        "D.8": {
             "__files__": ["INCAR", "PRECALC", "POSCAR"]
         },
-        "S.9": {
+        "D.9": {
             "__files__": ["INCAR", "PRECALC", "POSCAR"]
         },
-        "S.10": {
+        "D.10": {
             "__files__": ["INCAR", "PRECALC", "POSCAR"]
         },
-        "S.11": {
+        "D.11": {
             "__files__": ["INCAR", "PRECALC", "POSCAR"]
         },
-        "S.12": {
+        "D.12": {
             "__files__": ["INCAR", "PRECALC", "POSCAR"]
         },
-        "S.13": {
+        "D.13": {
             "__files__": ["INCAR", "PRECALC", "POSCAR"]
         },
-        "S.14": {
+        "D.14": {
             "__files__": ["INCAR", "PRECALC", "POSCAR"]
         },
-        "S.15": {
+        "D.15": {
             "__files__": ["INCAR", "PRECALC", "POSCAR"]
         }
     }
 
     from matdb.utility import compare_tree
-    dbfolder = path.join(AgCu.root, dbs)
+    dbfolder = path.join(AlMg.root, dbs)
     compare_tree(dbfolder, folders)
 
-    assert AgCu.collections['substitution'][
-        'substitution'].steps['sub'].is_setup()
+    assert AlMg.collections['distortions'].steps[
+        'Distortions'].is_setup()
 
-    # test the suid and index creation for the entire database.
-    assert path.isfile(path.join(AgCu.root, "sub/substitution/suids.pkl"))
-    assert path.isfile(path.join(AgCu.root, "sub/substitution/index.json"))
+    # test the duid and index creation for the entire database.
+    assert path.isfile(path.join(AlMg.root,
+                                 "Distortions/distortions/duids.pkl"))
+    assert path.isfile(path.join(AlMg.root,
+                                 "Distortions/distortions/index.json"))
 
-    sub = AgCu.collections['substitution']['substitution'].steps['sub']
-    assert len(sub.index) == 15
-    assert len(sub.suids) == 15
+    dist = AlMg.collections['distortions'].steps['Distortions']
+    assert len(dist.duids) == 50
 
     # assert not enum.ready()
-    assert not sub.ready()
+    assert not dist.ready()
 
     # We need to fake some VASP output so that we can cleanup the
     # database and get the rset
@@ -119,18 +118,13 @@ def test_AlMg_setup(AlMg):
     src = relpath(
         "./tests/data/Pd/complete/OUTCAR__DynMatrix_phonon_Pd_dim-2.00")
 
-    dbfolder = path.join(AgCu.root, dbs)
-    for j in range(1, 16):
-        dest = path.join(dbfolder, "S.{}".format(j), "OUTCAR")
+    dbfolder = path.join(AlMg.root, dbs)
+    for j in range(1, 51):
+        dest = path.join(dbfolder, "D.{}".format(j), "OUTCAR")
         symlink(src, dest)
 
-    dbfolder = path.join(AgCu.root, dbs)
-    for j in range(1, 16):
-        src = path.join(dbfolder, "S.{}".format(j), "POSCAR")
-        dest = path.join(dbfolder, "S.{}".format(j), "CONTCAR")
+    dbfolder = path.join(AlMg.root, dbs)
+    for j in range(1, 51):
+        src = path.join(dbfolder, "D.{}".format(j), "POSCAR")
+        dest = path.join(dbfolder, "D.{}".format(j), "CONTCAR")
         symlink(src, dest)
-
-    sub.cleanup()
-    assert len(sub.atoms_paths()) == 15
-    assert len(sub.rset()) == 15
-    '''

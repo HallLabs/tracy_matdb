@@ -37,12 +37,12 @@ def stubs(request, tmpdir_factory):
     assert path.isfile(path.join(stubpath, ".matdb.module"))
     xres = execute(["sbatch", "-c", "pwd"], stubpath)
     assert xres["output"] == []
-#    assert xres["error"][0].strip() == "Failed to submit"
+    # assert xres["error"][0].strip() == "Failed to submit"
     symlink(stubpath+"/sbatch.sh",stubpath+"/sbatch")
     xres = execute(["sbatch", stubpath+"/sbatch.sh"], stubpath)
     temp = xres["output"][-1].strip().split()[0:3]
     assert ' '.join(temp) == "Submitted batch job"
-#    assert xres["error"] == []
+    # assert xres["error"] == []
 
     touch(path.join(stubpath, "PRECALC"))
     xres = execute(["getKPoints"], stubpath)

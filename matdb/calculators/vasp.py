@@ -113,7 +113,6 @@ class AsyncVasp(Vasp, AsyncCalculator):
     .. note:: The arguments and keywords for this object are identical to the
       :class:`~ase.calculators.vasp.Vasp` calculator that ships with ASE. We
       add some extra functions so that it plays nicely with `matdb`.
-
     Args:
         atoms (matdb.Atoms): configuration to calculate using VASP.
         folder (str): path to the directory where the calculation should take
@@ -177,6 +176,7 @@ class AsyncVasp(Vasp, AsyncCalculator):
         self.atoms = atoms
         pot_args = self.potcars.copy()
         environ["VASP_PP_PATH"] = relpath(path.expanduser(pot_args["directory"]))
+            
         self.initialize(atoms)
         # The POTCAR file is either stored in a file who's name is a
         # hashed string of the species and versions or needs to be
@@ -320,7 +320,6 @@ class AsyncVasp(Vasp, AsyncCalculator):
 
     def is_executing(self, folder):
         """Returns True if the specified VASP folder is in process of executing.
-
         Args:
             folder (str): path to the folder in which the executable was run.
         """
@@ -331,7 +330,6 @@ class AsyncVasp(Vasp, AsyncCalculator):
 
     def create(self, rewrite=False):
         """Creates all necessary input files for the VASP calculation.
-
         Args:
             rewrite (bool): when True, overwrite any existing files with the
               latest settings.
@@ -341,7 +339,6 @@ class AsyncVasp(Vasp, AsyncCalculator):
     def extract(self, folder, cleanup="default"):
         """Extracts results from completed calculations and sets them on the
         :class:`ase.Atoms` object.
-
         Args:
             folder (str): path to the folder in which the executable was run.
             cleanup (str): the level of cleanup to perfor after extraction.
@@ -374,7 +371,6 @@ class AsyncVasp(Vasp, AsyncCalculator):
     def cleanup(self, folder, clean_level="default"):
         """Performs cleanup on the folder where the calculation was
         performed. The clean_level determines which files get removed.
-
         Args:
             folder (str): the folder to be cleaned.
             clean_level (str): the level of cleaning to be done.
@@ -400,7 +396,6 @@ class AsyncVasp(Vasp, AsyncCalculator):
     def to_dict(self):
         """Writes the current version number of the code being run to a
         dictionary along with the parameters of the code.
-
         Args:
             folder (str): path to the folder in which the executable was run.
         """

@@ -47,13 +47,13 @@ class Distortions(Group):
              distribution specified.
     '''
     def __init__(self, rattle=0, ran_seed=None, volume_factor=1.0,
-                 cov_diag=1, min_index=0, name="Dist", **dbargs):
+                 cov_diag=1, min_index=0, name="Distortions", **dbargs):
         self.name = name
         self.seeded = True
         dbargs['prefix'] = "D"
         dbargs['cls'] = Distortions
-        if "Dist" not in dbargs['root']:
-            new_root = path.join(dbargs['root'], "Dist")
+        if "Distortions" not in dbargs['root']:
+            new_root = path.join(dbargs['root'], "Distortions")
             if not path.isdir(new_root):
                 mkdir(new_root)
             dbargs['root'] = new_root
