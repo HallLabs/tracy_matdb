@@ -57,7 +57,7 @@ script_options = {
     "--recover": {"action": "store_true",
                   "help": ("Creates a jobfile for those configs that didn't "
                            "finish computing so that they can be re-run.")},
-    "--dry-run": {"action": "store_true",
+    "--dryrun": {"action": "store_true",
                   "help": ("For execution, doesn't actually submit any jobs, "
                            "just prints what would be done.")}
     }
@@ -95,7 +95,7 @@ def run(args):
     if args["s"]:
         cdb.setup(args["rerun"], args["dfilter"])
     if args["x"]:
-        cdb.execute(args["recover"], args["dfilter"], dryrun=args["dry-run"])
+        cdb.execute(args["recover"], args["dfilter"], dryrun=args["dryrun"])
     if args["e"]:
         cdb.extract(args["dfilter"], cleanup=args["clean"])    
 
