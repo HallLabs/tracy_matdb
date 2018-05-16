@@ -22,7 +22,7 @@ class Distortion(Group):
             (i.e 1==Same Cell Volume as atom_seed)
         cov_diag=(float): value along the diagonal of the 9x9 covariance
             matrix. Related to the standard deviaton of the lattice vector
-            distortion
+            distortion.
         min_index (int):(default=0) Default choice with the same ran_seed would
             produce the same choices of volume factor matrices.
         dbargs (dict): dictionary of arguments to be passed to the
@@ -37,7 +37,7 @@ class Distortion(Group):
         scaling_matrix(np.array): 3x3 matrix of determinant=volume factor.
         mean(tuple): 3x3 identity matrix, mean of the multivariate normal
              distribution of values in the scaling matrix.
-        cov(list of lists): 9x9 diagonal covariance matrix with cav_diag along
+        cov(list of lists): 9x9 diagonal covariance matrix with cov_diag along
              the diagonal.
         rattle (float): the amount to rattle the atoms in the config by.
 
@@ -47,7 +47,7 @@ class Distortion(Group):
              distribution specified.
     '''
     def __init__(self, rattle=0, ran_seed=None, volume_factor=1.0,
-                 cov_diag=1, min_index=0, name="Distortion", **dbargs):
+                 cov_diag=0.001, min_index=0, name="Distortion", **dbargs):
         self.name = name
         self.seeded = True
         dbargs['prefix'] = "D"
@@ -233,12 +233,12 @@ class Distortion(Group):
                  num_cells with distorted atom positions according to the
                  normal distribution specified.
         """
-        if(self.volume_factor != 1.0):
+        if(self.cov_diag is not None):
             scaling_matrix = self._get_scaling_matrix()
         atom_seed = AtomsList()
         for i in scaling_matrix:
             local_atoms = self.atoms.copy()
-            local_atoms.set_cell(local_atoms.get_cell()*i)
+            local_atoms.set_cell(np.matmul(local_atoms.get_cell(), i))
             if (self.rattle != 0.0):
                 local_atoms.rattle(stdev=self.rattle)
             atom_seed.append(local_atoms)
