@@ -34,7 +34,7 @@ script_options = {
            "help": ("Submit the job array file for each database that has "
                     "folders ready to run. If --recover is specified, then "
                     "the recovery jobfile is submitted instead.")},
-    "-t": {"action": "store_true",
+    "-e": {"action": "store_true",
            "help": ("Process the databases that have completed execution "
                     "so that results can be extracted.")},
     "--status": {"action": "store_true",
@@ -56,7 +56,10 @@ script_options = {
                         "finished running in DFT yet.")},
     "--recover": {"action": "store_true",
                   "help": ("Creates a jobfile for those configs that didn't "
-                           "finish computing so that they can be re-run.")}
+                           "finish computing so that they can be re-run.")},
+    "--dryrun": {"action": "store_true",
+                  "help": ("For execution, doesn't actually submit any jobs, "
+                           "just prints what would be done.")}
     }
 """dict: default command-line arguments and their
     :meth:`argparse.ArgumentParser.add_argument` keyword arguments.
@@ -92,7 +95,7 @@ def run(args):
     if args["s"]:
         cdb.setup(args["rerun"], args["dfilter"])
     if args["x"]:
-        cdb.execute(args["recover"], args["dfilter"])
+        cdb.execute(args["recover"], args["dfilter"], dryrun=args["dryrun"])
     if args["e"]:
         cdb.extract(args["dfilter"], cleanup=args["clean"])    
 

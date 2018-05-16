@@ -3,7 +3,6 @@ folders via a simple configuration file.
 """
 from os import path, mkdir
 from matdb import msg
-from matdb.utility import chdir, ParameterGrid, convert_dict_to_str
 import numpy as np
 import six
 import collections
@@ -18,11 +17,13 @@ from collections import OrderedDict
 import json
 import lazy_import
 import h5py
+from importlib import import_module
 calculators = lazy_import.lazy_module("matdb.calculators")
 from matdb.atoms import Atoms, AtomsList
 from tqdm import tqdm
 from hashlib import sha1
 from matdb.database.utility import split
+from matdb.utility import chdir, ParameterGrid, convert_dict_to_str, import_fqdn
 from matdb.database.legacy import LegacyDatabase
 
 class Group(object):
@@ -716,7 +717,7 @@ class Group(object):
             trans_atoms = Atoms()
             trans_atoms.copy_from(atoms)
             for name, func_args in self.transforms.items():
-                import name as func
+                modojb, func = import_fqdn(name)
                 trans_atoms = func(trans_atoms, **func_args)
 
             trans_atoms.uuid = uid
@@ -1038,7 +1039,6 @@ class Database(object):
             setattr(self, ref, getattr(parent, ref))
         self.parent = parent
         
-        from importlib import import_module
         self._settings = steps
         """dict: with keys and values describing the kinds of step databases to setup.
         """
@@ -1158,7 +1158,7 @@ class Database(object):
                 
         msg.blank(level=1)
             
-    def execute(self, recovery=False, env_vars=None):
+    def execute(self, recovery=False, env_vars=None, dryrun=False):
         """Submits job array files for any of the databases that are ready to
         execute, but which haven't been submitted yet.
         Args:
@@ -1166,12 +1166,15 @@ class Database(object):
               jobs.
             env_vars (dict): of environment variables to set before calling the
               execution. The variables will be set back after execution.
+            dryrun (bool): when True, don't submit any jobs for execution, just
+              say what would happen.
         """
         ready = True
         for dbname, db in self.isteps:
             if ready:
                 ready = (db.ready() or db.execute(recovery=recovery,
-                                                  env_vars=env_vars))
+                                                  env_vars=env_vars,
+                                                  dryrun=dryrun))
             if not ready:
                 imsg = ("Group {}.{} is not ready to execute yet, or is "
                         "already executing. Done.")
@@ -1657,7 +1660,7 @@ class Controller(object):
         for dbname, dbi in self.ifiltered(dfilter):
             dbi.extract(cleanup=cleanup)
 
-    def execute(self, recovery=False, dfilter=None, env_vars=None):
+    def execute(self, recovery=False, dfilter=None, env_vars=None, dryrun=False):
         """Submits job array scripts for each database collection.
 
         Args:
@@ -1667,9 +1670,11 @@ class Controller(object):
               names. This limits which databases are returned.
             env_vars (dict): of environment variables to set before calling the
               execution. The variables will be set back after execution.
+            dryrun (bool): when True, don't submit any jobs for execution, just
+              say what would happen.
         """
         for dbname, dbi in self.ifiltered(dfilter):
-            dbi.execute(recovery, env_vars=env_vars)
+            dbi.execute(recovery, env_vars=env_vars, dryrun=dryrun)
 
     def recover(self, rerun=False, dfilter=None):
         """Runs recovery on this database to determine which configs failed and

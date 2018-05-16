@@ -162,6 +162,7 @@ class Distortion(Group):
 
     def setup(self, rerun=0):
         """Sets up a copy of the atoms object for the current config.
+
         Args:
             rerun (int): when > 0, recreate job files; if > 1, recreate the
               folders even if they already exist.
@@ -179,8 +180,10 @@ class Distortion(Group):
     def _setup_configs(self, rerun=0):
         """Loops over the distortion routine until the desired number of
         configurations have been reached
+
         Attributes:
             dists(): length nconfigs AtomsList
+
         Args:
             group (:class:`matdb.database.basic.Group`): An instance of the
                  group class.

@@ -18,7 +18,7 @@ except ImportError:
 
 from os import path
 setup(name='matdb',
-      version='1.1.4',
+      version='1.1.6',
       description='Database generator for ML materials space.',
       long_description= "" if not path.isfile("README.md") else read_md('README.md'),
       author='Conrad W Rosenbrock',
@@ -49,6 +49,7 @@ setup(name='matdb',
       scripts=['matdb/scripts/matdb_build.py',
                'matdb/scripts/matdb_plot.py',
                'matdb/scripts/matdb_train.py',
+               'matdb/scripts/matdb_find.py',
                'support/matdb_vasp.py',
                'support/matdb_sbatch.py',
                'support/matdb_module.py',
