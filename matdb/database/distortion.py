@@ -162,11 +162,12 @@ class Distortion(Group):
                 result.append(folder)
         return result
 
-    def setup(self, rerun=False):
+    def setup(self, rerun=0):
         """Sets up a copy of the atoms object for the current config.
+
         Args:
-            rerun (bool): when True, recreate the folders even if they
-             already exist.
+            rerun (int): when > 0, recreate job files; if > 1, recreate the
+              folders even if they already exist.
         """
         super(Distortion, self).setup(self._setup_configs, rerun)
         if len(self.sequence) != 0:
@@ -178,14 +179,18 @@ class Distortion(Group):
         self.save_index()
         self.save_pkl(self.duids, self.duid_file)
 
-    def _setup_configs(self, rerun=False):
+    def _setup_configs(self, rerun=0):
         """Loops over the distortion routine until the desired number of
         configurations have been reached
+
         Attributes:
             dists(): length nconfigs AtomsList
+
         Args:
             group (:class:`matdb.database.basic.Group`): An instance of the
                  group class.
+            rerun (int): when > 0, recreate job files; if > 1, recreate the
+              folders even if they already exist.
         """
         from hashlib import sha1
         dists = self._get_distortion()
