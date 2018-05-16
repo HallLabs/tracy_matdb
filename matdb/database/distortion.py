@@ -165,7 +165,7 @@ class Distortion(Group):
 
         Args:
             rerun (int): when > 0, recreate job files; if > 1, recreate the
-              folders even if they already exist.
+                folders even if they already exist.
         """
         super(Distortion, self).setup(self._setup_configs, rerun)
         if len(self.sequence) != 0:
@@ -188,19 +188,20 @@ class Distortion(Group):
             group (:class:`matdb.database.basic.Group`): An instance of the
                  group class.
             rerun (int): when > 0, recreate job files; if > 1, recreate the
-              folders even if they already exist.
+                folders even if they already exist.
         """
         from hashlib import sha1
         dists = self._get_distortion()
 
         if self.duids is None:
             self.duids = []
-        for dist in dists:
-            self.create(dist)
-            chem_form = str(dist.get_cell()[0])
-            duid = sha1(chem_form).hexdigest()
-            self.duids.append(duid)
-            self.index[duid] = self.configs[len(self.configs)]
+        if(not self.is_setup() or rerun > 1):
+            for dist in dists:
+                self.create(dist)
+                chem_form = str(dist.get_cell()[0])
+                duid = sha1(chem_form).hexdigest()
+                self.duids.append(duid)
+                self.index[duid] = self.configs[len(self.configs)]
         self.jobfile(rerun)
         self.save_index()
         self.save_pkl(self.duids, self.duid_file)
