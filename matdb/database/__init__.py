@@ -286,7 +286,6 @@ class Group(object):
         """Recursively expands the nested groups to populate :attr:`sequence`.
         """
         self._expand_seeds(self._seed)
-        
         if self.seeds is not None:
             for seedname, at_seed in self.seeds.items():
                 seed_root = path.join(self.root, seedname)                    
@@ -420,7 +419,8 @@ class Group(object):
         """
         
         hash_str = convert_dict_to_str(self.to_dict(include_time_stamp=False))
-        for atom in self.rset():
+        print self.rset
+        for atom in self.rset:
             temp_atom = Atoms(atom)
             hash_str += convert_dict_to_str(temp_atom.to_dict())
 
@@ -918,7 +918,7 @@ class Group(object):
         Args:
             cleanup (str): the level of cleanup to perform after 
               extraction.
-        """        
+        """
         self._expand_sequence()
         if len(self.sequence) == 0 and self.can_extract():
             for cid, folder in self.configs.items():
@@ -1022,7 +1022,6 @@ class Database(object):
         rec_bin (RecycleBin): instance of the recycling bin database.
     """
     def __init__(self, name, root, parent, steps, splits):
-        print 'Initializing database: ', name
         self.name = name
         self.config = name.split('.')[0]
         self.root = root
@@ -1109,7 +1108,8 @@ class Database(object):
         """Creates the hash for the database.
         """
         hashes = ''
-        for step in self.steps:
+        for name, step in self.steps.items():
+            print step
             hashes += ' '
             hashes += step.hash_group()
 
@@ -1211,15 +1211,6 @@ class Database(object):
         """Splits the database multiple times, one for each `split` setting in
         the database specification.
         """
-<<<<<<< HEAD
-        from matdb.database.utility import split
-
-        # Generater the list
-        subconfs = []
-        print self.isteps
-=======
-        subconfs = AtomsList()
->>>>>>> 657531628a6da752e94711180354cbb6063eb661
         for dbname, db in self.isteps:
             if not db.trainable:
                 continue
@@ -1529,12 +1520,12 @@ class Controller(object):
         
         from fnmatch import fnmatch
         if pattern.count('/') == 3:
-            dbname, groupname, seed, params = pattern.split('/')
+            groupname, dbname, seed, params = pattern.split('/')
         elif pattern.count('/') == 2:
-            dbname, groupname, seed = pattern.split('/')
+            groupname, dbname, seed = pattern.split('/')
             params = None
         elif pattern.count('/') == 1:
-            dbname, groupname = pattern.split('/')
+            groupname, dbname = pattern.split('/')
             params = None
             seed = None
         else:
@@ -1550,7 +1541,6 @@ class Controller(object):
             if isinstance(dbi, LegacyDatabase) or groupname is None:
                 result.append(dbi)
                 continue
-            
             groups = [groupi for groupn, groupi in dbi.steps.items()
                       if fnmatch(groupn, groupname)]
             for group in groups:
@@ -1559,6 +1549,7 @@ class Controller(object):
                     seeds = [si for sn, si in group.sequence.items()
                              if fnmatch(sn, seed)]
                     for seedi in seeds:
+                        
                         seedi._expand_sequence()
                         if len(seedi.sequence) > 0 and params is not None:
                             result.extend([si for sn, si in seedi.sequence.items()
@@ -1579,20 +1570,19 @@ class Controller(object):
         """Compiles a list of all steps in this set of databases.
         """
         result = []
-        for config, coll in self.collections.items():
-            for db_name, db in coll.items():
-                for group_name, group in db.steps.items():
-                    if len(group.sequence) > 0:
-                        for seed_name, seed in group.sequence.items():
-                            if len(seed.sequence) > 0:
-                                for param_name, param in seed.sequence.items():
-                                    result.append("{0}/{1}/{2}/{3}".format(group_name,db_name,
+        for db_name, db in self.collections.items():
+            for group_name, group in db.steps.items():
+                if len(group.sequence) > 0:
+                    for seed_name, seed in group.sequence.items():
+                        if len(seed.sequence) > 0:
+                            for param_name, param in seed.sequence.items():
+                                result.append("{0}/{1}/{2}/{3}".format(group_name,db_name,
                                                                            seed_name,param_name))
-                            else: 
-                                result.append("{0}/{1}/{2}".format(group_name,db_name,
+                        else: 
+                            result.append("{0}/{1}/{2}".format(group_name,db_name,
                                                                    seed_name))
-                    else:
-                        result.append("{0}/{1}".format(group_name,db_name))
+                else:
+                    result.append("{0}/{1}".format(group_name,db_name))
 
         return sorted(result)        
     
@@ -1600,16 +1590,15 @@ class Controller(object):
         """Compiles a list of all sequences in this set of databases.
         """
         result = []
-        for config, coll in self.collections.items():
-            for db_name, db in coll.items():
-                for group_name, group in db.steps.items():
-                    if len(group.sequence) > 0:
-                        for seed_name, seed in group.sequence.items():
-                            if len(seed.sequence) > 0:
-                                for param_name, param in seed.sequence.items():
-                                    result.append("{0}/{1}".format(seed_name,param_name))
-                            else: 
-                                result.append("{0}".format(seed_name))
+        for db_name, db in self.collections.items():
+            for group_name, group in db.steps.items():
+                if len(group.sequence) > 0:
+                    for seed_name, seed in group.sequence.items():
+                        if len(seed.sequence) > 0:
+                            for param_name, param in seed.sequence.items():
+                                result.append("{0}/{1}".format(seed_name,param_name))
+                        else: 
+                            result.append("{0}".format(seed_name))
 
         return sorted(result)        
     
@@ -1628,7 +1617,7 @@ class Controller(object):
             seed = None
             params = None
             
-        coll = self.collections[dbname][dbname]
+        coll = self.collections[dbname]
         if group.lower() in coll.steps:
             step = coll.steps[group.lower()]
             if seed is not None and seed in step.sequence:

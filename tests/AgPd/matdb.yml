@@ -46,10 +46,10 @@ databases:
         nconfigs: 10
         sizes: [1,4]
         ran_seed: 10
-calculator:
-  name: Vasp
-  nsw: 1
-  pp: 'pbe'
-  kpoints:
-    method: 'mueller'
-    mindistance: 30
+	calculator:
+	  name: Vasp
+  	  nsw: 1
+  	  pp: 'pbe'
+  	  kpoints:
+	    method: 'mueller'
+    	    mindistance: 30

@@ -86,7 +86,6 @@ class Hessian(Group):
     """
     def __init__(self, phonopy={}, name="hessian", bandmesh=None,
                  dosmesh=None, tolerance=0.1, dfpt=False, **dbargs):
-        print('initializing Hessian Group: ')
         self.name = name
         self.seeded = True
         dbargs["prefix"] = "H"
@@ -135,8 +134,6 @@ class Hessian(Group):
         self.tolerance = tolerance
         self.phonodir = path.join(self.root, "phonopy")
         self.phonocache = path.join(self.root, "phoncache")
-        print 'Phonondir: ', self.phonodir
-        print 'Phonocache: ', self.phonocache
         self._kpath = None
         """tuple: Special point path in k-space. First term is a list of special point
         labels; second is the list of points corresponding to those labels.
@@ -156,8 +153,6 @@ class Hessian(Group):
         """np.array: the Hessian matrix, whether it was derived from
         DFPT or from frozen phonon calculations.
         """
-        print self.pgrid
-        print len(self.pgrid)
         # Only place these directories if we're at the bottom of the stack.
         if self.pgrid is None or (self.pgrid is not None and len(self.pgrid) ==0):
             from os import mkdir
@@ -228,14 +223,6 @@ class Hessian(Group):
 
         return configs
 
-    def split(self, recalc=0):
-        print 'Test implementation of Hessian function split'
-        return super(Hessian, self).split(recalc)
-
-    def train_file(self,split):
-        print 'Test implementation of Hessian function train_file'
-        return super(Hessiam, self).train_file(split)
-                
     def sub_dict(self):
         """Returns a dict needed to initialize the class.
         """

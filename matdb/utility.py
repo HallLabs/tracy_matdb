@@ -116,9 +116,10 @@ def execute(args, folder, wait=True, nlines=100, venv=None,
     if kwargs["stdout"] is PIPE:
         output = []
         for line in pexec.stdout:
-            output.append(line)
-            if len(output) >= nlines:
-                break
+            if not ("FutureWarning" in line or "import" in line or "\x1b[0m" in line):
+                output.append(line)
+                if len(output) >= nlines:
+                    break
         pexec.stdout.close()
 
     error = None
