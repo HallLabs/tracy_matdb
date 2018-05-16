@@ -33,7 +33,27 @@ def chdir(target):
         yield target
     finally:
         chdir(current)
-        
+
+def import_fqdn(fqdn):
+    """Returns the object from the specified FQDN. Any exceptions raised will
+    bubble up.
+
+    Args:
+        fqdn (str): '.'-separated list of `package.module.callable` to
+          import. The callable will *not* be called.
+
+    Returns:
+        tuple: `(module, callable)`, where `module` is the module object that
+        `callable` resides in.
+    """
+    from importlib import import_module
+    parts = fqdn.split('.')
+    call = parts[-1]
+    module = '.'.join(parts[0:-1])
+    module = import_module(module)
+    call = getattr(module, call)
+    return (module, call)
+
 def execute(args, folder, wait=True, nlines=100, venv=None,
             printerr=True, env_vars=None, errignore=None, **kwargs):
     """Executes the specified tuple that should include the command as

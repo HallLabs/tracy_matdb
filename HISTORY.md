@@ -1,5 +1,10 @@
 # Revision History for `matdb`
 
+## Revision 1.1.6
+
+- Working distortion groups.
+- Added `matdb_find.py` script for testing patterns against controllers.
+
 ## Revision 1.1.5
 - Updated the Manual Group so that it can take an optional extractable
   flag which disapbles calulations when set to false.
