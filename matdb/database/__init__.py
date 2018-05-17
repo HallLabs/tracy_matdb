@@ -938,8 +938,10 @@ class Group(object):
                 atoms = self.config_atoms[cid]
                 atoms.calc.extract(folder, cleanup=cleanup)
                 atoms.write(path.join(folder, "atoms.h5"))
-                if path.isfile(path.join(folder, "pre_comp_atoms.h5")):
-                    remove(path.join(folder, "pre_comp_atoms.h5"))
+                # For debugging, we really don't want to remove these yet;
+                # otherwise it is a *big pain* to recreate them.
+                # if path.isfile(path.join(folder, "pre_comp_atoms.h5")):
+                #     remove(path.join(folder, "pre_comp_atoms.h5"))
             return self.can_extract()
         elif len(self.sequence) >0:
             pbar = tqdm(total=len(self.sequence))
