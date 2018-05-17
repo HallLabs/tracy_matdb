@@ -17,6 +17,7 @@ from collections import OrderedDict
 import json
 import lazy_import
 import h5py
+import re
 from importlib import import_module
 calculators = lazy_import.lazy_module("matdb.calculators")
 from matdb.atoms import Atoms, AtomsList
@@ -144,19 +145,25 @@ class Group(object):
         #list.
         self.configs = {}
         self.config_atoms = {}
+        self._rx_folder = re.compile(r"{}\.\d+".format(prefix))
 
         with chdir(self.root):
             for folder in glob("{}.*".format(prefix)):
-                try:
-                    cid = int(folder.split('.')[1])
-                    self.configs[cid] = path.join(self.root, folder)
-                    if path.isfile(path.join(self.configs[cid],"atoms.h5")):
-                        self.config_atoms[cid] = Atoms(path.join(self.configs[cid],"atoms.h5"))
-                    else:
-                        self.config_atoms[cid] = Atoms(path.join(self.configs[cid],"pre_comp_atoms.h5"))
-                except:
-                    #The folder name doesn't follow our convention.
-                    pass
+                #We aren't interested in files, or folders that just happen to match
+                #the naming convention.
+                if not path.isdir(path.join(self.root, folder)):
+                    continue
+                if not self._rx_folder.match(folder):
+                    continue
+                
+                cid = int(folder.split('.')[1])
+                self.configs[cid] = path.join(self.root, folder)
+                if path.isfile(path.join(self.configs[cid],"atoms.h5")):
+                    self.config_atoms[cid] = Atoms(path.join(self.configs[cid],"atoms.h5"))
+                elif path.isfile(path.join(self.configs[cid],"pre_comp_atoms.h5")):
+                    self.config_atoms[cid] = Atoms(path.join(self.configs[cid],"pre_comp_atoms.h5"))
+                else:
+                    msg.warn("No config atoms available for {}.".format(self.configs[cid]))
 
         if path.isfile(path.join(
                 self.root,"{}_{}_uuid.txt".format(self._db_name,self.prefix))):
