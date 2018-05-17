@@ -229,9 +229,7 @@ class Atoms(ase.Atoms):
                 
             masses = other.get_masses()
             momenta = other.get_momenta()
-            info = other.info
-            del info["params"]
-            del info["properties"]
+            info = other.info.copy()
             group_uuid = other.group_uuid
             
             self.__init__(symbols=symbols, positions=other.positions, n=other.n,
