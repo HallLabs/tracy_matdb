@@ -2,8 +2,8 @@
 """
 import pytest
 from os import mkdir, path, symlink, remove
-from matdb.database import distortion
 from matdb.utility import relpath
+
 
 @pytest.fixture()
 def AlMg(tmpdir):
@@ -109,9 +109,8 @@ def test_AlMg_setup(AlMg):
 
     dist = AlMg.collections['distortion'].steps['Distortion']
     assert len(dist.duids) == 50
-
-    # assert not enum.ready()
-    assert not dist.ready()
+    assert len(dist.index) == 50
+    assert dist.ready()
 
     # We need to fake some VASP output so that we can cleanup the
     # database and get the rset
@@ -129,3 +128,6 @@ def test_AlMg_setup(AlMg):
         src = path.join(dbfolder, "D.{}".format(j), "POSCAR")
         dest = path.join(dbfolder, "D.{}".format(j), "CONTCAR")
         symlink(src, dest)
+
+    assert len(dist.atoms_paths()) == 50
+    assert len(dist.rset()) == 50

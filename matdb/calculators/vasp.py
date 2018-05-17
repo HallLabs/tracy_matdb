@@ -170,7 +170,7 @@ class AsyncVasp(Vasp, AsyncCalculator):
 
         self.ran_seed = ran_seed
         self.version = None
-        super(AsyncVasp, self).__init__(*args, **kwargs)
+        super(AsyncVasp, self).__init__(**kwargs)
         if not path.isdir(self.folder):
             mkdir(self.folder)
             
@@ -359,7 +359,11 @@ class AsyncVasp(Vasp, AsyncCalculator):
         # let ase check the convergence
         with chdir(folder):
             self.converged = self.read_convergence()
-            self.set_results(self.atoms)
+            #NB: this next method call overwrites the identity of self.atoms! We
+            #don't like that behavior, so we set it right again afterwards.
+            o = self.atoms
+
+            self.set_results(self.atoms)            
             E = self.get_potential_energy(atoms=self.atoms)
             F = self.forces
             S = self.stress
@@ -367,8 +371,16 @@ class AsyncVasp(Vasp, AsyncCalculator):
             self.atoms.add_param(self.virial_name, S*self.atoms.get_volume())
             self.atoms.add_param(self.energy_name, E)
 
+            o.copy_from(self.atoms)
+            self.atoms = o
+            self.atoms.set_calculator(self)
+            
         self.cleanup(folder,clean_level=cleanup)
 
+    def set_atoms(self, atoms):
+        #We do *not* do an atoms.copy() like ASE because our atoms objects are hybrids.
+        self.atoms = atoms
+        
     def cleanup(self, folder, clean_level="default"):
         """Performs cleanup on the folder where the calculation was
         performed. The clean_level determines which files get removed.
