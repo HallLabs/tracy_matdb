@@ -103,13 +103,7 @@ class Distortion(Group):
         """Returns a :class:`matdb.atoms.AtomsList` for all configs in this
         group.
         """
-        if len(self.sequence) == 0:
-            return len(self.atoms_paths) == self.nconfigs
-        else:
-            result = []
-            for g in self.sequence.values():
-                result.extend(g.fitting_configs)
-            return result
+        return self.rset
 
     @property
     def rset(self):
@@ -120,13 +114,13 @@ class Distortion(Group):
             # Return the configurations from this group; it is at the
             # bottom of the stack
             result = AtomsList()
-            for epath in self.fitting_configs:
+            for epath in self.configs.values():
                 result.append(Atoms(path.join(epath, 'atoms.h5')))
             return result
         else:
             result = []
             for e in self.sequence.values():
-                result.extend(e.rset())
+                result.extend(e.rset)
             return result
 
     def ready(self):
