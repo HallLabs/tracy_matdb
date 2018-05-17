@@ -13,7 +13,7 @@ class Distortion(Group):
     the atom positions or displaces the atoms randomly within a normal
     distribution of some standard deviation, std.
     Args:
-        name (str): Distortion: 'Dist'
+        name (str): default name Distortion
         rattle (float): the standard deviation of the normal distribution
             of atom deviations.
         ran_seed (hashable):(=1 default) seed for the normal distribution
@@ -105,7 +105,6 @@ class Distortion(Group):
         """
         return self.rset
 
-    @property
     def rset(self):
         """Returns a :class:`matdb.atoms.AtomsList`, one for each config in the
         latest result set.
@@ -114,11 +113,11 @@ class Distortion(Group):
             # Return the configurations from this group; it is at the
             # bottom of the stack
             result = AtomsList()
-            for epath in self.configs.values():
-                result.append(Atoms(path.join(epath, 'atoms.h5')))
+            for epath in self.atoms_paths():
+                result.append(Atoms(path.join(epath, "atoms.h5")))
             return result
         else:
-            result = []
+            result = AtomsList()
             for e in self.sequence.values():
                 result.extend(e.rset)
             return result
@@ -129,7 +128,7 @@ class Distortion(Group):
         """
         self._expand_sequence()
         if len(self.sequence) == 0:
-            result = len(self.atoms_paths) == self.nconfigs
+            result = len(self.atoms_paths()) == self.nconfigs
             if not result:
                 msg.std("{} is not ready. Exiting.".format(self.root), 2)
             return result
@@ -143,9 +142,8 @@ class Distortion(Group):
                     ready = True
             return ready
 
-    @property
     def atoms_paths(self):
-        """Returns a list of full paths to the folders that have `atoms.json` objects
+        """Returns a list of full paths to the folders that have `atoms.h5` objects
         for the latest result set.
         """
         result = []
@@ -161,7 +159,7 @@ class Distortion(Group):
 
         Args:
             rerun (int): when > 0, recreate job files; if > 1, recreate the
-              folders even if they already exist.
+                folders even if they already exist.
         """
         super(Distortion, self).setup(self._setup_configs, rerun)
         if len(self.sequence) != 0:
@@ -184,19 +182,20 @@ class Distortion(Group):
             group (:class:`matdb.database.basic.Group`): An instance of the
                  group class.
             rerun (int): when > 0, recreate job files; if > 1, recreate the
-              folders even if they already exist.
+                folders even if they already exist.
         """
         from hashlib import sha1
         dists = self._get_distortion()
 
         if self.duids is None:
             self.duids = []
-        for dist in dists:
-            self.create(dist)
-            chem_form = dist.get_chemical_formula(mode='reduce')
-            duid = sha1(chem_form).hexdigest()
-            self.duids.append(duid)
-            self.index[duid] = self.configs[len(self.configs)]
+        if(not self.is_setup() or rerun > 1):
+            for dist in dists:
+                self.create(dist)
+                chem_form = str(dist.get_cell()[0])
+                duid = sha1(chem_form).hexdigest()
+                self.duids.append(duid)
+                self.index[duid] = self.configs[len(self.configs)]
         self.jobfile(rerun)
         self.save_index()
         self.save_pkl(self.duids, self.duid_file)
