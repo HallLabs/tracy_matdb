@@ -362,10 +362,11 @@ class AsyncVasp(Vasp, AsyncCalculator):
             #don't like that behavior, so we set it right again afterwards.
             o = self.atoms
 
-            self.set_results(self.atoms)            
+            self.set_results(self.atoms)
+            self.atoms._calc = self
             E = self.get_potential_energy(atoms=self.atoms)
             F = self.forces
-            S = self.stress
+            S = self.atoms.get_stress(False)
             self.atoms.add_property(self.force_name, F)
             self.atoms.add_param(self.virial_name, S*self.atoms.get_volume())
             self.atoms.add_param(self.energy_name, E)
