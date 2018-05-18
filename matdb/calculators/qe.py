@@ -189,7 +189,7 @@ class AsyncQe(Espresso, AsyncCalculator):
         with open(outxml, 'r') as f:
             # memory-map the file, size 0 means whole file
             m = mmap.mmap(f.fileno(), 0, prot=mmap.PROT_READ)  
-            i = m.rfind('free  energy')
+            i = m.rfind('</closed>')
             # we look for this second line to verify that VASP wasn't
             # terminated during runtime for memory or time
             # restrictions
@@ -199,7 +199,7 @@ class AsyncQe(Espresso, AsyncCalculator):
                 line = m.readline()
 
         if line is not None:
-            return "TOTEN" in line or "Error" in line
+            return True
         else:
             return False
 
@@ -242,19 +242,19 @@ class AsyncQe(Espresso, AsyncCalculator):
         #         self.atoms.positions = atoms_sorted[self.resort].positions
         #         self.atoms.cell = atoms_sorted.cell
 
-        # # we need to move into the folder being extracted in order to
-        # # let ase check the convergence
-        # with chdir(folder):
-        #     self.converged = self.read_convergence()
-        #     self.set_results(self.atoms)
-        #     E = self.get_potential_energy(atoms=self.atoms)
-        #     F = self.forces
-        #     S = self.stress
-        #     self.atoms.add_property("qe_force", F)
-        #     self.atoms.add_param("qe_stress", S)
-        #     self.atoms.add_param("qe_energy", E)
+        # we need to move into the folder being extracted in order to
+        # let ase check the convergence
+        with chdir(folder):
+            self.converged = self.read_convergence()
+            self.set_results(self.atoms)
+            E = self.get_potential_energy(atoms=self.atoms)
+            F = self.forces
+            S = self.stress
+            self.atoms.add_property("qe_force", F)
+            self.atoms.add_param("qe_stress", S)
+            self.atoms.add_param("qe_energy", E)
 
-        # self.cleanup(folder,clean_level=cleanup)
+        self.cleanup(folder,clean_level=cleanup)
 
     def cleanup(self, folder, clean_level="default"):
         """Performs cleanup on the folder where the calculation was
