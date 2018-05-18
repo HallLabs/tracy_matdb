@@ -1,11 +1,11 @@
 """Implements a `matdb` compatible subclass of the
-:class:`ase.calculators.vasp.Vasp` calculator.
+:class:`ase.calculators.espresso.Espresso` calculator.
 .. note:: Because this calculator is intended to be run asynchronously as part
   of `matdb` framework, it does *not* include a method to actually execute the
   calculation. Although the ASE calculator provides an interface to do so,
   `matdb` uses templates to access HPC resources.
 .. warning:: Because of the underlying implementation in ASE, you must use a separate
-  instance of the :class:`AsyncVasp` for each :class:`ase.Atoms` object that you
+  instance of the :class:`AsyncQe` for each :class:`ase.Atoms` object that you
   want to calculate for.
 """
 from os import path, stat, mkdir, remove, environ
@@ -28,14 +28,14 @@ class AsyncQe(Espresso, AsyncCalculator):
       add some extra functions so that it plays nicely with `matdb`.
 
     Args:
-        atoms (matdb.Atoms): configuration to calculate using VASP.
+        atoms (matdb.Atoms): configuration to calculate using QE.
         folder (str): path to the directory where the calculation should take
           place.
         contr_dir (str): The absolute path of the controller's root directory.
         ran_seed (int or float): the random seed to be used for this calculator.
     
     Attributes:
-        tarball (list): of `str` VASP output file names that should be included
+        tarball (list): of `str` QE output file names that should be included
           in an archive that represents the result of the calculation.
         folder (str): path to the directory where the calculation should take
           place.
@@ -84,6 +84,7 @@ class AsyncQe(Espresso, AsyncCalculator):
 
         self.ran_seed = ran_seed
         self.version = None
+        print(input_dict)
         super(AsyncQe, self).__init__(input_dict=input_dict, *args, **kwargs)
         if not path.isdir(self.folder):
             mkdir(self.folder)
@@ -96,15 +97,15 @@ class AsyncQe(Espresso, AsyncCalculator):
         """Checks that the potcar version match the input versions.
         """
         if "directory" in self.potcars:
-            psuedo_dir = self.potcars
+            pseudo_dir = self.potcars["directory"]
         else:
-            psuedo_dir = environ.get("ESPRESSO_PSEUDO", None)
+            pseudo_dir = environ.get("ESPRESSO_PSEUDO", None)
             if pseudo_dir is None:
-                psuedo_dir = path.join(path.expanduser('~'), 'espresso', 'pseudo')
+                pseudo_dir = path.join(path.expanduser('~'), 'espresso', 'pseudo')
 
         versions = self.potcars["versions"]
         for spec, potcar in self.potcars["potentials"].items():
-            target = path.join(psuedo_dir, potcar)
+            target = path.join(pseudo_dir, potcar)
             if path.isfile(target):
                 #QE potentials have two version numbers. The first is
                 #usually on the first line of the file and the second
@@ -142,14 +143,14 @@ class AsyncQe(Espresso, AsyncCalculator):
             super(AsyncQe, self).write_input(atoms)
 
     def can_execute(self, folder):
-        """Returns True if the specified folder is ready to execute VASP
+        """Returns True if the specified folder is ready to execute QE
         in.
         """
         if not path.isdir(folder):
             return False
 
-        sizeok = lambda x: stat(x).st_size > 25        
-        required = ["INCAR", "POSCAR", "POTCAR"]
+        sizeok = lambda x: stat(x).st_size > 25
+        required = ["espresso.pwi"]
             
         present = {}
         for rfile in required:
@@ -159,7 +160,7 @@ class AsyncQe(Espresso, AsyncCalculator):
         if not all(present.values()):
             for f, ok in present.items():
                 if not ok:
-                    msg.info("{} not present for VASP execution.".format(f), 2)
+                    msg.info("{} not present for Quantum Espresso execution.".format(f), 2)
         return all(present.values())
 
     def can_extract(self, folder):
@@ -171,7 +172,7 @@ class AsyncQe(Espresso, AsyncCalculator):
     
         #If we can extract a final total energy from the OUTCAR file, we
         #consider the calculation to be finished.
-        outcar = path.join(folder, "OUTCAR")
+        outcar = path.join(folder, "pwscf.xml")
         if not path.isfile(outcar):
             return False
 
@@ -199,7 +200,7 @@ class AsyncQe(Espresso, AsyncCalculator):
         Args:
             folder (str): path to the folder in which the executable was run.
         """
-        outcar = path.join(folder, "OUTCAR")
+        outcar = path.join(folder, "pwscf.xml")
         outcars = path.isfile(outcar)
         busy = not self.can_extract(folder)            
         return outcars and busy
@@ -255,10 +256,10 @@ class AsyncQe(Espresso, AsyncCalculator):
             clean_level (str): the level of cleaning to be done.
         """
 
-        # light = ["CHG", "XDATCAR", "DOSCAR", "PCDAT"]
-        # default =["CHGCAR", "WAVECAR", "IBZKPT", "EIGENVAL",
-        #           "DOSCAR", "PCDAT"]
-        # aggressive = ["vasprun.xml", "OUTCAR", "CONTCAR", "OSZICAR"]
+        light = ["CHG", "XDATCAR", "DOSCAR", "PCDAT"]
+        default =["CHGCAR", "WAVECAR", "IBZKPT", "EIGENVAL",
+                  "DOSCAR", "PCDAT"]
+        aggressive = ["vasprun.xml", "OUTCAR", "CONTCAR", "OSZICAR"]
 
         # if clean_level == "light":
         #     rm_files = light
