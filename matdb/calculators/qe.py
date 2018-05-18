@@ -9,7 +9,6 @@
   want to calculate for.
 """
 from os import path, stat, mkdir, remove, environ
-import mmap
 
 import ase
 from ase.calculators.espresso import Espresso
@@ -64,28 +63,32 @@ class AsyncQe(Espresso, AsyncCalculator):
         if "kpoints" in kwargs:
             self.kpoints = kwargs.pop("kpoints")
         if self.kpoints["method"] == "mueller":
-            msg.err("The Mueller server does not support QE at this time.")
+            raise NotImplementedError("The Mueller server does not support QE at this time.")
         elif self.kpoints["method"] == "MP":
-            input_dict["kpts"] = self.kpoints["divisions"]
-            del self.kpoints["divisions"]
+            kpts = self.kpoints["divisions"]
+            kspacing = None
         elif self.kpoints["method"] == "kspacing":
-            input_dict["kspacing"] = self.kpoints.pop(["spacing"])
+            kpts = None
+            kspacing = self.kpoints["spacing"]
 
         if "offset" in self.kpoints:
-            input_dict["koffset"] = self.kpoints["offset"]
+            koffset = self.kpoints["offset"]
+        else:
+            koffset = 0
 
         self.potcars = kwargs.pop("potcars")
         if "directory" in self.potcars:
-            input_dict["pseudo_dir"] = self.potcars["directory"]
-        input_dict["pseudopotentials"] = self.potcars["potentials"]
-
-        self.args = args
-        self.kwargs = kwargs
+            pseudo_dir = self.potcars["directory"]
+        else:
+            pseudo_dir = None
+        pseudopotentials = self.potcars["potentials"]
 
         self.ran_seed = ran_seed
         self.version = None
-        print(input_dict)
-        super(AsyncQe, self).__init__(input_dict=input_dict, *args, **kwargs)
+        super(AsyncQe, self).__init__(pseudopotentials=pseudopotentials, pseudo_dir=pseudo_dir,
+                                      input_dict=input_dict, kpts=kpts, koffset=koffset,
+                                      kspacing=kspacing, **kwargs)
+        
         if not path.isdir(self.folder):
             mkdir(self.folder)
             
@@ -169,15 +172,21 @@ class AsyncQe(Espresso, AsyncCalculator):
         """
         if not path.isdir(folder):
             return False
-    
+
+        if path.isdir(path.join(folder, "CRASH")):
+            msg.err("The QE calculation in {0} has crashed. Error message:".format(folder))
+            with open(path.join(folder, "CRASH"), 'r') as f:
+                for line in f:
+                    msg.err(f.strip())
+            return False
         #If we can extract a final total energy from the OUTCAR file, we
         #consider the calculation to be finished.
-        outcar = path.join(folder, "pwscf.xml")
-        if not path.isfile(outcar):
+        outxml = path.join(folder, "pwscf.xml")
+        if not path.isfile(outxml):
             return False
 
         line = None
-        with open(outcar, 'r') as f:
+        with open(outxml, 'r') as f:
             # memory-map the file, size 0 means whole file
             m = mmap.mmap(f.fileno(), 0, prot=mmap.PROT_READ)  
             i = m.rfind('free  energy')
@@ -200,10 +209,10 @@ class AsyncQe(Espresso, AsyncCalculator):
         Args:
             folder (str): path to the folder in which the executable was run.
         """
-        outcar = path.join(folder, "pwscf.xml")
-        outcars = path.isfile(outcar)
+        outxml = path.join(folder, "pwscf.xml")
+        outxmls = path.isfile(outxmls)
         busy = not self.can_extract(folder)            
-        return outcars and busy
+        return outxmls and busy
 
     def create(self, rewrite=False):
         """Creates all necessary input files for the QE calculation.
@@ -223,7 +232,7 @@ class AsyncQe(Espresso, AsyncCalculator):
             cleanup (str): the level of cleanup to perfor after extraction.
         """
         # Read output
-        # atoms_sorted = ase.io.read(path.join(folder,'CONTCAR'), format='vasp')
+        atoms_sorted = ase.io.read(path.join(folder,'pwscf.xml'), format='espresso-out')
 
         # if (self.int_params['ibrion'] is not None and
         #         self.int_params['nsw'] is not None):
@@ -256,22 +265,22 @@ class AsyncQe(Espresso, AsyncCalculator):
             clean_level (str): the level of cleaning to be done.
         """
 
-        light = ["CHG", "XDATCAR", "DOSCAR", "PCDAT"]
-        default =["CHGCAR", "WAVECAR", "IBZKPT", "EIGENVAL",
-                  "DOSCAR", "PCDAT"]
-        aggressive = ["vasprun.xml", "OUTCAR", "CONTCAR", "OSZICAR"]
+        light = [potfile for potfile in self.potcars["potentials"].values()]
+        light.exist(["*.dat", "paw.txt", "CRASH"])
+        default =["charge-density.dat", "data-file-schema.xml"]
+        aggressive = ["pwscf.xml"]
 
-        # if clean_level == "light":
-        #     rm_files = light
-        # elif clean_level == "aggressive":
-        #     rm_files = light + default + aggressive
-        # else:
-        #     rm_files = light + default
+        if clean_level == "light":
+            rm_files = light
+        elif clean_level == "aggressive":
+            rm_files = light + default + aggressive
+        else:
+            rm_files = light + default
         
-        # for f in rm_files:
-        #     target = path.join(folder,f)
-        #     if path.isfile(target):
-        #         remove(target)
+        for f in rm_files:
+            target = path.join(folder,f)
+            if path.isfile(target):
+                remove(target)
 
     def to_dict(self):
         """Writes the current version number of the code being run to a
@@ -280,8 +289,8 @@ class AsyncQe(Espresso, AsyncCalculator):
         Args:
             folder (str): path to the folder in which the executable was run.
         """
-        # qe_dict = {"folder":self.folder, "ran_seed":self.ran_seed,
-        #              "contr_dir":self.contr_dir, "kwargs": self.in_kwargs,
-        #              "args": self.args}
+        qe_dict = {"folder":self.folder, "ran_seed":self.ran_seed,
+                     "contr_dir":self.contr_dir, "kwargs": self.in_kwargs,
+                     "args": self.args}
 
         return qe_dict
