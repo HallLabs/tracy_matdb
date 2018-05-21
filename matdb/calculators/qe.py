@@ -8,7 +8,7 @@
   instance of the :class:`AsyncQe` for each :class:`ase.Atoms` object that you
   want to calculate for.
 """
-from os import path, stat, mkdir, remove, environ
+from os import path, stat, mkdir, remove, environ, rename
 
 import ase
 from ase.calculators.espresso import Espresso
@@ -52,13 +52,6 @@ class AsyncQe(Espresso, AsyncCalculator):
             msg.err("{} is not a valid directory.".format(contr_dir))
 
         self.in_kwargs = kwargs.copy()
-        input_dict = {}
-        
-        # set default values for tprnfor and tstress so that the QE
-        # calculates the forces and stresses unless over-written by
-        # user.
-        input_dict["tprnfor"] = kwargs["tprnfor"]  if "tprnfor" in kwargs else True
-        input_dict["tstress"] = kwargs["tstress"]  if "tstress" in kwargs else True
 
         if "kpoints" in kwargs:
             self.kpoints = kwargs.pop("kpoints")
@@ -83,10 +76,24 @@ class AsyncQe(Espresso, AsyncCalculator):
             pseudo_dir = None
         pseudopotentials = self.potcars["potentials"]
 
+        self.out_file = kwargs["output"] if "output" in kwargs else "pwscf"
+        # If the user included the `xml` in the output file name then
+        # we need to remove it.
+        if "xml" in self.out_file:
+            self.out_file = self.out_file[:-4]
+        del kwargs["output"]
+        
+        input_data = kwargs["input_data"]
+        
+        # set default values for tprnfor and tstress so that the QE
+        # calculates the forces and stresses unless over-written by
+        # user.
+        input_data["tprnfor"] = kwargs["tprnfor"]  if "tprnfor" in kwargs else True
+        input_data["tstress"] = kwargs["tstress"]  if "tstress" in kwargs else True
         self.ran_seed = ran_seed
         self.version = None
         super(AsyncQe, self).__init__(pseudopotentials=pseudopotentials, pseudo_dir=pseudo_dir,
-                                      input_dict=input_dict, kpts=kpts, koffset=koffset,
+                                      input_data=input_data, kpts=kpts, koffset=koffset,
                                       kspacing=kspacing, **kwargs)
         
         if not path.isdir(self.folder):
@@ -181,9 +188,15 @@ class AsyncQe(Espresso, AsyncCalculator):
             return False
         #If we can extract a final total energy from the OUTCAR file, we
         #consider the calculation to be finished.
-        outxml = path.join(folder, "pwscf.xml")
+        outxml = path.join(folder, "{0}.xml".format(self.out_file))
         if not path.isfile(outxml):
-            return False
+            if path.isfile(poth.join(folder, "pwscf.xml")):
+                rename(path.join(folder, "pwscf.xml"), outxml)
+                rename(path.join(folder, "pwscf.save"),
+                       path.join(folder, "{0}.save".format(self.out_file)))
+                return True
+            else:
+                return False
 
         line = None
         with open(outxml, 'r') as f:
@@ -232,15 +245,13 @@ class AsyncQe(Espresso, AsyncCalculator):
             cleanup (str): the level of cleanup to perfor after extraction.
         """
         # Read output
-        atoms_sorted = ase.io.read(path.join(folder,'pwscf.xml'), format='espresso-out')
+        atoms_sorted = ase.io.read(path.join(folder,'{0}.xml'.format(self.out_file)),
+                                   format='espresso-out')
 
-        # if (self.int_params['ibrion'] is not None and
-        #         self.int_params['nsw'] is not None):
-        #     if self.int_params['ibrion'] > -1 and self.int_params['nsw'] > 0:
-        #         # Update atomic positions and unit cell with the ones read
-        #         # from CONTCAR.
-        #         self.atoms.positions = atoms_sorted[self.resort].positions
-        #         self.atoms.cell = atoms_sorted.cell
+        if (self.input_data['control']['calculation'] == 'relax' or
+            self.input_data['control']['calculation'] == 'md'):
+            self.atoms.positions = atoms_sorted[self.resort].positions
+            self.atoms.cell = atoms_sorted.cell
 
         # we need to move into the folder being extracted in order to
         # let ase check the convergence
@@ -265,10 +276,11 @@ class AsyncQe(Espresso, AsyncCalculator):
             clean_level (str): the level of cleaning to be done.
         """
 
-        light = [potfile for potfile in self.potcars["potentials"].values()]
-        light.exist(["*.dat", "paw.txt", "CRASH"])
-        default =["charge-density.dat", "data-file-schema.xml"]
-        aggressive = ["pwscf.xml"]
+        light = ["{0}.save/*.dat".format(self.out_file),
+                 "{0}.save/paw.txt".format(self.out_file), "CRASH"]
+        default = [potfile for potfile in self.potcars["potentials"].values()]
+        default.extend(["charge-density.dat", "data-file-schema.xml"])
+        aggressive = ["{0}.xml".format(self.out_file), "{0}.save".format(self.out_file)]
 
         if clean_level == "light":
             rm_files = light
@@ -279,7 +291,7 @@ class AsyncQe(Espresso, AsyncCalculator):
         
         for f in rm_files:
             target = path.join(folder,f)
-            if path.isfile(target):
+            if path.isfile(target) or path.isdir(target):
                 remove(target)
 
     def to_dict(self):
@@ -290,7 +302,7 @@ class AsyncQe(Espresso, AsyncCalculator):
             folder (str): path to the folder in which the executable was run.
         """
         qe_dict = {"folder":self.folder, "ran_seed":self.ran_seed,
-                     "contr_dir":self.contr_dir, "kwargs": self.in_kwargs,
-                     "args": self.args}
+                   "contr_dir":self.contr_dir, "kwargs": self.in_kwargs,
+                   "args": self.args}
 
         return qe_dict
