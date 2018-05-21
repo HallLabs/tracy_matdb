@@ -8,11 +8,13 @@
   instance of the :class:`AsyncQe` for each :class:`ase.Atoms` object that you
   want to calculate for.
 """
-from os import path, stat, mkdir, remove, environ, rename
+from os import path, stat, mkdir, remove, environ, rename, rmdir
 import mmap
+from xml.etree import ElementTree
 
 import ase
 from ase.calculators.espresso import Espresso
+import numpy as np
 
 from matdb.calculators.basic import AsyncCalculator
 from matdb import msg
@@ -39,9 +41,14 @@ class AsyncQe(Espresso, AsyncCalculator):
           in an archive that represents the result of the calculation.
         folder (str): path to the directory where the calculation should take
           place.
+        potcars (dict): a dictionary of the values for the potentials used.
+        kpoints (dict): a dictionary of the values used for k-point generation.
+        out_file (str): the output file that QE will write too.
+        out_dir (str): the output directory for QE files.
+        version (str): the version of QE used for calculations.
+        atoms (matdb.Atoms): the configuration for calculations.    
     """
     key = "qe"
-    tarball = ["vasprun.xml"]
 
     def __init__(self, atoms, folder, contr_dir, ran_seed, *args, **kwargs):
         
@@ -53,6 +60,7 @@ class AsyncQe(Espresso, AsyncCalculator):
             msg.err("{} is not a valid directory.".format(contr_dir))
 
         self.in_kwargs = kwargs.copy()
+        self.args = args
 
         if "kpoints" in kwargs:
             self.kpoints = kwargs.pop("kpoints")
@@ -81,19 +89,31 @@ class AsyncQe(Espresso, AsyncCalculator):
             pseudo_dir = None
         pseudopotentials = self.potcars["potentials"]
 
-        self.out_file = kwargs.pop("output") if "output" in kwargs else "pwscf"
-        # If the user included the `xml` in the output file name then
-        # we need to remove it.
-        if "xml" in self.out_file:
-            self.out_file = self.out_file[:-4]
+        if "input_data" in kwargs:
+            if "prefix" in kwargs["input_data"]["control"]:
+                self.out_file = kwargs["input_data"]["control"]["prefix"]
+            else:
+                self.out_file = "pwscf"
 
-        input_data = kwargs.pop("input_data")
+            if "control" in kwargs["input_data"]:
+                if "outdir" in kwargs["input_data"]["control"]:
+                    self.out_dir = kwargs["input_data"]["control"]["outdir"]
+                    self.out_file = path.join(self.out_dir,self.out_file)
+                else:
+                    self.out_dir = "{0}.save".format(self.out_file)
+
+            input_data = kwargs.pop("input_data")
+
+            # set default values for tprnfor and tstress so that the QE
+            # calculates the forces and stresses unless over-written by
+            # user.
+            input_data["tprnfor"] = kwargs["tprnfor"]  if "tprnfor" in kwargs else True
+            input_data["tstress"] = kwargs["tstress"]  if "tstress" in kwargs else True
+        else:
+            input_data = None
+            self.out_file = "pwscf"
+            self.out_dir = "{0}.save".format(self.out_file)
         
-        # set default values for tprnfor and tstress so that the QE
-        # calculates the forces and stresses unless over-written by
-        # user.
-        input_data["tprnfor"] = kwargs["tprnfor"]  if "tprnfor" in kwargs else True
-        input_data["tstress"] = kwargs["tstress"]  if "tstress" in kwargs else True
         self.ran_seed = ran_seed
         self.version = None
         super(AsyncQe, self).__init__(pseudopotentials=pseudopotentials, pseudo_dir=pseudo_dir,
@@ -105,6 +125,7 @@ class AsyncQe(Espresso, AsyncCalculator):
             
         self.atoms = atoms
            
+        self.tarball = ["{0}.xml".format(self.out_file)]
         self._check_potcars()
 
     def _check_potcars(self):
@@ -201,7 +222,7 @@ class AsyncQe(Espresso, AsyncCalculator):
             if path.isfile(path.join(folder, "pwscf.xml")):
                 rename(path.join(folder, "pwscf.xml"), outxml)
                 rename(path.join(folder, "pwscf.save"),
-                       path.join(folder, "{0}.save".format(self.out_file)))
+                       path.join(folder, self.out_dir))
             else:
                 return False
 
@@ -253,27 +274,25 @@ class AsyncQe(Espresso, AsyncCalculator):
             cleanup (str): the level of cleanup to perfor after extraction.
         """
         # Read output
-        import pudb
-        pudb.set_trace()
-        atoms_sorted = ase.io.read(path.join(folder,'{0}.xml'.format(self.out_file)),
-                                   format='espresso-out')
+        out_file = path.join(folder,'{0}.xml'.format(self.out_file))
+        output = self._read(out_file)
 
-        if (self.input_data['control']['calculation'] == 'relax' or
-            self.input_data['control']['calculation'] == 'md'):
-            self.atoms.positions = atoms_sorted[self.resort].positions
-            self.atoms.cell = atoms_sorted.cell
+        if (self.parameters['input_data']['control']['calculation'] == 'relax' or
+            self.parameters['input_data']['control']['calculation'] == 'md'):
+            self.atoms.positions = output["atoms"]
+            self.atoms.cell = output["cell"]
 
         # we need to move into the folder being extracted in order to
         # let ase check the convergence
         with chdir(folder):
-            self.converged = self.read_convergence()
-            self.set_results(self.atoms)
-            E = self.get_potential_energy(atoms=self.atoms)
-            F = self.forces
-            S = self.stress
-            self.atoms.add_property("qe_force", F)
-            self.atoms.add_param("qe_stress", S)
-            self.atoms.add_param("qe_energy", E)
+            self.converged = output["convergence"]
+            E = output["etot"]
+            F = output["forces"]
+            S = output["stress"]
+            self.atoms.add_property(self.force_name, F)
+            self.atoms.add_param(self.stress_name, S)
+            self.atoms.add_param(self.virial_name, S*self.atoms.get_volume())
+            self.atoms.add_param(self.energy_name, E)
 
         self.cleanup(folder,clean_level=cleanup)
 
@@ -286,12 +305,12 @@ class AsyncQe(Espresso, AsyncCalculator):
             clean_level (str): the level of cleaning to be done.
         """
 
-        light = ["{0}.save/*.dat".format(self.out_file),
-                 "{0}.save/paw.txt".format(self.out_file), "CRASH"]
+        light = ["{0}/*.dat".format(self.out_dir),
+                 "{0}/paw.txt".format(self.out_dir), "CRASH"]
         default = [potfile for potfile in self.potcars["potentials"].values()]
-        default.extend(["{0}.save/charge-density.dat".format(self.outfile),
-                        "{0}.save/data-file-schema.xml".format(self.outfile)])
-        aggressive = ["{0}.xml".format(self.out_file), "{0}.save".format(self.out_file)]
+        default.extend(["{0}/charge-density.dat".format(self.out_dir),
+                        "{0}/data-file-schema.xml".format(self.out_dir)])
+        aggressive = ["{0}.xml".format(self.out_file), self.out_dir]
 
         if clean_level == "light":
             rm_files = light
@@ -302,8 +321,10 @@ class AsyncQe(Espresso, AsyncCalculator):
         
         for f in rm_files:
             target = path.join(folder,f)
-            if path.isfile(target) or path.isdir(target):
+            if path.isfile(target):
                 remove(target)
+            elif path.isdir(target):
+                rmdir(target)
 
     def to_dict(self):
         """Writes the current version number of the code being run to a
@@ -314,6 +335,38 @@ class AsyncQe(Espresso, AsyncCalculator):
         """
         qe_dict = {"folder":self.folder, "ran_seed":self.ran_seed,
                    "contr_dir":self.contr_dir, "kwargs": self.in_kwargs,
-                   "args": self.args}
+                   "args": self.args, "version": self.version}
 
         return qe_dict
+
+    def _read(self, path):
+        """Reads the QE output file located at the specified path.
+        """
+
+        key_phrases = ['output/convergence_info/scf_conv/scf_error',
+                       'output/atomic_structure/atomic_positions/atom',
+                       'output/atomic_structure/cell/*',
+                       'output/total_energy/etot', 'output/forces', "output/stress"]
+
+        results = {}
+
+        data = ElementTree.parse(path).getroot()
+        results["convergence"] = float(data.findall(key_phrases[0])[-1].text)
+        atom_pos = []
+        for atom in data.findall(key_phrases[1]):
+            atom_pos = [float(i) for i in atom.text.split()]
+        results["atoms"] = atom_pos
+        results["cell"] = [[float(j) for j in i.text.split()] for i in data.findall(key_phrases[2])]
+        results["etot"] = float(data.findall(key_phrases[3])[-1].text)
+        results["forces"] = [float(i) for i in data.findall(key_phrases[4])[-1].text.strip().split()]
+        results["stress"] = np.array([float(i) for i in
+                                      data.findall(key_phrases[5])[-1].text.strip().split()]).reshape((3,3))
+
+        if self.version is None:
+            self.version = data.findall('general_info/creator')[0].attrib["VERSION"]
+            
+        return results
+        
+            
+        
+        
