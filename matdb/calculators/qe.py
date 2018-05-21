@@ -9,6 +9,7 @@
   want to calculate for.
 """
 from os import path, stat, mkdir, remove, environ, rename
+import mmap
 
 import ase
 from ase.calculators.espresso import Espresso
@@ -185,21 +186,22 @@ class AsyncQe(Espresso, AsyncCalculator):
         if not path.isdir(folder):
             return False
 
-        if path.isdir(path.join(folder, "CRASH")):
+        if path.isfile(path.join(folder, "CRASH")):
             msg.err("The QE calculation in {0} has crashed. Error message:".format(folder))
             with open(path.join(folder, "CRASH"), 'r') as f:
-                for line in f:
+                for line in f: #pragma: no cover, we just need to test
+                               #that the CRASH file is found. We don't
+                               #need to test the error write out.
                     msg.err(f.strip())
             return False
         #If we can extract a final total energy from the OUTCAR file, we
         #consider the calculation to be finished.
         outxml = path.join(folder, "{0}.xml".format(self.out_file))
         if not path.isfile(outxml):
-            if path.isfile(poth.join(folder, "pwscf.xml")):
+            if path.isfile(path.join(folder, "pwscf.xml")):
                 rename(path.join(folder, "pwscf.xml"), outxml)
                 rename(path.join(folder, "pwscf.save"),
                        path.join(folder, "{0}.save".format(self.out_file)))
-                return True
             else:
                 return False
 
@@ -227,10 +229,11 @@ class AsyncQe(Espresso, AsyncCalculator):
         Args:
             folder (str): path to the folder in which the executable was run.
         """
-        outxml = path.join(folder, "pwscf.xml")
-        outxmls = path.isfile(outxmls)
+        outxml = path.join(folder, "{0}.xml".format(self.out_file))
+        outxml = path.isfile(outxml)
+        defxml = path.isfile(path.join(folder, "pwscf.xml"))
         busy = not self.can_extract(folder)            
-        return outxmls and busy
+        return (outxml or defxml) and busy
 
     def create(self, rewrite=False):
         """Creates all necessary input files for the QE calculation.
@@ -250,6 +253,8 @@ class AsyncQe(Espresso, AsyncCalculator):
             cleanup (str): the level of cleanup to perfor after extraction.
         """
         # Read output
+        import pudb
+        pudb.set_trace()
         atoms_sorted = ase.io.read(path.join(folder,'{0}.xml'.format(self.out_file)),
                                    format='espresso-out')
 
@@ -284,7 +289,8 @@ class AsyncQe(Espresso, AsyncCalculator):
         light = ["{0}.save/*.dat".format(self.out_file),
                  "{0}.save/paw.txt".format(self.out_file), "CRASH"]
         default = [potfile for potfile in self.potcars["potentials"].values()]
-        default.extend(["charge-density.dat", "data-file-schema.xml"])
+        default.extend(["{0}.save/charge-density.dat".format(self.outfile),
+                        "{0}.save/data-file-schema.xml".format(self.outfile)])
         aggressive = ["{0}.xml".format(self.out_file), "{0}.save".format(self.out_file)]
 
         if clean_level == "light":
