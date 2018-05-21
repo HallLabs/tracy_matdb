@@ -71,19 +71,22 @@ class AsyncQe(Espresso, AsyncCalculator):
 
         self.potcars = kwargs.pop("potcars")
         if "directory" in self.potcars:
-            pseudo_dir = self.potcars["directory"]
-        else:
+            if "." == self.potcars["directory"][0]:
+                pseudo_dir = path.abspath(self.potcars["directory"])
+            else:
+                pseudo_dir = path.expanduser(self.potcars["directory"])
+            self.potcars["directory"] = pseudo_dir
+        else: #pragma: no cover
             pseudo_dir = None
         pseudopotentials = self.potcars["potentials"]
 
-        self.out_file = kwargs["output"] if "output" in kwargs else "pwscf"
+        self.out_file = kwargs.pop("output") if "output" in kwargs else "pwscf"
         # If the user included the `xml` in the output file name then
         # we need to remove it.
         if "xml" in self.out_file:
             self.out_file = self.out_file[:-4]
-        del kwargs["output"]
-        
-        input_data = kwargs["input_data"]
+
+        input_data = kwargs.pop("input_data")
         
         # set default values for tprnfor and tstress so that the QE
         # calculates the forces and stresses unless over-written by
@@ -129,8 +132,10 @@ class AsyncQe(Espresso, AsyncCalculator):
                         temp_line = line.strip()
                         if l_count == 0:
                             if not v1 in temp_line:
-                                VersionError("{0} does not match supplied version "
+                                raise VersionError("{0} does not match supplied version "
                                              "{1} for species {2}".format(line, v1, spec))
+                        elif "<PP_INPUTFILE>" in line:
+                            break    
                         else:
                             if v2 in temp_line:
                                 v2_found = True
@@ -138,7 +143,7 @@ class AsyncQe(Espresso, AsyncCalculator):
                         l_count += 1
                         
                 if not v2_found:
-                    VersionError("Version {0} could not be found in potential file {1} "
+                    raise VersionError("Version {0} could not be found in potential file {1} "
                                  "for species {2}".format(v2, target, spec))
                     
             else:
