@@ -227,7 +227,7 @@ class Hessian(Group):
             #Add this eigenvector to its own configuration.
             atc = atEmpty.copy()
             Hi = np.reshape(v, (natoms, 3))
-            atc.arrays[hname] = Hi
+            atc.add_property(hname, Hi)
                     
             #Same thing for the eigenvalue.
             atc.add_param(hname, l)
