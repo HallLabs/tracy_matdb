@@ -1010,6 +1010,8 @@ class Database(object):
           database steps to setup.
         splits (dict): keys are split names; values are `float` *training*
           percentages to use.
+        ran_seed (int): random seed to use for splits in this database.
+
     Attributes:
         title (str): title for the alloy system that these databases work with.
         config (str): name of the configuration that this database sequence is
@@ -1031,11 +1033,12 @@ class Database(object):
         parent (Controller): instance controlling multiple configurations.
         rec_bin (RecycleBin): instance of the recycling bin database.
     """
-    def __init__(self, name, root, parent, steps, splits):
+    def __init__(self, name, root, parent, steps, splits, ran_seed):
         self.name = name
         self.config = name.split('.')[0]
         self.root = root
         self.splits = {} if splits is None else splits
+        self.ran_seed = ran_seed
 
         if not path.isdir(self.root):
             from os import mkdir
@@ -1228,21 +1231,36 @@ class Database(object):
                 continue
 
             ekey, fkey, vkey = ["{}_{}".format(db.calculator.key, q)
-                                for q in ["energy", "force", "virial"]]            
+                                for q in ["energy", "force", "virial"]]
+            hesskey = "{}_hessian1".format(db.calculator.key)            
             for atconf in db.fitting_configs:
                 #We need to rename the parameters and properties of the individual atoms
                 #objects to match the refkey and global choice of "ref_energy",
-                #"ref_force" and "ref_virial".
+                #"ref_force" and "ref_virial". *NB* for some of the fitting
+                #configs (for example Hessian fitting), a config may only have
+                #an eigenvalue/eigenvector pair and no energy, force or virial
+                #information.
                 ati = atconf.copy()
-                energy = ati.params[ekey]
-                force = ati.properties[fkey]
-                virial = ati.params[vkey]
-                ati.params["ref_energy"] = energy
-                ati.properties["ref_force"] = force
-                ati.params["ref_virial"] = virial
-                del ati.params[ekey]
-                del ati.properties[fkey]
-                del ati.params[vkey]
+                if ekey in ati.params:
+                    energy = ati.params[ekey]
+                    ati.params["ref_energy"] = energy
+                    del ati.params[ekey]
+                if fkey in ati.properties:
+                    force = ati.properties[fkey]
+                    ati.properties["ref_force"] = force
+                    del ati.properties[fkey]
+                if vkey in ati.params:
+                    virial = ati.params[vkey]
+                    ati.params["ref_virial"] = virial
+                    del ati.params[vkey]
+                if hesskey in ati.params:
+                    eigval = ati.params[hesskey]
+                    ati.params["ref_hessian1"] = eigval
+                    del ati.params[hesskey]
+                if hesskey in ati.arrays:
+                    eigvec = ati.arrays[hesskey]
+                    ati.arrays["ref_hessian1"] = eigvec
+                    del ati.arrays[hesskey]
                 subconfs.append(ati)
                 
         file_targets = {"train": self.train_file, "holdout": self.holdout_file,
@@ -1402,6 +1420,7 @@ class Controller(object):
           specifies all information for constructing the set of databases.
         tmpdir (str): path to a temporary directory to use for the
           database. This is for unit testing purposes.
+
     Attributes:
         specs (dict): the parsed settings from the YAML configuration file.
         collections (dict): keys are configuration names listed in attribute
@@ -1438,8 +1457,9 @@ class Controller(object):
         self.collections = {}
         self.uuids = {}
         self.species = sorted([s for s in self.specs["species"]])
-        self.ran_seed = self.specs.get("random_seed",0)
+        
         import random
+        self.ran_seed = self.specs.get("random_seed", 0)
         random.seed(self.ran_seed)
         
         self.execution = self.specs.get("execution", {})
@@ -1464,8 +1484,11 @@ class Controller(object):
             else:
                 dbname = dbspec["name"]
                 steps = dbspec["steps"]
+                #We use the global random seed by default if one isn't specified
+                #explicitly for the database.
                 db = Database(dbname, self.root, self,
-                              steps, self.specs.get("splits"))
+                              steps, self.specs.get("splits"),
+                              self.specs.get("random_seed", self.ran_seed))
                 self.collections[dbname] = db
 
         from os import mkdir
