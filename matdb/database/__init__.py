@@ -1,7 +1,7 @@
 """Exposes classes and functions for interacting with the database
 folders via a simple configuration file.
 """
-from os import path, mkdir
+from os import path, mkdir, makedirs
 from matdb import msg
 import numpy as np
 import six
@@ -1039,11 +1039,13 @@ class Database(object):
         self.root = root
         self.splits = {} if splits is None else splits
         self.ran_seed = ran_seed
-
+        self.splitroot = path.join(root, "splits", name)
+        
         if not path.isdir(self.root):
-            from os import mkdir
             mkdir(self.root)
-
+        if not path.isdir(self.splitroot):
+            makedirs(self.splitroot)
+            
         self.rec_bin = RecycleBin(parent,root,splits)
         
         parrefs = ["species", "execution", "plotdir", "calculator"]
@@ -1201,7 +1203,7 @@ class Database(object):
         Args:
             split (str): name of the split to use.
         """
-        return path.join(self.root, "{}-train.h5".format(split))
+        return path.join(self.splitroot, "{}-train.h5".format(split))
 
     def holdout_file(self, split):
         """Returns the full path to the h5 database file that can be
@@ -1210,7 +1212,7 @@ class Database(object):
         Args:
             split (str): name of the split to use.
         """
-        return path.join(self.root, "{}-holdout.h5".format(split))
+        return path.join(self.splitroot, "{}-holdout.h5".format(split))
 
     def super_file(self, split):
         """Returns the full path to the h5 database file that can be
@@ -1219,7 +1221,7 @@ class Database(object):
         Args:
             split (str): name of the split to use.
         """
-        return path.join(self.root, "{}-super.h5".format(split))
+        return path.join(self.splitroot, "{}-super.h5".format(split))
 
     def split(self, recalc=0):
         """Splits the database multiple times, one for each `split` setting in
@@ -1257,15 +1259,15 @@ class Database(object):
                     eigval = ati.params[hesskey]
                     ati.params["ref_hessian1"] = eigval
                     del ati.params[hesskey]
-                if hesskey in ati.arrays:
-                    eigvec = ati.arrays[hesskey]
-                    ati.arrays["ref_hessian1"] = eigvec
-                    del ati.arrays[hesskey]
+                if hesskey in ati.properties:
+                    eigvec = ati.properties[hesskey]
+                    ati.properties["ref_hessian1"] = eigvec
+                    del ati.properties[hesskey]
                 subconfs.append(ati)
                 
         file_targets = {"train": self.train_file, "holdout": self.holdout_file,
                         "super": self.super_file}
-        split(subconfs, self.splits, file_targets, self.root, self.ran_seed, recalc=recalc)
+        split(subconfs, self.splits, file_targets, self.splitroot, self.ran_seed, recalc=recalc)
         
     def extract(self, cleanup="default"):
         """Runs the extract methods of each database in the collection, in the
