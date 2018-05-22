@@ -23,3 +23,13 @@ class SpeciesError(Error):
     def __init__(self, message):
         self.message = message
     
+    
+class LogicError(Error):
+    """Exception raised when internal logic failed, most likely a bug!
+    
+    Attributes:
+        message (str): Explanation of the error.
+    """
+    def __init__(self, message):
+        self.message = message
+    
