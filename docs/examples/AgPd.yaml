@@ -19,10 +19,10 @@ calculator:
   ediff: '1e-5'
   ismear: 1
   sigma: 0.1
+  pp: 'pbe'
   # If the POTCAR names are non-standard, include the them in the
   # setups dict with the correct suffix after the element name
   # here. You must supply the versions for the potentials.
-
   potcars:
     directory: '/fslhome/glh43/src'
     xc: 'PBE'
@@ -31,8 +31,8 @@ calculator:
     setups:
       Pd: '_pv'
   kpoints:
-    includegamma: True
-    mindistance: 20
+    method: 'mueller'
+    mindistance: 50
 # Parameters for the job arrays that will be submitted for each
 # database. These can be overridden in each database below as well.
 execution:

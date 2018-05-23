@@ -18,6 +18,7 @@ from matdb.kpoints import custom as write_kpoints
 from matdb.utility import chdir, execute, relpath
 from hashlib import sha1
 import re
+from matdb.exceptions import VersionError
 
 def phonon_defaults(d, dfpt=False):
     """Adds the usual settings for the INCAR file when performing frozen-phonon
@@ -212,8 +213,8 @@ class AsyncVasp(Vasp, AsyncCalculator):
         if "versions" in self.potcars:
             versions = self.potcars["versions"]
         else:
-            msg.err("POTCAR versions must be specified for each species in the "
-                    "yml file.")
+            raise VersionError("POTCAR versions must be specified for each species in the "
+                         "yml file.")
 
         if path.isfile(path.join(self.contr_dir, "POTCARS", self.this_potcar)):
             with open(path.join(self.contr_dir, "POTCARS", self.this_potcar), "r") as potfile:
@@ -224,12 +225,12 @@ class AsyncVasp(Vasp, AsyncCalculator):
                         ver = ver_line[2]
                         if spec in versions.keys():
                             if not versions[spec] == ver:
-                                msg.err("The version {0} of the POTCAR for {1} does not "
-                                        "match the requested version {2}".format(versions[spec],
-                                                                                 spec, ver))
+                                raise VersionError("The version {0} of the POTCAR for {1} "
+                                             "does not match the requested version "
+                                             "{2}".format(versions[spec], spec, ver))
                         else:
-                            msg.err("The species found in the POTCAR {0} is not in the system "
-                                    "being studied".format(line))
+                            raise SpeciesError("The species found in the POTCAR {0} is "
+                                            "not in the system being studied".format(line))
 
         else:
             for potfile in self.ppp_list:
@@ -239,12 +240,12 @@ class AsyncVasp(Vasp, AsyncCalculator):
                 ver = ver_line[2]
                 if spec in versions.keys():
                     if not versions[spec] == ver:
-                        msg.err("The version {0} of the POTCAR for {1} does not "
-                                "match the requested version {2}".format(versions[spec],
-                                                                         spec, ver))
+                        raise VersionError("The version {0} of the POTCAR for {1} "
+                                           "does not match the requested version "
+                                           "{2}".format(versions[spec], spec, ver))
                 else:
-                    msg.err("The species found in the POTCAR {0} is not in the system "
-                            "being studied".format(spec))                        
+                    raise SpeciesError("The species found in the POTCAR {0} is not in "
+                                        "the system being studied".format(spec))
             
     def _write_potcar(self):
         """Makes a symbolic link between the main POTCAR file for the database
