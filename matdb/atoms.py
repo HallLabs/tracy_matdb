@@ -329,7 +329,6 @@ class Atoms(ase.Atoms):
         # copy any normal attributes we've missed
         for k, v in other.__dict__.iteritems(): #pragma: no cover
             if not k.startswith('_') and k not in self.__dict__:
-                print("LOOP", str(k), hasattr(self, str(k)))
                 self.__dict__[k] = v
 
     def read(self,target="atoms.h5",**kwargs):
