@@ -25,12 +25,21 @@ class AsyncCalculator(object):
         an atoms object when using its calculator to calculate energy.
         """
         return "{}_energy".format(self.key)
+
     @property
     def force_name(self):
         """Returns the name of the force property that this trainer writes onto
         an atoms object when using its calculator to calculate force.
         """
         return "{}_force".format(self.key)
+
+    @property
+    def stress_name(self):
+        """Returns the name of the force property that this trainer writes onto
+        an atoms object when using its calculator to calculate force.
+        """
+        return "{}_stress".format(self.key)
+
     @property
     def virial_name(self):
         """Returns the name of the virial property that this trainer writes onto

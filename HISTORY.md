@@ -1,9 +1,11 @@
 # Revision History for `matdb`
 
-## Revision 1.1.6
 
+## Revision 1.1.6
 - Working distortion groups.
 - Added `matdb_find.py` script for testing patterns against controllers.
+- Added QE calculator with 100% test coverage.
+- Added the `stress_name` function to the basic calculator class.
 
 ## Revision 1.1.5
 - Updated the Manual Group so that it can take an optional extractable
