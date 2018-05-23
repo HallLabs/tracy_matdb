@@ -202,6 +202,14 @@ class Atoms(ase.Atoms):
             else:
                 self.attr = None
 
+    def copy(self):
+        """Returns a copy of this atoms object that has different pointers to
+        self, values, etc.
+        """
+        result = Atoms()
+        result.copy_from(self)
+        return result
+                
     def copy_from(self, other):
         """Replace contents of this Atoms object with data from `other`."""
 
@@ -213,11 +221,16 @@ class Atoms(ase.Atoms):
             # object so that we can initialize this one properly.
             symbols = other.get_chemical_symbols()
             symbols = ''.join([i+str(symbols.count(i)) for i in set(symbols)])
-            
-            try:
-                magmoms = other.get_magnetic_moment()
-            except:
-                magmoms = None
+
+            magmoms = None
+            if hasattr(other, "magnetic_moments") and other.magnetic_moments is not None:
+                #Call the get in this try block would setup a new calculator to try and
+                #calculate the moments. We are interested in a *copy*, meaning that the
+                #quantity should already exist.
+                try:
+                    magmoms = other.get_magnetic_moment()
+                except:
+                    pass
             try:
                 charges = other.get_charges()
             except:
@@ -229,7 +242,7 @@ class Atoms(ase.Atoms):
                 
             masses = other.get_masses()
             momenta = other.get_momenta()
-            info = other.info.copy()
+            info = deepcopy(other.info)
             group_uuid = other.group_uuid
             
             self.__init__(symbols=symbols, positions=other.positions, n=other.n,
@@ -239,16 +252,23 @@ class Atoms(ase.Atoms):
                           constraint=constraint, info=info, calculator=other.calc,
                           group_uuid = group_uuid)
 
+            #The attributes will still point to the old info dictionary so that this
+            #pointer is not updated. Reset the attributes.
+            setattr(self,"params", info["params"])
+            setattr(self,"properties", info["properties"])
+            
         elif isinstance(other, ase.Atoms):
             super(Atoms, self).__init__(other)
             if "params" not in self.info:
                 self.info["params"]={}
             if "properties" not in self.info:
                 self.info["properties"]={}
-                          
-            setattr(self,"properties",self.info["properties"])
-            setattr(self,"params",self.info["params"])
 
+                #The attributes will still point to the old info dictionary so that this
+                #pointer is not updated. Reset the attributes.
+                setattr(self,"params", self.info["params"])
+                setattr(self,"properties", self.info["properties"])
+                
             # copy info dict
             if hasattr(other, 'info'):
                 self.params.update(other.info)
@@ -266,6 +286,11 @@ class Atoms(ase.Atoms):
         else:
             raise TypeError('can only copy from instances of matdb.Atoms or ase.Atoms')
 
+        for n, v in self.info["params"].items():
+            self.add_param(n, v)
+        for n, v in self.info["properties"].items():
+            self.add_property(n, v)
+        
         # copy any normal attributes we've missed
         for k, v in other.__dict__.iteritems(): #pragma: no cover
             if not k.startswith('_') and k not in self.__dict__:
