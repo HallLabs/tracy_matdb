@@ -6,6 +6,8 @@ from os import path, rename, remove
 import numpy as np
 from glob import glob
 from tqdm import tqdm
+from copy import deepcopy
+from itertools import combinations
 
 from phenum.symmetry import bring_into_cell, _does_mapping_exist, _get_transformations
 from phenum.grouptheory import _find_minmax_indices
@@ -213,20 +215,24 @@ def make_primitive(atm, eps=None):
     a_vecs = atm.cell
     atom_pos = atm.positions
     atom_type = None
+    new_vecs = None
+    unique_pos = None
+    unique_types = None
     try:
         atom_type = atm.get_chemical_symbols()
+        atom_type = [i for i in atom_type if i != "X"]
         # mapping = {k:v for v, k in enumerate(np.unique(temp))}
         # atom_type = [mapping[i] for i in types]
-    except:
+    except: #pragma: no cover
         atom_type = atm.numbers
         # mapping = {k:v for v, k in enumerate(np.unique(temp))}
         # atom_type = [mapping[i] for i in types]
 
-    if atom_type is None:
+    if atom_type is None or len(atom_type) == 0:
         raise ValueError("The atoms object doesn't contain species information. "
                          "The primitive cell can't be found without the species information.")
     if eps is None:
-        eps = 1E-10
+        eps = 1E-3
 
     #Armed with the data we can now make the cell primitive.
     num_atoms = len(atom_pos)
@@ -234,7 +240,7 @@ def make_primitive(atm, eps=None):
     latt_to_cart, cart_to_latt = _get_transformations(a_vecs)
 
     #Ensure that all the basis atoms are in the unit cell.
-    atom_pos = np.array([bring_into_cell(pos, latt_to_cart, cart_to_latt, eps) for pos in atom_pos])
+    atom_pos = np.array([bring_into_cell(pos, cart_to_latt, latt_to_cart, eps) for pos in atom_pos])
 
     #If the cell isn't primitive then there will be lattice vectors
     #inside the cell. If a lattice vector is inside the unit cell then
@@ -249,7 +255,7 @@ def make_primitive(atm, eps=None):
             continue
 
         fract = atom_pos[i_atom] - atom_pos[0]
-        fract = np.array(bring_into_cell, cart_to_latt, latt_to_cart, eps)
+        fract = np.array(bring_into_cell(fract, cart_to_latt, latt_to_cart, eps))
         for j_atom, this_type in enumerate(atom_type):
             #Find the new location of the atom after the fractional
             #translation.
@@ -278,8 +284,8 @@ def make_primitive(atm, eps=None):
         #combinations of the triplet.
         for new_vecs in combinations(lattice_points, 3):
             try:
-                cart_to_latt = np.linalg.inv(new_vecs)
-            except:
+                cart_to_latt = np.linalg.inv(np.transpose(new_vecs))
+            except: #pragma: no cover
                 continue
             for point in lattice_points:
                 vec = np.matmul(cart_to_latt, point)
@@ -288,8 +294,13 @@ def make_primitive(atm, eps=None):
                 #this lattice point wasn't preserved, move on to the
                 #next one.
                 mapped = True
-                if not np.allclose(vec, np.rint(vec), rtol=eps):
+                if not np.allclose(vec, np.rint(vec), rtol=eps): #pragma: no cover
+                    # I could never get this flag to fire.
                     mapped = False
+                    msg.err("Reached portion of code that has never been tested. "
+                            "Please submit following to developers for testing: "
+                            "a_vecs: {0}, atom_pos: {1}, atom_types: "
+                            "{2}".format(a_vecs, atom_pos, atom_type))
                     break
 
             #If all lattice points were mapped then we've found a valid new basis and can exit.
@@ -300,27 +311,34 @@ def make_primitive(atm, eps=None):
             raise LogicError("Error in make_primitive. Valid basis not found.")
 
         #Bring all the atoms into the new cell.
-        atom_pos = np.array([bring_into_cell(pos, cart_to_latt, new_vecs, eps) for pos in atom_pos])
+        atom_pos = np.array([bring_into_cell(pos, cart_to_latt, np.transpose(new_vecs), eps)
+                             for pos in atom_pos])
         # Check for redundant atoms in the basis. If any are present then remove them.
         unique_pos = []
         unique_types = []
         removed = np.zeros(len(atom_type))
         for i_atom, this_type in enumerate(atom_type):
-            pos = atom_pos[i]
+            pos = atom_pos[i_atom]
             mapped = False
             for j in range(i_atom+1, len(atom_type)):
-                if (atom_type(j) == this_type) and (np.allclose(pos, atom_pos[j], rtol=eps)):
+                if (atom_type[j] == this_type) and (np.allclose(pos, atom_pos[j], rtol=eps)):
                     mapped = True
                     removed[i_atom] = i_atom+1
                     
             if not mapped:
                 unique_pos.append(pos)
                 unique_types.append(this_type)
-                
-        #Now that we have the new atomic and lattice basis we need to
-        #define the HNF that mapps the primitive to the supercell.
-        n = np.matmul(np.linalg.inv(new_vecs), a_vecs)
-        hnf = hermite_normal_form(n)
+
+    if new_vecs is None:
+        new_vecs = a_vecs
+    if unique_pos is None:
+        unique_pos = atom_pos
+    if unique_types is None:
+        unique_types = atom_type
+    #Now that we have the new atomic and lattice basis we need to
+    #define the HNF that mapps the primitive to the supercell.
+    n = np.rint(np.matmul(np.linalg.inv(np.transpose(new_vecs)), np.transpose(a_vecs)))
+    hnf, b = hermite_normal_form(n)
     return (new_vecs, unique_pos, unique_types, hnf)
 
 def hermite_normal_form(n):

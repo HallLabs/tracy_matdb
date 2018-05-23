@@ -84,3 +84,74 @@ def test_hnf():
 
     with pytest.raises(ValueError):
         hermite_normal_form([[1,0,0],[1,0,0],[0,0,0]])
+
+
+def test_make_primitive():
+    """Tests the make_primitive routine.
+    """
+
+    from matdb.Atoms import Atoms
+    from matdb.database.utility import make_primitive
+    from phenum.grouptheory import _is_equiv_lattice
+
+    atm = Atoms(cell=[[0, 0.5, 0.5], [0.5, 0, 0.5], [0.5, 0.5, 0]],
+                positions= [[0, 0, 0]], symbols="Pd")
+
+    new_vecs, unique_pos, unique_types, hnf = make_primitive(atm)
+
+    assert np.allclose(new_vecs, atm.cell)
+    assert np.allclose(unique_pos, unique_pos)
+    assert np.allclose(hnf, np.identity(3))
+    assert unique_types[0] == "Pd"
+
+    atm = Atoms(cell=[[0, 0, -1], [0, 1, 0], [1, -0.5, 0.5]],
+                positions= [[0, 0, 0], [0.5, 0, -0.5], [0, 0.5, -0.5], [0.5, 0.5, 0]],
+                numbers= [41, 41, 41, 41])
+
+    new_vecs, unique_pos, unique_types, hnf = make_primitive(atm)
+    new_lat = np.matmul(np.transpose(new_vecs), hnf)
+    assert _is_equiv_lattice(new_lat, np.transpose(atm.cell), 1E-3)
+    assert np.allclose(new_vecs, [[0.5, 0, -0.5], [0, 0.5, -0.5], [0.5, 0.5, 0]])
+    assert np.allclose(unique_pos, [[0,0,0]])
+    assert np.allclose(np.linalg.det(hnf), 4)
+    assert unique_types[0] == "Nb"
+
+    atm = Atoms(cell=[[0.5, 0.5, 0], [0, 0.5, 0.5], [1.5, -1, 1.5]],
+                positions= [[0, 0, 0], [0.5, 0, 0.5], [1, 0, 1], [1.5, 0, 1.5]],
+                symbols = "Pd3Ag")
+
+    new_vecs, unique_pos, unique_types, hnf = make_primitive(atm)
+    new_lat = np.matmul(new_vecs, hnf)
+    assert _is_equiv_lattice(new_lat, atm.cell, 1E-3)
+    assert np.allclose(new_vecs, atm.cell)
+    assert np.allclose(unique_pos, atm.positions)
+
+    atm = Atoms(cell=[[0, 0, -1], [0, 1, 0], [1, -0.5, 0.5]],
+                positions= [[0, 0, 0], [0.5, 0, -0.5], [0, 0.5, -0.5], [0.5, 0.5, 0]],
+                symbols= "AlPdAlPd")
+
+    new_vecs, unique_pos, unique_types, hnf = make_primitive(atm)
+    new_lat = np.matmul(np.transpose(new_vecs), hnf)
+    assert _is_equiv_lattice(new_lat, np.transpose(atm.cell), 1E-3)
+    assert np.allclose(new_vecs, [[0, 0.5, -0.5], [0, 0, -1], [1, -0.5, 0.5]])
+    assert np.allclose(unique_pos, [[0,0,0],[0.5, 0, -0.5]])
+    assert np.allclose(np.linalg.det(hnf), 2)
+    assert "Al" in unique_types
+    assert "Pd" in unique_types
+
+
+    atm = Atoms(cell=[[1, 0, 0], [0.5, 0.8660254, 0], [0, 0, 1.6329932]],
+                positions= [[0, 0, 0], [0.5, 0.2886751, 0.8164966]],
+                symbols= "Al2")
+
+    new_vecs, unique_pos, unique_types, hnf = make_primitive(atm)
+    assert np.allclose(new_vecs, atm.cell)
+    assert np.allclose(unique_pos, atm.positions)
+    assert np.allclose(np.linalg.det(hnf), 1)
+
+    
+    with pytest.raises(ValueError):
+        atm = Atoms(cell=[[0, 0.5, 0.5], [0.5, 0, 0.5], [0.5, 0.5, 0]],
+                    positions= [[0, 0, 0]])
+
+        stuff = make_primitive(atm)
