@@ -197,8 +197,6 @@ class Atoms(ase.Atoms):
         Args:
             name (str): the name of the attribute.
         """
-        # if hasattr(self, name):
-        #     delattr(self, name)
         if name in self.info["params"]:
             del self.info["params"][name]
 
@@ -208,8 +206,6 @@ class Atoms(ase.Atoms):
         Args:
             name (str): the name of the property/attribute.
         """
-        # if hasattr(self, name):
-        #      delattr(self, name)
         if name in self.info["properties"]:
             del self.info["properties"][name]
             
