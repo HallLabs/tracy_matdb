@@ -105,6 +105,7 @@ class Distortion(Group):
         """
         return self.rset
 
+    @property
     def rset(self):
         """Returns a :class:`matdb.atoms.AtomsList`, one for each config in the
         latest result set.
