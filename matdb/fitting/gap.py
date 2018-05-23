@@ -5,6 +5,8 @@ from os import path
 from matdb import msg
 from collections import OrderedDict
 import numpy as np
+from tqdm import tqdm
+
 from .basic import Trainer
 import lazy_import
 calculators = lazy_import.lazy_module("matdb.calculators")
@@ -293,10 +295,23 @@ class GAP(Trainer):
         if not path.isfile(target):
             al = AtomsList(self._trainfile)
             ol = quippy.AtomsList()
-            for at in al:
+            for at in tqdm(al):
+                #Empty dictionaries in info breaks the quippy fortran
+                #implementation. Delete these entries out.
+                if len(at.info["params"]) == 0:
+                    del at.info["params"]
+                if len(at.info["properties"]) == 0:
+                    del at.info["properties"]
+                
                 ai = quippy.Atoms()
-                print(at.info)
                 ai.copy_from(at)
+                if "properties" in at.info:
+                    #We also need to copy the properties in our info onto the
+                    #properties of the quippy.Atoms object.
+                    ai.arrays.update(at.info["properties"])
+                if "params" in ai.params:
+                    del ai.params["params"]
+                    
                 ol.append(ai)
             ol.write(target)
 
@@ -395,7 +410,9 @@ class GAP(Trainer):
         tsattrs["energy_parameter_name"] = "ref_energy"
         tsattrs["force_parameter_name"] = "ref_force"
         tsattrs["virial_parameter_name"] = "ref_virial"
+        tsattrs["hessian_parameter_name"] = "ref_hessian"
         tsattrs["config_type_parameter_name"] = "config_type"
+        tsattrs["sigma_parameter_name"] = "csigma"
         
         if len(custom) > 0:
             #If we have custom sigmas, add them in; make sure we have specified
