@@ -1,6 +1,7 @@
 """Contains all the utility functions that belong to the database groups."""
 
 from uuid import uuid4
+<<<<<<< HEAD
 from os import path
 from glob import glob
 from copy import deepcopy
@@ -13,6 +14,17 @@ from phenum.grouptheory import _find_minmax_indices
 from matdb import msg
 from matdb.atoms import AtomsList
 from matdb.exceptions import LogicError
+=======
+from cPickle import dump, load
+from os import path, rename, remove
+import numpy as np
+from glob import glob
+from tqdm import tqdm
+        
+from matdb import msg
+from matdb.atoms import AtomsList
+from matdb.utility import dbcat
+>>>>>>> a03ca4e3c5da83fec9c8275c8e09692460df3308
 
 def split(atlist, splits, targets, dbdir, ran_seed, dbfile=None, recalc=0):
     """Splits the :class:`matdb.atoms.AtomsList` multiple times, one for
@@ -26,7 +38,7 @@ def split(atlist, splits, targets, dbdir, ran_seed, dbfile=None, recalc=0):
           contain a {} in the name which will be replaced with the split
           name. The dictionary must have the format {"train": file_name, 
           "holdout": file_name, "super": file_name}.
-        dbdir (str): the root directory for the database.
+        dbdir (str): the root *splits* directory for the database.
         dbfile (str): the _dbfile for a legacy database.
         ran_seed (int or float): the random seed for the splits (i.e. the controllers
           random seed).
@@ -35,19 +47,17 @@ def split(atlist, splits, targets, dbdir, ran_seed, dbfile=None, recalc=0):
           rewrites proceed down the stack. To re-calculate
           lower-level h5 files, increase this value.
     """
-    from matdb.utility import dbcat
-    
     for name, train_perc in splits.items():
         train_file = targets["train"](name)
         holdout_file = targets["holdout"](name)
         super_file = targets["super"](name)
+        idfile = path.join(dbdir, "{0}-ids.pkl".format(name))
         
         if (path.isfile(train_file) and path.isfile(holdout_file)
             and path.isfile(super_file)):
             if recalc <= 0:
                 return
             else:
-                from os import rename, remove
                 if path.isfile(idfile):
                     with open(idfile, 'rb') as f:
                         data = load(f)
@@ -60,10 +70,6 @@ def split(atlist, splits, targets, dbdir, ran_seed, dbfile=None, recalc=0):
 
         #Compile a list of all the sub-configurations we can include in the
         #training.
-        from cPickle import dump, load
-        from tqdm import tqdm
-        idfile = path.join(dbdir, "{0}-ids.pkl".format(name))
-
         if not isinstance(atlist,AtomsList):
             subconfs = AtomsList(atlist)
         else:

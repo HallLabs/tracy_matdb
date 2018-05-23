@@ -110,15 +110,15 @@ class Trainer(object):
         """ase.Calculator: potential for the fitted file in this Trainer.
         """
         self._trainfile = path.join(self.root, "train.h5")
-        """str: path to the XYZ training file that will be passed to the training
+        """str: path to the training file that will be passed to the training
         command.
         """
         self._holdoutfile = path.join(self.root, "holdout.h5")
-        """str: path to the XYZ validation file that will be passed to the training
+        """str: path to the validation file that will be passed to the training
         command.
         """
         self._superfile = path.join(self.root, "super.h5")
-        """str: path to the XYZ super validation file that will be passed to the
+        """str: path to the super validation file that will be passed to the
         training command.
         """
         self._jobfile = path.join(self.root, "jobfile.sh")
@@ -192,7 +192,7 @@ class Trainer(object):
                     splt = self.cust_splits[db]
                     _splitavg.append(1 if splt == '*' else splt)
                 else:
-                    _splitavg.append(db.database.splits[self.split])
+                    _splitavg.append(db.splits[self.split])
             self.params["split"] = sum(_splitavg)/len(self.dbs)
         
     def compile(self):
