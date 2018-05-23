@@ -1,30 +1,18 @@
 """Contains all the utility functions that belong to the database groups."""
 
 from uuid import uuid4
-<<<<<<< HEAD
-from os import path
-from glob import glob
-from copy import deepcopy
-from itertools import combinations
-
-import numpy as np
-from phenum.symmetry import bring_into_cell, _does_mapping_exist, _get_transformations
-from phenum.grouptheory import _find_minmax_indices
-
-from matdb import msg
-from matdb.atoms import AtomsList
-from matdb.exceptions import LogicError
-=======
 from cPickle import dump, load
 from os import path, rename, remove
 import numpy as np
 from glob import glob
 from tqdm import tqdm
-        
+
+from phenum.symmetry import bring_into_cell, _does_mapping_exist, _get_transformations
+from phenum.grouptheory import _find_minmax_indices
+
 from matdb import msg
 from matdb.atoms import AtomsList
 from matdb.utility import dbcat
->>>>>>> a03ca4e3c5da83fec9c8275c8e09692460df3308
 
 def split(atlist, splits, targets, dbdir, ran_seed, dbfile=None, recalc=0):
     """Splits the :class:`matdb.atoms.AtomsList` multiple times, one for
