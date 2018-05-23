@@ -118,8 +118,6 @@ class Atoms(ase.Atoms):
             self.info["params"]={}
         if "properties" not in self.info:
             self.info["properties"]={}
-        setattr(self,"params",self.info["params"])
-        setattr(self,"properties",self.info["properties"])
 
         if isinstance(symbols,ase.Atoms):
             for k, v in symbols.arrays.items():
@@ -153,7 +151,8 @@ class Atoms(ase.Atoms):
 
         if info is not None:
             for k, v in info.items():
-                self.add_param(k,v)
+                if k not in ["params","properties"]:
+                    self.add_param(k,v)
                 
         if self.info is not None:
             for k, v in self.info.items():
@@ -173,12 +172,11 @@ class Atoms(ase.Atoms):
             name (str): the name of the attribute.
             value: the value/values that are associated with the attribute.
         """
-
+        name = str(name)
         if hasattr(self,name) or name in self.info["properties"]:
             self.info["properties"][name] = value
         else:
             self.info["properties"][name]=value
-        setattr(self,name,self.info["properties"][name])
 
     def add_param(self,name,value):
         """Adds an attribute to the class instance.
@@ -187,13 +185,34 @@ class Atoms(ase.Atoms):
             name (str): the name of the attribute.
             value: the value/values that are associated with the attribute.
         """
-
+        name = str(name)
         if hasattr(self,name) or name in self.info["params"]:
             self.info["params"][name] = value
         else:
             self.info["params"][name]=value
-        setattr(self,name,self.info["params"][name])
+        
+    def rm_param(self,name):
+        """Removes a parameter as attribute from the class instance and info dictionary.
 
+        Args:
+            name (str): the name of the attribute.
+        """
+        # if hasattr(self, name):
+        #     delattr(self, name)
+        if name in self.info["params"]:
+            del self.info["params"][name]
+
+    def rm_property(self, name):
+        """Removes a property as attribute from the class instance and info dictionary.
+
+        Args:
+            name (str): the name of the property/attribute.
+        """
+        # if hasattr(self, name):
+        #      delattr(self, name)
+        if name in self.info["properties"]:
+            del self.info["properties"][name]
+            
     def __del__(self):
         attributes = list(vars(self))
         for attr in attributes:
@@ -202,6 +221,37 @@ class Atoms(ase.Atoms):
             else:
                 self.attr = None
 
+    def __getattr__(self, name):
+        if name in ["params", "properties"]:
+            return self.info[name]
+        else:
+            _dict = object.__getattribute__(self, "__dict__")
+            if "info" in _dict:
+                info = object.__getattribute__(self, "info")
+                if "params" in info and name in info["params"]:
+                    return info["params"][name]
+                elif "properties" in info and name in info["properties"]:
+                    return info["properties"][name]
+                else:
+                    return object.__getattribute__(self, name)
+            else:
+                return object.__getattribute__(self, name)
+
+    def __setattr__(self, name, value):
+        if name in ["params", "properties"]:
+            self.info[name] = value
+        else:
+            if "info" in object.__getattribute__(self, "__dict__"):
+                info = object.__getattribute__(self, "info")
+                if "params" in info and name in info["params"]:
+                    info["params"][name] = value
+                elif "properties" in info and name in info["properties"]:
+                    info["properties"][name] = value
+                else:
+                    return super(Atoms, self).__setattr__(name, value)
+            else:
+                return super(Atoms, self).__setattr__(name, value)
+        
     def copy(self):
         """Returns a copy of this atoms object that has different pointers to
         self, values, etc.
@@ -252,11 +302,6 @@ class Atoms(ase.Atoms):
                           constraint=constraint, info=info, calculator=other.calc,
                           group_uuid = group_uuid)
 
-            #The attributes will still point to the old info dictionary so that this
-            #pointer is not updated. Reset the attributes.
-            setattr(self,"params", info["params"])
-            setattr(self,"properties", info["properties"])
-            
         elif isinstance(other, ase.Atoms):
             super(Atoms, self).__init__(other)
             if "params" not in self.info:
@@ -264,11 +309,6 @@ class Atoms(ase.Atoms):
             if "properties" not in self.info:
                 self.info["properties"]={}
 
-                #The attributes will still point to the old info dictionary so that this
-                #pointer is not updated. Reset the attributes.
-                setattr(self,"params", self.info["params"])
-                setattr(self,"properties", self.info["properties"])
-                
             # copy info dict
             if hasattr(other, 'info'):
                 self.params.update(other.info)
@@ -285,15 +325,11 @@ class Atoms(ase.Atoms):
 
         else:
             raise TypeError('can only copy from instances of matdb.Atoms or ase.Atoms')
-
-        for n, v in self.info["params"].items():
-            self.add_param(n, v)
-        for n, v in self.info["properties"].items():
-            self.add_property(n, v)
         
         # copy any normal attributes we've missed
         for k, v in other.__dict__.iteritems(): #pragma: no cover
             if not k.startswith('_') and k not in self.__dict__:
+                print("LOOP", str(k), hasattr(self, str(k)))
                 self.__dict__[k] = v
 
     def read(self,target="atoms.h5",**kwargs):
