@@ -22,7 +22,7 @@ def conform_supercell(supercell):
     if isinstance(supercell, (list, tuple)):
         assert len(supercell) == 3 or len(supercell) == 9
         if len(supercell) == 3:
-            scell = np.identity(supercell)
+            scell = np.diag(supercell)
         else:
             scell = np.array(supercell).reshape(3, 3)
     elif isinstance(supercell, np.ndarray):
