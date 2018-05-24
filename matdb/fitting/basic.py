@@ -262,8 +262,7 @@ class Trainer(object):
         fitted GAP potential in this trainer.
         """
         if self._calculator is None:
-            with chdir(self.root):
-                self._calculator = self.get_calculator()
+            self._calculator = self.get_calculator()
         return self._calculator
             
     @property
