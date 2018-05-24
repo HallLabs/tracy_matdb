@@ -88,6 +88,10 @@ class Trainer(object):
         if not path.isdir(self.root):
             mkdir(self.root)
 
+        self.cachedir = path.join(self.root, "cache")
+        if not path.isdir(self.cachedir):
+            mkdir(self.cachedir)
+            
         #Find all the database sequences that match the patterns supplied to us.
         self.dbs = []
         self.cust_splits = {}
