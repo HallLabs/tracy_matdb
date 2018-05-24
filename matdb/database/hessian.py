@@ -15,6 +15,7 @@ from phonopy.cui.settings import PhonopyConfParser
 from matdb import msg
 from matdb.atoms import Atoms, AtomsList
 from matdb.phonons import roll as roll_fc
+from matdb.transforms import conform_supercell
 
 def unroll_fc(fc):
     """Unroll's the phonopy force constants matrix into the Hessian.
@@ -119,10 +120,7 @@ class Hessian(Group):
 
             #Make sure that the supercell matrix has positive determinant for
             #phonopy; if it doesn't correct it.
-            if len(self.supercell) == 3:
-                scell = np.diag(self.supercell)
-            else:
-                scell = np.array(self.supercell).reshape(3,3)
+            scell = conform_supercell(self.supercell)
             det = np.linalg.det(scell)
             if det < 0:
                 self.supercell = list(np.array(self.supercell)*-1)
