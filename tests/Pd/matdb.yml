@@ -29,7 +29,7 @@ calculator:
     directory: './tests/vasp'
     xc: 'PBE'
     versions:
-      One: '28Jan2005'
+      Pd: '28Jan2005'
     setups:
       Pd: '_pv'
 # Parameters for the job arrays that will be submitted for each

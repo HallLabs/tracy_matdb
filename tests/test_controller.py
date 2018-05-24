@@ -8,7 +8,7 @@ import pytest
 from matdb.utility import reporoot, relpath
 import six
 
-def _mimic_vasp(folder, xroot):
+def _mimic_vasp(folder, xroot, prefix="W.1"):
     """Copies a `vasprun.xml` and `OUTCAR ` output files from the given folder into
     the execution directory to mimic what VASP would have done.
 
@@ -28,7 +28,7 @@ def _mimic_vasp(folder, xroot):
             pattern = vaspfile + "__*"
             for dft in glob(pattern):
                 name, config = dft.split("__")
-                xpath = path.join(xroot, path.join(*config.split("_")), "W.1")
+                xpath = path.join(xroot, path.join(*config.split("_")), prefix)
                 #We want to make some testing assertions to ensure that the
                 #stubs ran correctly.
                 assert path.isfile(path.join(xpath, "CONTCAR"))
@@ -61,14 +61,38 @@ def Pd(tmpdir):
     result = Controller(target, dbdir)
     return result
 
+@pytest.fixture()
+def Pd_2(tmpdir):
+    from matdb.utility import relpath
+    from matdb.database import Controller
+    from os import mkdir, symlink, remove, path
 
-@pytest.mark.skip()
+    target = relpath("./tests/Pd/matdb")
+    dbdir = str(tmpdir.join("pd_2_db"))
+    if not path.isdir(dbdir):
+        mkdir(dbdir)
+
+    from shutil import copy
+    POSCAR = relpath("./tests/Pd/POSCAR")
+    if not path.isdir(path.join(dbdir,"seed")):
+        mkdir(path.join(dbdir,"seed"))
+    copy(POSCAR, path.join(dbdir,"seed","Pd"))
+    if path.isfile("matdb.yml"):
+        remove("matdb.yml")
+    symlink("{}.yml".format(target),"matdb.yml")
+
+    result = Controller("matdb",dbdir)
+    remove("matdb.yml")
+    result = Controller(target, dbdir)
+    return result
+
+@pytest.fixture()
 def AgPd(tmpdir):
     from matdb.utility import relpath
     from matdb.database import Controller
     from os import mkdir, symlink, remove, path
 
-    target = relpath("./tests/AgPd/matdb")
+    target = relpath("./tests/AgPd/matdb_manual")
     dbdir = str(tmpdir.join("agpd_db"))
     mkdir(dbdir)
 
@@ -153,7 +177,7 @@ def test_AgPd_setup(AgPd):
     modelroot = path.join(AgPd.root, "Manual","phonon","Ag")
     assert AgPd["Manual/phonon/Ag/"].root == modelroot
 
-@pytest.mark.skip()
+#@pytest.mark.skip()
 def test_steps(Pd):
     """Tests compilation of all steps in the database.
     """
@@ -164,9 +188,9 @@ def test_steps(Pd):
     
     seqs = sorted(['Pd'])
     assert Pd.sequences() == seqs
-@pytest.mark.skip()
+#@pytest.mark.skip()
 def test_find(Pd):
-    """Tests the find function with pattern matching.
+    """Tests the find function and the __getitem__ method with pattern matching.
     """
     Pd.setup()
     steps = Pd.find("manual/phonon")
@@ -174,7 +198,7 @@ def test_find(Pd):
     assert model == [s.parent.name for s in steps]
     model = [path.join(Pd.root,'Manual/phonon')]
     assert sorted(model) == sorted([s.root for s in steps])
-
+   
     steps = Pd.find("*/phonon")
     model = ['phonon']
     assert model == [s.parent.name for s in steps]
@@ -208,23 +232,130 @@ def test_find(Pd):
     # test uuid finding.
     assert all([Pd.find(s.uuid)==s for s in steps])
 
-@pytest.mark.skip()
+    # test the __getitem__ method
+    model = 'phonon'
+    modelroot = path.join(Pd.root,'Manual/phonon')
+    group = Pd["manual/phonon"]
+    assert group.parent.name == model
+    assert group.root == modelroot
+
+    model = 'manual'
+    modelroot = path.join(Pd.root,'Manual/phonon/Pd')
+    group = Pd["manual/phonon/Pd"]
+    assert group.parent.name == model
+    assert group.root == modelroot
+
+    group = Pd["manual/phonon/Pd/S1.1"]
+    assert group.parent.name == model
+    assert group.root == modelroot
+
+    group = Pd["enumeration/phonon"]
+    print group
+    assert group == None
+
 def test_execute(Pd):
     """Tests the execute and extract methods 
     """
-    Pd.setup()
-    Pd.execute(env_vars={"SLURM_ARRAY_TASK_ID":"1"})
-    Pd.extract()
+    from os import path
+    from matdb.utility import relpath, chdir
+    
+    Pd.status()
+    status = "ready to execute 0/0; finished executing 0/0;"
     for key, db in Pd.collections.items():
         for group_name, group in db.steps.items():
+            assert group.status() == status
+             
+    Pd.setup()
+    status = "ready to execute 1/1; finished executing 0/1;"
+    for key, db in Pd.collections.items():
+        for group_name, group in db.steps.items():
+            assert group.status() == status
+    
+    Pd.execute(env_vars={"SLURM_ARRAY_TASK_ID":"1"})
+    folder = path.join(reporoot, "tests", "data", "Pd", "manual")
+    _mimic_vasp(folder,Pd.root,"S1.1")
+    status = "ready to execute 1/1; finished executing 1/1;"
+    for key, db in Pd.collections.items():
+        for group_name, group in db.steps.items():
+            assert group.status() == status
+    
+    with chdir(path.join(Pd.root,"Manual","phonon","Pd","S1.1")):
+        Pd.extract()
+    status = "ready to execute 0/1; finished executing 0/1;"
+    for key, db in Pd.collections.items():
+        for group_name, group in db.steps.items():
+            assert group.status() == status
+            
+    for key, db in Pd.collections.items():
+        for group_name, group in db.steps.items():
+            group.ready()
             assert group.ready()
-        
-@pytest.mark.skip()
-def test_hash(Pd):
+
+def test_recovery(Pd):
+    """Tests the rerun on unfinshed jobs
+    """
+    from os import path
+    from matdb.utility import symlink, chdir
+    from glob import glob
+
+    Pd.setup()
+    Pd.execute(env_vars={"SLURM_ARRAY_TASK_ID":"1"})
+
+    files = ["vasprun.xml", "OUTCAR"]
+    folder = path.join(reporoot, "tests", "data", "Pd", "manual_recover")
+    with chdir(folder):
+        for vaspfile in files:
+            pattern = vaspfile + "__*"
+            for dft in glob(pattern):
+                name, config = dft.split("__")
+                xpath = path.join(Pd.root, path.join(*config.split("_")), "S1.1")
+                target = path.join(xpath, name)
+                symlink(target, path.join(folder, dft))
+
+    with chdir(path.join(Pd.root,"Manual","phonon","Pd","S1.1")):
+        Pd.extract()
+    
+    Pd.recover(True)
+    assert path.isfile(path.join(Pd.root,"Manual","phonon","Pd","recovery.sh"))
+    assert path.isfile(path.join(Pd.root,"Manual","phonon","Pd","failures"))
+
+    folder = path.join(reporoot, "tests", "data", "Pd", "manual")
+    _mimic_vasp(folder,Pd.root,"S1.1")
+    Pd.recover(True)
+    assert not path.isfile(path.join(Pd.root,"Manual","phonon","Pd","recovery.sh"))
+    assert not path.isfile(path.join(Pd.root,"Manual","phonon","Pd","failures"))
+
+def test_split(Pd):
+    """ Tests the split method
+    """
+    from matdb.utility import chdir
+    Pd.setup()
+    Pd.execute(env_vars={"SLURM_ARRAY_TASK_ID":"1"})
+    outcar = path.join(reporoot,"tests","data","Pd","manual")
+    _mimic_vasp(outcar, Pd.root,"S1.1")
+    folder = path.join(Pd.root,"Manual","phonon","Pd","S1.1")
+    with chdir(folder):
+        Pd.extract()
+    import pudb
+    pudb.set_trace()
+    Pd.split()
+    
+def test_hash(Pd,Pd_2):
     """Tests the hash_dbs and verify_hash methods
     """
+    from os import path, chdir
     Pd.setup()
-    print Pd.hash_dbs()
+    Pd.execute(env_vars={"SLURM_ARRAY_TASK_ID":"1"})
+    folder = path.join(reporoot, "tests", "data", "Pd", "manual")
+    _mimic_vasp(folder,Pd.root,"S1.1")
+    db_hash = Pd.hash_dbs()
+    assert Pd.verify_hash(db_hash)
+    
+    # test to make sure a change in the databas produces a different hash
+    Pd_2.setup()
+    Pd_2.execute(env_vars={"SLURM_ARRAY_TASK_ID":"1"})
+    _mimic_vasp(folder,Pd_2.root,"S1.1")
+    assert Pd_2.hash_dbs != db_hash
     
 @pytest.mark.skip()    
 def test_Pd_hessian(Pd):

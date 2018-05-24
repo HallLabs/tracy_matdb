@@ -149,6 +149,8 @@ class Group(object):
             for folder in glob("{}.*".format(prefix)):
                 try:
                     cid = int(folder.split('.')[1])
+                    import pudb
+                    pudb.set_trace()
                     self.configs[cid] = path.join(self.root, folder)
                     if path.isfile(path.join(self.configs[cid],"atoms.h5")):
                         self.config_atoms[cid] = Atoms(path.join(self.configs[cid],"atoms.h5"))
@@ -420,7 +422,6 @@ class Group(object):
         """
         
         hash_str = convert_dict_to_str(self.to_dict(include_time_stamp=False))
-        print self.rset
         for atom in self.rset:
             temp_atom = Atoms(atom)
             hash_str += convert_dict_to_str(temp_atom.to_dict())
@@ -738,6 +739,8 @@ class Group(object):
             else:
                 trans_atoms.write(path.join(target,"atoms.h5"))
             #Finally, store the configuration for this folder.
+            import pudb
+            pudb.set_trace()
             self.configs[cid] = target
             self.config_atoms[cid] = trans_atoms
 
@@ -1109,7 +1112,6 @@ class Database(object):
         """
         hashes = ''
         for name, step in self.steps.items():
-            print step
             hashes += ' '
             hashes += step.hash_group()
 
@@ -1338,7 +1340,7 @@ class RecycleBin(Database):
         """
 
         hash_str = ""
-        for atom in self.rset():
+        for atom in self.rset:
             temp_atom = Atoms(atom)
             hash_str += convert_dict_to_str(temp_atom.to_dict())
 
@@ -1614,7 +1616,7 @@ class Controller(object):
             group, dbname, seed, params = key.split('/')
         elif key.count('/') == 2:
             group, dbname, seed = key.split('/')
-            seed = None
+            params = None
         else:
             group, dbname = key.split('/')
             seed = None
