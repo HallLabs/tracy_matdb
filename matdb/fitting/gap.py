@@ -315,6 +315,14 @@ class GAP(Trainer):
                 ol.append(ai)
             ol.write(target)
 
+    def extras(self):
+        """Returns the sparse points file as extras for the fit if it exists.
+        """
+        if path.isfile(self.sparse_file):
+            return [self.sparse_file]
+        else:
+            return []
+            
     @property
     def sparse_file(self):
         """Returns the path to the sparse point file that includes random
@@ -344,8 +352,18 @@ class GAP(Trainer):
         
         result = AtomsList()
         for hseed in hessians:
+            #Make sure that the random sparse points don't have any data for
+            #energy/force/virial/hessian.
+            atEmpty = hseed.copy()
+            for k in list(hseed.params.keys()):
+                if "energy" in k or "virial" in k or "hessian" in k:
+                    atEmpty.rm_param(k)
+            for k in list(hseed.properties.keys()):
+                if "force" in k or "hessian" in k:
+                    atEmpty.rm_property(k)
+
             for i in range(n_ratio):
-                atRand = hseed.copy()
+                atRand = atEmpty.copy()
                 p = atRand.get_positions()
                 atRand.set_positions(p  + 0.1*2*(np.random.random_sample(p.shape)))
                 result.append(atRand)
@@ -359,9 +377,11 @@ class GAP(Trainer):
         .. note:: This method also configures the directory that the command
           will run in so that it has the relevant files.
         """
-        #Generate any random sparse points and the seed XYZ training file.
-        self.compile()
+        #Generate any random sparse points and the seed XYZ training file. We
+        #need to generate sparse points *before* we compile the training
+        #database.
         self._sparse_points()
+        self.compile()
         self._create_xyz()
 
         template = ("teach_sparse at_file={train_file} \\\n"
