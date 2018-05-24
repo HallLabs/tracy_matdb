@@ -14,6 +14,7 @@ calculators = lazy_import.lazy_module("matdb.calculators")
 from matdb.calculators import Quip
 from matdb.atoms import AtomsList
 from matdb.database.hessian import Hessian
+from matdb.utility import chdir
 
 def update_nbody(settings):
     """Adds the usual n-body settings to the specified dictionary. This function
@@ -200,8 +201,11 @@ class GAP(Trainer):
         """Returns an instance of :class:`ase.Calculator` using the latest
         fitted GAP potential in this trainer.
         """
-        if path.isfile(self.gp_file):
-            return Quip("IP GAP", param_filename=self.gp_file)
+        if path.isfile(path.join(self.root, self.gp_file)):
+            with chdir(self.root):
+                controot = self.controller.db.root
+                return Quip(None, self.root, controot, 0, "IP GAP",
+                            param_filename=self.gp_file)
 
     def ready(self):
         return path.isfile(path.join(self.root, self.gp_file))
