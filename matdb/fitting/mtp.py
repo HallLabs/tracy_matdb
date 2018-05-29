@@ -11,7 +11,7 @@ from tqdm import tqdm
 from matdb import msg
 from matdb.utility import cat, chdir
 from matdb.fitting.basic import Trainer
-from matdb.exceptions import MlpError
+from matdb.exceptions import MlpError, LogicError
 
 
 def RepresentsInt(s):
@@ -408,6 +408,9 @@ class MTP(Trainer):
 
                 self.active.add_configs(new_configs, iter_count)
                 self.active.setup()
+                if len(self.active.configs) != self.active.nconfigs: #pragma: no cover
+                    raise LogicError("The active database failed to setup the calculations "
+                                     "for iteration {0}".format(iter_count))
                 self.active.execute()
             
             with open(path.join(self.root,"status.txt"),"w+") as f:
