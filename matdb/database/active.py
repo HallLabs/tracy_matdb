@@ -154,4 +154,33 @@ class Active(Group):
               already exist.
 
         """
-        super(Active, self).setup(self._setup_configs,rerun)           
+        super(Active, self).setup(self._setup_configs,rerun)
+
+    def is_executing(self):
+        """Returns True if the most recently added configurations are in
+        process of being executed.
+        """
+
+        self._expand_sequence()
+        if len(self.sequence) == 0:
+            is_executing = False
+            if len(self.configs) == self.nconfigs:
+                # There have been configurations added to the database
+                # that haven't been setup yet.
+                return False
+            else:
+                # We only want to know if the last iteration's files are
+                # being executed, the old iterations don't matter.
+                for config in self.last_iteration:
+                    try:
+                        atoms = Atoms(path.join(config, "pre_comp_atom.h5"))
+                    except:
+                        atoms = Atoms(path.join(config, "atoms.h5"))
+                    is_executing = atoms.calc.is_executing(self.configs[i])
+                    if is_executing:
+                        break                
+        else:
+            executing = [group.is_executing() for group in self.sequence.values()]
+            is_executing = all(executing)
+            
+        return is_executing
