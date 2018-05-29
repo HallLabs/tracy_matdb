@@ -1,15 +1,18 @@
 """Implements classes and methods for performing a GAP fit over a
 database defined in the YAML specification file.
 """
-from os import path, rename
-from matdb import msg
+from os import path, rename, remove
 from collections import OrderedDict
 import numpy as np
-from .basic import Trainer
-from matdb.utility import cat, chdir
 from glob import glob
 import os
 from tqdm import tqdm
+
+from matdb import msg
+from matdb.utility import cat, chdir
+from matdb.fitting.basic import Trainer
+from matdb.exceptions import MlpError
+
 
 def RepresentsInt(s):
     try: 
@@ -71,7 +74,8 @@ class MTP(Trainer):
         db_root = self.controller.db.root
         steps = [{"type":"active.Active"}]
         dbargs = {"root":db_root,
-                  "parent":Database("active", db_root, self.controller.db, steps, {}),
+                  "parent":Database("active", db_root, self.controller.db, steps, {},
+                                    self.ran_seed),
                   "calculator":self.controller.db.calculator}
         self.active = Active(**dbargs)
         self._trainfile = path.join(self.root, "train.cfg")
@@ -160,14 +164,23 @@ class MTP(Trainer):
                     self._create_train_cfg(config)
                     pbar.update(1)
         else:
+            if self.active.last_iteration is None or len(self.active.last_iteration) < 1:
+                if path.isfile(self.active.iter_file):
+                    self.active._load_last_iter()
+                else:
+                    msg.err("File {0} containing most recently added "
+                            "structures is missing.".format(self.active.iter_file))
+            msg.info("Extracting from {0} folders".format(len(self.active.last_iteration)))
+            self.active.extract()
             pbar = tqdm(total=len(self.active.last_iteration.values()))
             for config in self.active.last_iteration.values():
-                self._create_train_cfg(path.join(self.root,"train.cfg"),config)
+                self._create_train_cfg(config)
                 pbar.update(1)
 
     def _create_train_cfg(self,target):
         """Creates a 'train.cfg' file for the calculation stored at the target
         directory.
+
         Args:
             target (str): the path to the directory in which a calculation 
                 was performed.
@@ -344,9 +357,14 @@ class MTP(Trainer):
             # create the 'to-relax.cfg' file.
             with chdir(self.root):
                 os.system("mlp calc-grade pot.mtp train.cfg train.cfg temp1.cfg")
+
+            if not path.isfile(path.join(self.root, "state.mvs")):
+                raise MlpError("mlp failed to produce the 'state.mvs` file with command "
+                               "'mlp calc-grade pot.mtp train.cfg train.cfg temp1.cfg'")
+            
             if path.isfile(path.join(self.root,"unrelaxed.cfg")):
                 rename(path.join(self.root,"unrelaxed.cfg"),path.join(self.root,"to-relax.cfg"))
-            else:
+            elif not path.isfile(path.join(self.root,"to-relax.cfg")):
                 self._make_to_relax_cfg()
 
             # command to relax structures
@@ -386,6 +404,7 @@ class MTP(Trainer):
                             f.write(line)
                             
                     new_configs.append(Atoms(POSCAR,format="vasp"))
+                    remove(POSCAR)
 
                 self.active.add_configs(new_configs, iter_count)
                 self.active.setup()
