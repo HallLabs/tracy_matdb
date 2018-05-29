@@ -702,15 +702,22 @@ class Group(object):
 
         if "priority" in exec_settings:
             tracy["contract_priority"] = exec_settings["priority"]
+
+        keys = ["time", "flops", "minimum_ram", "minimum_mem", "ncores", "network_latency",
+                "role"]
+        for key in keys:
+            if key not in exec_settings.keys():
+                raise ValueError("{0} must be set by the user.")
         
         tracy["max_time"] = int(exec_settings["time"])*360
-        tracy["min_flops"] = exec_settings["flops"]
-        tracy["min_ram"] = exec_settings["minimum_ram"]
-        tracy["min_mem"] = exec_settings["minimum_mem"]
-        tracy["ncores"] = exec_settings["ntasks"]
-        tracy["max_net_lat"] = exec_settings["network_latency"]
+        tracy["min_flops"] = int(exec_settings["flops"])
+        tracy["min_ram"] = int(exec_settings["minimum_ram"])
+        tracy["min_mem"] = int(exec_settings["minimum_mem"])
+        tracy["ncores"] = int(exec_settings["ncores"])
+        tracy["max_net_lat"] = int(exec_settings["network_latency"])
         tracy["role"] = exec_settings["role"]
-        tracy["notifications"] = exec_settings["notifications"]
+        if "notifications" in exec_settings:
+            tracy["notifications"] = exec_settings["notifications"]
 
         return {"calcargs": calcinput, "tracy": tracy}
 

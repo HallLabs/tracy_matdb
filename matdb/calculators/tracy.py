@@ -6,6 +6,7 @@ from os import path
 from random import seed, uniform
 import json
 import abc
+import numpy as np
 
 from matdb.database.utility import make_primitive
 from matdb.descriptors import soap
@@ -38,15 +39,17 @@ class Tracy(AsyncCalculator):
             self.contract_id = None
             
         if path.isfile(path.join(folder, "post_print.txt")):
-            with open(path.join(folder, "post_print.txt")):
+            with open(path.join(folder, "post_print.txt"), "r") as f:
                 self.after_print = f.readline().strip()
         else:
             self.after_print = None
 
         # All these will be set by either input or latter methods
+        self.role = role
+        self.type_map = None
         self.contract_type = None
         self.input_dict = None
-        self.ecommerce_priority = ecommerce if ecommerce is not None else 1
+        self.ecommerce = ecommerce if ecommerce is not None else 1
         self.group_preds = group_preds
         self.contract_preds = contract_preds
         self.contract_priority = contract_priority if contract_priority is not None else 1
@@ -64,7 +67,16 @@ class Tracy(AsyncCalculator):
             A dictionary of the compressed structure that the
             decompression algorithm can unpack.
         """
+        if np.allclose(0, atoms.cell):
+            raise ValueError("The Atoms object must contian cell vectors in order "
+                             "to be compressed.")
+        
         a_vecs, pos, types, hnf = make_primitive(self.atoms)
+        if self.type_map is None:
+            self.type_map = {}
+            for v, k in enumerate(types):
+                self.type_map[k] = v
+            
 
         result = {"a": [list(a) for a in a_vecs],
                   "b": [list(b) for b in pos],
@@ -73,7 +85,7 @@ class Tracy(AsyncCalculator):
         return result
 
     @abc.abstractmethod
-    def get_input_dict(self):
+    def get_input_dict(self): #pragma: no cover
         """Constructs the input dictionary from the files written.
         """
         pass
@@ -116,11 +128,9 @@ class Tracy(AsyncCalculator):
         package["Number of Cores"] = self.sys_specs["ncores"]
         package["Maximum Network Latency"] = self.sys_specs["max_net_lat"]
         
-        if self.can_execute(self, self.folder):
-            package["Date Ready"] = datetime.now()
-        job_reqs = self._get_job_reqs()
-        for k,v in job_needs.values():
-            package[k] = v
+        if self.can_execute(self.folder):
+            fmt = '%Y%m%d%H%M%S'
+            package["Date Ready"] = datetime.now().strftime(fmt)
             
         if self.group_preds is not None:
             package["Group Predecessors"] = self.group_preds
@@ -150,12 +160,6 @@ class Tracy(AsyncCalculator):
         # Here we need to da a querry of the endpoint to determin if
         # the calculation has been started.
         pass
-
-    def to_dict(self):
-        """Converts the arguments of the calculation to a dictionary.
-        """
-        results = {}
-        return results        
         
 class Tracy_QE(Tracy, Qe):
     """Represents a DFT calculation that will be submitted to the Tracy queue.
@@ -177,7 +181,8 @@ class Tracy_QE(Tracy, Qe):
     key = "tracy_qe"
         
     def __init__(self, atoms, folder, contr_dir, ran_seed, *args, **kwargs):
-        
+
+        self.in_kwargs = kwargs.copy()
         self.contract_type = 1
         QE_input = kwargs["calcargs"]
         tracy_input = kwargs["tracy"]
@@ -192,65 +197,68 @@ class Tracy_QE(Tracy, Qe):
         Qe.__init__(self, atoms, folder, contr_dir, ran_seed, **QE_input)
         Tracy.__init__(self, folder, **tracy_input)
 
-    def _check_potcar(self):
+    def _check_potcars(self):
         """We don't construct the potetial files on the user's end so we don't
         actuall want to do any checking.
         """
         pass
 
-    def write_input(self, folder):
+    def write_input(self, atoms):
         """Writes the input to a folder.
         
         Args:
-            folder (str): the path to the folder for this calculation.
+            atoms (Atoms): an instance of :class:`matdb.atoms.Atoms`.
         """
 
-        Qe.write_input(folder)
-        self.prep_submit(folder)
+        Qe.write_input(self, atoms)
+        self.prep_submit(self.folder)
 
     def get_input_dict(self):
         """Reads in the input file to a dictionary.
         """
         self.input_dict = {}
         self.type_map = {}
-        skip_until_next_key == False
+        skip_until_next_key = False
         k_val = None
         with open(path.join(self.folder, "espresso.pwi"), "r") as f:
             for line in f:
-                if "&" in line:
-                    key = line.strip()[1:]
-                    skip_until_next_key == False
-                elif line.strip().lower() == "atomic_species":
-                    key = "atomic_species"
-                    skip_until_next_key == False
-                elif line.strip().split()[0].lower() == "k_points":
-                    key = "k_points"
-                    k_val = line.strip().split()[1]
-                    skip_until_next_key == False
-                elif line.strip().split()[0].lower() in ["cell_paramaters", "atomic_positions"]:
-                    skip_until_next_key = True
-                elif not skip_until_next_key:
-                    if "=" in line:
-                        sub_key, val = line.strip().split("=")
-                        if sub_key == "psuedo_dir":
+                if not line.strip() == '':
+                    if "&" in line:
+                        key = line.strip()[1:]
+                        skip_until_next_key == False
+                    elif line.strip().lower() == "atomic_species":
+                        key = "atomic_species"
+                        skip_until_next_key == False
+                    elif line.strip().split()[0].lower() == "k_points":
+                        key = "k_points"
+                        k_val = line.strip().split()[1]
+                        skip_until_next_key == False
+                    elif line.strip() != '' and line.strip().split()[0].lower() in ["cell_paramaters", "atomic_positions"]:
+                        skip_until_next_key = True
+                    elif not skip_until_next_key:
+                        if "=" in line:
+                            sub_key, val = line.strip().split("=")
+                            sub_key = sub_key.strip()
+                            val = val.strip()
+                            if sub_key == "pseudo_dir":
+                                continue
+                            self.input_dict[key][sub_key] = val
+                        elif line.strip() == "/":
                             continue
-                        self.input_dict[key][sub_key] = val
-                    elif line.strip() == "/":
-                        continue
-                    elif k_val is not None and key == "k_points":
-                        self.input_dict[key][k_val] = line.strip()
-                    elif key == "atomic_species":
-                        species = line.strip().split()[0]
-                        if species not in self.type_map.keys():
-                            self.type_map[species] = len(self.type_map.keys())
+                        elif k_val is not None and key == "k_points":
+                            self.input_dict[key][k_val] = line.strip()
+                        elif key == "atomic_species":
+                            species = line.strip().split()[0]
+                            if species not in self.type_map.keys():
+                                self.type_map[species] = len(self.type_map.keys())
                             
-                        self.input_dict[key][self.type_map[species]] = uniform(0, 100)
-                    else: #pragma: no cover
-                        msg.warn("Could no process line {0} of file "
-                                 "{1}".format(line, path.join(self.folder, "espresso.pwi")))
-                    
-                if key not in input_dict.keys():
-                    self.input_dict[key] = {}
+                            self.input_dict[key][self.type_map[species]] = uniform(0, 100)
+                        else: #pragma: no cover
+                            msg.warn("Could no process line {0} of file "
+                                     "{1}".format(line, path.join(self.folder, "espresso.pwi")))
+                            
+                    if key not in self.input_dict.keys():
+                        self.input_dict[key] = {}
 
     def can_execute(self, folder):
         """Returns True if the specified file is ready to be submitted to the queue.
@@ -258,7 +266,7 @@ class Tracy_QE(Tracy, Qe):
         Args:
             folder (str): the path to the folder.
         """
-        qe_ready = Qe.can_execute(folder)
+        qe_ready = Qe.can_execute(self, folder)
         sub_ready = path.isfile(path.join(folder,"submission.json"))
         return qe_ready and sub_ready
                     
@@ -268,3 +276,9 @@ class Tracy_QE(Tracy, Qe):
         # Waiting on Andrew for this part
         pass
         
+    def to_dict(self):
+        """Converts the arguments of the calculation to a dictionary.
+        """
+        results = {"kwargs": self.in_kwargs, "folder": self.folder,
+                   "ran_seed": self.ran_seed, "contr_dir": self.contr_dir}
+        return results        
