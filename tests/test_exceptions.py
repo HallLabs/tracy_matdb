@@ -25,3 +25,11 @@ def test_logic():
 
     with pytest.raises(LogicError):
         raise LogicError("Test of version error.")
+
+def test_mlp():
+    """Tests the logic errors.
+    """
+    from matdb.exceptions import MlpError
+
+    with pytest.raises(MlpError):
+        raise MlpError("Test of version error.")
