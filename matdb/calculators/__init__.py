@@ -1,6 +1,7 @@
 from .vasp import AsyncVasp as Vasp
 from .aflux import AsyncAflow as Aflow
 from .qe import AsyncQe as Qe
+from .tracy import Tracy_QE is TracyQE
 from matdb.msg import info
 try:
     from .quip import SyncQuip as Quip
