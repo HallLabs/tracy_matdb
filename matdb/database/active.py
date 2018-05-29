@@ -1,13 +1,15 @@
 """Group of configurations that is created from an enumerated list of structures.
 """
-from matdb.database import Group
-from matdb import msg
 from os import path, getcwd, chdir, remove, listdir, mkdir
+from hashlib import sha1
 import numpy as np
 from six import string_types
 from glob import glob
-from matdb.atoms import AtomsList, Atoms
 from tqdm import tqdm
+
+from matdb.database import Group
+from matdb import msg
+from matdb.atoms import AtomsList, Atoms
 
 class Active(Group):
     """Sets up the calculations for a set of configurations that are being
@@ -38,7 +40,7 @@ class Active(Group):
         self._load_auids()
         self.nconfigs = len(self.auids) if self.auids is not None else 0
         self.last_iteration = None
-        cur_iter = len(glob("iter_*.pkl"))
+        cur_iter = len(glob(path.join(self.root,"iter_*.pkl")))
         self.iter_file = path.join(self.root,"iter_{}.pkl".format(cur_iter))
         self._load_last_iter()        
         
@@ -117,8 +119,7 @@ class Active(Group):
         # hasn't been visited before.
         dind = len(self.auids) if self.auids is not None else 0
         iter_ind = 0
-        from hashlib import sha1
-        pbar = tqdm(total=len(self.new_configs))        
+        pbar = tqdm(total=len(self.new_configs))
         for config in self.new_configs:
             auid = sha1(''.join(map(str, (tuple([tuple(i) for i in config.cell]),
                         tuple([tuple(i) for i in config.positions]),
