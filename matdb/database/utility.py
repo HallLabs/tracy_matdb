@@ -515,12 +515,8 @@ def decompress(prim, basis, types, hnf_vals):
                 #the basis by taking a linear combination of the
                 #primitive cell vectors.
                 add_vec = prim[0]*a + prim[1]*b + prim[2]*c
-                print("a",a, "b", b, "c", c)
-                print("add_vec", add_vec)
                 for old_t, old_b in zip(types, basis):
                     new_b = list(np.array(old_b)+add_vec)
-                    print("new_b", new_b)
-                    print("nem_b2", bring_into_cell(new_b, latt_to_cart, cart_to_latt, eps))
                     new_basis.append(bring_into_cell(new_b, latt_to_cart, cart_to_latt, eps))
                     new_types.append(old_t)
 
