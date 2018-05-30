@@ -16,10 +16,11 @@ def decompress(prim, basis, types, hnf_vals):
         The new crystal lattice vectors, atomic basis and atomic types.
     """
 
-    hnf = [[hnf[0], 0, 0], [hnf[1], hnf[2], 0], [hnf[3], hnf[4], hnf[5]]]
+    hnf = [[hnf_vals[0], 0, 0], [hnf_vals[1], hnf_vals[2], 0],
+           [hnf_vals[3], hnf_vals[4], hnf_vals[5]]]
     lat_vecs = np.transpose(np.matmul(np.transpose(prim), hnf))
 
-    vol_fact = hnf[0]*hnf[2]*hnf[5]
+    vol_fact = hnf_vals[0]*hnf_vals[2]*hnf_vals[5]
 
     new_basis = []
     new_types = []
@@ -30,7 +31,7 @@ def decompress(prim, basis, types, hnf_vals):
                 #calculate the vector that will point to a new atom in
                 #the basis by taking a linear combination of the
                 #primitive cell vectors.
-                add_vec = prim[0]*a + prim[1]*b + prim[c]*c
+                add_vec = prim[0]*a + prim[1]*b + prim[2]*c
                 for old_t, old_b in zip(types, basis):
                     new_b = list(np.array(old_b)+add_vec)
                     new_basis.append(bring_into_cell(new_b, lat_vecs))

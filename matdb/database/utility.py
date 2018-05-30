@@ -339,6 +339,7 @@ def make_primitive(atm, eps=None):
     #define the HNF that mapps the primitive to the supercell.
     n = np.rint(np.matmul(np.linalg.inv(np.transpose(new_vecs)), np.transpose(a_vecs)))
     hnf, b = hermite_normal_form(n)
+    hnf = hnf.astype(int)
     return (new_vecs, unique_pos, unique_types, hnf)
 
 def hermite_normal_form(n):
@@ -482,3 +483,48 @@ def swap_column(hnf, b, row):
     b[:,max_idx] = temp_col
 
     return hnf, b
+
+def decompress(prim, basis, types, hnf_vals):
+    """Decompresses the crystal back into it's original form.
+
+    Args:
+        prim (list): the primitive lattice vectors as rows of a matrix.
+        basis (list): the atomic basis vectors as rows of a matrix.
+        types (list): list of integers for the atomic species.
+        hnf_vals (list): integer hnf entries.
+
+    Returns:
+        The new crystal lattice vectors, atomic basis and atomic types.
+    """
+
+    hnf = [[hnf_vals[0], 0, 0], [hnf_vals[1], hnf_vals[2], 0],
+           [hnf_vals[3], hnf_vals[4], hnf_vals[5]]]
+    lat_vecs = np.transpose(np.matmul(np.transpose(prim), hnf))
+
+    vol_fact = hnf_vals[0]*hnf_vals[2]*hnf_vals[5]
+
+    latt_to_cart, cart_to_latt = _get_transformations(np.transpose(lat_vecs))
+    eps = 1E-3
+    new_basis = []
+    new_types = []
+    prim = np.array(prim)
+    for a in range(hnf_vals[0]):
+        for b in range(hnf_vals[2]):
+            for c in range(hnf_vals[5]):
+                #calculate the vector that will point to a new atom in
+                #the basis by taking a linear combination of the
+                #primitive cell vectors.
+                add_vec = prim[0]*a + prim[1]*b + prim[2]*c
+                print("a",a, "b", b, "c", c)
+                print("add_vec", add_vec)
+                for old_t, old_b in zip(types, basis):
+                    new_b = list(np.array(old_b)+add_vec)
+                    print("new_b", new_b)
+                    print("nem_b2", bring_into_cell(new_b, latt_to_cart, cart_to_latt, eps))
+                    new_basis.append(bring_into_cell(new_b, latt_to_cart, cart_to_latt, eps))
+                    new_types.append(old_t)
+
+    if vol_fact*len(basis) != len(new_basis): #pragma: no cover
+        raise ValueError("Error occured in decompression.")
+                    
+    return lat_vecs, new_basis, new_types
