@@ -155,3 +155,36 @@ def test_make_primitive():
                     positions= [[0, 0, 0]])
 
         stuff = make_primitive(atm)
+
+def test_decompress():
+    """Tests that the decompression algorithm works.
+    """
+
+    from matdb.Atoms import Atoms
+    from matdb.database.utility import make_primitive, decompress
+    from phenum.grouptheory import _is_equiv_lattice
+
+    atm = Atoms(cell=[[0, 0.5, 0.5], [0.5, 0, 0.5], [0.5, 0.5, 0]],
+                positions= [[0, 0, 0]], symbols="Pd")
+
+    new_vecs, unique_pos, unique_types, hnf = make_primitive(atm)
+    hnf_vec = [hnf[0][0], hnf[1][0], hnf[1][1], hnf[2][0], hnf[2][1], hnf[2][2]]
+    lat_vecs, new_basis, new_types = decompress(new_vecs, unique_pos, unique_types, hnf_vec)
+
+    assert _is_equiv_lattice(atm.cell, lat_vecs, 1E-3)
+    assert np.allclose(atm.positions, new_basis)
+    assert new_types == ["Pd"]
+    
+
+    atm = Atoms(cell=[[0, 0, -1], [0, 1, 0], [1, -0.5, 0.5]],
+                positions= [[0, 0, 0], [0.5, 0, -0.5], [0, 0.5, -0.5], [0.5, 0.5, 0]],
+                numbers= [41, 41, 41, 41])
+
+    new_vecs, unique_pos, unique_types, hnf = make_primitive(atm)
+    hnf_vec = [hnf[0][0], hnf[1][0], hnf[1][1], hnf[2][0], hnf[2][1], hnf[2][2]]
+    lat_vecs, new_basis, new_types = decompress(new_vecs, unique_pos, unique_types, hnf_vec)
+
+    assert _is_equiv_lattice(np.transpose(atm.cell), np.transpose(lat_vecs), 1E-3)
+    assert np.allclose([[0.0, 0.0, 0.0], [0.5, -0.5, -1.0], [0.0, 0.0, -1.0],
+                        [-0.5, 0.5, -1.0]], new_basis)
+    assert new_types == ["Nb", "Nb", "Nb", "Nb"]
