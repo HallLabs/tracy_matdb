@@ -3,6 +3,7 @@ matdb/templates/unique*
 
 # Mac Stuff
 .DS_Store
+.pytest_cache
 
 # Emacs
 *#*

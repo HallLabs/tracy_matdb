@@ -5,8 +5,10 @@ from os import path
 from matdb import msg
 from collections import OrderedDict
 import numpy as np
-#import quippy
 from .basic import Trainer
+import lazy_import
+calculators = lazy_import.lazy_module("matdb.calculators")
+
 from matdb.calculators import Quip
 from matdb.atoms import AtomsList
 from matdb.database.hessian import Hessian
@@ -286,12 +288,17 @@ class GAP(Trainer):
     def _create_xyz(self):
         """Creates the training.xyz file that `teach_sparse` needs to use.
         """
+        import quippy
         target = path.join(self.root, "train.xyz")
         if not path.isfile(target):
             al = AtomsList(self._trainfile)
             ol = quippy.AtomsList()
-            ol.extend(al)
-            ol.write()
+            for at in al:
+                ai = quippy.Atoms()
+                print(at.info)
+                ai.copy_from(at)
+                ol.append(ai)
+            ol.write(target)
 
     @property
     def sparse_file(self):

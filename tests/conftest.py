@@ -31,23 +31,22 @@ def stubs(request, tmpdir_factory):
         symlink(lpath, binpaths[name])
         
     environ["PATH"] = stubpath + pathsep + environ["PATH"]
-
     from matdb.utility import execute, touch
-    xres = execute(["module", "load", "mkl/*"], stubpath)
+    xres = execute(["./module", "load", "mkl/*"], stubpath)
     assert path.isfile(path.join(stubpath, ".matdb.module"))
-    xres = execute(["sbatch", "-c", "pwd"], stubpath)
+    xres = execute(["./sbatch", "-c", "pwd"], stubpath)
     assert xres["output"] == []
     # assert xres["error"][0].strip() == "Failed to submit"
     symlink(stubpath+"/sbatch.sh",stubpath+"/sbatch")
-    xres = execute(["sbatch", stubpath+"/sbatch.sh"], stubpath)
+    xres = execute(["./sbatch", stubpath+"/sbatch.sh"], stubpath)
     temp = xres["output"][-1].strip().split()[0:3]
     assert ' '.join(temp) == "Submitted batch job"
     # assert xres["error"] == []
 
     touch(path.join(stubpath, "PRECALC"))
-    xres = execute(["getKPoints"], stubpath)
+    xres = execute(["./getKPoints"], stubpath)
     assert path.isfile(path.join(stubpath, "KPOINTS"))
-    xres = execute(["vasp"], stubpath)
+    xres = execute(["./vasp"], stubpath)
     assert path.isfile(path.join(stubpath, "CONTCAR"))
     
     def restore():

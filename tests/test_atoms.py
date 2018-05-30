@@ -84,10 +84,10 @@ def test_hdf5(tmpdir):
     assert atSi.calc.kwargs == atR.calc.kwargs
 
     # check that the other properties got transfered properly.
-    assert atR.energy == atSi.energy
+    assert atR.sw_energy == atSi.sw_energy
     assert isinstance(atR, Atoms)
-    assert np.allclose(atR.force, atSi.force)
-    assert np.allclose(atR.virial, atSi.virial)
+    assert np.allclose(atR.sw_force, atSi.sw_force)
+    assert np.allclose(atR.sw_virial, atSi.sw_virial)
     assert np.allclose(atR.properties["rand"], atSi.properties["rand"])
     assert np.allclose(atR.positions, atSi.positions)
     remove(path.join(target,"temp.h5"))
@@ -373,7 +373,7 @@ def test_to_dict(tmpdir):
                  cell=[5.43,5.43,5.43])
 
     kwargs = {"encut":400, "kpoints": {"rmin": 50},
-              "potcars":{"xc": "pbe", "directory": "./tests/vasp"}}
+              "potcars":{"xc": "pbe", "directory": "./tests/vasp", "versions": {"Si": "05Jan2001"}}}
     
     calc = Vasp(atSi, target, '.', 0, **kwargs)
 
@@ -405,7 +405,7 @@ def test_read_atoms(tmpdir):
                  cell=[5.43,5.43,5.43])
 
     kwargs = {"encut":400, "kpoints": {"rmin": 50},
-              "potcars":{"xc": "pbe", "directory": "./tests/vasp"}}
+              "potcars":{"xc": "pbe", "directory": "./tests/vasp", "versions": {"Si": "05Jan2001"}}}
     
     calc = Vasp(atSi, target, '.', 0, **kwargs)
 
@@ -441,7 +441,7 @@ def test_reading_multiple_files(tmpdir):
                  cell=[5.43,5.43,5.43])
 
     kwargs = {"encut":400, "kpoints": {"rmin": 50},
-              "potcars":{"xc": "pbe", "directory": "./tests/vasp"}}
+              "potcars":{"xc": "pbe", "directory": "./tests/vasp", "versions": {"Si": "05Jan2001"}}}
     
     calc = Vasp(atSi, target, '.', 0, **kwargs)
     atSi.set_calculator(calc)
@@ -454,7 +454,7 @@ def test_reading_multiple_files(tmpdir):
                  cell=[6.43,6.43,6.43])
 
     kwargs = {"encut":600, "kpoints": {"rmin": 50},
-              "potcars":{"xc": "pbe", "directory": "./tests/vasp"}}
+              "potcars":{"xc": "pbe", "directory": "./tests/vasp", "versions": {"Si": "05Jan2001"}}}
     
     calc = Vasp(atSi2, target, '.', 0, **kwargs)
     atSi2.set_calculator(calc)

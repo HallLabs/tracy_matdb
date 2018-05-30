@@ -145,6 +145,8 @@ def dynPd(Pd):
 def test_Pd_setup(Pd):
     """Makes sure the initial folders were setup according to the spec.
     """
+    import pudb
+    pudb.set_trace()
     Pd.setup()
     modelroot = path.join(Pd.root, "Manual","phonon","Pd")
     assert Pd["Manual/phonon/Pd/"].root == modelroot
@@ -166,16 +168,6 @@ def test_Pd_setup(Pd):
     for db in dbs:
         dbfolder = path.join(Pd.root, db)
         compare_tree(dbfolder, folders)
-
-@pytest.mark.skip()
-def test_AgPd_setup(AgPd):
-    """Makes sure the initial folders were setup according to the spec.
-    """
-    AgPd.setup()
-    modelroot = path.join(AgPd.root, "Manual","phonon","Pd")
-    assert AgPd["Manual/phonon/Pd/"].root == modelroot
-    modelroot = path.join(AgPd.root, "Manual","phonon","Ag")
-    assert AgPd["Manual/phonon/Ag/"].root == modelroot
 
 #@pytest.mark.skip()
 def test_steps(Pd):
@@ -253,6 +245,7 @@ def test_find(Pd):
     print group
     assert group == None
 
+#@pytest.mark.skip()
 def test_execute(Pd):
     """Tests the execute and extract methods 
     """
@@ -291,6 +284,7 @@ def test_execute(Pd):
             group.ready()
             assert group.ready()
 
+#@pytest.mark.skip()
 def test_recovery(Pd):
     """Tests the rerun on unfinshed jobs
     """
@@ -329,17 +323,23 @@ def test_split(Pd):
     """ Tests the split method
     """
     from matdb.utility import chdir
+    folder = path.join(Pd.root,'Manual','phonon','Pd','S1.1')
     Pd.setup()
     Pd.execute(env_vars={"SLURM_ARRAY_TASK_ID":"1"})
-    outcar = path.join(reporoot,"tests","data","Pd","manual")
-    _mimic_vasp(outcar, Pd.root,"S1.1")
-    folder = path.join(Pd.root,"Manual","phonon","Pd","S1.1")
-    with chdir(folder):
-        Pd.extract()
+
+    folder = path.join(reporoot,"tests","data","Pd","manual")
+    _mimic_vasp(folder,Pd.root,"S1.1")
+
+    #with chdir(path.join(Pd.root,"Manual","phonon","Pd","S1.1")):
     import pudb
     pudb.set_trace()
-    Pd.split()
-    
+    Pd.extract()
+    chdir(reporoot)
+    import pudb
+    pudb.set_trace()
+    Pd.split()    
+
+#@pytest.mark.skip()
 def test_hash(Pd,Pd_2):
     """Tests the hash_dbs and verify_hash methods
     """
@@ -356,6 +356,22 @@ def test_hash(Pd,Pd_2):
     Pd_2.execute(env_vars={"SLURM_ARRAY_TASK_ID":"1"})
     _mimic_vasp(folder,Pd_2.root,"S1.1")
     assert Pd_2.hash_dbs != db_hash
+
+#@pytest.mark.skip()
+def test_finalize(Pd):
+    """ Test the finalize function in the controller module
+    """
+    from os import path
+    from matdb.utility import chdir
+    Pd.setup()
+    Pd.execute(env_vars={"SLURM_ARRAY_TASK_ID":"1"})
+    folder = path.join(reporoot,"tests","data","Pd","manual")
+    _mimic_vasp(folder,Pd.root,"S1.1")
+    with chdir(path.join(Pd.root,"Manual","phonon","Pd","S1.1")):
+        Pd.extract()
+        import pudb
+        pudb.set_trace()
+        Pd.finalize()
     
 @pytest.mark.skip()    
 def test_Pd_hessian(Pd):

@@ -1,0 +1,120 @@
+<UPF version="2.0.1">
+  <PP_INFO>
+
+ This pseudopotential file has been produced using the code
+ ONCVPSP  (Optimized Norm-Conservinng Vanderbilt PSeudopotential)
+ scalar-relativistic version 2.1.1, 03/26/2014 by D. R. Hamann
+ The code is available through a link at URL www.mat-simresearch.com.
+ Documentation with the package provides a full discription of the
+ input data below.
+
+
+ While it is not required under the terms of the GNU GPL, it is
+ suggested that you cite D. R. Hamann, Phys. Rev. B 88, 085117 (2013)
+ in any publication using these pseudopotentials.
+
+
+ Copyright 2015 The Regents of the University of California
+ 
+ This work is licensed under the Creative Commons Attribution-ShareAlike 
+ 4.0 International License. To view a copy of this license, visit 
+ http://creativecommons.org/licenses/by-sa/4.0/ or send a letter to 
+ Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
+ 
+ This pseudopotential is part of the Schlipf-Gygi norm-conserving 
+ pseudopotential library. Its construction parameters were tuned to 
+ reproduce materials of a training set with very high accuracy and 
+ should be suitable as a general purpose pseudopotential to treat a 
+ variety of different compounds. For details of the construction and 
+ testing of the pseudopotential please refer to:
+ 
+ M. Schlipf, F. Gygi, Comp. Phys. Comm. 196, 36 (2015)
+ http://dx.doi.org/10.1016/j.cpc.2015.05.011
+ 
+ We kindly ask that you include this reference in all publications 
+ associated to this pseudopotential.
+
+
+    <PP_INPUTFILE>
+# ATOM AND REFERENCE CONFIGURATION
+# atsym  z    nc    nv    iexc   psfile
+  Pd 46.00     6     4     4      upf
+#
+#   n    l    f        energy (Ha)
+    1    0    2.00
+    2    0    2.00
+    2    1    6.00
+    3    0    2.00
+    3    1    6.00
+    3    2   10.00
+    4    0    2.00
+    4    1    6.00
+    5    0    2.00
+    4    2    8.00
+#
+# PSEUDOPOTENTIAL AND OPTIMIZATION
+# lmax
+    2
+#
+#   l,   rc,     ep,   ncon, nbas, qcut
+    0   2.44164  -3.40292    5    8   5.62509
+    1   2.41269  -2.13844    5    8   5.81435
+    2   2.24604  -0.35620    5    8   6.62505
+#
+# LOCAL POTENTIAL
+# lloc, lpopt,  rc(5),   dvloc0
+    4    5   1.41052      0.00000
+#
+# VANDERBILT-KLEINMAN-BYLANDER PROJECTORs
+# l, nproj, debl
+    0    2   3.20303
+    1    2   2.09163
+    2    2   1.16310
+#
+# MODEL CORE CHARGE
+# icmod, fcfact
+    0   0.00000
+#
+# LOG DERIVATIVE ANALYSIS
+# epsh1, epsh2, depsh
+   -5.00    3.00    0.02
+#
+# OUTPUT GRID
+# rlmax, drl
+    6.00    0.01
+#
+# TEST CONFIGURATIONS
+# ncnf
+    0
+# nvcnf
+#   n    l    f
+    </PP_INPUTFILE>
+  </PP_INFO>
+  <!--                               -->
+  <!-- END OF HUMAN READABLE SECTION -->
+  <!--                               -->
+    <PP_HEADER
+       generated="Generated using ONCVPSP code by D. R. Hamann"
+       author="Martin Schlipf and Francois Gygi"
+       date="150105"
+       comment=""
+       element="Pd"
+       pseudo_type="NC"
+       relativistic="scalar"
+       is_ultrasoft="F"
+       is_paw="F"
+       is_coulomb="F"
+       has_so="F"
+       has_wfc="F"
+       has_gipaw="F"
+       core_correction="F"
+       functional="PBE"
+       z_valence="   18.00"
+       total_psenergy="  -1.26383953046E+02"
+       rho_cutoff="   6.01000000000E+00"
+       l_max="2"
+       l_local="-1"
+       mesh_size="   602"
+       number_of_wfc="0"
+       number_of_proj="6"/>
+</UPF>

@@ -18,6 +18,7 @@ from matdb.kpoints import custom as write_kpoints
 from matdb.utility import chdir, execute, relpath
 from hashlib import sha1
 import re
+from matdb.exceptions import VersionError
 
 def phonon_defaults(d, dfpt=False):
     """Adds the usual settings for the INCAR file when performing frozen-phonon
@@ -169,9 +170,11 @@ class AsyncVasp(Vasp, AsyncCalculator):
 
         self.ran_seed = ran_seed
         self.version = None
-        super(AsyncVasp, self).__init__(*args, **kwargs)
+        super(AsyncVasp, self).__init__(**kwargs)
         if not path.isdir(self.folder):
             mkdir(self.folder)
+
+        self.input_params["setups"] = self.potcars["setups"]
             
         self.atoms = atoms
         pot_args = self.potcars.copy()
@@ -212,8 +215,8 @@ class AsyncVasp(Vasp, AsyncCalculator):
         if "versions" in self.potcars:
             versions = self.potcars["versions"]
         else:
-            msg.err("POTCAR versions must be specified for each species in the "
-                    "yml file.")
+            raise VersionError("POTCAR versions must be specified for each species in the "
+                         "yml file.")
 
         if path.isfile(path.join(self.contr_dir, "POTCARS", self.this_potcar)):
             with open(path.join(self.contr_dir, "POTCARS", self.this_potcar), "r") as potfile:
@@ -224,12 +227,12 @@ class AsyncVasp(Vasp, AsyncCalculator):
                         ver = ver_line[2]
                         if spec in versions.keys():
                             if not versions[spec] == ver:
-                                msg.err("The version {0} of the POTCAR for {1} does not "
-                                        "match the requested version {2}".format(versions[spec],
-                                                                                 spec, ver))
+                                raise VersionError("The version {0} of the POTCAR for {1} "
+                                             "does not match the requested version "
+                                             "{2}".format(versions[spec], spec, ver))
                         else:
-                            msg.err("The species found in the POTCAR {0} is not in the system "
-                                    "being studied".format(line))
+                            raise SpeciesError("The species found in the POTCAR {0} is "
+                                            "not in the system being studied".format(line))
 
         else:
             for potfile in self.ppp_list:
@@ -239,12 +242,12 @@ class AsyncVasp(Vasp, AsyncCalculator):
                 ver = ver_line[2]
                 if spec in versions.keys():
                     if not versions[spec] == ver:
-                        msg.err("The version {0} of the POTCAR for {1} does not "
-                                "match the requested version {2}".format(versions[spec],
-                                                                         spec, ver))
+                        raise VersionError("The version {0} of the POTCAR for {1} "
+                                           "does not match the requested version "
+                                           "{2}".format(versions[spec], spec, ver))
                 else:
-                    msg.err("The species found in the POTCAR {0} is not in the system "
-                            "being studied".format(spec))                        
+                    raise SpeciesError("The species found in the POTCAR {0} is not in "
+                                        "the system being studied".format(spec))
             
     def _write_potcar(self):
         """Makes a symbolic link between the main POTCAR file for the database
@@ -358,16 +361,29 @@ class AsyncVasp(Vasp, AsyncCalculator):
         # let ase check the convergence
         with chdir(folder):
             self.converged = self.read_convergence()
+            #NB: this next method call overwrites the identity of self.atoms! We
+            #don't like that behavior, so we set it right again afterwards.
+            o = self.atoms
+
             self.set_results(self.atoms)
+            self.atoms._calc = self
             E = self.get_potential_energy(atoms=self.atoms)
             F = self.forces
-            S = self.stress
+            S = self.atoms.get_stress(False)
             self.atoms.add_property(self.force_name, F)
             self.atoms.add_param(self.virial_name, S*self.atoms.get_volume())
             self.atoms.add_param(self.energy_name, E)
 
+            o.copy_from(self.atoms)
+            self.atoms = o
+            self.atoms.set_calculator(self)
+            
         self.cleanup(folder,clean_level=cleanup)
 
+    def set_atoms(self, atoms):
+        #We do *not* do an atoms.copy() like ASE because our atoms objects are hybrids.
+        self.atoms = atoms
+        
     def cleanup(self, folder, clean_level="default"):
         """Performs cleanup on the folder where the calculation was
         performed. The clean_level determines which files get removed.

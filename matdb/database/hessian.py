@@ -167,6 +167,22 @@ class Hessian(Group):
         group. This list includes a single *duplicated* configuration for each
         of the eigenvalue/eigenvector combinations of the Hessian matrix.
         """
+        if len(self.sequence) == 0:
+            return self._hessian_configs()
+        else:
+            result = AtomsList()
+            for g in self.sequence.values():
+                result.extend(g.fitting_configs)
+            return result
+
+    def _hessian_configs(self):
+        """Returns a :class:`matdb.atoms.AtomsList` for all configs in this
+        group. This list includes a single *duplicated* configuration for each
+        of the eigenvalue/eigenvector combinations of the Hessian matrix.
+
+        .. note:: This assumes that the group has actual displacements and is
+          not a parent group in the recursive structure.
+        """
         configs = AtomsList()
 
         #Start with a configuration that has energy, force and virial
@@ -177,8 +193,8 @@ class Hessian(Group):
         
         #Make sure that energy, force and virial information was found. 
         assert getattr(atBase, atcalc.energy_name) < 0
-        assert getattr(atBase, atcalc.force_name).T.shape[1] == 3
-        assert getattr(atBase, atcalc.virial_name).T.shape == (3, 3)
+        assert getattr(atBase, atcalc.force_name).shape[1] == 3
+        assert getattr(atBase, atcalc.virial_name).shape == (3, 3)
         configs.append(atBase)
 
         #Now, make a copy of the base atoms object; this object only has the
@@ -209,16 +225,16 @@ class Hessian(Group):
             #Add this eigenvector to its own configuration.
             atc = atEmpty.copy()
             Hi = np.reshape(v, (natoms, 3))
-            atc.arrays[hname] = Hi
+            atc.add_property(hname, Hi)
                     
             #Same thing for the eigenvalue.
-            atc.params.set_value(hname, l)
+            atc.add_param(hname, l)
             
             #This custom scaling reweights by eigenvalue so that larger
             #eigenvalues get fitted more closely. The 0.1 is our "default_sigma"
             #for hessian.
-            atc.params.set_value("hessian_csigma", 0.1/(l/eratio))
-            atc.params.set_value("n_hessian", 1)
+            atc.add_param("hessian_csigma", 0.1/(l/eratio))
+            atc.add_param("n_hessian", 1)
             configs.append(atc)
 
         return configs
@@ -342,7 +358,9 @@ class Hessian(Group):
             #We are at the bottom of the stack; attach the hessian matrix
             #to the atoms object it corresponds to.
             self.atoms.info["H"] = self.H
-            return [self.atoms]
+            result = AtomsList()
+            result.append([self.atoms])
+            return result
         else:
             #Check where we are in the stack. If we are just below the database,
             #then we want to return a list of hessian matrices and atoms
@@ -354,7 +372,10 @@ class Hessian(Group):
                 bestkey = self._best_bands()
                 return self.sequence[bestkey].rset
             else:
-                return [p.rset for p in self.sequence.values()]
+                result = AtomsList()
+                for p in self.sequence.values():
+                    result.extend(p.rset)
+                return result
             
     def _set_calc_defaults(self, calcargs):
         """Sets the default calculator parameters for phonon calculations based
@@ -410,8 +431,7 @@ class Hessian(Group):
 
     @property
     def H(self):
-        """Returns the Hessian matrix extracted from the frozen phonon calculations at
-        the gamma point in the BZ.
+        """Returns the Hessian matrix extracted from the frozen phonon calculations.
         """
         if self._H is not None:
             return self._H
@@ -563,7 +583,7 @@ class Hessian(Group):
         #(phonopy doesn't write to stderr, only stdout).
         if not path.isfile(fsets):#pragma: no cover
             msg.std(''.join(xres["output"]))
-            msg.err("Couldn't create the FORCE_SETS.")
+            msg.err("Couldn't create the FORCE_SETS in {}.".format(self.phonodir))
 
     def setup(self, rerun=0):
         """Displaces the seed configuration preparatory to calculating the force
@@ -639,10 +659,12 @@ class Hessian(Group):
         if not super(Hessian, self).extract(cleanup=cleanup):
             return
 
-        if not self.dfpt:
-            self.calc_forcesets(recalc)
-        else:
-            self.calc_fc(recalc)
+        if len(self.configs) > 0:
+            if not self.dfpt:
+                self.calc_forcesets(recalc)
+            else:
+                self.calc_fc(recalc)
+                
+            self.calc_DOS(recalc)
             
-        self.calc_DOS(recalc)
         return self.ready()

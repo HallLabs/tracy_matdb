@@ -103,14 +103,9 @@ class Distortion(Group):
         """Returns a :class:`matdb.atoms.AtomsList` for all configs in this
         group.
         """
-        if len(self.sequence) == 0:
-            return len(self.atoms_paths()) == self.nconfigs
-        else:
-            result = []
-            for g in self.sequence.values():
-                result.extend(g.fitting_configs)
-            return result
+        return self.rset
 
+    @property
     def rset(self):
         """Returns a :class:`matdb.atoms.AtomsList`, one for each config in the
         latest result set.
@@ -120,12 +115,12 @@ class Distortion(Group):
             # bottom of the stack
             result = AtomsList()
             for epath in self.atoms_paths():
-                result.append(Atoms(path.join(epath, 'pre_comp_atoms.h5')))
+                result.append(Atoms(path.join(epath, "atoms.h5")))
             return result
         else:
-            result = []
+            result = AtomsList()
             for e in self.sequence.values():
-                result.extend(e.rset())
+                result.extend(e.rset)
             return result
 
     def ready(self):
@@ -155,7 +150,7 @@ class Distortion(Group):
         result = []
         for duid in self.duids:
             folder = self.index[duid]
-            target = path.join(folder, "pre_comp_atoms.h5")
+            target = path.join(folder, "atoms.h5")
             if path.isfile(target):
                 result.append(folder)
         return result
