@@ -212,7 +212,7 @@ class Group(object):
                         if "name" in v["calc"]:
                             new_calc = getattr(calculators, v["calc"]["name"])
                             if "Tracy" in v["calc"]["name"]:
-                                lcargs = self._tracy_setup(calcargs = v["calc"]["calcargs"]):
+                                lcargs = self._tracy_setup(calcargs = v["calc"]["calcargs"])
                         else:
                             new_calc = obj_ins.calc
                             
