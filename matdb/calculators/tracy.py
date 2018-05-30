@@ -184,8 +184,8 @@ class Tracy_QE(Tracy, Qe):
 
         self.in_kwargs = kwargs.copy()
         self.contract_type = 1
-        QE_input = kwargs["calcargs"]
-        tracy_input = kwargs["tracy"]
+        self.QE_input = kwargs["calcargs"]
+        self.tracy_input = kwargs["tracy"]
         self.ran_seed = ran_seed
         self.contr_dir = contr_dir
         self.folder = folder
@@ -194,8 +194,8 @@ class Tracy_QE(Tracy, Qe):
         if self.ran_seed is not None:
             seed(self.ran_seed)            
 
-        Qe.__init__(self, atoms, folder, contr_dir, ran_seed, **QE_input)
-        Tracy.__init__(self, folder, **tracy_input)
+        Qe.__init__(self, atoms, folder, contr_dir, ran_seed, **self.QE_input)
+        Tracy.__init__(self, folder, **self.tracy_input)
 
     def _check_potcars(self):
         """We don't construct the potetial files on the user's end so we don't
@@ -259,6 +259,29 @@ class Tracy_QE(Tracy, Qe):
                             
                     if key not in self.input_dict.keys():
                         self.input_dict[key] = {}
+
+        self.input_dict["potential"] = self._get_potential_data()
+
+    def _get_potential_data(self):
+        """Uses the QE input to construct the dictionary of potential information.
+        """
+        results = {"numPotential": len(self.type_map.keys()),
+                   "details":[]}
+
+        for el in self.type_map.keys():
+            details = {"dft": "PBE", "lpaw": "true", "pseudotype": "3", "AugFun": "PSQ",
+                       "rmatchAugFunNC": "true", "tm": "true"}
+            details["title"] =  self.type_map[el]
+            details["gamma"] = get_gamma(el)
+            details["rel"] = get_rel(el)
+            details["config"] = get_config(el)
+            details["iswitch"] = get_iswitch(el)
+            details["fileName"] = "{0}-pot".format(self.type_map[el])
+            details["lloc"] = get_lloc(el)
+            details["orb"] = get_orbit(el)
+            results["details"].append(details)
+
+        return results
 
     def can_execute(self, folder):
         """Returns True if the specified file is ready to be submitted to the queue.
