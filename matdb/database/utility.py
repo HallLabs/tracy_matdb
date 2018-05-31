@@ -484,33 +484,34 @@ def swap_column(hnf, b, row):
 
     return hnf, b
 
-def decompress(prim, basis, types, hnf_vals):
+def decompress(prim, basis, types_int, hnf_int):
     """Decompresses the crystal back into it's original form.
 
     Args:
         prim (list): the primitive lattice vectors as rows of a matrix.
         basis (list): the atomic basis vectors as rows of a matrix.
-        types (list): list of integers for the atomic species.
-        hnf_vals (list): integer hnf entries.
+        types (int): list of species converted to a single int.
+        hnf_int (int): hnf entries converted to integer.
 
     Returns:
         The new crystal lattice vectors, atomic basis and atomic types.
     """
 
-    hnf = [[hnf_vals[0], 0, 0], [hnf_vals[1], hnf_vals[2], 0],
-           [hnf_vals[3], hnf_vals[4], hnf_vals[5]]]
+    hnf = _get_hnf_from_int(hnf_int)
     lat_vecs = np.transpose(np.matmul(np.transpose(prim), hnf))
 
-    vol_fact = hnf_vals[0]*hnf_vals[2]*hnf_vals[5]
+    vol_fact = hnf[0][0]*hnf[1][1]*hnf[2][2]
+
+    types = [int(i) for i in str(types_int)]
 
     latt_to_cart, cart_to_latt = _get_transformations(np.transpose(lat_vecs))
     eps = 1E-3
     new_basis = []
     new_types = []
     prim = np.array(prim)
-    for a in range(hnf_vals[0]):
-        for b in range(hnf_vals[2]):
-            for c in range(hnf_vals[5]):
+    for a in range(hnf[0][0]):
+        for b in range(hnf[1][1]):
+            for c in range(hnf[2][2]):
                 #calculate the vector that will point to a new atom in
                 #the basis by taking a linear combination of the
                 #primitive cell vectors.
@@ -524,3 +525,29 @@ def decompress(prim, basis, types, hnf_vals):
         raise ValueError("Error occured in decompression.")
                     
     return lat_vecs, new_basis, new_types
+
+def _get_hnf_from_int(hnf_int):
+    """Converts a compressed HNF to the full HNF.
+
+    Args:
+        hnf_int (int): the hnf converted to an integer.
+
+    Returns:
+        hnf (list): the hnf matrix.
+    """
+
+    hnf_str = str(hnf_int)
+
+    hnf_vals = []
+    cur_index = 0
+    for i in range(1,len(hnf_str)):
+        if hnf_str[i] != "0" and hnf_str[i-1] == "0":
+            hnf_vals.append(int(hnf_str[cur_index:i-1]))
+            cur_index = i
+            
+    hnf_vals.append(int(hnf_str[cur_index:i]))
+
+    hnf = [[hnf_vals[0]-1, 0, 0], [hnf_vals[1]-1, hnf_vals[2]-1, 0],
+           [hnf_vals[3]-1, hnf_vals[4]-1, hnf_vals[5]-1]]
+    return hnf
+            

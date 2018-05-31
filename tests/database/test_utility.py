@@ -168,12 +168,14 @@ def test_decompress():
                 positions= [[0, 0, 0]], symbols="Pd")
 
     new_vecs, unique_pos, unique_types, hnf = make_primitive(atm)
+    unique_types = 1
     hnf_vec = [hnf[0][0], hnf[1][0], hnf[1][1], hnf[2][0], hnf[2][1], hnf[2][2]]
-    lat_vecs, new_basis, new_types = decompress(new_vecs, unique_pos, unique_types, hnf_vec)
+    hnf_int = "".join(["{0}0".format(i+1) for i in hnf_vec])
+    lat_vecs, new_basis, new_types = decompress(new_vecs, unique_pos, unique_types, hnf_int)
 
     assert _is_equiv_lattice(atm.cell, lat_vecs, 1E-3)
     assert np.allclose(atm.positions, new_basis)
-    assert new_types == ["Pd"]
+    assert new_types == [1]
     
 
     atm = Atoms(cell=[[0, 0, -1], [0, 1, 0], [1, -0.5, 0.5]],
@@ -181,10 +183,24 @@ def test_decompress():
                 numbers= [41, 41, 41, 41])
 
     new_vecs, unique_pos, unique_types, hnf = make_primitive(atm)
+    unique_types = 1
     hnf_vec = [hnf[0][0], hnf[1][0], hnf[1][1], hnf[2][0], hnf[2][1], hnf[2][2]]
-    lat_vecs, new_basis, new_types = decompress(new_vecs, unique_pos, unique_types, hnf_vec)
-
+    hnf_int = "".join(["{0}0".format(i+1) for i in hnf_vec])
+    lat_vecs, new_basis, new_types = decompress(new_vecs, unique_pos, unique_types, hnf_int)
+    
     assert _is_equiv_lattice(np.transpose(atm.cell), np.transpose(lat_vecs), 1E-3)
     assert np.allclose([[0.0, 0.0, 0.0], [0.5, -0.5, -1.0], [0.0, 0.0, -1.0],
                         [-0.5, 0.5, -1.0]], new_basis)
-    assert new_types == ["Nb", "Nb", "Nb", "Nb"]
+    assert new_types == [1, 1, 1, 1]
+
+def test_get_hnf_int():
+    """Tests the conversion of ints to hnfs.
+    """
+    from matdb.database.utility import _get_hnf_from_int
+    
+    hnf_int = 120102004030110
+
+    hnf = [[11,0,0],[0,19,0],[3,2,10]]
+
+    out_hnf = _get_hnf_from_int(hnf_int)
+    assert np.allclose(hnf, out_hnf)
