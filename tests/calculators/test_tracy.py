@@ -104,8 +104,8 @@ def test_Tracy(tmpdir):
 
     assert np.allclose(compressed["a"], atm.cell)
     assert np.allclose(compressed["b"], [[0,0,0]])
-    assert np.allclose(compressed["t"], [0])
-    assert np.allclose(compressed["h"], [1, 0, 1, 0, 0, 1])
+    assert np.allclose(compressed["t"], 1)
+    assert np.allclose(compressed["h"], 201020101020)
 
     calc.is_executing(target)
     calc.can_extract(target)
@@ -132,7 +132,7 @@ def test_TracyQE(tmpdir):
                           "input_data": {"control":{"calculation": "relax", "prefix": "test"}}},
               "tracy": {"max_time": 10, "min_flops": 10, "min_ram": 10, "min_mem": 10,
                         "ncores": 1, "role": "Enumerated", "notifications": "stuff",
-                        "group_preds": "abcd", "contract_preds":"1234"}}
+                        "group_preds": "abcd", "contract_preds":"1234", "notifications": "stuff"}}
 
     calc = TracyQE(atm, target, 'def', 0, **kwargs)
 
@@ -152,3 +152,32 @@ def test_TracyQE(tmpdir):
     assert "kwargs" in Qe_dict
     assert Qe_dict["folder"] == target
     assert Qe_dict["ran_seed"] == 0
+
+def test_array_to_int():
+    """Tests conversion of arrays to ints."""
+    atm = Atoms("Al",positions=[[0, 0, 0]], cell=[[1,0,0],[0,1,0],[0,0,1]])
+
+    kwargs = {"calcargs":{"potcars": {"directory":"./tests",
+                          "potentials": {"Al": "Al.pbe-n-kjpaw_psl.1.0.0.UPF"},
+                          "versions": {"Al": ["2.0.1", ".5.1"]}},
+                          "kpoints":{"method": "MP", "divisions": (3, 3, 3)},
+                          "input_data": {"control":{"calculation": "relax", "prefix": "test"}}},
+              "tracy": {"max_time": 10, "min_flops": 10, "min_ram": 10, "min_mem": 10,
+                        "ncores": 1, "role": "Enumerated", "notifications": "stuff",
+                        "group_preds": "abcd", "contract_preds":"1234"}}
+
+    calc = TracyQE(atm, '.', 'def', 0, **kwargs)
+
+    in_put = [1,2,3,4,5]
+    out_put = 12345
+
+    test_out = calc._intarray_to_int(in_put)
+
+    assert out_put == test_out
+
+    in_put = [1,2,3,4,5]
+    out_put = 2030405060
+
+    test_out = calc._intarray_to_int(in_put, pad=True)
+
+    assert out_put == test_out

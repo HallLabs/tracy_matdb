@@ -55,6 +55,7 @@ class Tracy(AsyncCalculator):
         self.contract_priority = contract_priority if contract_priority is not None else 1
         self.sys_specs = {"max_time": max_time, "min_flops": min_flops, "min_mem": min_mem,
                           "ncores": ncores, "min_ram": min_ram, "max_net_lat": max_net_lat}
+        self.notifications = notifications
 
     def _compress_struct(self, atoms):
         """Compresess the input atoms object so that it is ready to be sent to
@@ -75,14 +76,36 @@ class Tracy(AsyncCalculator):
         if self.type_map is None:
             self.type_map = {}
             for v, k in enumerate(types):
-                self.type_map[k] = v
+                self.type_map[k] = v+1
             
 
         result = {"a": [list(a) for a in a_vecs],
                   "b": [list(b) for b in pos],
-                  "t": [self.type_map[i] for i in types],
-                  "h": [hnf[0][0], hnf[1][0], hnf[1][1], hnf[2][0], hnf[2][1], hnf[2][2]]}
+                  "t": self._intarray_to_int([self.type_map[i] for i in types]),
+                  "h": self._intarray_to_int([hnf[0][0], hnf[1][0],
+                                              hnf[1][1], hnf[2][0],
+                                              hnf[2][1], hnf[2][2]], pad=True)}
         return result
+
+    @staticmethod
+    def _intarray_to_int(int_array, pad=False):
+        """Converts an integer into a single integer.
+
+        Args:
+            int_array (list): the integer array to convert.
+            pad (bool): if True pad the values with zeros.
+        """
+
+        if pad:
+            frm_str = "{0}0"
+            shift = 1
+        else:
+            frm_str = "{0}"
+            shift = 0
+
+        full_int = "".join([frm_str.format(i+shift) for i in int_array])
+
+        return int(full_int)
 
     @abc.abstractmethod
     def get_input_dict(self): #pragma: no cover
@@ -111,32 +134,36 @@ class Tracy(AsyncCalculator):
         """
         self.get_input_dict()
         package = {}
-        package["MatDB ID"] = self.atoms.uuid
-        package["MatDB Group ID"] = self.atoms.group_uuid
+        package["matDbId"] = self.atoms.uuid
+        package["matDbGroupId"] = self.atoms.group_uuid
         # package["Source ID"] = Get this from Josh's scripit
-        package["Source"] = self._get_source()
-        package["Contract Type"] = self.contract_type
-        package["Input Dictionary"] = self.input_dict
-        package["Input Dictionary"]["cryst"] = self._compress_struct(self.atoms)
-        package["Before fingerprint"] = soap(self.atoms)
-        package["Contract Priority"] = self.contract_priority
-        package["eCommerce Priority"] = self.ecommerce
-        package["Maximum Processing Time"] = self.sys_specs["max_time"]
-        package["Minimum FLOPS"] = self.sys_specs["min_flops"]
-        package["Minimum RAM"] = self.sys_specs["min_ram"]
-        package["Minimum Storage"] = self.sys_specs["min_mem"]
-        package["Number of Cores"] = self.sys_specs["ncores"]
-        package["Maximum Network Latency"] = self.sys_specs["max_net_lat"]
-        
-        if self.can_execute(self.folder):
-            fmt = '%Y%m%d%H%M%S'
-            package["Date Ready"] = datetime.now().strftime(fmt)
+        package["source"] = self._get_source()
+        package["contractType"] = self.contract_type
+        package["input"] = self.input_dict
+        package["input"]["cryst"] = self._compress_struct(self.atoms)
+        package["beforeFingerprint"] = soap(self.atoms)
+        package["contractPriority"] = self.contract_priority
+        package["eCommercePriority"] = self.ecommerce
+        package["maximumProcessingTime"] = self.sys_specs["max_time"]
+        package["minimumFlops"] = self.sys_specs["min_flops"]
+        package["minimumRam"] = self.sys_specs["min_ram"]
+        package["minimumStorage"] = self.sys_specs["min_mem"]
+        package["numberOfCores"] = self.sys_specs["ncores"]
+        package["maximumNetworkLatency"] = self.sys_specs["max_net_lat"]
+
+        #Move this to the wrapper script that reads the json.
+        # if self.can_execute(self.folder):
+        #     fmt = '%Y%m%d%H%M%S'
+        #     package["Date Ready"] = datetime.now().strftime(fmt)
             
         if self.group_preds is not None:
-            package["Group Predecessors"] = self.group_preds
+            package["groupPredecessors"] = self.group_preds
         if self.contract_preds is not None:
-            package["Contract Predecossors"] = self.contract_preds
+            package["contractPredecossors"] = self.contract_preds
 
+        if self.notifications is not None:
+            package["notifications"] = self.notifications
+            
         target = path.join(folder, "submission.json")
 
         with open(target, "w+") as f:
@@ -250,7 +277,7 @@ class Tracy_QE(Tracy, Qe):
                         elif key == "atomic_species":
                             species = line.strip().split()[0]
                             if species not in self.type_map.keys():
-                                self.type_map[species] = len(self.type_map.keys())
+                                self.type_map[species] = len(self.type_map.keys()) + 1
                             
                             self.input_dict[key][self.type_map[species]] = uniform(0, 100)
                         else: #pragma: no cover
@@ -260,7 +287,7 @@ class Tracy_QE(Tracy, Qe):
                     if key not in self.input_dict.keys():
                         self.input_dict[key] = {}
 
-        self.input_dict["potential"] = self._get_potential_data()
+#        self.input_dict["potential"] = self._get_potential_data()
 
     def _get_potential_data(self):
         """Uses the QE input to construct the dictionary of potential information.
