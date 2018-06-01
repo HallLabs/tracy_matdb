@@ -90,7 +90,7 @@ class Atoms(ase.Atoms):
     def __init__(self, symbols=None, positions=None, numbers=None, tags=None,
                  momenta=None, masses=None, magmoms=None, charges=None,
                  scaled_positions=None, cell=None, pbc=None, constraint=None,
-                 calculator=None, info=None, n=None,
+                 calculator=None, info=None, n=None, celldisp=None,
                  properties=None, params=None, fixed_size=None, set_species=True,
                  fpointer=None, finalise=True, group_uuid=None, uuid=None,
                  **readargs):
@@ -103,10 +103,16 @@ class Atoms(ase.Atoms):
                 self.read(symbols,**readargs)
 
         else:
-            super(Atoms, self).__init__(symbols, positions, numbers,
-                                        tags, momenta, masses, magmoms, charges,
-                                        scaled_positions, cell, pbc, constraint,
-                                        calculator)
+            #NB: make sure that we match exactly on the keyword arguments. Do
+            #*NOT* use positional arguments for this constructor.
+            super(Atoms, self).__init__(symbols=symbols,
+                 positions=positions, numbers=numbers,
+                 tags=tags, momenta=momenta, masses=masses,
+                 magmoms=magmoms, charges=charges,
+                 scaled_positions=scaled_positions,
+                 cell=cell, pbc=pbc, celldisp=celldisp,
+                 constraint=constraint,
+                 calculator=calculator, info=info)
 
         self.n = n if n is not None else len(self.positions)
         if self.calc is None:
