@@ -350,15 +350,15 @@ class Atoms(ase.Atoms):
             self.__init__(**data)
             if "calc" in data:
                 calc = getattr(calculators, _calc_name_converter(data["calc"]))
-                args = list(data["calc_args"]) if "calc_args" in data else None
+                args = data["calc_args"] if "calc_args" in data else None
                 kwargs = data["calc_kwargs"] if 'calc_kwargs' in data else None
                 if args is not None:
                     if kwargs is not None:
                         calc = calc(self, data["folder"], data["calc_contr_dir"],
-                                    data["calc_ran_seed"], args, **kwargs)
+                                    data["calc_ran_seed"], *args, **kwargs)
                     else:
                         calc = calc(self, data["folder"], data["calc_contr_dir"],
-                                    data["calc_ran_seed"], args)
+                                    data["calc_ran_seed"], *args)
                 else: #pragma: no cover This case has never come up in
                       #testing, however we wil keep it here to be
                       #verbose.
@@ -407,7 +407,7 @@ class Atoms(ase.Atoms):
             if "version" in calc_dict:
                 data["calc_version"] = calc_dict["version"] 
             if hasattr(self.calc,"args"):
-                data["calc_args"] = np.array(self.calc.args)
+                data["calc_args"] = self.calc.args
             if hasattr(self.calc,"kwargs"):
                 data["calc_kwargs"] = _recursively_convert_units(self.calc.kwargs)
             if hasattr(self.calc,"folder"):
