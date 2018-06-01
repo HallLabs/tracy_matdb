@@ -10,6 +10,28 @@ the same type.
 import numpy as np
 from ase.build import make_supercell
 
+def conform_supercell(supercell):
+    """Conforms the specified supercell to be a 3x3 matrix.
+
+    Args:
+        supercell: can be a list of length 3 or 9, or a :class:`numpy.ndarray`
+          that has shape (3, 3), (3,), (9,), (3, 1), (1, 3), (9, 1) or (1, 9).
+    """
+    if supercell is None:
+        return
+    if isinstance(supercell, (list, tuple)):
+        assert len(supercell) == 3 or len(supercell) == 9
+        if len(supercell) == 3:
+            scell = np.diag(supercell)
+        else:
+            scell = np.array(supercell).reshape(3, 3)
+    elif isinstance(supercell, np.ndarray):
+        if supercell.shape == (3, 3):
+            scell = supercell
+        else:
+            scell = conform_supercell(supercell.flatten().tolist())
+    return scell
+
 def supercell(at, supercell=None, min_distance=None, max_multiple=None):
     """Transforms the given atoms object into a supercell.
 

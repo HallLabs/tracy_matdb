@@ -195,6 +195,8 @@ def run(args):
             pots.extend(cdb.trainers.find(potp)) 
 
     if args["bands"]:
+        import matplotlib
+        matplotlib.use('Agg')
         from matdb.plotting.comparative import band_plot
         band_plot(dbs, pots, **args)
 

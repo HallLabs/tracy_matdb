@@ -6,6 +6,7 @@ from quippy.atoms import Atoms
 import quippy
 import numpy as np
 from os import path
+from matdb.atoms import Atoms as matdbAtoms
 
 class SyncQuip(quippy.Potential, SyncCalculator):
     """Implements a synchronous `matdb` calculator for QUIP potentials.
@@ -19,7 +20,7 @@ class SyncQuip(quippy.Potential, SyncCalculator):
     """
     def __init__(self, atoms, folder, contr_dir, ran_seed, *args, **kwargs):
         self.init_calc(kwargs)
-        self.args = args[0]
+        self.args = args
         self.kwargs = kwargs
         self.ran_seed = ran_seed
         self.contr_dir = contr_dir
@@ -51,9 +52,11 @@ class SyncQuip(quippy.Potential, SyncCalculator):
         params = atoms.params.copy()
         if 'force' in props:
             props['force'] = np.transpose(props['force'])
+
         info = atoms.info.copy()
-        del info["params"]
-        del info["properties"]
+        if isinstance(atoms, matdbAtoms):
+            del info["params"]
+            del info["properties"]
         
         kwargs = {"properties":props, "params":params, "positions":atoms.positions,
                   "numbers":atoms.get_atomic_numbers(),
@@ -62,7 +65,71 @@ class SyncQuip(quippy.Potential, SyncCalculator):
                   "n":len(atoms.positions)}
         return Atoms(**kwargs)
 
-    def calc(self,atoms,**kwargs):
+    def set_atoms(self, atoms):
+        """Sets the live atoms object for the calculator.
+        """
+        self.atoms = atoms
+
+    def get_property(self, name, atoms=None, allow_calculation=True, rename=False):
+        """Overrides the get_property on ASE atoms object to account for atoms
+        conversion between `matdb` and back.
+        """
+        if atoms is not None:
+            atoms = self.atoms
+        calcatoms = self._convert_atoms(atoms)
+        calcatoms.set_cutoff(self.cutoff())
+        calcatoms.calc_connect()
+        
+        r = super(SyncQuip, self).get_property(name, calcatoms, allow_calculation)
+        self._update_results(atoms, calcatoms, rename)
+        return r
+
+    def _update_results(self, atoms, calcatoms, rename=False):
+        """Updates the parameters and properties on the `atoms` object using
+        another one for which calculations were performed.
+
+        Args:
+            atoms: passed in atoms object, probably a :class:`ase.Atoms` or a
+              :class:`matdb.Atoms`.
+            calcatoms (quippy.Atoms): object that the QUIP potential was run
+              for.
+            rename (bool): when True, include the calculator key as part of the
+              quantity names for results.
+        """
+        #Unfortunately, quippy uses fortran arrays that are
+        #transposes. Depending on who calls this function, the atoms object can
+        #be ASE, quippy, or `matdb`. We have to perform checks for all relevant
+        #arrays that can be transposed.
+        for key, val in calcatoms.params.items():
+            if isinstance(val,np.ndarray):
+                new_val = np.array(val)
+            else:
+                new_val = val
+
+            if isinstance(atoms, matdbAtoms) and rename:
+                atoms.add_param("{}_{}".format(self.key, key), new_val)
+            else:
+                atoms.params[key] = new_val
+
+        for key, val in calcatoms.properties.items():
+            if isinstance(val, np.ndarray):
+                new_val = np.array(val)
+            else:
+                new_val = val
+            if key=="force" and isinstance(atoms, matdbAtoms):
+                new_val = np.transpose(new_val)
+            if key=="species" and isinstance(atoms, Atoms):
+                new_val = list(map(lambda r: ''.join(r), new_val.T))
+
+            if isinstance(atoms, matdbAtoms) and rename:
+                atoms.add_property("{}_{}".format(self.key, key), new_val)
+            else:
+                atoms.add_property(key, new_val)
+                
+        if not np.allclose(atoms.positions,calcatoms.positions): 
+            atoms.positions = calcatoms.positions        
+        
+    def calc(self, atoms, rename=False, **kwargs):
         """Replaces the calc function with one that returns a matdb atoms object.
         
         Args:
@@ -70,26 +137,9 @@ class SyncQuip(quippy.Potential, SyncCalculator):
             kwargs (dict): the key work arguments to the :clas:`quippy.Potential` 
               calc function.
         """
-        from matdb.atoms import Atoms as matAtoms
         temp_A = self._convert_atoms(atoms)
-        super(SyncQuip,self).calc(temp_A,**kwargs)
-        for key, val in temp_A.params.items():
-            if isinstance(val,np.ndarray):
-                new_val = np.array(val)
-            else:
-                new_val = val
-            atoms.add_param("{}_{}".format(self.key, key),new_val)
-
-        for key, val in temp_A.properties.items():
-            if isinstance(val,np.ndarray):
-                new_val = np.array(val)
-            else:
-                new_val = val
-            if key=="force":
-                new_val = np.transpose(new_val)
-            atoms.add_property("{}_{}".format(self.key, key),new_val)
-        if not np.allclose(atoms.positions,temp_A.positions): 
-            atoms.positions = temp_A.positions
+        super(SyncQuip, self).calc(temp_A, **kwargs)
+        self._update_results(atoms, temp_A, rename)
 
     def can_execute(self):
         """Returns `True` if this calculation can calculate properties for the

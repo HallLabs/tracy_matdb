@@ -1,9 +1,10 @@
 """Methods for calculating the phonon spectra of materials.
 """
 import numpy as np
-from os import path
+from os import path, mkdir
 from matdb.base import testmode
-from matdb.utility import chdir
+from matdb.utility import chdir, redirect_stdout
+from matdb import msg
 
 def _ordered_unique(items):
     """Returns the list of unique items in the list while still *preserving* the
@@ -59,6 +60,8 @@ def _calc_bands(atoms, hessian, supercell=(1, 1, 1), outfile=None, grid=None):
     
     if grid is None:
         grid = [13, 13, 13]
+    if isinstance(supercell, np.ndarray):
+        supercell = supercell.flatten()
     
     #First, roll up the Hessian and write it as a FORCE_CONSTANTS file.
     with chdir(target):
@@ -94,9 +97,7 @@ def _calc_bands(atoms, hessian, supercell=(1, 1, 1), outfile=None, grid=None):
 
     if not path.isfile(bandfile): #pragma: no cover
         msg.err("could not calculate phonon bands; see errors.")
-
-    if len(xres["error"]) > 0:
-        msg.std(''.join(xres["error"]))
+        msg.std(''.join(xres["output"]))
 
     result = None
     if outfile is not None:
@@ -132,8 +133,7 @@ def calc(atoms, cachedir=None, delta=0.01):
         numpy.ndarray: Hessian matrix that has dimension `(natoms*3, natoms*3)`,
         where `natoms` is the number of atoms in the *supercell*.
     """
-    from ase.optimize import BFGS
-    from matdb.utility import redirect_stdout
+    from ase.optimize.precon import Exp, PreconLBFGS
     from ase.vibrations import Vibrations
         
     #The phonon calculator caches the displacements and force sets for each
@@ -149,11 +149,18 @@ def calc(atoms, cachedir=None, delta=0.01):
         mkdir(cachedir)
 
     result = None
+    precon = Exp(A=3)
     with chdir(cachedir):           
         #Relax the cell before we calculate the Hessian; this gets the forces
         #close to zero before we make harmonic approximation.
-        minim = BFGS(atoms, logfile="phonons.log")
-        minim.run(fmax=1e-5)
+        try:
+            with redirect_stdout("phonons.log"):
+                minim = PreconLBFGS(atoms, precon=precon, use_armijo=True,
+                                    logfile="phonons.log")
+                minim.run(fmax=1e-5)
+        except:
+            #The potential is unstable probably. Issue a warning.
+            msg.warn("Couldn't optimize the atoms object. Potential may be unstable.")
 
         vib = Vibrations(atoms, delta=delta)
         with open("phonons.log", 'a') as f:

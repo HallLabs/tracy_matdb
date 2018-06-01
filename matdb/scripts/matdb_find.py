@@ -24,6 +24,8 @@ script_options = {
     "dbspec": {"help": "File containing the database specifications."},
     "-d": {"help": ("When specified, search the database context."),
            "action": "store_true"},
+    "-t": {"help": ("When specified, search the fitter/trainer context."),
+           "action": "store_true"},
     "-p": {"help": ("Specify the search pattern(s)"), "nargs": '+',
            "required": True}
     }
@@ -47,7 +49,33 @@ def _parser_options():
         return
 
     return args
-        
+
+def _generic_find(controller, heading, patterns):
+    """Performs a generic find operation on the specified controller and formats
+    the output in color.
+
+    Args:
+        controller: an instance of :class:`matdb.database.Controller` or
+          :class:`matdb.fitting.Controller`. The specified controller's `find`
+          method is used for the lookup.
+        heading (str): title to print before the table of discovered values.
+        patterns (list): of `str` patterns to search for.
+    """
+    msg.info(heading)
+    msg.info("--------------------------")
+    msg.blank()
+    for pattern in patterns:
+        for entry in controller.find(pattern):
+            if hasattr(entry, "uuid"):
+                eid = entry.uuid
+            elif hasattr(entry, "fqn"):
+                eid = entry.fqn
+            else:
+                eid = entry.name
+            text = "{} | {} ".format(eid, entry.root)
+            msg.arb(text, [msg.cenum["cwarn"],
+                           msg.cenum["cstds"]], '|')
+
 def run(args):
     """Runs the matdb setup and cleanup to produce database files.
     """
@@ -60,14 +88,9 @@ def run(args):
     cdb = Controller(args["dbspec"])
 
     if args["d"]:
-        msg.info("Database Context Instances")
-        msg.info("--------------------------")
-        msg.blank()
-        for pattern in args["p"]:
-            for entry in cdb.find(pattern):
-                text = "{} | {} ".format(entry.uuid, entry.root)
-                msg.arb(text, [msg.cenum["cwarn"],
-                               msg.cenum["cstds"]], '|')
+        _generic_find(cdb, "Database Context Instances", args["p"])
+    if args["t"]:
+        _generic_find(cdb.trainers, "Fitter Context Instances", args["p"])
         
 if __name__ == '__main__': # pragma: no cover
     run(_parser_options())
