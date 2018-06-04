@@ -1,10 +1,12 @@
 """Methods for calculating the phonon spectra of materials.
 """
 import numpy as np
-from os import path, mkdir
+from hashlib import sha1
+from os import path, mkdir, remove
 from matdb.base import testmode
-from matdb.utility import chdir, redirect_stdout
+from matdb.utility import chdir, redirect_stdout, convert_dict_to_str
 from matdb import msg
+from glob import glob
 
 def _ordered_unique(items):
     """Returns the list of unique items in the list while still *preserving* the
@@ -121,7 +123,7 @@ def calc(atoms, cachedir=None, delta=0.01):
     .. note:: `atoms` will be relaxed before calculating the Hessian.
 
     Args:
-        atoms (quippy.Atoms): atomic structure of the *supercell*.
+        atoms (matdb.Atoms): atomic structure of the *supercell*.
         cachedir (str): path to the directory where phonon calculations are
           cached. If not specified, a temporary directory will be used.
         supercell (tuple): number of times to duplicate the cell when
@@ -140,9 +142,11 @@ def calc(atoms, cachedir=None, delta=0.01):
     #atomic displacement using pickle. This generates three files for each
     #atomic degree of freedom (one for each cartesian direction). We want to
     #save these in a special directory.
+    tempcache = False
     if cachedir is None:
         from tempfile import mkdtemp
         cachedir = mkdtemp()
+        tempcache = True
     else:
         cachedir = path.abspath(path.expanduser(cachedir))
     if not path.isdir(cachedir):
@@ -150,27 +154,76 @@ def calc(atoms, cachedir=None, delta=0.01):
 
     result = None
     precon = Exp(A=3)
+    
+    #Calculate a hash of the calculator and atoms object that we are calculating
+    #for. If the potential doesn't have a `to_dict` method, then we ignore the
+    #hashing.
+    if hasattr(atoms, "to_dict") and hasattr(atoms._calc, "to_dict"):
+        atoms_pot = {"atoms": atoms.to_dict(), "pot": atoms._calc.to_dict()}
+        #This UUID will probably be different, even if the positions and species
+        #are identical.
+        del atoms_pot["atoms"]["uuid"]
+        hash_str = convert_dict_to_str(atoms_pot)
+        aphash = str(sha1(hash_str).hexdigest())
+    else:
+        aphash = None
+
+    if not tempcache:
+        #Check whether we should clobber the cache or not.
+        extras = ["vibsummary.log", "vib.log", "phonons.log"]
+        
+        with chdir(cachedir):
+            hash_match = False
+            if path.isfile("atomspot.hash"):
+                with open("atomspot.hash") as f:
+                    xhash = f.read()
+                hash_match = xhash == aphash
+
+            hascache = False
+            if not hash_match:
+                for vibfile in glob("vib.*.pckl"):
+                    remove(vibfile)
+                    hascache = True
+
+                for xfile in extras:
+                    if path.isfile(xfile):
+                        remove(xfile)
+                        hascache = True
+
+            if hascache:
+                msg.warn("Using hard-coded cache directory. We were unable to "
+                         "verify that the atoms-potential combination matches "
+                         "the one for which existing cache files exist. So, we "
+                         "clobbered the existing files to get the science "
+                         "right. You can fix this by using `matdb.Atoms` "
+                         "and `matdb.calculators.*Calculator` objects.")
+            
     with chdir(cachedir):           
         #Relax the cell before we calculate the Hessian; this gets the forces
         #close to zero before we make harmonic approximation.
         try:
-            with redirect_stdout("phonons.log"):
-                minim = PreconLBFGS(atoms, precon=precon, use_armijo=True,
-                                    logfile="phonons.log")
-                minim.run(fmax=1e-5)
+            with open("phonons.log") as f:
+                with redirect_stdout(f):
+                    minim = PreconLBFGS(atoms, precon=precon, use_armijo=True)
+                    minim.run(fmax=1e-5)
         except:
             #The potential is unstable probably. Issue a warning.
             msg.warn("Couldn't optimize the atoms object. Potential may be unstable.")
 
         vib = Vibrations(atoms, delta=delta)
-        with open("phonons.log", 'a') as f:
+        with open("vib.log", 'a') as f:
             with redirect_stdout(f):
                 vib.run()
 
-        #Read forces and assemble the Hessian matrix.
         vib.summary(log="vibsummary.log")
         result = vib.H
 
+        #Cache the hash of the atoms object and potential that we were using so
+        #that we can check next time whether we should clobber the cache or not.
+        if aphash is not None and not tempcache:
+            with open(path.join(cachedir, "atomspot.hash"), 'w') as f:
+                f.write(aphash)
+        
     return result
 
 def from_yaml(filepath):
