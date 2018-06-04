@@ -4,6 +4,7 @@ code for some of the implementation.
 
 import ase
 from ase.calculators.singlepoint import SinglePointCalculator
+from ase.build import make_supercell
 import numpy as np
 from copy import deepcopy
 import h5py
@@ -13,6 +14,7 @@ import lazy_import
 from os import path
 from uuid import uuid4
 from matdb import msg
+from matdb.transforms import conform_supercell
 
 calculators = lazy_import.lazy_module("matdb.calculators")
 
@@ -171,6 +173,14 @@ class Atoms(ase.Atoms):
                 
         self._initialised = True
 
+    def make_supercell(self, supercell):
+        """Returns a new :class:`matdb.Atoms` object that is a supercell of the
+        current one.
+        """
+        scell = conform_supercell(supercell)
+        result = make_supercell(self, scell)
+        return Atoms(result)
+        
     def add_property(self,name,value):
         """Adds an attribute to the class instance.
 
