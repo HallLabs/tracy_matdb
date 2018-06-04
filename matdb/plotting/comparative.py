@@ -102,12 +102,13 @@ def band_raw(poscar, bandfiles, pots=None, supercell=None, npts=100,
         kwargs (dict): additional "dummy" arguments so that this method can be
           called with arguments to other functions.
     """
+    import quippy
     if len(supercell) == 3:
         arrsuper = np.diag(supercell)
     else:
         arrsuper = np.array(supercell).reshape(3,3)
 
-    nlines = len(bandfiles) + 0 if pots is None else len(pots)
+    nlines = len(bandfiles) + (0 if pots is None else len(pots))
     colors = plt.cm.nipy_spectral(np.linspace(0, 1, nlines))        
     bands, style = {}, {}
     atoms = Atoms(poscar, format="vasp")
@@ -138,7 +139,7 @@ def band_raw(poscar, bandfiles, pots=None, supercell=None, npts=100,
                 fit = quippy.Potential("IP GAP", param_filename=potname)
                 cachedir = path.join(potdir, "cache")
                 ai.set_calculator(fit)
-                
+
             Hess = phon_calc(ai, cachedir, delta)
             bands[line_names[gi]] = _calc_bands(aprim, Hess, supercell)
             style[line_names[gi]] = {"color": colors[gi], "lw": 2}
