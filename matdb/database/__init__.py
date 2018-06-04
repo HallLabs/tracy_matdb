@@ -1558,10 +1558,7 @@ class Controller(object):
         from matdb.utility import is_uuid4
         if is_uuid4(pattern):
             return self.uuids[pattern]
-        
-        if pattern == '*':
-            return self.find('*/*')
-        
+                
         from fnmatch import fnmatch
         if pattern.count('/') == 3:
             dbname, groupname, seed, params = pattern.split('/')
