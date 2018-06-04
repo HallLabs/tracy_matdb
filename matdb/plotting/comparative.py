@@ -6,7 +6,7 @@ from os import path
 from tqdm import tqdm
 import numpy as np
 import matplotlib.pyplot as plt
-from ase.build import make_supercell
+
 from matdb.atoms import Atoms
 from matdb.phonons import bandplot
 from matdb.utility import chdir
@@ -67,9 +67,12 @@ def band_plot(dbs, fits=None, npts=100, title="{} Phonon Spectrum", save=None,
             gi = len(dbs) + fiti
             #make_supercell already returns a copy of the atoms object.
             scell = conform_supercell(db.supercell)
-            ai = make_supercell(db.atoms, scell)
+            ai = db.atoms.make_supercell(scell)
             ai.set_calculator(fit.calculator)
-            H = phon_calc(ai, fit.cachedir, delta)
+            #Note that for these kinds of calculations, we don't want to use the
+            #default cache directory for the potential; rather use a temporary
+            #directory (default when None is specified).
+            H = phon_calc(ai, None, delta)
             bands[fit.fqn] = _calc_bands(db.atoms, H, scell)
             style[fit.fqn] = {"color": colors[gi], "lw": 2}
 
@@ -102,11 +105,6 @@ def band_raw(poscar, bandfiles, pots=None, supercell=None, npts=100,
         kwargs (dict): additional "dummy" arguments so that this method can be
           called with arguments to other functions.
     """
-    if len(supercell) == 3:
-        arrsuper = np.diag(supercell)
-    else:
-        arrsuper = np.array(supercell).reshape(3,3)
-
     nlines = len(bandfiles) + 0 if pots is None else len(pots)
     colors = plt.cm.nipy_spectral(np.linspace(0, 1, nlines))        
     bands, style = {}, {}
@@ -132,7 +130,7 @@ def band_raw(poscar, bandfiles, pots=None, supercell=None, npts=100,
         for fiti, potfile in enumerate(tqdm(pots)):
             gi = len(bandfiles) + fiti
             aprim = atoms.copy()
-            ai = make_supercell(aprim, arrsuper)
+            ai = aprim.make_supercell(supercell)
             potdir, potname = path.split(potfile)
             with chdir(potdir):
                 fit = quippy.Potential("IP GAP", param_filename=potname)
