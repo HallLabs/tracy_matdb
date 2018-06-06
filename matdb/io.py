@@ -33,6 +33,74 @@ def symmetrize(xx=None, yy=None, zz=None, yz=None, xz=None, xy=None):
     from numpy import array
     return array([[xx, xy, xz], [xy, yy, yz], [xz, yz, zz]])
 
+def atoms_to_cfg(atm, target, config_id=None, type_map=None):
+    """Converts an :class:`matdb.atoms.Atoms` object to a cfg file.
+    
+    Args:
+        atm (matdb.atoms.Atoms): the atoms object.
+        target (str): path to the cfg file to be written.
+        config_id (str): the config id for the atoms object.
+        type_map (dict): a type map to match the species to a larger 
+          system than present in the system.
+    """
+
+    chem_syms = atm.get_chemical_symbols()
+    pos = atm.positions
+    
+    local_map = {}
+    for i, specs in enumerate(np.unique(chem_syms)):
+        if type_map is None:
+            local_map[specs] = i
+        else:
+            local_map[specs] =  type_map[i]
+
+    with open(target, "w+") as f:
+        f.write("BEGIN_CFG\n Size\n")
+        f.write("    {}\n".format(len(pos)))
+        f.write(" SuperCell\n")
+        # Then write out the lattice vectors.
+        lat_vecs = atm.cell
+        for i in range(3):
+            f.write("   {}\n".format("      ".join(
+                ["{0: .6f}".format(j) for j in lat_vecs[i]])))
+        
+        f.write("  ")
+
+        if "force" in atm.params:
+            forces = atm.force
+            f.write(" AtomData:  id type       cartes_x      cartes_y      "
+                    "cartes_z           fx          fy          fz\n")
+        else:
+            f.write(" AtomData:  id type       cartes_x      cartes_y      cartes_z\n")
+        iAt = 0
+        for type, loc in zip(chem_syms, pos):
+            out_lab = local_map[type]
+            if "force" in atm.params:
+                f.write("             {0}    {1}       "
+                        "{2}    {3}\n".format(iAt+1, out_lab,
+                                              "  ".join(["{0: .8f}".format(i) for i in loc]),
+                                              "    ".join(["{0: .8f}".format(i) for i in force])))
+            else:
+                f.write("             {0}    {1}       "
+                        "{2}\n".format(iAt+1, out_lab,
+                                       "  ".join(["{0: .8f}".format(i) for i in loc])))
+            iAt += 1
+
+        if "energy" in atm.properties:
+            f.write("  Energy\n")
+            f.write("        {0}\n".format(atm.energy))
+
+        if "stress" in atm.properties:
+            f.write(" Stress:   xx          yy          zz          yz          xz          xy\n")
+            f.write("    ".join(atm.stress))
+                        
+        if config_id is None:
+            conf_id = "{0}_{1}".format("".join(chem_syms),len(pos))
+        else:
+            conf_id = config_id
+        f.write(" Feature   conf_id  {}\n".format(conf_id))
+        f.write("END_CFG\n\n")
+    
 def _cfgd_to_atoms(cfgd, species=None):
     """Converts a CFG dictionary to an atoms object.
 
