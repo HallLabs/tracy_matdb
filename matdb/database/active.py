@@ -69,6 +69,22 @@ class Active(Group):
         """
         if self.last_iteration is None:
             self.last_iteration = self.load_pkl(self.iter_file)
+
+    @property
+    def last_config_atoms(self):
+        """Returns the atoms objects from the last iteration.
+        """
+
+        last_atoms = {}
+        last_count = 0
+        if len(self.last_iteration) == 0:
+            return None
+        else:
+            for i in range(len(self.config_atoms)-len(self.last_iteration)-1,
+                           len(self.config_atoms)):
+                last_atoms[last_count] = self.config_atoms[i]
+
+        return last_atoms
             
     @property
     def fitting_configs(self):
