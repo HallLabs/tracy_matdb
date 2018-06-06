@@ -1,25 +1,24 @@
 """Implements classes and methods for performing a GAP fit over a
 database defined in the YAML specification file.
 """
-from os import path, rename, remove
-from collections import OrderedDict
+from os import path, rename, remove, mkdir
 import numpy as np
 from glob import glob
-import os
 from tqdm import tqdm
+from itertools import product, combinations
+import tarfile
+
+from jinja2 import Environment, PackageLoader
+from phenum.makeStr import _make_structures
 
 from matdb import msg
-from matdb.utility import cat, chdir
+from matdb.utility import cat, chdir, _get_reporoot
 from matdb.fitting.basic import Trainer
 from matdb.exceptions import MlpError, LogicError
-
-
-def RepresentsInt(s):
-    try: 
-        int(s)
-        return True
-    except ValueError:
-        return False
+from matdb.atoms import Atoms
+from matdb.database.active import Active
+from matdb.database import Database
+from matdb.io import atoms_to_cfg
 
 class MTP(Trainer):
     """Implements a simple wrapper around the MTP training functionality for
@@ -56,8 +55,11 @@ class MTP(Trainer):
         else:
             self._set_relax_ini({})
 
-        self.selection_limit = mtpargs["selection-limit"]
+        self.use_unrelaxed = mtpargs["use_unrelaxed"] if "use_unrelaxed" in mtpargs else False
+
+        self.selection_limit = mtpargs["selection-limit"] if "selection-limit" in mtpargs else 300
         self.species = controller.db.species
+        self.crystals_to_relax = mtpargs["crystals_to_relax"] if "crystals_to_relax" in mtpargs else ["sc", "fcc", "bcc", "hcp", "prototypes"]
 
         self.mtp_file = "pot.mtp"
         if path.isfile(path.join(self.root,"status.txt")):
@@ -69,8 +71,6 @@ class MTP(Trainer):
             self.iter_status = None
 
         # we need access to the active learning set
-        from matdb.database.active import Active
-        from matdb.database import Database
         db_root = self.controller.db.root
         steps = [{"type":"active.Active"}]
         dbargs = {"root":db_root,
@@ -81,7 +81,6 @@ class MTP(Trainer):
         self._trainfile = path.join(self.root, "train.cfg")
         
         #Configure the fitting directory for this particular potential.
-        from os import mkdir
         if not path.isdir(self.root):
             mkdir(self.root)
 
@@ -156,12 +155,11 @@ class MTP(Trainer):
             iteration (int): the number of iterations of MTP has been 
                 through.
         """
-        from matdb.utility import cat
         if iteration == 1:
             for db in self.dbs:
                 pbar = tqdm(total=len(db.fitting_configs))
-                for config in db.fitting_configs:
-                    self._create_train_cfg(config)
+                for atm in db.config_atoms:
+                    self._create_train_cfg(atm, path.join(self.root, "train.cfg"))
                     pbar.update(1)
         else:
             if self.active.last_iteration is None or len(self.active.last_iteration) < 1:
@@ -173,72 +171,31 @@ class MTP(Trainer):
             msg.info("Extracting from {0} folders".format(len(self.active.last_iteration)))
             self.active.extract()
             pbar = tqdm(total=len(self.active.last_iteration.values()))
-            for config in self.active.last_iteration.values():
-                self._create_train_cfg(config)
+            for atm in db.config_atoms:
+                self._create_train_cfg(atm, path.join(self.root, "train.cfg"))
                 pbar.update(1)
 
-    def _create_train_cfg(self,target):
+    def _create_train_cfg(self, atm, target):
         """Creates a 'train.cfg' file for the calculation stored at the target
         directory.
 
         Args:
-            target (str): the path to the directory in which a calculation 
-                was performed.
+            atm (matdb.atoms.Atoms): an atoms object to write to the cfg file.
+            target (str): the path to the desierd "train.cfg" file.            
         """
-        from matdb.utility import cat
-        if path.isfile(path.join(target,"OUTCAR")):
-            mapping = self._get_mapping(target)
-            os.system("mlp convert-cfg {0}/OUTCAR {1}/diff.cfg --input-format=vasp-outcar >> outcar.txt".format(target,self.root))
-            if path.isfile(path.join(self.root,"diff.cfg")):
-                rename(path.join(self.root,"diff.cfg"),
-                       path.join(self.root,"diff_orig.cfg"))
-                with open(path.join(self.root,"diff_orig.cfg"),"r") as f_in:
-                    with open(path.join(self.root,"diff.cfg"),"w+") as f_out:
-                        for i, line_in in enumerate(f_in):
-                            if i==2:
-                                n_atoms = int(line_in.strip())
-                                f_out.write(line_in)
-                            elif i >= 8 and i < 8+n_atoms:
-                                temp_line = line_in.strip().split()
-                                temp_line[1] = mapping[int(temp_line[1])]
-                                temp_line = "            {0}    {1}       {2}      {3}      {4}     {5}    {6}    {7}".format(*temp_line)
-                                f_out.write(temp_line)
-                            else:
-                                f_out.write(line_in)
-                if path.isfile(path.join(self.root,"train.cfg")):
-                    cat([path.join(self.root,"train.cfg"), path.join(self.root,"diff.cfg")],
-                        path.join(self.root,"temp.cfg"))
-                    rename(path.join(self.root,"temp.cfg"), path.join(self.root,"train.cfg"))
-                else:
-                    rename(path.join(self.root,"diff.cfg"), path.join(self.root,"train.cfg"))
-            else:
-                msg.err("There was an error making the config file for folder "
-                        "{}".format(path.join(self.root,target)))
+        temp_cfg = path.join(self.root, "temp.cfg")
+        atoms_to_cfg(atm, temp_cfg)
+
+        if not path.isfile(temp_cfg):
+            raise IOError("Failed to create cfg file for atmso object stored "
+                          "at: {0}".format(atm.calc.folder))
+        
+        if path.isfile(target):
+            cat([temp.cfg, target], path.join(self.root, "temp2.cfg"))
+            rename(path.join(self.root, "temp2.cfg"), target)
         else:
-            msg.err("The folder {} didn't run.".format(path.join(self.root,target)))
-
-    def _get_mapping(self,target):
-        """Finds the species mappings for the atomic numbers found in the
-        trani.cfg file so that is will be correct.
-        Args:
-            target (str): the path to the directory in which a calculation 
-                was performed.
-        """
-        if not path.isfile(path.join(target,"POSCAR")):
-            msg.err("Setup failed for {0}.".format(target))
-        else:
-            # We need to grab the first line of the POSCAR to
-            # determine the species present.
-            with open(path.join(target,"POSCAR"),"r") as f:
-                specs = f.readline().strip().split()
-
-            mapping = {}
-            j = 0
-            for i, s  in enumerate(specs):
-                mapping[i] = self.species.index(s)
-
-        return mapping
-
+            rename(path.join(self.root, "temp.cfg"), target)
+            
     def _make_pot_initial(self):
 
         """Creates the initial 'pot.mtp' file.
@@ -246,7 +203,6 @@ class MTP(Trainer):
 
         target = path.join(self.root, "pot.mtp")
         
-        from jinja2 import Environment, PackageLoader
         env = Environment(loader=PackageLoader('matdb', 'templates'))
         template = env.get_template("pot.mtp")
 
@@ -259,20 +215,18 @@ class MTP(Trainer):
 
         target = path.join(self.root, "relax.ini")
         
-        from jinja2 import Environment, PackageLoader
         env = Environment(loader=PackageLoader('matdb', 'templates'))
         template = env.get_template("relax.ini")
 
         with open(target,'w') as f:
             f.write(template.render(**self.relax))
 
-    def _make_to_relax_cfg(self):
+    def _make_to_relax_cfg(self, testing=False):
         """Creates the list of files to relax to check the mtp against.
+
+        Args:
+            testing (bool): True if unit tests are being run.
         """
-        from matdb.utility import _get_reporoot
-        from os import path, remove
-        from phenum.makeStr import _make_structures
-        from itertools import combinations
 
         target = path.join(self.root,"to-relax.cfg")
 
@@ -297,14 +251,95 @@ class MTP(Trainer):
                     "file for systems with more than 4 elements.")
         
         msg.info("Setting up to-relax.cfg file.")
-        for crystal in ["bcc","fcc","sc","hcp"]:
-            infile = path.join(_get_reporoot(),"matdb","templates",
-                               "struct_enum.out_{0}_{1}".format(len(self.species),crystal))
-            args["input"] = infile
-            _make_structures(args)
+        prot_map = {0: "uniqueUnaries", 1: "uniqueBinaries", 2: "uniqueTernaries"}
+        for crystal in self.crystals_to_relax:
+            if crystal == "prototypes":
+
+                # The prototypes are saved into the file prototypes.tar.gz, if
+                # this is the first time prototypes has been run we need to unpack it.
+                template_root = path.join(_get_reporoot(), "matdb", "templates")
+                if not path.isdir(path.join(template_root, "uniqueUnaries")):
+                    with chdir(template_root):
+                        tarf = "prototypes.tar.gz"
+                        tar = tarfile.open(tarf, "r:gz")
+                        tar.extractall()
+                        tar.close()
+
+                for size in range(len(self.species)):
+                    dry_count = 0
+                    cand_path = path.join(template_root, prot_map(size))
+                    structures = glob("{0}/*".format(cand_path))
+                    perms = [list(i) for i in permutations(self.species, r=size+1)]
+                    for fpath, perm in product(structures, perms):
+                        type_map = {}
+                        for i, s in enumerate(self.species):
+                            if s in perm:
+                                type_map[perm.index(s)] = i
+                        self._prot_to_cfg(fpath, perm, target, type_map)
+                        
+                    #For unit testing
+                    if dry_run:
+                        if dry_count == 10:
+                            break
+                        dry_count += 1
+                        
+                    
+            else:
+                if dry_run: 
+                    infile = path.join(_get_reporoot(),"matdb","templates",
+                                       "test_enum.out_{0}".format(crystal))
+                else: #pragma: no cover
+                    infile = path.join(_get_reporoot(),"matdb","templates",
+                                       "struct_enum.out_{0}_{1}".format(len(self.species),crystal))
+                args["input"] = infile
+                _make_structures(args)
                     
         msg.info("to-relax.cfg file completed.")                   
         
+
+    def _prot_to_cfg(self, source, species, relax_file, type_map):
+        """Corrects the POSCAR so that it has the correct lattice parameter
+        and title string for the system to be read into ASE.
+        
+        Args:
+            source (str): the path to the prototype POSCAR.
+            species (list): a list of the species to be used for this POSCAR.
+            relax_file (str): the full path to the to-relax.cfg file being
+              written.
+            type_map (dict): the type mapping to apply to the cfg file.
+        """
+
+        f_lines = []
+        lat_vecs = []
+        # read in the original POSCAR
+        with open(source, "r") as f:
+            for i, line in enumerate(f):
+                f_lines.append(line)
+                if i in [2, 3, 4]:
+                    lat_vecs.append([float(j) for j in line.strip().split()])
+                if i == 5:
+                    concs = [int(j) for j in line.strip().split()]
+
+        # fix the title.
+        f_lines[0] = "{0} : {1}".format(" ".join(species), f_lines[0])
+
+        # fix the lattice parameter
+        lat_param, ttl = get_lattice_parameter(species, concs, lat_vecs, sum(concs), " ")
+        f_lines[1] = "{} \n".format(lat_param)
+
+        target = path.join(self.root, "PROT")
+        with open(target, "w+") as f:
+            for line in f_lines:
+                f.write(line)
+
+        atm = Atoms(target)
+        
+        atoms_to_cfg(atm, path.join(self.root, "prot.cfg"))
+        cat([relax_file, path.join(self.root, "prot.cfg")])
+        config_id = "{0}_{1}".format("".join(self.species), source.split("/")[-1])
+        remove(path.join(self.root, "prot.cfg"), config_id = config_id, type_map = type_map)
+        remove(target)
+                
     def command(self):
         """Returns the command that is needed to train the GAP
         potentials specified by this object.
@@ -316,7 +351,6 @@ class MTP(Trainer):
             self.iter_status = "train"
             iter_count = 1
         else:
-            from os import remove
             with open(path.join(self.root,"status.txt"),"r") as f:
                 for line in f:
                     old_status = line.strip().split()
@@ -334,10 +368,8 @@ class MTP(Trainer):
 
             #remove the selected.cfg and rexaed.cfg from the last iteration if they exist
             if path.isfile(path.join(self.root,"selected.cfg")):
-                from os import remove
                 remove(path.join(self.root,"selected.cfg"))
             if path.isfile(path.join(self.root,"relaxed.cfg")):
-                from os import remove
                 remove(path.join(self.root,"relaxed.cfg"))        
         
             if not path.isfile(path.join(self.root,"relax.ini")):
@@ -362,7 +394,7 @@ class MTP(Trainer):
                 raise MlpError("mlp failed to produce the 'state.mvs` file with command "
                                "'mlp calc-grade pot.mtp train.cfg train.cfg temp1.cfg'")
             
-            if path.isfile(path.join(self.root,"unrelaxed.cfg")):
+            if path.isfile(path.join(self.root,"unrelaxed.cfg")) and self.use_unrelaxed:
                 rename(path.join(self.root,"unrelaxed.cfg"),path.join(self.root,"to-relax.cfg"))
             elif not path.isfile(path.join(self.root,"to-relax.cfg")):
                 self._make_to_relax_cfg()
@@ -374,7 +406,6 @@ class MTP(Trainer):
 
         # if relaxation is done
         if self.iter_status == "select":
-            from matdb.atoms import Atoms
             cat(glob(path.join(self.root,"selected.cfg_*")), path.join(self.root,"selected.cfg"))
 
             # command to select next training set.
