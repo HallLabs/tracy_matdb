@@ -12,7 +12,7 @@ from jinja2 import Environment, PackageLoader
 from phenum.makeStr import _make_structures
 
 from matdb import msg
-from matdb.utility import cat, chdir, _get_reporoot
+from matdb.utility import cat, chdir, _get_reporoot, execute
 from matdb.fitting.basic import Trainer
 from matdb.exceptions import MlpError, LogicError
 from matdb.atoms import Atoms
@@ -50,14 +50,43 @@ class MTP(Trainer):
         else:
             self.root = root
 
-        if "relax" in mtpargs and mtpargs["relax"] is not None:
-            self._set_relax_ini(mtpargs["relax"])
+        if "relax_ini" in mtpargs and mtpargs["relax_ini"] is not None:
+            self._set_relax_ini(mtpargs["relax_ini"])
         else:
             self._set_relax_ini({})
 
+        if "relax" in mtpargs and mtpargs["relax"] is not None:
+            self.relax_args = mtpargs["relax"]
+        else:
+            self.relax_args = {}
+
+        if "train" in mtpargs and mtpargs["train"] is not None:
+            self.train_args = mtpargs["train"]
+        else:
+            self.train_args = {}
+
+        if "calc-grade" in mtpargs and mtpargs["calc-grade"] is not None:
+            self.grade_args = mtpargs["calc-grade"]
+        else:
+            self.grade_args = {}
+
+        if "select" in mtpargs and mtpargs["select"] is not None:
+            self.select_args = mtpargs["select"]
+        else:
+            self.select_args = {}
+
+        if "to-relax" in mtpargs and mtpargs["to-relax"] is not None:
+            self.to_relax_args = mtpargs["to-relax"]
+        else:
+            self.to_relax_args = {}
+
+        if "use_mpi" in mtpargs and mtpargs["use_mpi"] is not None:
+            self.use_mpi = mtpargs["use_mpi"]
+        else:
+            self.use_mpi = True
+
         self.use_unrelaxed = mtpargs["use_unrelaxed"] if "use_unrelaxed" in mtpargs else False
 
-        self.selection_limit = mtpargs["selection-limit"] if "selection-limit" in mtpargs else 300
         self.species = controller.db.species
         self.crystals_to_relax = mtpargs["crystals_to_relax"] if "crystals_to_relax" in mtpargs else ["sc", "fcc", "bcc", "hcp", "prototypes"]
 
@@ -136,7 +165,7 @@ class MTP(Trainer):
         else:
             relax_args["threshold_break"] = "10.0"
 
-        self.relax = relax_args
+        self.relax_ini = relax_args
 
     def ready(self):
         """Determines if the potential is ready for use.
@@ -170,8 +199,8 @@ class MTP(Trainer):
                             "structures is missing.".format(self.active.iter_file))
             msg.info("Extracting from {0} folders".format(len(self.active.last_iteration)))
             self.active.extract()
-            pbar = tqdm(total=len(self.active.last_iteration.values()))
-            for atm in db.config_atoms:
+            pbar = tqdm(total=len(self.active.last_iteration))
+            for atm in db.last_config_atoms:
                 self._create_train_cfg(atm, path.join(self.root, "train.cfg"))
                 pbar.update(1)
 
@@ -194,7 +223,12 @@ class MTP(Trainer):
             cat([temp.cfg, target], path.join(self.root, "temp2.cfg"))
             rename(path.join(self.root, "temp2.cfg"), target)
         else:
-            rename(path.join(self.root, "temp.cfg"), target)
+            rename(temp_cfg, target)
+
+        if path.isfile(temp_cfg):
+            remove(temp_cfg)
+        if path.isfile(path.join(self.root, "temp2.cfg")):
+            remove(path.join(self.root, "temp2.cfg"))
             
     def _make_pot_initial(self):
 
@@ -219,7 +253,7 @@ class MTP(Trainer):
         template = env.get_template("relax.ini")
 
         with open(target,'w') as f:
-            f.write(template.render(**self.relax))
+            f.write(template.render(**self.relax_ini))
 
     def _make_to_relax_cfg(self, testing=False):
         """Creates the list of files to relax to check the mtp against.
@@ -339,7 +373,152 @@ class MTP(Trainer):
         config_id = "{0}_{1}".format("".join(self.species), source.split("/")[-1])
         remove(path.join(self.root, "prot.cfg"), config_id = config_id, type_map = type_map)
         remove(target)
-                
+
+    def _train_template(self):
+        """Creates the train command template.
+        """
+        # mlp train potential.mtp train_set.cfg [options]:
+        #   trains potential.mtp on the training set from train_set.cfg
+        #   Options include:
+        #     --energy-weight=<double>: weight of energies in the fitting. Default=1
+        #     --force-weight=<double>: weight of forces in the fitting. Default=0.01
+        #     --stress-weight=<double>: weight of stresses in the fitting. Default=0.001
+        #     --scale-by-force=<double>: Default=0. If >0 then configurations near equilibrium
+        #                                (with roughtly force < <double>) get more weight. 
+        #     --valid-cfgs=<string>: filename with configuration to validate
+        #     --max-iter=<int>: maximal number of iterations. Default=1000
+        #     --curr-pot-name=<string>: filename for potential on current iteration.
+        #     --trained-pot-name=<string>: filename for trained potential. Default=Trained.mtp_
+        #     --bfgs-conv-tol=<double>: stopping criterion for optimization. Default=1e-8
+        #     --weighting=<string>: how to weight configuration wtih different sizes
+        #         relative to each other. Default=vibrations. Other=molecules, structures.
+        #     --init-params=<string>: how to initialize parameters if a potential was not
+        #         pre-fitted. Default is random. Other is same - this is when interaction
+        #         of all species is the same (more accurate fit, but longer optimization)
+        #     --skip-preinit: skip the 75 iterations done when params are not given
+
+        if self.use_mpi:
+            template = ("mpirun -n {} mlp train pot.mtp "
+                        "train.cfg".format(self.ncores))
+        else:
+            template = "train pot.mtp train.cfg"
+            
+        for k, v in self.train_args.items:
+            if k == "curr-pot-name" or k == "trained-pot-name":
+                msg.warn("Renaming of the potential file is not enabled.")
+                continue
+            if k == "valid-cfgs":
+                msg.warn("Validating configurations is not enabled.")
+                continue
+
+            template = template + " --{0}={1}".format(k,v)
+
+        return template + " > training.txt"
+
+    def _calc_grade_template(self):
+        """Creates the template for the calc-grade command.
+        """
+        # mlp calc-grade pot.mtp train.cfg in.cfg out.cfg:
+        # actively selects from train.cfg, generates state.mvs file from train.cfg, and
+        # calculates maxvol grades of configurations located in in.cfg
+        # and writes them to out.cfg
+        #   Options:
+        #   --init-threshold=<num>: set the initial threshold to 1+num, default=1e-5
+        #   --select-threshold=<num>: set the select threshold to num, default=1.1
+        #   --swap-threshold=<num>: set the swap threshold to num, default=1.0000001
+        #   --energy-weight=<num>: set the weight for energy equation, default=1
+        #   --force-weight=<num>: set the weight for force equations, default=0
+        #   --stress-weight=<num>: set the weight for stress equations, default=0
+        #   --nbh-weight=<num>: set the weight for site energy equations, default=0
+        #   --mvs-filename =<filename>: name of mvs file        
+        template = "mlp calc-grade pot.mtp train.cfg train.cfg temp1.cfg"
+        for k, v in self.grade_args:
+            if k == "mvs-filename":
+                msg.warn("Renaming the mvs state file is not enabled.")
+            template = template + " --{0}={1}".format(k,v)
+
+        return template
+    
+    def _relax_template(self):
+        """Creates the template for the relax command.
+        """
+        # mlp relax settings-file [options]:
+        # settings file should contain settings for relaxation and for mlip regime.
+        #  Options can be given in any order. Options include:
+        # --pressure=<num>: external pressure (in GPa)
+        # --iteration_limit=<num>: maximum number of iterations
+        # --min-dist=<num>: terminate relaxation if atoms come closer than <num>
+        # --force-tolerance=<num>: relaxes until forces are less than <num>(eV/Angstr.)
+        #       Zero <num> disables atom relaxation (fixes atom fractional coordinates)
+        # --stress-tolerance=<num>: relaxes until stresses are smaller than <num>(GPa)
+        #       Zero <num> disables lattice relaxation
+        # --max-step=<num>: Maximal allowed displacement of atoms and lattice vectors
+        #       (in Angstroms)
+        # --min-step=<num>: Minimal displacement of atoms and lattice vectors (Angstr.)
+        #       If all actual displacements are smaller then the relaxation stops.
+        # --bfgs-wolfe_c1
+        # --bfgs-wolfe_c2
+        # --cfg-filename=<str>: Read initial configurations from <str>
+        # --save-relaxed=<str>: Save the relaxed configurations to <str>
+        # --save-unrelaxed=<str>: If relaxation failed, save the configuration to <str>
+        # --log=<str>: Write relaxation log to <str>
+
+        if self.use_mpi:
+            template = ("mpirun -n {0} mlp relax relax.ini "
+                        "--cfg-filename=to-relax.cfg "
+                        "--save-relaxed={1} --log=relax_{2}"
+                        "--save-unrelaxed={3}".format(self.ncores,
+                                                      "relaxed.cfg",
+                                                      "log.txt", "candidate.cfg"))
+        else:
+            template = ("mlp relax relax.ini "
+                        "--cfg-filename=to-relax.cfg "
+                        "--save-relaxed={1} --log=relax_{2}"
+                        "--save-unrelaxed={3}".format(self.ncores,
+                                                      "relaxed.cfg",
+                                                      "log.txt", "candidate.cfg"))
+
+        for k, v in self.relax_args.items():
+            if k in ["log", "save-unrelaxed", "save-relaxed", "cfg-filename"]:
+                msg.warn("Changing the {0} file name is not supported.".format(k))
+                continue
+            if k in ["bfgs-wolfe_c1", "bfgs-wolfe_c2"]:
+                template = template + " --{0}".format(k)
+            else:                         
+                template = template + " --{0}={1}".format(k,v)
+
+        return template
+
+    def _select_template(self):
+        """Creates the select command template.
+        """
+        # mlp select-add pot.mtp train.cfg new.cfg diff.cfg:
+        # actively selects configurations from new.cfg and save those
+        # that need to be added to train.cfg to diff.cfg
+        #   Options:
+        #   --init-threshold=<num>: set the initial threshold to num, default=1e-5
+        #   --select-threshold=<num>: set the select threshold to num, default=1.1
+        #   --swap-threshold=<num>: set the swap threshold to num, default=1.0000001
+        #   --energy-weight=<num>: set the weight for energy equation, default=1
+        #   --force-weight=<num>: set the weight for force equations, default=0
+        #   --stress-weight=<num>: set the weight for stress equations, default=0
+        #   --nbh-weight=<num>: set the weight for site energy equations, default=0
+        #   --mvs-filename=<filename>: name of mvs file
+        #   --selected-filename=<filename>: file with selected configurations
+        #   --selection-limit=<num>: swap limit for multiple selection, default=0 (disabled)
+        #   --weighting=<string>: way of weighting the functional for better fitting of
+        # properties. Default=vibrations. Others=molecules, structures.
+        
+        template = "mlp select-add pot.mtp train.cfg candidate.cfg new_training.cfg"
+
+        for k, v in self.select_args.items():
+            if k in ["mvs-filename", "selected-filename"]:
+                msg.warn("Changing the {0} file name is not enabled.")
+                continue
+            template = template + " --{0}={1}".format(k,v)
+
+        return template
+    
     def command(self):
         """Returns the command that is needed to train the GAP
         potentials specified by this object.
@@ -376,47 +555,50 @@ class MTP(Trainer):
                 self._make_relax_ini()
             if not path.isfile(path.join(self.root,"pot.mtp")):
                 self._make_pot_initial()
-            template = "mpirun -n {} mlp train pot.mtp train.cfg > training.txt".format(self.ncores)
+            template = self._train_template
             with open(path.join(self.root,"status.txt"),"w+") as f:
                 f.write("relax {0}".format(iter_count))
 
         if self.iter_status == "relax":
             # If pot has been trained
             rename(path.join(self.root,"Trained.mtp_"), path.join(self.root,"pot.mtp"))
-            
-            # if the unrelaxed.cfg file exists we need to move it to
-            # replace the existing 'to-relax.cfg' otherwise we need to
-            # create the 'to-relax.cfg' file.
-            with chdir(self.root):
-                os.system("mlp calc-grade pot.mtp train.cfg train.cfg temp1.cfg")
 
+            # Calculate the grad of the training configurations.
+            calc_grade = self._calc_grade_template()
+            execute(calc_grade.split(), self.root)
+            remove(path.join(self.root, "temp1.cfg"))
             if not path.isfile(path.join(self.root, "state.mvs")):
                 raise MlpError("mlp failed to produce the 'state.mvs` file with command "
                                "'mlp calc-grade pot.mtp train.cfg train.cfg temp1.cfg'")
             
+            # if the unrelaxed.cfg file exists we need to move it to
+            # replace the existing 'to-relax.cfg' otherwise we need to
+            # create the 'to-relax.cfg' file.            
             if path.isfile(path.join(self.root,"unrelaxed.cfg")) and self.use_unrelaxed:
                 rename(path.join(self.root,"unrelaxed.cfg"),path.join(self.root,"to-relax.cfg"))
             elif not path.isfile(path.join(self.root,"to-relax.cfg")):
                 self._make_to_relax_cfg()
 
             # command to relax structures
-            template = "mpirun -n {} mlp relax relax.ini --cfg-filename=to-relax.cfg".format(self.ncores)
+            template = self._relax_template()
             with open(path.join(self.root,"status.txt"),"w+") as f:
                 f.write("select {0}".format(iter_count))
 
         # if relaxation is done
         if self.iter_status == "select":
-            cat(glob(path.join(self.root,"selected.cfg_*")), path.join(self.root,"selected.cfg"))
-
+            cat(glob(path.join(self.root,"candidate.cfg_*")), path.join(self.root,"candidate.cfg"))
             # command to select next training set.
-            with chdir(self.root):
-                os.system("mlp select-add pot.mtp train.cfg selected.cfg diff.cfg --selection-limit={}".format(self.selection_limit))
+            select_template = self._select_template()
+            execute(select_template.split(), self.root)
 
+            with chdir(self.root):
                 # Now add the selected atoms to the Active database.
-                os.system("mlp convert-cfg diff.cfg POSCAR --output-format=vasp-poscar")
-                os.system("cp selected.cfg selected.cfg_iter_{}".format(iter_count))
-                if path.isfile("relaxed.cfg"):
-                    os.system("cp relaxed.cfg relaxed.cfg_iter_{}".format(iter_count))
+                # input filename sould always be entered before output filename
+                execute(["mlp", "convert-cfg", "new_training.cfg", "POSCAR",
+                         "--output-format=vasp-poscar"], self.root)
+                rename("new_training.cfg", "new_training.cfg_iter_{}".format(iter_count))
+                if path.isfile(self.relaxed_file):
+                    rename("relaxed.cfg", "relaxed.cfg_iter_{}".format(iter_count))
 
                 new_configs = []
                 new_POSCARS = glob("POSCAR*")
