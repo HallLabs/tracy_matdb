@@ -17,11 +17,17 @@ databases:
     pattern: 'p-50-*.xyz'
     config_type: 'ph'
     legacy: True
+    energy: "dft_energy"
+    force: "dft_force"
+    virial: "dft_virial"
   - name: 'liquid'
     folder: './tests/data/legacy'
     pattern: 'liquid.xyz'
     config_type: 'liq'
     legacy: True
+    energy: "dft_energy"
+    force: "dft_force"
+    virial: "dft_virial"
     
 fitting:
   dbs: ['phonon', 'liquid']

@@ -160,7 +160,9 @@ class Atoms(ase.Atoms):
                     self.add_param(k,v)
                     del self.info[k]
 
-        self.group_uuid = group_uuid
+        if not hasattr(self, "group_uuid"):
+            self.group_uuid = group_uuid
+    
         self.uuid = uuid if uuid is not None else str(uuid4())
                 
         self._initialised = True

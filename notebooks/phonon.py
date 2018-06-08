@@ -396,8 +396,6 @@ class Modulation(Group):
         """Determines if this database is finished calculating by testing the
         existence of the xyz database file in the root folder.
         """
-        import pudb
-        pudb.set_trace()
         target = path.join(self.root, "output.xyz")
         result = False
         if path.isfile(target):

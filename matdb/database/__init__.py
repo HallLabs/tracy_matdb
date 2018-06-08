@@ -744,8 +744,6 @@ class Group(object):
             else:
                 trans_atoms.write(path.join(target,"atoms.h5"))
             #Finally, store the configuration for this folder.
-            import pudb
-            pudb.set_trace()
             self.configs[cid] = target
             self.config_atoms[cid] = trans_atoms
 
@@ -968,11 +966,12 @@ class Group(object):
         """
 
         from matdb.atoms import _recursively_convert_units
-        
-        final_dict["hash"] = self.hash()
+
+        final_dict = self.to_dict()
+        final_dict["hash"] = self.hash_group()
         final_dict["uuid"] = self.uuid
-        
-        rset = self.rset()
+
+        rset = self.rset
         atoms = AtomsList(rset)
 
         # The rset exists for a set of parameters. We want to know
@@ -988,9 +987,9 @@ class Group(object):
                 # the group and it's key to store the parameters under
                 uuids.append(this_uuid)
                 group_inst = self.database.parent.find(this_uuid)
-                key = group_inst.key()
+                key = group_inst.key
                 params = group_inst.to_dict(include_time_stamp=True)
-                params.extend(group_inst.grpargs)
+                params[key] = group_inst.grpargs
                 params_dict[key] = _recursively_convert_units(params)
             pbar.update(1)
 
@@ -1041,7 +1040,8 @@ class Database(object):
         self.splits = {} if splits is None else splits
         self.ran_seed = ran_seed
         self.splitroot = path.join(root, "splits", name)
-        
+
+        from os import mkdir, makedirs
         if not path.isdir(self.root):
             mkdir(self.root)
         if not path.isdir(self.splitroot):
@@ -1228,6 +1228,7 @@ class Database(object):
         """Splits the database multiple times, one for each `split` setting in
         the database specification.
         """
+        subconfs = []
         for dbname, db in self.isteps:
             if not db.trainable:
                 continue
@@ -1242,7 +1243,8 @@ class Database(object):
                 #configs (for example Hessian fitting), a config may only have
                 #an eigenvalue/eigenvector pair and no energy, force or virial
                 #information.
-                ati = atconf.copy()
+                print atconf
+                ati = Atoms(path.join(atconf,"atoms.h5"))
                 if ekey in ati.params:
                     energy = ati.params[ekey]
                     ati.params["ref_energy"] = energy
@@ -1302,7 +1304,7 @@ class Database(object):
     def to_dict(self):
         """Returns a dictionary of the database parameters and settings.
         """
-        from matdb.utility import __version__
+        from matdb import __version__
         from os import sys
         data = {"version":__version__,"python_version":sys.version,"name":self.name,
                 "root":self.root,"steps":self._settings,"uuid":self.uuid}
@@ -1314,13 +1316,18 @@ class Database(object):
         from matdb.atoms import _recursively_convert_units
         
         final_dict = self.to_dict()
-        final_dict["hash"] = self.hash()
         final_dict["uuid"] = self.uuid
-        
-        for dbname, db in self.isteps:
-            final_dict["dbname"] = db.finalize()
 
-        for name, trani_perc in self.splits():
+        if not isinstance(self,RecycleBin):
+            final_dict["hash"] = self.hash_db()
+            
+            for dbname, db in self.isteps:
+                final_dict["dbname"] = db.finalize()
+        else:
+            final_dict["hash"] = self.hash_bin()                
+
+        print self.splits
+        for name, trani_perc in self.splits.items():
             for f in glob(path.join(self.root,"{0}*-ids.pkl".format(name))):
                 final_dict[f.split(".pkl")[0]] = _recursively_convert_units(pickle.load(f))
 
@@ -1354,7 +1361,7 @@ class RecycleBin(Database):
         self.parent.uuids[self.uuid] = self        
 
     def to_dict(self):
-        pass
+        return {}
         
     @property
     def rset(self):
@@ -1794,15 +1801,20 @@ class Controller(object):
         from matdb import __version__
         
         final_dict = self.versions.copy()
-        final_dict["hash"] = self.hash(dfilter=dfilter)
+        final_dict["hash"] = self.hash_dbs(dfilter=dfilter)
         final_dict["yml_file"] = self.specs.copy()
         for dbname, seq in self.ifiltered(dfilter):
             final_dict["dbname"] = seq.finalize()
 
-        if "rec_bin" in dfilter or dfilter is None or dfilter=="*":
+        if (dfilter is not None and "rec_bin" in dfilter) or dfilter is None or dfilter=="*":
             final_dict["rec_bin"] = seq.rec_bin.finalize()
-
-        mdb_ver = ".".join(__version__)
+            
+        str_ver = []
+        for item in __version__:
+            str_ver.append(str(item))
+        mdb_ver = ".".join(str_ver)
         target = path.join(self.root,"final_{}.h5".format(mdb_ver))
+
+        print final_dict
         with h5py.File(target,"w") as hf:
             save_dict_to_h5(hf,final_dict,'/')

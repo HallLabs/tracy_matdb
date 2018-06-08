@@ -6,6 +6,7 @@ import numpy as np
 from os import path
 import pytest
 from matdb.utility import reporoot, relpath
+from matdb.atoms import AtomsList
 import six
 
 def _mimic_vasp(folder, xroot, prefix="W.1"):
@@ -58,6 +59,28 @@ def Pd(tmpdir):
     
     result = Controller("matdb", dbdir)
     remove("matdb.yml")
+    result = Controller(target, dbdir)
+    return result
+
+@pytest.fixture()
+def Pd_copy(tmpdir):
+    from matdb.utility import relpath
+    from matdb.database import Controller
+    from os import path, remove, mkdir
+
+    target = relpath("./tests/Pd/matdb_copy")
+    dbdir = str(tmpdir.join("pd_db_copy"))
+
+    from shutil import copy
+    POSCAR = relpath("./tests/Pd/POSCAR")
+
+    if path.isfile("matdb_copy.yml"):
+        remove("matdb_copy.yml")
+        
+    result = Controller(target, dbdir)
+
+    mkdir(path.join(dbdir,"seed"))
+    copy(POSCAR, path.join(dbdir, "seed", "Pd"))
     result = Controller(target, dbdir)
     return result
 
@@ -142,11 +165,9 @@ def dynPd(Pd):
 #     assert path.isfile(target)
 
 #@pytest.mark.skip()
-def test_Pd_setup(Pd):
+def test_Pd_setup(Pd, Pd_copy):
     """Makes sure the initial folders were setup according to the spec.
     """
-    import pudb
-    pudb.set_trace()
     Pd.setup()
     modelroot = path.join(Pd.root, "Manual","phonon","Pd")
     assert Pd["Manual/phonon/Pd/"].root == modelroot
@@ -168,6 +189,13 @@ def test_Pd_setup(Pd):
     for db in dbs:
         dbfolder = path.join(Pd.root, db)
         compare_tree(dbfolder, folders)
+
+    #Now we will test some of the border cases of the database __init__ method
+    Pd_copy.setup()
+
+    db = "Manual/phonon/Pd"
+    dbfolder = path.join(Pd_copy.root, db)
+    compare_tree(dbfolder, folders)
 
 #@pytest.mark.skip()
 def test_steps(Pd):
@@ -246,43 +274,58 @@ def test_find(Pd):
     assert group == None
 
 #@pytest.mark.skip()
-def test_execute(Pd):
+def test_execute(Pd, capsys):
     """Tests the execute and extract methods 
     """
     from os import path
     from matdb.utility import relpath, chdir
-    
+
     Pd.status()
+    output = capsys.readouterr()
     status = "ready to execute 0/0; finished executing 0/0;"
-    for key, db in Pd.collections.items():
-        for group_name, group in db.steps.items():
-            assert group.status() == status
-             
-    Pd.setup()
-    status = "ready to execute 1/1; finished executing 0/1;"
-    for key, db in Pd.collections.items():
-        for group_name, group in db.steps.items():
-            assert group.status() == status
-    
+    assert status in output.out
+
+    # test to ensure execute prints error message if ran before setup
     Pd.execute(env_vars={"SLURM_ARRAY_TASK_ID":"1"})
+    output = capsys.readouterr()
+    status = "Group phonon.manual is not ready to execute yet, or is already executing. Done."
+    assert status in output.out
+
+    # Run setup and status to make sure the staus output is correct
+    Pd.setup()
+    Pd.status()
+    output = capsys.readouterr()
+    status = "ready to execute 1/1; finished executing 0/1;"
+    assert status in output.out
+
+    # Execute the jobfile and test an incomplete OUTCAR to check the status
+    Pd.execute(env_vars={"SLURM_ARRAY_TASK_ID":"1"})
+    folder = path.join(reporoot, "tests", "data", "Pd", "manual_recover")
+    _mimic_vasp(folder, Pd.root,"S1.1")
+
+    Pd.status(True)
+    busy_status = "Pd./Manual/phonon/Pd/S1.1"
+    output = capsys.readouterr()
+    assert busy_status in output.out
+
+    #now use a complete OUTCAR and test the status again
     folder = path.join(reporoot, "tests", "data", "Pd", "manual")
     _mimic_vasp(folder,Pd.root,"S1.1")
-    status = "ready to execute 1/1; finished executing 1/1;"
-    for key, db in Pd.collections.items():
-        for group_name, group in db.steps.items():
-            assert group.status() == status
     
-    with chdir(path.join(Pd.root,"Manual","phonon","Pd","S1.1")):
-        Pd.extract()
-    status = "ready to execute 0/1; finished executing 0/1;"
-    for key, db in Pd.collections.items():
-        for group_name, group in db.steps.items():
-            assert group.status() == status
-            
-    for key, db in Pd.collections.items():
-        for group_name, group in db.steps.items():
-            group.ready()
-            assert group.ready()
+    Pd.status()
+    output = capsys.readouterr()
+    status = "ready to execute 1/1; finished executing 1/1;"
+    assert status in output.out
+
+    # Run exctract and test to see if the status is correct
+    Pd.extract()
+    Pd.status()
+    output = capsys.readouterr()
+    status = "ready to execute 1/1; finished executing 1/1;"
+    assert status in output.out
+
+    # Run extract again to make sure the atoms.h5 files are no rewritten
+    Pd.extract()
 
 #@pytest.mark.skip()
 def test_recovery(Pd):
@@ -306,8 +349,7 @@ def test_recovery(Pd):
                 target = path.join(xpath, name)
                 symlink(target, path.join(folder, dft))
 
-    with chdir(path.join(Pd.root,"Manual","phonon","Pd","S1.1")):
-        Pd.extract()
+    Pd.extract()
     
     Pd.recover(True)
     assert path.isfile(path.join(Pd.root,"Manual","phonon","Pd","recovery.sh"))
@@ -318,26 +360,6 @@ def test_recovery(Pd):
     Pd.recover(True)
     assert not path.isfile(path.join(Pd.root,"Manual","phonon","Pd","recovery.sh"))
     assert not path.isfile(path.join(Pd.root,"Manual","phonon","Pd","failures"))
-
-def test_split(Pd):
-    """ Tests the split method
-    """
-    from matdb.utility import chdir
-    folder = path.join(Pd.root,'Manual','phonon','Pd','S1.1')
-    Pd.setup()
-    Pd.execute(env_vars={"SLURM_ARRAY_TASK_ID":"1"})
-
-    folder = path.join(reporoot,"tests","data","Pd","manual")
-    _mimic_vasp(folder,Pd.root,"S1.1")
-
-    #with chdir(path.join(Pd.root,"Manual","phonon","Pd","S1.1")):
-    import pudb
-    pudb.set_trace()
-    Pd.extract()
-    chdir(reporoot)
-    import pudb
-    pudb.set_trace()
-    Pd.split()    
 
 #@pytest.mark.skip()
 def test_hash(Pd,Pd_2):
@@ -367,11 +389,23 @@ def test_finalize(Pd):
     Pd.execute(env_vars={"SLURM_ARRAY_TASK_ID":"1"})
     folder = path.join(reporoot,"tests","data","Pd","manual")
     _mimic_vasp(folder,Pd.root,"S1.1")
-    with chdir(path.join(Pd.root,"Manual","phonon","Pd","S1.1")):
-        Pd.extract()
-        import pudb
-        pudb.set_trace()
-        Pd.finalize()
+
+    Pd.extract()
+    Pd.finalize()
+
+    from matdb.io import load_dict_from_h5
+    from matdb import __version__
+    import h5py
+
+    str_ver = []
+    for item in __version__:
+        str_ver.append(str(item))
+    mdb_ver = ".".join(str_ver)
+    target = path.join(Pd.root, "final_{}.h5".format(mdb_ver))
+    with h5py.File(target, "r") as hf:
+        loaded_final = load_dict_from_h5(hf)
+    assert path.isfile(target)
+
     
 @pytest.mark.skip()    
 def test_Pd_hessian(Pd):
