@@ -9,6 +9,8 @@ import h5py
 
 import sys
 from contextlib import contextmanager
+from matdb.atoms import AtomsList
+
 @contextmanager
 def redirect_stdout(new_target):
     old_target, sys.stdout = sys.stdout, new_target # replace sys.stdout
@@ -161,6 +163,20 @@ def execute(args, folder, wait=True, nlines=100, venv=None,
         "output": output,
         "error": error
     }    
+
+def h5cat(files, target):
+    """Concatenates a list of h5 AtomsList files into a single AtomsList.
+
+    Args:
+        files (list): of `str` file paths to combine.
+        target (str): name/path of the output file that will include all of the
+          combined files.
+    """
+    result = AtomsList()
+    for fname in files:
+        ilist = AtomsList(fname)
+        result.extend(ilist)
+    result.write(target)
 
 def cat(files, target):
     """Combines the specified list of files into a single file.
@@ -894,7 +910,10 @@ def dbcat(files, output, sources=None, docat=True, **params):
 
         if docat:
             if len(files) > 1 or (len(files) == 1 and files[0] != output):
-                cat(files, output)
+                if path.splitext(output)[1] == ".h5":
+                    h5cat(files, output)
+                else:
+                    cat(files, output)
     except:
         from os import remove
         remove(confpath)                

@@ -70,9 +70,9 @@ def test_hdf5(tmpdir):
     atSi = Atoms("Si8",positions=[[0,0,0],[0.25,0.25,0.25],[0.5,0.5,0],[0.75,0.75,0.25],
                                   [0.5,0,0.5],[0.75,0.25,0.75],[0,0.5,0.5],[0.25,0.75,0.75]],
                  cell=[5.43,5.43,5.43])
-    potSW = Quip(atSi, target, '.', 0, ["IP SW"])
+    potSW = Quip(atSi, target, '.', 0, "IP SW")
     atSi.set_calculator(potSW)
-    potSW.calc(atSi, energy=True, force=True, virial=True)
+    potSW.calc(atSi, rename=True, energy=True, force=True, virial=True)
     atSi.properties["rand"] = np.random.randint(0, 100, 8)
     atSi.write(target=path.join(target,"temp.h5"))
     atR = Atoms()
@@ -132,7 +132,7 @@ def test_Atoms_creation(tmpdir):
     assert np.allclose(atR.cell,atSi.cell)
     remove(path.join(target,"temp.xyz"))
 
-    potSW = Quip(atSi, target, '.', 0, ["IP SW"])
+    potSW = Quip(atSi, target, '.', 0, "IP SW")
     potSW.results["energy"] = 1234
     potSW.results["force"] = np.random.randint(0, 100, (8,3))
     atSi = Atoms("Si8",positions=[[0,0,0],[0.25,0.25,0.25],[0.5,0.5,0],[0.75,0.75,0.25],
@@ -160,7 +160,7 @@ def test_AtomsList_creation(tmpdir):
     at1 = Atoms("Si8",positions=[[0,0,0],[0.25,0.25,0.25],[0.5,0.5,0],[0.75,0.75,0.25],
                                   [0.5,0,0.5],[0.75,0.25,0.75],[0,0.5,0.5],[0.25,0.75,0.75]],
                  cell=[5.43,5.43,5.43],info={"rand":10})
-    potSW = Quip(at1, target, '.', 0, ["IP SW"])
+    potSW = Quip(at1, target, '.', 0, "IP SW")
     potSW.results["energy"] = 1234
     potSW.results["force"] = np.random.randint(0, 100, (8,3))
     at1 = Atoms("Si8",positions=[[0,0,0],[0.25,0.25,0.25],[0.5,0.5,0],[0.75,0.75,0.25],
@@ -170,7 +170,7 @@ def test_AtomsList_creation(tmpdir):
     at2 = Atoms("S6",positions=[[0,0,0],[0.25,0.25,0.25],[0.5,0.5,0],[0.75,0.75,0.25],
                                   [0.5,0,0.5],[0.75,0.25,0.75]],
                  cell=[6.43,5.43,4.43],info={"rand":10},calculator=potSW)
-    potSW = Quip(at2, target, '.', 0, ["IP SW"])
+    potSW = Quip(at2, target, '.', 0, "IP SW")
     potSW.results["energy"] = 4321
     potSW.results["force"] = np.random.randint(0, 100, (6,3))
     at2 = Atoms("S6",positions=[[0,0,0],[0.25,0.25,0.25],[0.5,0.5,0],[0.75,0.75,0.25],
@@ -349,7 +349,7 @@ def test_ase_atoms_conversion(tmpdir):
     assert np.allclose(aR.positions, atSi.positions)
     assert aR.calc == atSi.calc 
     
-    potSW = Quip(atSi, target, '.', 0, ["IP SW"])
+    potSW = Quip(atSi, target, '.', 0, "IP SW")
     atSi.set_calculator(potSW)
 
     aR = matAtoms(atSi)

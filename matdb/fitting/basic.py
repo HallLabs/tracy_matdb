@@ -88,6 +88,10 @@ class Trainer(object):
         if not path.isdir(self.root):
             mkdir(self.root)
 
+        self.cachedir = path.join(self.root, "cache")
+        if not path.isdir(self.cachedir):
+            mkdir(self.cachedir)
+            
         #Find all the database sequences that match the patterns supplied to us.
         self.dbs = []
         self.cust_splits = {}
@@ -138,7 +142,7 @@ class Trainer(object):
             self.dbs.extend(matches)
             if split is not None:
                 for match in matches:
-                    self.cust_splits[match.fqn] = split        
+                    self.cust_splits[match.name] = split
         
     def _invert_filters(self):
         """Inverts any available db filters for this trainer for optimization
@@ -258,8 +262,7 @@ class Trainer(object):
         fitted GAP potential in this trainer.
         """
         if self._calculator is None:
-            with chdir(self.root):
-                self._calculator = self.get_calculator()
+            self._calculator = self.get_calculator()
         return self._calculator
             
     @property
@@ -352,7 +355,9 @@ class Trainer(object):
                 #pattern. Then we apply any filters to individual atoms objects
                 #within each of the databases.
                 if splt == '*':
-                    nfiles = [f(seq) for f in fmap.values()]
+                    nfiles = []
+                    for dbsplit in seq.splits:
+                        nfiles.extend([f(seq, dbsplit) for f in fmap.values()])
                 else:
                     nfiles = [fmap[kind](seq, splt)]
 

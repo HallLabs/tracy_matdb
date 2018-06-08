@@ -15,6 +15,7 @@ from phonopy.cui.settings import PhonopyConfParser
 from matdb import msg
 from matdb.atoms import Atoms, AtomsList
 from matdb.phonons import roll as roll_fc
+from matdb.transforms import conform_supercell
 
 def unroll_fc(fc):
     """Unroll's the phonopy force constants matrix into the Hessian.
@@ -119,10 +120,7 @@ class Hessian(Group):
 
             #Make sure that the supercell matrix has positive determinant for
             #phonopy; if it doesn't correct it.
-            if len(self.supercell) == 3:
-                scell = np.diag(self.supercell)
-            else:
-                scell = np.array(self.supercell).reshape(3,3)
+            scell = conform_supercell(self.supercell)
             det = np.linalg.det(scell)
             if det < 0:
                 self.supercell = list(np.array(self.supercell)*-1)
@@ -193,7 +191,7 @@ class Hessian(Group):
         
         #Make sure that energy, force and virial information was found. 
         assert getattr(atBase, atcalc.energy_name) < 0
-        assert getattr(atBase, atcalc.force_name).shape[1] == 3
+        assert getattr(atBase, atcalc.force_name).shape == (atBase.n, 3)
         assert getattr(atBase, atcalc.virial_name).shape == (3, 3)
         configs.append(atBase)
 
@@ -201,13 +199,13 @@ class Hessian(Group):
         #lattice and positions. We will add the eigenvalue and eigenvectors
         #*individually* because they each need different scaling for sigma in
         #the GAP fit.
-        atEmpty = self.atoms.copy()
-        for k in atEmpty.params:
+        atEmpty = atBase.copy()
+        for k in list(atBase.params.keys()):
             if "energy" in k or "virial" in k:
-                del atEmpty.params[k]
-        for k in atEmpty.properties:
+                atEmpty.rm_param(k)
+        for k in list(atBase.properties.keys()):
             if "force" in k:
-                del atEmpty.properties[k]
+                atEmpty.rm_property(k)
 
         hname = "{}_hessian1".format(self.calc.key)
         #NB: make sure you transpose the eigenvectors matrix before doing the
@@ -225,7 +223,7 @@ class Hessian(Group):
             #Add this eigenvector to its own configuration.
             atc = atEmpty.copy()
             Hi = np.reshape(v, (natoms, 3))
-            atc.add_property(hname, Hi)
+            atc.properties[hname] =  Hi
                     
             #Same thing for the eigenvalue.
             atc.add_param(hname, l)
@@ -233,8 +231,8 @@ class Hessian(Group):
             #This custom scaling reweights by eigenvalue so that larger
             #eigenvalues get fitted more closely. The 0.1 is our "default_sigma"
             #for hessian.
-            atc.add_param("hessian_csigma", 0.1/(l/eratio))
-            atc.add_param("n_hessian", 1)
+            atc.add_param("{}_hessian_csigma".format(self.calc.key), 0.1/(eratio/l))
+            atc.add_param("n_{}_hessian".format(self.calc.key), 1)
             configs.append(atc)
 
         return configs
