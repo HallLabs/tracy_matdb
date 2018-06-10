@@ -85,11 +85,7 @@ class SyncQuip(quippy.Potential, SyncCalculator):
                   "cell":atoms.get_cell(), "pbc":atoms.get_pbc(),
                   "constraint":atoms.constraints, "info":info,
                   "n":len(atoms.positions)}
-        result = Atoms(**kwargs)
-
-        if atoms._calc is not None:
-            result.set_calculator(atoms._calc)
-        return result
+        return Atoms(**kwargs)
 
     def set_atoms(self, atoms):
         """Sets the live atoms object for the calculator.
@@ -100,12 +96,11 @@ class SyncQuip(quippy.Potential, SyncCalculator):
         """Overrides the get_property on ASE atoms object to account for atoms
         conversion between `matdb` and back.
         """
-        if atoms is not None:
+        if atoms is None:
             atoms = self.atoms
 
         if not isinstance(atoms, Atoms):
             calcatoms = self._convert_atoms(atoms)
-            calcatoms.set_calculator(self)
             calcatoms.set_cutoff(self.cutoff())
             calcatoms.calc_connect()
         else:
@@ -174,7 +169,6 @@ class SyncQuip(quippy.Potential, SyncCalculator):
         """
         if not isinstance(atoms, Atoms):
             temp_A = self._convert_atoms(atoms)
-            temp_A.set_calculator(self)
             temp_A.set_cutoff(self.cutoff())
             temp_A.calc_connect()
         else:
