@@ -27,12 +27,12 @@ def order_stress(xx=None, yy=None, zz=None, yz=None, xz=None, xy=None):
 
 def symmetrize(xx=None, yy=None, zz=None, yz=None, xz=None, xy=None):
     """Returns the 3x3 stress matrix from the specified components.
-
     .. note:: the components are: xx yy zz xy yz zx.
     """
     from numpy import array
     return array([[xx, xy, xz], [xy, yy, yz], [xz, yz, zz]])
 
+ 
 def atoms_to_cfg(atm, target, config_id=None, type_map=None):
     """Converts an :class:`matdb.atoms.Atoms` object to a cfg file.
     
@@ -100,10 +100,9 @@ def atoms_to_cfg(atm, target, config_id=None, type_map=None):
             conf_id = config_id
         f.write(" Feature   conf_id  {}\n".format(conf_id))
         f.write("END_CFG\n\n")
-    
+
 def _cfgd_to_atoms(cfgd, species=None):
     """Converts a CFG dictionary to an atoms object.
-
     Args:
         cfgd (dict): of a single config extracted by :func:`cfg_to_xyz`.
         species (list): of element names corresponding to the integer species in
@@ -161,10 +160,8 @@ def _cfgd_to_atoms(cfgd, species=None):
         
 def cfg_to_xyz(cfgfile, outfile="output.xyz", config_type=None, species=None):
     """Converts MTP's CFG forrmat to XYZ.
-
     .. note:: Multiple frames in the CFG file will be converted to multiple
       frames in the XYZ file.
-
     Args:
         cfgfile (str): path to the file to convert.
         config_type (str): name of the config_type to assign to each
@@ -226,7 +223,6 @@ def vasp_to_xyz(folder, outfile="output.xyz", recalc=0,
                 config_type=None):
     """Creates an extended XYZ file for the calculated structure in
     OUTCAR for the given folder.
-
     Args:
         folder (str): path to the folder to convert.
         outfile (str): name of the XYZ file to create. The file will
@@ -286,12 +282,10 @@ def is_link(obj):
 def _unpack_obj(context, obj, lcontext=None):
     """Unpacks each item of the specified object recursively so that all
     dictionary values are visited and all list items are also visited.
-
     .. warning:: `obj` will be mutated if any value it considers turns out to be
       a link (according to :func:`is_link`). In that case, the file descriptor
       will be placed by the actual contents of the YAML file that the link
       points to.
-
     Args:
         context (str): path to the root folder where the yaml file is
           located. Needed for relative paths of file links.
@@ -329,7 +323,6 @@ def read(context, yfile):
     """Reads in the specified YAML file, following any additional file
     directives to compile a full representation of the template hierarchy for
     the root file.
-
     Args:
         context (str): path to the root folder where the yaml file is
           located. Needed for relative paths of file links.
@@ -371,7 +364,6 @@ def read(context, yfile):
 
 def save_dict_to_h5(h5file, dic, path='/'):
     """Saves a nested dictionary to an open hdf5 file.
-
     Args:
         h5file (file object): the h5 file to be saved to.
         dic (dict): the dictionary to save.
@@ -379,8 +371,14 @@ def save_dict_to_h5(h5file, dic, path='/'):
             saved to. Default is '/'.
     """
     for key, item in dic.items():
-        if isinstance(item, (np.ndarray, np.int64, np.float64, str, bytes, tuple)):
+        if isinstance(item, (np.int64, np.float64, str, bytes, tuple)):
             h5file[path + key] = item
+        elif isinstance(item, np.ndarray):
+            if item.ndim==1 and isinstance(item[0], np.ndarray):
+                dt = h5py.special_dtype(vlen=np.float64)
+                h5file.create_dataset(path+key, data=item, dtype=dt)
+            else:
+                h5file[path + key] = item
         elif isinstance(item, dict):
             save_dict_to_h5(h5file, item, path + key + '/')
         else:
@@ -388,12 +386,10 @@ def save_dict_to_h5(h5file, dic, path='/'):
 
 def load_dict_from_h5(h5file, path='/'):
     """Reads an open hdf5 file into a dictionary.
-
     Args:
         h5file (file object): the h5 file to be read.
         path (str, optional): the path within the h5 file presently being 
             read. Default is '/'.
-
     Returns:
         ans (dict): a dictionary containing the contents of the h5 file.
     """
