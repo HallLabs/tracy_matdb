@@ -60,6 +60,8 @@ class MTP(Trainer):
         else:
             self.relax_args = {}
 
+        self.ran_seed = mtpargs["ran_seed"] if "ran_seed" in mtpargs else 0
+            
         if "train" in mtpargs and mtpargs["train"] is not None:
             self.train_args = mtpargs["train"]
         else:
@@ -102,6 +104,8 @@ class MTP(Trainer):
         # we need access to the active learning set
         db_root = self.controller.db.root
         steps = [{"type":"active.Active"}]
+        # here self.controller is a TController istance and
+        # self.controller.db is the database Controller instance.
         dbargs = {"root":db_root,
                   "parent":Database("active", db_root, self.controller.db, steps, {},
                                     self.ran_seed),
@@ -655,3 +659,19 @@ class MTP(Trainer):
             msg.blank()
         else:
             return result
+        
+    def _update_split_params(self):
+        """Updates the parameter set for the trainer to include the splits.
+        """
+        if self.split is None:
+            self.params["split"] = 1
+        else:
+            if len(self.dbs) > 0:
+                _splitavg = []
+                for db in self.dbs:
+                    if db in self.cust_splits:
+                        splt = self.cust_splits[db]
+                        _splitavg.append(1 if splt == '*' else splt)
+                    else:
+                        _splitavg.append(db.splits[self.split])
+                self.params["split"] = sum(_splitavg)/len(self.dbs)
