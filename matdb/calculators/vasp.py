@@ -18,7 +18,7 @@ from matdb.kpoints import custom as write_kpoints
 from matdb.utility import chdir, execute, relpath
 from hashlib import sha1
 import re
-from matdb.exceptions import VersionError
+from matdb.exceptions import VersionError, SpeciesError
 
 def phonon_defaults(d, dfpt=False):
     """Adds the usual settings for the INCAR file when performing frozen-phonon
