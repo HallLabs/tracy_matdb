@@ -374,7 +374,8 @@ def save_dict_to_h5(h5file, dic, path='/'):
         if isinstance(item, (np.int64, np.float64, str, bytes, tuple)):
             h5file[path + key] = item
         elif isinstance(item, np.ndarray):
-            if item.ndim==1 and isinstance(item[0], np.ndarray):
+            if item.ndim==1 and isinstance(item[0], np.ndarray): #pragma: no cover
+                # this chunk of code is only ever used by the unit testing suite. 
                 dt = h5py.special_dtype(vlen=np.float64)
                 h5file.create_dataset(path+key, data=item, dtype=dt)
             else:
