@@ -6,8 +6,8 @@
   calculator gets the correct arguments.
 - Fixed a minor logic error in the override portion of the `Group`
   initialization.
-- Made some updates and fixes to the `Active` group and to the `MTP`
-  fitter.
+- Made some updates and fixes to the `Active` group.
+- Refactored the `MTP` fitter.
 
 ## Revision 1.1.6
 - Working distortion groups.
