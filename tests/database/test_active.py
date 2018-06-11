@@ -98,7 +98,7 @@ def test_all_active(Act):
     assert len(Act.config_atoms) == 3
     assert len(Act.configs) == 3
     assert len(Act.last_config_atoms) == 3
-    assert len(Act.rset()) == 3
+    assert len(Act.rset) == 3
     assert not Act.is_executing()
 
     remove(path.join(Act.root, "Ac.1", "OUTCAR"))
