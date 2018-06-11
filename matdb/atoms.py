@@ -90,7 +90,7 @@ class Atoms(ase.Atoms):
     def __init__(self, symbols=None, positions=None, numbers=None, tags=None,
                  momenta=None, masses=None, magmoms=None, charges=None,
                  scaled_positions=None, cell=None, pbc=None, constraint=None,
-                 calculator=None, info=None, n=None,
+                 calculator=None, info=None, n=None, celldisp=None,
                  properties=None, params=None, fixed_size=None, set_species=True,
                  fpointer=None, finalise=True, group_uuid=None, uuid=None,
                  **readargs):
@@ -103,10 +103,16 @@ class Atoms(ase.Atoms):
                 self.read(symbols,**readargs)
 
         else:
-            super(Atoms, self).__init__(symbols, positions, numbers,
-                                        tags, momenta, masses, magmoms, charges,
-                                        scaled_positions, cell, pbc, constraint,
-                                        calculator)
+            #NB: make sure that we match exactly on the keyword arguments. Do
+            #*NOT* use positional arguments for this constructor.
+            super(Atoms, self).__init__(symbols=symbols,
+                 positions=positions, numbers=numbers,
+                 tags=tags, momenta=momenta, masses=masses,
+                 magmoms=magmoms, charges=charges,
+                 scaled_positions=scaled_positions,
+                 cell=cell, pbc=pbc, celldisp=celldisp,
+                 constraint=constraint,
+                 calculator=calculator, info=info)
 
         self.n = n if n is not None else len(self.positions)
         if self.calc is None:
@@ -197,8 +203,6 @@ class Atoms(ase.Atoms):
         Args:
             name (str): the name of the attribute.
         """
-        # if hasattr(self, name):
-        #     delattr(self, name)
         if name in self.info["params"]:
             del self.info["params"][name]
 
@@ -208,8 +212,6 @@ class Atoms(ase.Atoms):
         Args:
             name (str): the name of the property/attribute.
         """
-        # if hasattr(self, name):
-        #      delattr(self, name)
         if name in self.info["properties"]:
             del self.info["properties"][name]
             
@@ -348,15 +350,15 @@ class Atoms(ase.Atoms):
             self.__init__(**data)
             if "calc" in data:
                 calc = getattr(calculators, _calc_name_converter(data["calc"]))
-                args = list(data["calc_args"]) if "calc_args" in data else None
+                args = data["calc_args"] if "calc_args" in data else None
                 kwargs = data["calc_kwargs"] if 'calc_kwargs' in data else None
                 if args is not None:
                     if kwargs is not None:
                         calc = calc(self, data["folder"], data["calc_contr_dir"],
-                                    data["calc_ran_seed"], args, **kwargs)
+                                    data["calc_ran_seed"], *args, **kwargs)
                     else:
                         calc = calc(self, data["folder"], data["calc_contr_dir"],
-                                    data["calc_ran_seed"], args)
+                                    data["calc_ran_seed"], *args)
                 else: #pragma: no cover This case has never come up in
                       #testing, however we wil keep it here to be
                       #verbose.
@@ -405,7 +407,7 @@ class Atoms(ase.Atoms):
             if "version" in calc_dict:
                 data["calc_version"] = calc_dict["version"] 
             if hasattr(self.calc,"args"):
-                data["calc_args"] = np.array(self.calc.args)
+                data["calc_args"] = self.calc.args
             if hasattr(self.calc,"kwargs"):
                 data["calc_kwargs"] = _recursively_convert_units(self.calc.kwargs)
             if hasattr(self.calc,"folder"):

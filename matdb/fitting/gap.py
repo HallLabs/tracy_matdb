@@ -5,6 +5,8 @@ from os import path
 from matdb import msg
 from collections import OrderedDict
 import numpy as np
+from tqdm import tqdm
+
 from .basic import Trainer
 import lazy_import
 calculators = lazy_import.lazy_module("matdb.calculators")
@@ -12,6 +14,7 @@ calculators = lazy_import.lazy_module("matdb.calculators")
 from matdb.calculators import Quip
 from matdb.atoms import AtomsList
 from matdb.database.hessian import Hessian
+from matdb.utility import chdir
 
 def update_nbody(settings):
     """Adds the usual n-body settings to the specified dictionary. This function
@@ -198,8 +201,11 @@ class GAP(Trainer):
         """Returns an instance of :class:`ase.Calculator` using the latest
         fitted GAP potential in this trainer.
         """
-        if path.isfile(self.gp_file):
-            return Quip("IP GAP", param_filename=self.gp_file)
+        if path.isfile(path.join(self.root, self.gp_file)):
+            with chdir(self.root):
+                controot = self.controller.db.root
+                return Quip(None, self.root, controot, 0, "IP GAP",
+                            param_filename=self.gp_file)
 
     def ready(self):
         return path.isfile(path.join(self.root, self.gp_file))
@@ -293,13 +299,34 @@ class GAP(Trainer):
         if not path.isfile(target):
             al = AtomsList(self._trainfile)
             ol = quippy.AtomsList()
-            for at in al:
+            for at in tqdm(al):
+                #Empty dictionaries in info breaks the quippy fortran
+                #implementation. Delete these entries out.
+                if len(at.info["params"]) == 0:
+                    del at.info["params"]
+                if len(at.info["properties"]) == 0:
+                    del at.info["properties"]
+                
                 ai = quippy.Atoms()
-                print(at.info)
                 ai.copy_from(at)
+                if "properties" in at.info:
+                    #We also need to copy the properties in our info onto the
+                    #properties of the quippy.Atoms object.
+                    ai.arrays.update(at.info["properties"])
+                if "params" in ai.params:
+                    del ai.params["params"]
+                    
                 ol.append(ai)
             ol.write(target)
 
+    def extras(self):
+        """Returns the sparse points file as extras for the fit if it exists.
+        """
+        if path.isfile(self.sparse_file):
+            return [self.sparse_file]
+        else:
+            return []
+            
     @property
     def sparse_file(self):
         """Returns the path to the sparse point file that includes random
@@ -329,8 +356,18 @@ class GAP(Trainer):
         
         result = AtomsList()
         for hseed in hessians:
+            #Make sure that the random sparse points don't have any data for
+            #energy/force/virial/hessian.
+            atEmpty = hseed.copy()
+            for k in list(hseed.params.keys()):
+                if "energy" in k or "virial" in k or "hessian" in k:
+                    atEmpty.rm_param(k)
+            for k in list(hseed.properties.keys()):
+                if "force" in k or "hessian" in k:
+                    atEmpty.rm_property(k)
+
             for i in range(n_ratio):
-                atRand = hseed.copy()
+                atRand = atEmpty.copy()
                 p = atRand.get_positions()
                 atRand.set_positions(p  + 0.1*2*(np.random.random_sample(p.shape)))
                 result.append(atRand)
@@ -344,9 +381,11 @@ class GAP(Trainer):
         .. note:: This method also configures the directory that the command
           will run in so that it has the relevant files.
         """
-        #Generate any random sparse points and the seed XYZ training file.
-        self.compile()
+        #Generate any random sparse points and the seed XYZ training file. We
+        #need to generate sparse points *before* we compile the training
+        #database.
         self._sparse_points()
+        self.compile()
         self._create_xyz()
 
         template = ("teach_sparse at_file={train_file} \\\n"
@@ -395,7 +434,9 @@ class GAP(Trainer):
         tsattrs["energy_parameter_name"] = "ref_energy"
         tsattrs["force_parameter_name"] = "ref_force"
         tsattrs["virial_parameter_name"] = "ref_virial"
+        tsattrs["hessian_parameter_name"] = "ref_hessian"
         tsattrs["config_type_parameter_name"] = "config_type"
+        tsattrs["sigma_parameter_name"] = "csigma"
         
         if len(custom) > 0:
             #If we have custom sigmas, add them in; make sure we have specified

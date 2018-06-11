@@ -1285,7 +1285,7 @@ class Database(object):
 
             ekey, fkey, vkey = ["{}_{}".format(db.calculator.key, q)
                                 for q in ["energy", "force", "virial"]]
-            hesskey = "{}_hessian1".format(db.calculator.key)            
+            hesskey = "{}_hessian".format(db.calculator.key)
             for atconf in db.fitting_configs:
                 #We need to rename the parameters and properties of the individual atoms
                 #objects to match the refkey and global choice of "ref_energy",
@@ -1306,14 +1306,21 @@ class Database(object):
                     virial = ati.params[vkey]
                     ati.params["ref_virial"] = virial
                     del ati.params[vkey]
-                if hesskey in ati.params:
-                    eigval = ati.params[hesskey]
-                    ati.params["ref_hessian1"] = eigval
-                    del ati.params[hesskey]
-                if hesskey in ati.properties:
-                    eigvec = ati.properties[hesskey]
-                    ati.properties["ref_hessian1"] = eigvec
-                    del ati.properties[hesskey]
+
+                #There may be many hessian parameters depending on whether
+                #custom parameters are used per-eigenvalue.
+                for pname in list(ati.params.keys()):
+                    if hesskey in pname:
+                        eigval = ati.params[pname]
+                        repkey = pname.replace(hesskey, "ref_hessian")
+                        ati.params[repkey] = eigval
+                        del ati.params[pname]
+                for pname in list(ati.properties.keys()):
+                    if hesskey in pname:
+                        eigvec = ati.properties[pname]
+                        repkey = pname.replace(hesskey, "ref_hessian")
+                        ati.properties[repkey] = eigvec
+                        del ati.properties[pname]
                 subconfs.append(ati)
                 
         file_targets = {"train": self.train_file, "holdout": self.holdout_file,
