@@ -67,8 +67,7 @@ class Active(Group):
         """Loads the list of paths from the `iter_{}.pkl` file for this
         database group's last iteration.
         """
-        if self.last_iteration is None:
-            self.last_iteration = self.load_pkl(self.iter_file)
+        self.last_iteration = self.load_pkl(self.iter_file)
 
     @property
     def last_config_atoms(self):
@@ -77,12 +76,14 @@ class Active(Group):
 
         last_atoms = {}
         last_count = 0
-        if len(self.last_iteration) == 0:
+        if self.last_iteration is None or (self.last_iteration is not None and
+                                           len(self.last_iteration) == 0):
             return None
         else:
-            for i in range(len(self.config_atoms)-len(self.last_iteration)-1,
+            for i in range(len(self.config_atoms)-len(self.last_iteration),
                            len(self.config_atoms)):
-                last_atoms[last_count] = self.config_atoms[i]
+                last_atoms[last_count] = self.config_atoms[self.config_atoms.keys()[i]]
+                last_count += 1
 
         return last_atoms
             
@@ -96,7 +97,7 @@ class Active(Group):
             folder = self.index[str(auid)]
             target = path.join(folder,"atoms.h5")
             if path.isfile(target):
-                result.append(folder)
+                result.append(target)
 
         return result 
         
@@ -122,7 +123,7 @@ class Active(Group):
 
         self.new_configs = new_configs
         self.nconfigs += len(new_configs)
-        self.iter_file = path.join(self.root,"iter_{}.pkl".format(iteration))
+        self.iter_file = path.join(self.root,"iter_{}.pkl".format(iteration))           
         self.last_iteration = {}
 
     def _setup_configs(self, rerun=False):
@@ -141,7 +142,7 @@ class Active(Group):
                         tuple([tuple(i) for i in config.positions]),
                         tuple(config.get_chemical_symbols())))).encode('utf-8'))
             if self.auids is not None:
-                if auid in self.auids:
+                if auid.hexdigest() in self.auids:
                     self.nconfigs -= 1
                     continue
             else:
@@ -177,26 +178,21 @@ class Active(Group):
         process of being executed.
         """
 
-        self._expand_sequence()
-        if len(self.sequence) == 0:
-            is_executing = False
-            if len(self.configs) == self.nconfigs:
-                # There have been configurations added to the database
-                # that haven't been setup yet.
-                return False
-            else:
-                # We only want to know if the last iteration's files are
-                # being executed, the old iterations don't matter.
-                for config in self.last_iteration:
-                    try:
-                        atoms = Atoms(path.join(config, "pre_comp_atom.h5"))
-                    except:
-                        atoms = Atoms(path.join(config, "atoms.h5"))
-                    is_executing = atoms.calc.is_executing(self.configs[i])
-                    if is_executing:
-                        break                
+        is_executing = False
+        if len(self.configs) != self.nconfigs:
+            # There have been configurations added to the database
+            # that haven't been setup yet.
+            return False
         else:
-            executing = [group.is_executing() for group in self.sequence.values()]
-            is_executing = all(executing)
+            # We only want to know if the last iteration's files are
+            # being executed, the old iterations don't matter.
+            for config in self.last_iteration.values():
+                try:
+                    atoms = Atoms(path.join(config, "pre_comp_atoms.h5"))
+                except:
+                    atoms = Atoms(path.join(config, "atoms.h5"))
+                is_executing = atoms.calc.is_executing(config)
+                if is_executing:
+                    break                
             
         return is_executing
