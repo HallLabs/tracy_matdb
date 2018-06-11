@@ -280,7 +280,7 @@ class Enumerated(Group):
         else:
             result = []
             for e in self.sequence.values():
-                result.extend(e.rset())
+                result.extend(e.rset)
             return result
     
     def _build_lattice_file(self,target):
