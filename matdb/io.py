@@ -46,6 +46,11 @@ def atoms_to_cfg(atm, target, config_id=None, type_map=None):
 
     chem_syms = atm.get_chemical_symbols()
     pos = atm.positions
+
+    if hasattr(atm, "calc") and atm.calc is not None and hasattr(atm.calc, "key"):
+        calc_name = "{0}_".format(atm.calc.key)
+    else:
+        calc_name = ""
     
     local_map = {}
     for i, specs in enumerate(np.unique(chem_syms)):
@@ -67,7 +72,7 @@ def atoms_to_cfg(atm, target, config_id=None, type_map=None):
         f.write("  ")
 
         if "force" in atm.params:
-            forces = atm.force
+            force = atm.force
             f.write(" AtomData:  id type       cartes_x      cartes_y      "
                     "cartes_z           fx          fy          fz\n")
         else:
@@ -75,27 +80,27 @@ def atoms_to_cfg(atm, target, config_id=None, type_map=None):
         iAt = 0
         for type, loc in zip(chem_syms, pos):
             out_lab = local_map[type]
-            if "force" in atm.params:
+            if "{0}force".format(calc_name) in atm.params:
                 f.write("             {0}    {1}       "
                         "{2}    {3}\n".format(iAt+1, out_lab,
                                               "  ".join(["{0: .8f}".format(i) for i in loc]),
-                                              "    ".join(["{0: .8f}".format(i) for i in force])))
+                                              "    ".join(["{0: .8f}".format(i) for i in force[iAt]])))
             else:
                 f.write("             {0}    {1}       "
                         "{2}\n".format(iAt+1, out_lab,
                                        "  ".join(["{0: .8f}".format(i) for i in loc])))
             iAt += 1
 
-        if "energy" in atm.properties:
+        if "{0}energy".format(calc_name) in atm.properties:
             f.write("  Energy\n")
             f.write("        {0}\n".format(atm.energy))
 
-        if "stress" in atm.properties:
+        if "{0}stress".format(calc_name) in atm.properties:
             f.write(" Stress:   xx          yy          zz          yz          xz          xy\n")
-            f.write("    ".join(atm.stress))
+            f.write("            {0}\n".format("    ".join([str(i) for i in atm.stress])))
                         
         if config_id is None:
-            conf_id = "{0}_{1}".format("".join(chem_syms),len(pos))
+            conf_id = "{0}_{1}".format("".join(np.unique(chem_syms)),len(pos))
         else:
             conf_id = config_id
         f.write(" Feature   conf_id  {}\n".format(conf_id))
