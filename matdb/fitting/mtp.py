@@ -7,9 +7,10 @@ from glob import glob
 from tqdm import tqdm
 from itertools import product, combinations
 import tarfile
+import json
 
 from jinja2 import Environment, PackageLoader
-from phenum.makeStr import _make_structures
+from phenum.phenumStr import _make_structures
 
 from matdb import msg
 from matdb.utility import cat, chdir, _get_reporoot, execute
@@ -19,6 +20,123 @@ from matdb.atoms import Atoms
 from matdb.database.active import Active
 from matdb.database import Database
 from matdb.io import atoms_to_cfg
+
+def create_to_relax(setup_args):
+    """Creates the to-relax.cfg file from the passed in args dictionary.
+    
+    Args:
+        setup_args (dict): A dictionary containing the arguments needed to 
+          construct the potenital.
+    """
+
+    args = setup_args["args"]
+    species = setup_args["species"]
+    crystals = setup_args["crystals"]
+    min_atoms = setup_args["min_atoms"]
+    max_atoms = setup_args["max_atoms"]
+    root = setup_args["root"]
+
+    for crystal in crystals:
+        prot_map = {0: "uniqueUnaries", 1: "uniqueBinaries", 2: "uniqueTernaries"}
+        if crystal == "prototypes":
+            
+            # The prototypes are saved into the file prototypes.tar.gz, if
+            # this is the first time prototypes has been run we need to unpack it.
+            template_root = path.join(_get_reporoot(), "matdb", "templates")
+            if not path.isdir(path.join(template_root, "uniqueUnaries")):
+                with chdir(template_root):
+                    tarf = "prototypes.tar.gz"
+                    tar = tarfile.open(tarf, "r:gz")
+                    tar.extractall()
+                    tar.close()
+
+            for size in range(len(species)):
+                cand_path = path.join(template_root, prot_map(size))
+                structures = glob("{0}/*".format(cand_path))
+                perms = [list(i) for i in permutations(species, r=size+1)]
+                for fpath, perm in product(structures, perms):
+                    type_map = {}
+                    for i, s in enumerate(species):
+                        if s in perm:
+                            type_map[perm.index(s)] = i
+                    _prot_to_cfg(fpath, perm, target, type_map, root, min_atoms, max_atoms)
+                    
+        else:
+            # eventually we'll want to replace this with an actual
+            # enumeration over the options the user specifies.
+            infile = path.join(_get_reporoot(),"matdb","templates",
+                               "struct_enum.out_{0}_{1}".format(len(species),crystal))
+            if min_atoms != 1 or max_atoms is not None:
+                with open(infile, "r") as f:
+                    min_num = None
+                    max_num = None
+                    past_start = False
+                    for line in f:
+                        if line.split()[0] == "start":
+                            past_start = True
+                            continue
+                        if past_start:
+                            data = line.strip().split()
+                            lab = data[-2]
+                            if len(lab) == min_atoms and min_num is None:
+                                min_num = int(data[0])
+                            if len(lab) > max_atoms and max_num is None:
+                                max_num = int(data[0])-1
+                                break
+                args["structures"] = [min_num, max_num]
+
+            args["input"] = infile
+            _make_structures(args)
+
+def _prot_to_cfg(source, species, relax_file, type_map, root, min_atoms, max_atoms):
+    """Corrects the POSCAR so that it has the correct lattice parameter
+    and title string for the system to be read into ASE.
+    
+    Args:
+        source (str): the path to the prototype POSCAR.
+        species (list): a list of the species to be used for this POSCAR.
+        relax_file (str): the full path to the to-relax.cfg file being
+          written.
+        type_map (dict): the type mapping to apply to the cfg file.
+        root (str): the root directory where the cfg needs to be stored.
+        min_atoms (int): the smallest number of atoms wanted.
+        max_atoms (int): the largest number of atoms wanted.
+    """
+
+    f_lines = []
+    lat_vecs = []
+    # read in the original POSCAR
+    with open(source, "r") as f:
+        for i, line in enumerate(f):
+            f_lines.append(line)
+            if i in [2, 3, 4]:
+                lat_vecs.append([float(j) for j in line.strip().split()])
+            if i == 5:
+                concs = [int(j) for j in line.strip().split()]
+
+    # If this prototype has more or less atoms in the cell than the
+    # user wants then
+    if (sum(concs) < min_atoms) or (max_atoms is not None and sum(concs) > max_atoms):
+        return
+    # fix the title.
+    f_lines[0] = "{0} : {1}".format(" ".join(species), f_lines[0])
+
+    # fix the lattice parameter
+    lat_param, ttl = get_lattice_parameter(species, concs, lat_vecs, sum(concs), " ")
+    f_lines[1] = "{} \n".format(lat_param)
+
+    target = path.join(root, "PROT")
+    with open(target, "w+") as f:
+        for line in f_lines:
+            f.write(line)
+
+    atm = Atoms(target)
+        
+    atoms_to_cfg(atm, path.join(root, "prot.cfg"))
+    cat([relax_file, path.join(root, "prot.cfg")])
+    config_id = "{0}_{1}".format("".join(species), source.split("/")[-1])
+    remove(path.join(root, "prot.cfg"), config_id = config_id, type_map = type_map)
+    remove(target)
 
 class MTP(Trainer):
     """Implements a simple wrapper around the MTP training functionality for
@@ -50,47 +168,9 @@ class MTP(Trainer):
         else:
             self.root = root
 
-        if "relax_ini" in mtpargs and mtpargs["relax_ini"] is not None:
-            self._set_relax_ini(mtpargs["relax_ini"])
-        else:
-            self._set_relax_ini({})
-
-        if "relax" in mtpargs and mtpargs["relax"] is not None:
-            self.relax_args = mtpargs["relax"]
-        else:
-            self.relax_args = {}
-
-        self.ran_seed = mtpargs["ran_seed"] if "ran_seed" in mtpargs else 0
-            
-        if "train" in mtpargs and mtpargs["train"] is not None:
-            self.train_args = mtpargs["train"]
-        else:
-            self.train_args = {}
-
-        if "calc-grade" in mtpargs and mtpargs["calc-grade"] is not None:
-            self.grade_args = mtpargs["calc-grade"]
-        else:
-            self.grade_args = {}
-
-        if "select" in mtpargs and mtpargs["select"] is not None:
-            self.select_args = mtpargs["select"]
-        else:
-            self.select_args = {}
-
-        if "to-relax" in mtpargs and mtpargs["to-relax"] is not None:
-            self.to_relax_args = mtpargs["to-relax"]
-        else:
-            self.to_relax_args = {}
-
-        if "use_mpi" in mtpargs and mtpargs["use_mpi"] is not None:
-            self.use_mpi = mtpargs["use_mpi"]
-        else:
-            self.use_mpi = True
-
-        self.use_unrelaxed = mtpargs["use_unrelaxed"] if "use_unrelaxed" in mtpargs else False
+        self._set_attributes(self, mtpargs)
 
         self.species = controller.db.species
-        self.crystals_to_relax = mtpargs["crystals_to_relax"] if "crystals_to_relax" in mtpargs else ["sc", "fcc", "bcc", "hcp", "prototypes"]
 
         self.mtp_file = "pot.mtp"
         if path.isfile(path.join(self.root,"status.txt")):
@@ -116,6 +196,65 @@ class MTP(Trainer):
         #Configure the fitting directory for this particular potential.
         if not path.isdir(self.root):
             mkdir(self.root)
+
+    def _set_attributes(self, mtpargs):
+        """Sets the attributes of the mtp object from the input dictionary.
+
+        Args:
+            mtpargs (dict): the input dictionary of arguments.
+        """
+
+        if "relax_ini" in mtpargs and mtpargs["relax_ini"] is not None:
+            self._set_relax_ini(mtpargs["relax_ini"])
+        else:
+            self._set_relax_ini({})
+
+        if "relax" in mtpargs and mtpargs["relax"] is not None:
+            self.relax_args = mtpargs["relax"]
+        else:
+            self.relax_args = {}
+
+        self.ran_seed = mtpargs["ran_seed"] if "ran_seed" in mtpargs else 0
+            
+        if "train" in mtpargs and mtpargs["train"] is not None:
+            self.train_args = mtpargs["train"]
+        else:
+            self.train_args = {}
+
+        if "smallest_relax_cell" in mtpargs:
+            self.relax_min_atoms = mtpargs["smallest_relax_cell"]
+        else:
+            self.relax_min_atoms = 1
+
+        if "largest_relax_cell" in mtpargs:
+            self.relax_max_atoms = mtpargs["larges_relax_cell"]
+        else:
+            self.relax_max_atoms = None            
+
+        if "calc-grade" in mtpargs and mtpargs["calc-grade"] is not None:
+            self.grade_args = mtpargs["calc-grade"]
+        else:
+            self.grade_args = {}
+
+        if "select" in mtpargs and mtpargs["select"] is not None:
+            self.select_args = mtpargs["select"]
+        else:
+            self.select_args = {}
+
+        if "to-relax" in mtpargs and mtpargs["to-relax"] is not None:
+            self.to_relax_args = mtpargs["to-relax"]
+        else:
+            self.to_relax_args = {}
+
+        if "use_mpi" in mtpargs and mtpargs["use_mpi"] is not None:
+            self.use_mpi = mtpargs["use_mpi"]
+        else:
+            self.use_mpi = True
+
+        self.use_unrelaxed = mtpargs["use_unrelaxed"] if "use_unrelaxed" in mtpargs else False
+        
+        self.crystals_to_relax = mtpargs["crystals_to_relax"] if "crystals_to_relax" in mtpargs else ["sc", "fcc", "bcc", "hcp", "prototypes"]
+        
 
     def _set_relax_ini(self,relaxargs):
         """Sets the arguments for the relax.ini file.
@@ -259,18 +398,24 @@ class MTP(Trainer):
         with open(target,'w') as f:
             f.write(template.render(**self.relax_ini))
 
-    def _make_to_relax_cfg(self, testing=False):
+    def _setup_to_relax_cfg(self, testing=False):
         """Creates the list of files to relax to check the mtp against.
 
         Args:
             testing (bool): True if unit tests are being run.
         """
 
-        target = path.join(self.root,"to-relax.cfg")
+        target = path.join(self.root, "to-relax.cfg")
 
         if path.isfile(target):
             remove(target)
+            
+        setup_args = {}
         
+        if len(self.species) >4:
+            msg.err("The MTP relaxation isn't setup to create a to-relax.cfg "
+                    "file for systems with more than 4 elements.")
+            return
         args = {"config":"t",
                 "species":self.species,
                 "structures": "all",
@@ -283,100 +428,15 @@ class MTP(Trainer):
                 "rattle":0.0,
                 "mapping": None,
         }
+        setup_args["phenum_args"] = args
+        setup_args["crystals"] = self.crystals_to_relax
+        setup_args["species"] = self.species
+        setup_args["min_atoms"] = self.relax_min_atoms
+        setup_args["max_atoms"] = self.relax_max_atoms
+        setup_args["root"] = self.root
 
-        if len(self.species) >4:
-            msg.err("The MTP relaxation isn't setup to create a to-relax.cfg "
-                    "file for systems with more than 4 elements.")
-        
-        msg.info("Setting up to-relax.cfg file.")
-        prot_map = {0: "uniqueUnaries", 1: "uniqueBinaries", 2: "uniqueTernaries"}
-        for crystal in self.crystals_to_relax:
-            if crystal == "prototypes":
-
-                # The prototypes are saved into the file prototypes.tar.gz, if
-                # this is the first time prototypes has been run we need to unpack it.
-                template_root = path.join(_get_reporoot(), "matdb", "templates")
-                if not path.isdir(path.join(template_root, "uniqueUnaries")):
-                    with chdir(template_root):
-                        tarf = "prototypes.tar.gz"
-                        tar = tarfile.open(tarf, "r:gz")
-                        tar.extractall()
-                        tar.close()
-
-                for size in range(len(self.species)):
-                    dry_count = 0
-                    cand_path = path.join(template_root, prot_map(size))
-                    structures = glob("{0}/*".format(cand_path))
-                    perms = [list(i) for i in permutations(self.species, r=size+1)]
-                    for fpath, perm in product(structures, perms):
-                        type_map = {}
-                        for i, s in enumerate(self.species):
-                            if s in perm:
-                                type_map[perm.index(s)] = i
-                        self._prot_to_cfg(fpath, perm, target, type_map)
-                        
-                    #For unit testing
-                    if dry_run:
-                        if dry_count == 10:
-                            break
-                        dry_count += 1
-                        
-                    
-            else:
-                if dry_run: 
-                    infile = path.join(_get_reporoot(),"matdb","templates",
-                                       "test_enum.out_{0}".format(crystal))
-                else: #pragma: no cover
-                    infile = path.join(_get_reporoot(),"matdb","templates",
-                                       "struct_enum.out_{0}_{1}".format(len(self.species),crystal))
-                args["input"] = infile
-                _make_structures(args)
-                    
-        msg.info("to-relax.cfg file completed.")                   
-        
-
-    def _prot_to_cfg(self, source, species, relax_file, type_map):
-        """Corrects the POSCAR so that it has the correct lattice parameter
-        and title string for the system to be read into ASE.
-        
-        Args:
-            source (str): the path to the prototype POSCAR.
-            species (list): a list of the species to be used for this POSCAR.
-            relax_file (str): the full path to the to-relax.cfg file being
-              written.
-            type_map (dict): the type mapping to apply to the cfg file.
-        """
-
-        f_lines = []
-        lat_vecs = []
-        # read in the original POSCAR
-        with open(source, "r") as f:
-            for i, line in enumerate(f):
-                f_lines.append(line)
-                if i in [2, 3, 4]:
-                    lat_vecs.append([float(j) for j in line.strip().split()])
-                if i == 5:
-                    concs = [int(j) for j in line.strip().split()]
-
-        # fix the title.
-        f_lines[0] = "{0} : {1}".format(" ".join(species), f_lines[0])
-
-        # fix the lattice parameter
-        lat_param, ttl = get_lattice_parameter(species, concs, lat_vecs, sum(concs), " ")
-        f_lines[1] = "{} \n".format(lat_param)
-
-        target = path.join(self.root, "PROT")
-        with open(target, "w+") as f:
-            for line in f_lines:
-                f.write(line)
-
-        atm = Atoms(target)
-        
-        atoms_to_cfg(atm, path.join(self.root, "prot.cfg"))
-        cat([relax_file, path.join(self.root, "prot.cfg")])
-        config_id = "{0}_{1}".format("".join(self.species), source.split("/")[-1])
-        remove(path.join(self.root, "prot.cfg"), config_id = config_id, type_map = type_map)
-        remove(target)
+        with open(path.join(self.root, "to_relax.json"), "w+"):
+            json.dump(setup_args)
 
     def _train_template(self):
         """Creates the train command template.
@@ -561,9 +621,9 @@ class MTP(Trainer):
                 self._make_pot_initial()
             template = self._train_template
             with open(path.join(self.root,"status.txt"),"w+") as f:
-                f.write("relax {0}".format(iter_count))
+                f.write("relax_setup {0}".format(iter_count))
 
-        if self.iter_status == "relax":
+        if self.iter_status == "relax_setup":
             # If pot has been trained
             rename(path.join(self.root,"Trained.mtp_"), path.join(self.root,"pot.mtp"))
 
@@ -580,9 +640,16 @@ class MTP(Trainer):
             # create the 'to-relax.cfg' file.            
             if path.isfile(path.join(self.root,"unrelaxed.cfg")) and self.use_unrelaxed:
                 rename(path.join(self.root,"unrelaxed.cfg"),path.join(self.root,"to-relax.cfg"))
+                self.iter_status = "relax"
             elif not path.isfile(path.join(self.root,"to-relax.cfg")):
-                self._make_to_relax_cfg()
+                self._setup_to_relax_cfg()
+                template = "matdb_mtp_to_relax.py"
+                with open(path.join(self.root,"status.txt"),"w+") as f:
+                    f.write("relax {0}".format(iter_count))
+            else:
+                self.iter_status = "relax"
 
+        if self.iter_status == "relax":
             # command to relax structures
             template = self._relax_template()
             with open(path.join(self.root,"status.txt"),"w+") as f:
