@@ -2,13 +2,14 @@ from .vasp import AsyncVasp as Vasp
 from .aflux import AsyncAflow as Aflow
 from .qe import AsyncQe as Qe
 from matdb import msg
+from matdb.utility import chdir
 
 try:
     from .quip import SyncQuip as Quip
 except:
     msg.info("Could not import the Quip calculator.")
 
-def build_calc(name, *args, **kwargs):
+def build_calc(name, relpath, *args, **kwargs):
     """Builds a calculator instance using sensible defaults for *interatomic potentials*
     that do *not* require a temporary directory to dump files.
 
@@ -20,6 +21,7 @@ def build_calc(name, *args, **kwargs):
 
     Args:
         name (str): name of the calculator in this package; one of ['Quip'].
+        relpath (str): path to the directory in which to instantiate the calculator.
 
     Notes:
         atoms (matdb.Atoms): default atoms object for the calculator. An
@@ -46,7 +48,12 @@ def build_calc(name, *args, **kwargs):
 
     from matdb.atoms import Atoms
     atoms = Atoms()
-    return target(atoms, '.', '.', 0, *args, **kwargs)
+    if relpath is not None:
+        with chdir(relpath):
+            result = target(atoms, '.', '.', 0, *args, **kwargs)
+    else:
+        result = target(atoms, '.', '.', 0, *args, **kwargs)
+    return result
     
 def get_calculator_module(calcargs):
     """Returns the module corresponding to the calculator mentioned in
