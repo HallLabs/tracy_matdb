@@ -58,8 +58,7 @@ script_options = {
     "--figsize": {"nargs": 2, "type": float, "default": (10, 8),
                   "help": "Specify the size of the figure in inches."},
     "--save": {"help": "Specify the name of a file to save the plot to." },
-    "--nbands": {"help": "Number of bands to plot.",
-                 "default": 4},
+    "--nbands": {"help": "Number of bands to plot.", "type": int},
     "--generate": {"action": "store_true",
                    "help": ("Generate the sub-plots for HTML interactive"
                             " package.")},
