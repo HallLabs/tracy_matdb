@@ -11,6 +11,7 @@ import json
 
 from jinja2 import Environment, PackageLoader
 from phenum.phenumStr import _make_structures
+from phenum.element_data import get_lattice_parameter
 
 from matdb import msg
 from matdb.utility import cat, chdir, _get_reporoot, execute
@@ -130,12 +131,13 @@ def _prot_to_cfg(source, species, relax_file, type_map, root, min_atoms, max_ato
         for line in f_lines:
             f.write(line)
 
-    atm = Atoms(target)
+    atm = Atoms(target, format="vasp")
         
     atoms_to_cfg(atm, path.join(root, "prot.cfg"))
-    cat([relax_file, path.join(root, "prot.cfg")])
+    cat([relax_file, path.join(root, "prot.cfg")], path.join(root, "temp.cfg"))
+    rename(path.join(root, "temp.cfg"), relax_file)
     config_id = "{0}_{1}".format("".join(species), source.split("/")[-1])
-    remove(path.join(root, "prot.cfg"), config_id = config_id, type_map = type_map)
+    remove(path.join(root, "prot.cfg"))
     remove(target)
 
 class MTP(Trainer):
@@ -168,7 +170,7 @@ class MTP(Trainer):
         else:
             self.root = root
 
-        self._set_attributes(self, mtpargs)
+        self._set_local_attributes(mtpargs)
 
         self.species = controller.db.species
 
@@ -197,7 +199,7 @@ class MTP(Trainer):
         if not path.isdir(self.root):
             mkdir(self.root)
 
-    def _set_attributes(self, mtpargs):
+    def _set_local_attributes(self, mtpargs):
         """Sets the attributes of the mtp object from the input dictionary.
 
         Args:
