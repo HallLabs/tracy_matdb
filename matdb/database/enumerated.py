@@ -6,7 +6,7 @@ from six import string_types
 from glob import glob
 
 from phenum.enumeration import _enum_out
-from phenum.phenumtr import _make_structures
+from phenum.phenumStr import _make_structures
 from jinja2 import Environment, PackageLoader
 
 from matdb.database import Group
