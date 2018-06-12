@@ -18,7 +18,7 @@ from matdb.transforms import conform_supercell
 from matdb.calculators import build_calc
 
 def band_plot(dbs, fits=None, npts=100, title="{} Phonon Spectrum", save=None,
-              figsize=(10, 8), nbands=12, delta=0.01, **kwargs):
+              figsize=(10, 8), nbands=None, delta=0.01, quick=True, **kwargs):
     """Plots the phonon bands for the specified CLI args.
 
     Args:
@@ -37,6 +37,8 @@ def band_plot(dbs, fits=None, npts=100, title="{} Phonon Spectrum", save=None,
         figsize (tuple): of `float`; the size of the figure in inches.
         delta (float): size of displacement for finite difference derivative.
         nbands (int): number of bands to plot.
+        quick (bool): when True, use symmetry to speed up the Hessian
+          calculation for the specified potentials.
         kwargs (dict): additional "dummy" arguments so that this method can be
           called with arguments to other functions.
     """
@@ -67,15 +69,10 @@ def band_plot(dbs, fits=None, npts=100, title="{} Phonon Spectrum", save=None,
     if fits is not None:
         for fiti, fit in enumerate(tqdm(fits)):
             gi = len(dbs) + fiti
-            #make_supercell already returns a copy of the atoms object.
-            scell = conform_supercell(db.supercell)
-            ai = db.atoms.make_supercell(scell)
+            ai = db.atoms.copy()
             ai.set_calculator(fit.calculator)
-            #Note that for these kinds of calculations, we don't want to use the
-            #default cache directory for the potential; rather use a temporary
-            #directory (default when None is specified).
-            H = phon_calc(ai, None, delta)
-            bands[fit.fqn] = _calc_bands(db.atoms, H, scell)
+            H = phon_calc(ai, supercell=db.supercell, delta=delta, quick=quick)
+            bands[fit.fqn] = _calc_bands(db.atoms, H, db.supercell)
             style[fit.fqn] = {"color": colors[gi], "lw": 2}
 
     savefile = None
