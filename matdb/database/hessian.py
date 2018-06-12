@@ -230,7 +230,6 @@ class Hessian(Group):
         #zip!
         evals, evecs = np.linalg.eigh(self.H)
         natoms = len(evals)/3
-        eratio = (np.max(evals)/np.min(evals))**1.5
         
         for l, v in zip(*(evals, evecs.T)):
             #The eigenvalues should all be positive. There may be some really
@@ -249,7 +248,7 @@ class Hessian(Group):
             #This custom scaling reweights by eigenvalue so that larger
             #eigenvalues get fitted more closely. The 0.1 is our "default_sigma"
             #for hessian.
-            atc.add_param("{}_hessian_csigma".format(self.calc.key), 0.1/(eratio/l))
+            atc.add_param("{}_hessian_csigma".format(self.calc.key), 1./(1+l)**2)
             atc.add_param("n_{}_hessian".format(self.calc.key), 1)
             configs.append(atc)
 
