@@ -3,11 +3,20 @@
 import numpy as np
 from hashlib import sha1
 from os import path, mkdir, remove
-from matdb.base import testmode
-from matdb.utility import chdir, redirect_stdout, convert_dict_to_str
-from matdb import msg
 from glob import glob
-
+from tempfile import mkdtemp
+from phonopy import Phonopy
+from phonopy.file_IO import write_FORCE_CONSTANTS
+from shutil import rmtree
+    
+from matdb.base import testmode
+from matdb.utility import chdir, redirect_stdout, convert_dict_to_str, execute
+from matdb import msg
+from matdb.database.hessian import matdb_to_phonopy, unroll_fc, phonopy_to_matdb
+from matdb.transforms import conform_supercell
+from matdb.atoms import Atoms
+from matdb.kpoints import parsed_kpath
+    
 def _ordered_unique(items):
     """Returns the list of unique items in the list while still *preserving* the
     order in which they appeared.
@@ -50,12 +59,6 @@ def _calc_bands(atoms, hessian, supercell=(1, 1, 1), outfile=None, grid=None):
         If `outfile` is None, then this method returns a dictionary that has the
         same format as :func:`from_yaml`.
     """
-    from tempfile import mkdtemp
-    from phonopy.file_IO import write_FORCE_CONSTANTS
-    from matdb.kpoints import parsed_kpath
-    from matdb.utility import execute
-    from shutil import rmtree
-    
     #Create a temporary directory in which to work.
     target = mkdtemp()
     bandfile = path.join(target, "band.yaml")
@@ -112,6 +115,44 @@ def _calc_bands(atoms, hessian, supercell=(1, 1, 1), outfile=None, grid=None):
     #Remove the temporary directory that we created and return the result.
     rmtree(target)
     return result            
+
+def _calc_quick(atoms, supercell=(1, 1, 1), delta=0.01):
+    """Calculates the Hessian for a given atoms object just like :func:`calc`,
+    *but*, it uses symmetry to speed up the calculation. Depending on the
+    calculator being used, it is possible that the symmetrized result may be
+    different from the full result with all displacements, done manually by
+    :func:`calc`.
+
+    Args:
+        atoms (matdb.Atoms): atomic structure of the *primitive*.
+        supercell (list): or `tuple` or :class:`numpy.ndarray` specifying the
+          integer supercell matrix.
+        delta (float): displacement in Angstroms of each atom when computing the
+          phonons. 
+
+    Returns:
+        numpy.ndarray: Hessian matrix that has dimension `(natoms*3, natoms*3)`,
+        where `natoms` is the number of atoms in the *supercell*.
+    """
+    primitive = matdb_to_phonopy(atoms)
+    phonon = Phonopy(primitive, conform_supercell(supercell))
+    phonon.generate_displacements(distance=delta)
+    supercells = phonon.get_supercells_with_displacements()
+    pot = atoms.get_calculator()
+    assert pot is not None
+    
+    forces = []
+    for scell in supercells:
+        matoms = phonopy_to_matdb(scell)
+        #Call a manual reset of the calculator so that we explicitly recalculate
+        #the forces for the current atoms object.
+        pot.reset()
+        matoms.set_calculator(pot)
+        forces.append(matoms.get_forces())
+
+    phonon.set_forces(forces)
+    phonon.produce_force_constants()
+    return unroll_fc(phonon._force_constants)
 
 def calc(atoms, cachedir=None, delta=0.01):
     """Calculates the Hessian for a given atoms object (which *must* have an
