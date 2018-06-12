@@ -306,11 +306,14 @@ class TController(object):
         :class:`Trainer` sub-class. Wildcard `*` or any other
         :func:`~fnmatch.fnmatch` patterns may be used.
         """
-        trainer, step = pattern.split('.')
-        if '-' in trainer:
-            repname = trainer.split('-')[0]
+        if pattern.count('.') == 2:
+            repname, trainer, step = pattern.split('.')
         else:
-            repname = trainer
+            trainer, step = pattern.split('.')
+            if '-' in trainer:
+                repname = trainer.split('-')[0]
+            else:
+                repname = trainer
 
         from fnmatch import fnmatch
         result = []
