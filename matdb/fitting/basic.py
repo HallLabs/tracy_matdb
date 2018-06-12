@@ -426,6 +426,11 @@ class Trainer(object):
             bool: True if the submission generated a job id (considered
             successful).
         """
+        if self.ready():
+            msg.info("Trainer {} is already done;".format(self.root) +
+                     "skipping execute step.", 2)
+            return
+        
         if not path.isfile(self._jobfile):
             return False
 
