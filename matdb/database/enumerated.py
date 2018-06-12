@@ -1,13 +1,18 @@
 """Group of configurations that is created from an enumerated list of structures.
 """
-from matdb.database import Group
-from matdb import msg
 from os import path, getcwd, chdir, remove, listdir, mkdir
 import numpy as np
 from six import string_types
+from glob import glob
+
+from phenum.enumeration import _enum_out
+from phenum.phenumtr import _make_structures
+from jinja2 import Environment, PackageLoader
+
+from matdb.database import Group
+from matdb import msg
 from matdb.atoms import Atoms, AtomsList
 from matdb.utility import copyonce
-from glob import glob
 
 class Enumerated(Group):
     """Sets up the calculations for a random sampling of structures from
@@ -292,7 +297,6 @@ class Enumerated(Group):
                 saved.
         """
 
-        from os import path
         target = path.join(target, "lattice.in")
 
         # We need to create a dictionary of the arguments to pass into
@@ -322,7 +326,6 @@ class Enumerated(Group):
         settings["atomic_basis"] = [" ".join([str(i) for i in j]) for j in self.basis]
         settings["n_basis"] = len(self.basis)        
         
-        from jinja2 import Environment, PackageLoader
         env = Environment(loader=PackageLoader('matdb', 'templates'))
         template = env.get_template("lattice.in")
 
@@ -373,8 +376,6 @@ class Enumerated(Group):
                 a unique set of enumerations over the same range.
             home (str): The home directory.
         """
-        from phenum.enumeration import _enum_out
-        from phenum.makeStr import _make_structures
         _enum_out({"input":"enum.in","outfile":"enum.out",
                    "seed":self.ran_seed if self.ran_seed is None else self.ran_seed+dind+recurse,
                    "lattice":"lattice.in","distribution":["all",str(self.nconfigs-dind)],
