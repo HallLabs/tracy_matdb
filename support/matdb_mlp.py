@@ -55,22 +55,25 @@ def run(args):
     if args is None:
         return
 
-    cmd = args["cmd"].strip().split()
-    keyword = cmd[0]
-
+    cmd = args["cmd"]
+    print(cmd)
+    keyword = cmd[0].strip()
+    print(keyword)
     if keyword == "calc-grade":
         touch("state.mvs")
     elif keyword == "select-add":
         template_root = path.join(_get_reporoot(), "tests", "fitting", "files")
-        src = path.join(template_root,"mtp_new_training.cfg")
-        dest = "new_training.cfg"
-        copyonce(src, dest)
+        touch("new_training.cfg")
+        # src = path.join(template_root,"mtp_new_training.cfg")
+        # dest = "new_training.cfg"
+        # copyonce(src, dest)
     elif keyword == "convert-cfg":
         template_root = path.join(_get_reporoot(), "tests", "fitting", "files")
         for i in range(1,11):
-            src = path.join(template_root,"mtp_convert_POSCAR{0}".format(i))
-            dest = "POSCAR{0}".format(i)
-            copyonce(src, dest)
+            touch("POSCAR{0}".format(i))
+            # src = path.join(template_root,"mtp_convert_POSCAR{0}".format(i))
+            # dest = "POSCAR{0}".format(i)
+            # copyonce(src, dest)
     
 if __name__ == '__main__': # pragma: no cover
     run(_parser_options())
