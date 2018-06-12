@@ -154,7 +154,7 @@ def _calc_quick(atoms, supercell=(1, 1, 1), delta=0.01):
     phonon.produce_force_constants()
     return unroll_fc(phonon._force_constants)
 
-def calc(atoms, cachedir=None, delta=0.01):
+def calc(primitive, cachedir=None, supercell=(1, 1, 1), delta=0.01, quick=True):
     """Calculates the Hessian for a given atoms object (which *must* have an
     attached calculator).
 
@@ -164,18 +164,25 @@ def calc(atoms, cachedir=None, delta=0.01):
     .. note:: `atoms` will be relaxed before calculating the Hessian.
 
     Args:
-        atoms (matdb.Atoms): atomic structure of the *supercell*.
+        primitive (matdb.Atoms): atomic structure of the *primitive*.
         cachedir (str): path to the directory where phonon calculations are
           cached. If not specified, a temporary directory will be used.
         supercell (tuple): number of times to duplicate the cell when
           forming the supercell.
         delta (float): displacement in Angstroms of each atom when computing the
           phonons. 
+        quick (bool): when True, use symmetry to speed up the Hessian
+          calculation. See :func:`_calc_quick`.
 
     Returns:
         numpy.ndarray: Hessian matrix that has dimension `(natoms*3, natoms*3)`,
         where `natoms` is the number of atoms in the *supercell*.
     """
+    if quick:
+        return _calc_quick(primitive, supercell, delta)
+    else:
+        atoms = primitive.make_supercell(supercell)
+    
     from ase.optimize.precon import Exp, PreconLBFGS
     from ase.vibrations import Vibrations
         
