@@ -1,12 +1,53 @@
 from .vasp import AsyncVasp as Vasp
 from .aflux import AsyncAflow as Aflow
 from .qe import AsyncQe as Qe
-from matdb.msg import info
+from matdb import msg
+
 try:
     from .quip import SyncQuip as Quip
 except:
-    info("Could not import the Quip calculator.")
+    msg.info("Could not import the Quip calculator.")
 
+def build_calc(name, *args, **kwargs):
+    """Builds a calculator instance using sensible defaults for *interatomic potentials*
+    that do *not* require a temporary directory to dump files.
+
+    .. note:: The `Vasp`, `Aflow` and `Qe` calculators are not buildable using this
+      function.
+
+    .. warning:: The calculator produced by this function *cannot* be hashed or serialized
+      as part of a full `matdb`; it is intended for _local_ use only.
+
+    Args:
+        name (str): name of the calculator in this package; one of ['Quip'].
+
+    Notes:
+        atoms (matdb.Atoms): default atoms object for the calculator. An
+          empty `Atoms` object is created. This shouldn't impact calculations since the
+          calculator does not require a folder to run.
+        workdir (str): path to a working directory. Calculators that don't need this
+          folder are the only ones supported by this function, so we default to local
+          directory.
+        contr_dir (str): path to the `matdb` controller's root directory. That folder is
+          used only when the calculator is hashed or serialized, for local use it doesn't
+          matter so we default to the local directory.
+        ran_seed (int): random seed used to initialized the calculator.
+
+    Raises:
+    
+    ValueError: if the `name` is not a folder-independent interatomic potential.
+    """
+    globs = globals()
+    try:
+        target = globs[name]
+    except KeyError:
+        msg.err("Cannot import calculator {}. ".format(name) +
+                "Does not exist at package level.")
+
+    from matdb.atoms import Atoms
+    atoms = Atoms()
+    return target(atoms, '.', '.', 0, *args, **kwargs)
+    
 def get_calculator_module(calcargs):
     """Returns the module corresponding to the calculator mentioned in
     `calcargs`.
