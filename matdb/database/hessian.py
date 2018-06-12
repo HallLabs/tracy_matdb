@@ -14,8 +14,22 @@ from phonopy.cui.phonopy_argparse import get_parser
 from phonopy.cui.settings import PhonopyConfParser
 from matdb import msg
 from matdb.atoms import Atoms, AtomsList
-from matdb.phonons import roll as roll_fc
 from matdb.transforms import conform_supercell
+
+def roll_fc(hessian):
+    """Rolls the specified hessian into the `phonopy` force constants format.
+    
+    Args:
+        hessian (numpy.ndarray): of shape `n_atoms * 3`.
+    """
+    n = hessian.shape[0]/3
+    result = np.zeros((n, n, 3, 3), dtype='double')
+    
+    for i in range(n):
+        for j in range(n):
+            result[i, j] = hessian[i*3:(i+1)*3, j*3:(j+1)*3]
+
+    return result
 
 def unroll_fc(fc):
     """Unroll's the phonopy force constants matrix into the Hessian.
@@ -33,16 +47,18 @@ def phonopy_to_matdb(patoms):
     """Converts a :class:`phonopy.structure.atoms.Atoms` to
     :class:`matdb.atoms.Atoms`. See also :func:`matdb_to_phonopy`.
     """
-    return Atoms(symbols=patoms.get_chemical_symbols(),
+    #We hard-code the pbc here because phonons only make sense for solids.
+    return Atoms(numbers=patoms.get_atomic_numbers(),
                  positions=patoms.get_positions(),
                  magmoms=patoms.get_magnetic_moments(),
-                 cell=patoms.get_cell())
+                 cell=patoms.get_cell(),
+                 pbc=[True, True, True])
 
 def matdb_to_phonopy(matoms):
     """Converts a :class:`matdb.atoms.Atoms` to a
     :class:`phonopy.structure.atoms.Atoms`. See also :func:`phonopy_to_matdb`.
     """
-    return PhonopyAtoms(symbols=matoms.get_chemical_symbols(),
+    return PhonopyAtoms(numbers=matoms.get_atomic_numbers(),
                         positions=matoms.positions,
                         masses=matoms.get_masses(),
                         cell=matoms.cell, pbc=matoms.pbc)
