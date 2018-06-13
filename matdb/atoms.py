@@ -498,10 +498,12 @@ class AtomsList(list):
         try:
             return self.source.__getattr__(name)
         except AttributeError:
-            try:
-                seq = [getattr(at, name) for at in iter(self)]
-            except AttributeError:
-                raise
+            seq = []
+            for at in iter(self):
+                try:
+                    seq.append(getattr(at, name))
+                except AttributeError:
+                    pass
             if seq == []: #pragma: no cover
                 return None
             else:
