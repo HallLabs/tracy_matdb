@@ -8,19 +8,33 @@ from tqdm import tqdm
 from itertools import product, combinations
 import tarfile
 import json
+from itertools import permutations
 
 from jinja2 import Environment, PackageLoader
 from phenum.phenumStr import _make_structures
 from phenum.element_data import get_lattice_parameter
 
 from matdb import msg
-from matdb.utility import cat, chdir, _get_reporoot, execute
+from matdb.utility import cat, chdir, _get_reporoot, execute, touch
 from matdb.fitting.basic import Trainer
 from matdb.exceptions import MlpError, LogicError
 from matdb.atoms import Atoms
 from matdb.database.active import Active
 from matdb.database import Database
 from matdb.io import atoms_to_cfg
+
+def _is_float(var):
+    """Determines if the input is a float.
+    """
+
+    if isinstance(var, float):
+        return True
+    else:
+        try:
+            float(var)
+            return True
+        except:
+            return False
 
 def create_to_relax(setup_args):
     """Creates the to-relax.cfg file from the passed in args dictionary.
@@ -30,13 +44,15 @@ def create_to_relax(setup_args):
           construct the potenital.
     """
 
-    args = setup_args["args"]
+    args = setup_args["phenum_args"]
     species = setup_args["species"]
     crystals = setup_args["crystals"]
     min_atoms = setup_args["min_atoms"]
     max_atoms = setup_args["max_atoms"]
     root = setup_args["root"]
 
+    touch(args["outfile"])
+    
     for crystal in crystals:
         prot_map = {0: "uniqueUnaries", 1: "uniqueBinaries", 2: "uniqueTernaries"}
         if crystal == "prototypes":
@@ -52,7 +68,7 @@ def create_to_relax(setup_args):
                     tar.close()
 
             for size in range(len(species)):
-                cand_path = path.join(template_root, prot_map(size))
+                cand_path = path.join(template_root, prot_map[size])
                 structures = glob("{0}/*".format(cand_path))
                 perms = [list(i) for i in permutations(species, r=size+1)]
                 for fpath, perm in product(structures, perms):
@@ -60,7 +76,8 @@ def create_to_relax(setup_args):
                     for i, s in enumerate(species):
                         if s in perm:
                             type_map[perm.index(s)] = i
-                    _prot_to_cfg(fpath, perm, target, type_map, root, min_atoms, max_atoms)
+                    _prot_to_cfg(fpath, perm, args["outfile"], type_map,
+                                 root, min_atoms, max_atoms)
                     
         else:
             # eventually we'll want to replace this with an actual
@@ -82,9 +99,9 @@ def create_to_relax(setup_args):
                             if len(lab) == min_atoms and min_num is None:
                                 min_num = int(data[0])
                             if len(lab) > max_atoms and max_num is None:
-                                max_num = int(data[0])-1
+                                max_num = int(data[0])
                                 break
-                args["structures"] = [min_num, max_num]
+                args["structures"] = range(min_num, max_num)
 
             args["input"] = infile
             _make_structures(args)
@@ -163,10 +180,9 @@ class MTP(Trainer):
         self.name = "mtp"
         super(MTP, self).__init__(controller, dbs, execution, split, root,
                                   parent, dbfilter)
-        self.controller = controller
         self.ncores = execution["ntasks"]
-        if "mtp" not in self.root:
-            self.root = path.join(root,"mtp")
+        if "mtp" not in root:
+            self.root = path.join(root, "mtp")
         else:
             self.root = root
 
@@ -195,10 +211,6 @@ class MTP(Trainer):
         self.active = Active(**dbargs)
         self._trainfile = path.join(self.root, "train.cfg")
         
-        #Configure the fitting directory for this particular potential.
-        if not path.isdir(self.root):
-            mkdir(self.root)
-
     def _set_local_attributes(self, mtpargs):
         """Sets the attributes of the mtp object from the input dictionary.
 
@@ -229,9 +241,15 @@ class MTP(Trainer):
             self.relax_min_atoms = 1
 
         if "largest_relax_cell" in mtpargs:
-            self.relax_max_atoms = mtpargs["larges_relax_cell"]
+            self.relax_max_atoms = mtpargs["largest_relax_cell"]
         else:
-            self.relax_max_atoms = None            
+            self.relax_max_atoms = None
+
+        if (self.relax_max_atoms is not None and
+            (self.relax_max_atoms < self.relax_min_atoms or
+             self.relax_max_atoms <0)) or self.relax_min_atoms < 0:
+            raise ValueError("The max and min number of atoms to be relaxed must be "
+                             "larger than 0 and the max must be larger than the min.")
 
         if "calc-grade" in mtpargs and mtpargs["calc-grade"] is not None:
             self.grade_args = mtpargs["calc-grade"]
@@ -243,17 +261,15 @@ class MTP(Trainer):
         else:
             self.select_args = {}
 
-        if "to-relax" in mtpargs and mtpargs["to-relax"] is not None:
-            self.to_relax_args = mtpargs["to-relax"]
-        else:
-            self.to_relax_args = {}
-
         if "use_mpi" in mtpargs and mtpargs["use_mpi"] is not None:
-            self.use_mpi = mtpargs["use_mpi"]
+            self.use_mpi = False if "false" in mtpargs["use_mpi"].lower() else True
         else:
             self.use_mpi = True
 
-        self.use_unrelaxed = mtpargs["use_unrelaxed"] if "use_unrelaxed" in mtpargs else False
+        if "use_unrelaxed" in mtpargs:
+            self.use_unrelaxed = True if "true" in mtpargs["use_unrelaxed"].lower()  else False
+        else:
+            self.use_unrelaxed = False            
         
         self.crystals_to_relax = mtpargs["crystals_to_relax"] if "crystals_to_relax" in mtpargs else ["sc", "fcc", "bcc", "hcp", "prototypes"]
         
@@ -265,47 +281,52 @@ class MTP(Trainer):
         """
         relax_args = {}
 
-        if "calc-efs" in relaxargs:
+        if "calc-efs" in relaxargs and relaxargs["calc-efs"] in ["TRUE", "FALSE"]:
             relax_args["calc_efs"] = relaxargs["calc-efs"]
         else:
             relax_args["calc_efs"] = "TRUE"
 
-        if "active-learn" in relaxargs:
+        if "efs-ignore" in relaxargs and relaxargs["efs-ignore"] in ["TRUE", "FALSE"]:
+            relax_args["efs_ignore"] = relaxargs["efs-ignore"]
+        else:
+            relax_args["efs_ignore"] = "FALSE"
+
+        if "active-learn" in relaxargs and relaxargs["active-learn"] in ["TRUE", "FALSE"]:
             relax_args["active_learn"] = relaxargs["active-learn"]
         else:
             relax_args["active_learn"] = "TRUE"
 
-        if "fit" in relaxargs:
+        if "fit" in relaxargs and relaxargs["fit"] in ["TRUE", "FALSE"]:
             relax_args["fit_setting"] = relaxargs["fit"]
         else:
             relax_args["fit_setting"] = "FALSE"
         
-        if "site-weight" in relaxargs:
+        if "site-weight" in relaxargs and _is_float(relaxargs["site-weight"]):
             relax_args["site_weight"] = relaxargs["site-weight"]
         else:
             relax_args["site_weight"] = "0.0"
 
-        if "energy-weight" in relaxargs:
+        if "energy-weight" in relaxargs and _is_float(relaxargs["energy-weight"]):
             relax_args["energy_weight"] = relaxargs["energy-weight"]
         else:
             relax_args["energy_weight"] = "1.0"
 
-        if "force-weight" in relaxargs:
+        if "force-weight" in relaxargs  and _is_float(relaxargs["force-weight"]):
             relax_args["force_weight"] = relaxargs["force-weight"]
         else:
             relax_args["force_weight"] = "0.001"
 
-        if "stress-weight" in relaxargs:
+        if "stress-weight" in relaxargs and _is_float(relaxargs["stress-weight"]):
             relax_args["stress_weight"] = relaxargs["stress-weight"]
         else:
             relax_args["stress_weight"] = "0.0001"
 
-        if "threshold" in relaxargs:
+        if "threshold" in relaxargs and _is_float(relaxargs["threshold"]):
             relax_args["extrap_threshold"] = relaxargs["threshold"]
         else:
             relax_args["extrap_threshold"] = "2.0"
 
-        if "threshold-break" in relaxargs:
+        if "threshold-break" in relaxargs and _is_float(relaxargs["threshold-break"]):
             relax_args["threshold_break"] = relaxargs["threshold-break"]
         else:
             relax_args["threshold_break"] = "10.0"
@@ -400,11 +421,8 @@ class MTP(Trainer):
         with open(target,'w') as f:
             f.write(template.render(**self.relax_ini))
 
-    def _setup_to_relax_cfg(self, testing=False):
+    def _setup_to_relax_cfg(self):
         """Creates the list of files to relax to check the mtp against.
-
-        Args:
-            testing (bool): True if unit tests are being run.
         """
 
         target = path.join(self.root, "to-relax.cfg")
@@ -437,8 +455,8 @@ class MTP(Trainer):
         setup_args["max_atoms"] = self.relax_max_atoms
         setup_args["root"] = self.root
 
-        with open(path.join(self.root, "to_relax.json"), "w+"):
-            json.dump(setup_args)
+        with open(path.join(self.root, "to_relax.json"), "w+") as f:
+            json.dump(setup_args, f)
 
     def _train_template(self):
         """Creates the train command template.
@@ -532,17 +550,19 @@ class MTP(Trainer):
         if self.use_mpi:
             template = ("mpirun -n {0} mlp relax relax.ini "
                         "--cfg-filename=to-relax.cfg "
-                        "--save-relaxed={1} --log=relax_{2}"
+                        "--save-relaxed={1} --log=relax_{2} "
                         "--save-unrelaxed={3}".format(self.ncores,
                                                       "relaxed.cfg",
-                                                      "log.txt", "candidate.cfg"))
+                                                      "log.txt",
+                                                      "unrelaxd.cfg"))
         else:
             template = ("mlp relax relax.ini "
                         "--cfg-filename=to-relax.cfg "
-                        "--save-relaxed={1} --log=relax_{2}"
+                        "--save-relaxed={1} --log=relax_{2} "
                         "--save-unrelaxed={3}".format(self.ncores,
                                                       "relaxed.cfg",
-                                                      "log.txt", "candidate.cfg"))
+                                                      "log.txt",
+                                                      "unrelaxed.cfg"))
 
         for k, v in self.relax_args.items():
             if k in ["log", "save-unrelaxed", "save-relaxed", "cfg-filename"]:
