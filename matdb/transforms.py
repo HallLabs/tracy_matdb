@@ -8,6 +8,9 @@ positional argument, `at` of type :class:`matdb.Atoms` and returns an object of
 the same type.
 """
 import numpy as np
+from collections import namedtuple
+from operator import itemgetter
+
 from ase.build import make_supercell
 
 def conform_supercell(supercell):
@@ -31,6 +34,54 @@ def conform_supercell(supercell):
         else:
             scell = conform_supercell(supercell.flatten().tolist())
     return scell
+
+def _get_supers(at, sizes):
+    """Returns a list of supercells for the atoms object that are optimal for
+    the given target sizes.
+
+    Args:
+        at (matdb.Atoms): atoms object to make supercells for.
+        sizes (list): of `int` target cell *sizes*. These should be multiples of
+          :attr:`matdb.Atoms.n` or they will be rounded to the nearest multiple.
+    """
+    from supercell import get_supers
+    _sizes = [s/at.n if s % at.n == 0 else int(round(s/float(at.n))) for s in sizes]
+    maxn = max(_sizes)
+    _super = get_supers(at, maxn)
+    
+    #Create a data container that makes it easier to work with the results.
+    HNF = namedtuple("HNF", ['hnf', 'rmin', 'rmax', 'pg', 'det', 'size'])
+    supers = {}
+    for args in zip(*_super):
+        #args[-1] is the determinant of the supercell matrix.
+        size = at.n*args[-1]
+        if size not in supers:
+            supers[size] = []
+        supers[size].append(HNF(*(args + (size,))))
+
+    #Next, find the closest matches to the desired sizes for the supercells.
+    choices = {}
+    available = np.array(sorted(supers.keys()))
+    for s in sizes:
+        if s in supers:
+            choices[s] = supers[s]
+        else:
+            compromise = np.where(available >= s)
+            print(compromise, available)
+            if len(compromise) > 0 and len(compromise[0]) > 0:
+                choice = available[compromise[0][0]]
+            else:
+                choice = max(available)
+            choices[s] = supers[choice]
+
+    #Finally, choose the best supercell for each size. Best in this case means
+    #it has the largest rmin and the largest point group size.
+    result = {}
+    for s, hs in choices.items():
+        best = next(iter(sorted(hs, key=itemgetter(1, 3), reverse=True)))
+        result[s] = best
+
+    return result
 
 def supercell(at, supercell=None, min_distance=None, max_multiple=None):
     """Transforms the given atoms object into a supercell.
