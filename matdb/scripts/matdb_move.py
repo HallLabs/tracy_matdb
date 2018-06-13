@@ -1,9 +1,10 @@
  #!/usr/bin/python
-from os import path, remove, walk
+from os import path, remove, listdir
 import yaml
 from shutil import move
 
 from matdb import msg
+from matdb.utility import execute
 
 def examples():
     """Prints examples of using the script to the console using colored output.
@@ -28,8 +29,7 @@ script_options = {
     "dbspec": {"help": "File containing the database specifications."},
     "-t": {"help": ("When specified, search the trainer context."),
            "action": "store_true"},
-    "--to": {"help": ("New name for the fit."),
-             "action": "store_true", "required": True},
+    "--to": {"help": "New name for the fit.", "required": True},
     "-p": {"help": ("Specify the search pattern(s)"), "nargs": '+',
            "required": True},
     "--dupe": {"help": "Duplicate the fit to the new location.",
@@ -74,6 +74,8 @@ def _get_targets(root, dbspec):
     """
     fits = dbspec["fitting"].get("fits", [])
     fitroot = None
+    targets = {}
+    
     if "context" in dbspec:
         context = dbspec["context"].get("fitting")
         fitroot = path.join(root, context)
@@ -93,7 +95,7 @@ def _get_targets(root, dbspec):
             
     return fits, targets, fitroot
 
-def _move_trainer(trainer, dbspec=None, dupe=False, to=None):
+def _move_trainer(trainer, dbspec=None, dupe=False, to=None, **kwargs):
     """Moves the specified trainer.
 
     Args:
@@ -111,11 +113,16 @@ def _move_trainer(trainer, dbspec=None, dupe=False, to=None):
     # 2) If duplicating, copy the yml settings file, add its reference to the
     #    system yml file.
     # 3) Move and/or duplicate the folder structure for the trainer.
+    origspec = dbspec
+    dbspec = path.abspath("{}.yml".format(dbspec))
     with open(dbspec) as f:
         spec = yaml.load(f)
-    root = path.dirname(path.abspath(dbspec))
+    root = path.dirname(dbspec)
     
     fits, targets, fitroot = _get_targets(root, spec)
+    if to in fits:
+        raise ValueError("The specified fit name is already taken! "
+                         "Choose a different new name for the fit.")
     mvname = trainer.parent.name
     try:
         settings = targets[mvname]
@@ -128,7 +135,7 @@ def _move_trainer(trainer, dbspec=None, dupe=False, to=None):
         dsettings = settings.copy()
         dsettings["name"] = to
         if fitroot is not None:
-            with open(path.join(fitroot, to), 'w') as f:
+            with open(path.join(fitroot, "{}.yml".format(to)), 'w') as f:
                 yaml.dump(dsettings, f)
             spec["fitting"]["fits"].append(":{}".format(to))
         else:
@@ -145,23 +152,31 @@ def _move_trainer(trainer, dbspec=None, dupe=False, to=None):
 
     #Next, move the actual directory. We have to be careful because the first
     #level of subdirectories also have the name in them, but they also may have
-    #seed directives for the special `*` and `^` notation.
-    if not dupe:
-        src = path.join(root, mvname)
-        dst = path.join(root, to)
-        move(src, dst)
+    #seed directives for the special `*` and `^` notation. If duplication is
+    #switched on, we *still* move the folder because a new one with the same
+    #settings will be created to replace the original one.
+    src = path.join(root, mvname)
+    dst = path.join(root, to)
+    move(src, dst)
 
-        for _root, dirs, files in walk('dst'):
-            for dirname in dirs:
-                if mvname == dirname[0:len(mvname)]:
-                    newname = mvname + dirname[len(mvname):]
-                    _src = path.join(_root, dirname)
-                    _dst = path.join(_root, newname)
-                    move(_src, _dst)
-    else:
-        msg.info("Duplication configuration setup complete. Run "
-                 "`matdb_train.py -t` to create the directories.")
-            
+    for objname in listdir(dst):
+        _src = path.join(dst, objname)
+        if path.isdir(_src):
+            if mvname == objname[0:len(mvname)]:
+                newname = mvname + dirname[len(mvname):]
+                _dst = path.join(dst, newname)
+                move(_src, _dst)
+
+    #Rewrite the `matdb.yml` file to include the new fit
+    #specifications.
+    with open(dbspec, 'w') as f:
+        yaml.dump(spec, f)
+
+    #If duplication was specified, automatically run the matdb_train -t step.
+    if dupe:
+        xargs = ["matdb_train.py", origspec, "-t"]
+        execute(xargs, root, venv=True)
+        
 def run(args):
     """Runs the matdb setup and cleanup to produce database files.
     """
@@ -175,8 +190,8 @@ def run(args):
 
     if args["t"]:
         matches = []
-        for pattern in patterns:
-            for entry in controller.find(pattern):
+        for pattern in args["p"]:
+            for entry in cdb.trainers.find(pattern):
                 matches.append(entry)
         if len(matches) != 1:
             msg.err("Can only move a single trainer at a time.")
