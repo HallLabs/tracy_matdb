@@ -182,6 +182,7 @@ def calc(primitive, cachedir=None, supercell=(1, 1, 1), delta=0.01, quick=True):
         return _calc_quick(primitive, supercell, delta)
     else:
         atoms = primitive.make_supercell(supercell)
+        atoms.set_calculator(primitive.get_calculator())
     
     from ase.optimize.precon import Exp, PreconLBFGS
     from ase.vibrations import Vibrations
