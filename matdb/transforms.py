@@ -67,7 +67,6 @@ def _get_supers(at, sizes):
             choices[s] = supers[s]
         else:
             compromise = np.where(available >= s)
-            print(compromise, available)
             if len(compromise) > 0 and len(compromise[0]) > 0:
                 choice = available[compromise[0][0]]
             else:
