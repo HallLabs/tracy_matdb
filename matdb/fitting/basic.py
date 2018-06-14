@@ -6,9 +6,11 @@ from fnmatch import fnmatch
 from tqdm import tqdm
 from six import string_types
 import operator
+import numpy as np
+
 from matdb.utility import getattrs
 from matdb import msg
-from matdb.utility import chdir, dbcat, execute
+from matdb.utility import chdir, dbcat, execute, import_fqdn
 from matdb.atoms import AtomsList
 from matdb.database import Database
 
@@ -271,6 +273,63 @@ class Trainer(object):
         used for potential validation.
         """
         return self.configs("holdout")
+
+    def quantities(self, params=None, properties=None, aggregators=None,
+                   kind="train", **kwargs): 
+        """Returns datasets derived from the atoms objects that are present in
+        this trainers compiled databases.
+
+        .. note:: If a property is missing from a particular atoms object, it is
+          just ignored. That means the arrays returned from this method may not
+          all have exactly the same length as the number of entries in the
+          database.
+
+        Args:
+            params (list): of `str` parameter names to extract from each atoms
+              object.
+            properties (list): of `str` property names to extract from each
+              atoms object.
+            aggregators (dict): keys are `str` property names; values are `str`
+              FQN of importable functions that can be applied to a
+              :class:`numpy.ndarray` to produce a single scalar value. These are
+              used to reduce an array of property values to a single number for a
+              particular configuration. If not specified, the raw arrays are
+              returned instead.
+            kind (str): on of ['train', 'holdout', 'super', '*']. Specifies which of
+              the database sets to use. If '*' is specified, then all of them are
+              combined.
+            kwargs (dict): additional dummy arguments that aren't needed, but
+            allow the `**` syntax to be used.
+
+        Returns:
+
+        dict: keys are either property or parameter names. Values are
+        :class:`numpy.ndarray` for parameters; for properties, since the arrays
+        may have different sizes, the value will be a list of
+        :class:`numpy.ndarray`.
+        """
+        assert kind in ["train", "holdout", "super", '*']
+        if kind == '*':
+            db = AtomsList()
+            for k in ["train", "holdout", "super"]:
+                db.extend(self.configs(k))
+        else:
+            db = self.configs(k)
+
+        result = {}
+        if params is not None:
+            for pname in params:
+                result[pname] = np.array(getattr(db, pname))
+        if properties is not None:
+            for pname in properties:
+                value = getattr(db, pname)
+                if pname in aggregators:
+                    aggmod, aggfun = import_fqdn(aggregators[pname])
+                    result[pname] = aggfun(value)
+                else:
+                    result[pname] = value
+
+        return result
 
     def _filter_dbs(self, seqname, dbfiles):
         """Filters each of the database files specified so that they conform to
