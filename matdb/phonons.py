@@ -138,13 +138,10 @@ def _calc_quick(atoms, supercell=(1, 1, 1), delta=0.01):
     """
     #We need to make sure we are at the zero of the potential before
     ratoms = atoms.copy()
+    ratoms.get_calculator().reset()
     try:
         with open("phonons.log", 'w') as f:
             with redirect_stdout(f):
-                precon = None
-                if ratoms.n > 100:
-                    precon = Exp(A=3)
-                #minim = PreconLBFGS(ratoms, precon=precon)
                 minim = FIRE(ratoms)
                 minim.run(fmax=1e-4)
     except:
@@ -347,7 +344,7 @@ def bandplot(phonons, names, nbands=None, style=None, figsize=(8, 6),
         import matplotlib
         matplotlib.use('Agg')
 
-    plt.figure(1, figsize, frameon=False)
+    plt.figure(1, figsize=figsize, frameon=False)
     plt.axes([.1, .07, .67, .85])
 
     first = list(phonons.keys())[0]
