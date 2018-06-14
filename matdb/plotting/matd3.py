@@ -55,7 +55,8 @@ class PointDetailImage(object):
     def __init__(self, x, y, plot="scatter", subplot_kw=None, gridspec_kw=None,
                  fig_kw=None, plot_kw=None, base64=False, name=None,
                  imgtype=None, index=None, folder=None, save_kw=None,
-                 withdiag=False, title=None, partition=None):
+                 withdiag=False, title=None, partition=None, labels=None,
+                 savefmt="png"):
         import matplotlib.pyplot as plt
         self.x, self.y = x, y
         
@@ -84,6 +85,14 @@ class PointDetailImage(object):
                 points = plotter(x[ids], y[ids], c=colors[pi], label=ptype,
                                  **plot_kw)
             axes.legend(loc='lower right', fontsize=16)
+        elif isinstance(x, list) and isinstance(y, list) and len(x) == len(y):
+            #The separate series are separated in the lists.
+            if labels is None:
+                for xi, yi in zip(x, y):
+                    points = plotter(x[ids], y[ids], **plot_kw)
+            else:
+                for xi, yi, li in zip(x, y, labels):
+                    points = plotter(xi, yi, label=li, **plot_kw)
         else:
             points = plotter(x, y, **plot_kw)
 
@@ -108,14 +117,14 @@ class PointDetailImage(object):
             return
 
         if not self.base64:
-            self.filename = "{}-{}.png".format(name, index)
+            self.filename = "{}-{}.{}".format(name, index, savefmt)
             savepath = path.join(folder, self.filename)
-            plt.savefig(savepath, format="png", **save_kw)
+            plt.savefig(savepath, format=savefmt, **save_kw)
         else:
             import StringIO
             import urllib, base64
             imgdata = StringIO.StringIO()
-            plt.savefig(imgdata, format='png', **save_kw)
+            plt.savefig(imgdata, format=savefmt, **save_kw)
             imgdata.seek(0)
             b64 = urllib.quote(base64.b64encode(imgdata.buf))
             self.encoded = 'data:image/png;base64,{}'.format(b64)
