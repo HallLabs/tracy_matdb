@@ -894,7 +894,7 @@ class Group(object):
             result = False
             for f, a in zip(self.configs.values(), self.config_atoms.values()):
                 if not a.calc.can_extract(f):
-                    msg.std("Config {} not ready for extraction.".format(f))
+                    msg.std("Config {} not ready for extraction.".format(f), 2)
                     break
             else:
                 result = True
@@ -1285,7 +1285,7 @@ class Database(object):
         for dbname, db in self.isteps:
             if not db.extract(cleanup=cleanup):
                 imsg = "Group {}:{} is not ready yet. Done."
-                msg.info(imsg.format(self.name, dbname))
+                msg.info(imsg.format(self.name, dbname), 2)
                 break
         msg.blank()
             
