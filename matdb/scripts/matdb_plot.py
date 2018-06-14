@@ -1,5 +1,6 @@
  #!/usr/bin/python
 from os import path
+import matplotlib
 def examples():
     """Prints examples of using the script to the console using colored output.
     """
@@ -83,7 +84,10 @@ script_options = {
     "--splits": {"nargs": "+",
                 "help": "Specify a list of global splits to use for plotting."},
     "--subset": {"choices": ["train", "holdout", "super"], "default": "holdout",
-                 "help": "Specify which database subset to use."}
+                 "help": "Specify which database subset to use."},
+    "--generic": {"help": ("Specify the configuration file to use for a "
+                           "generic plot of the data."),
+                  "nargs": '+'}
     }
 """dict: default command-line arguments and their
     :meth:`argparse.ArgumentParser.add_argument` keyword arguments.
@@ -193,8 +197,15 @@ def run(args):
         for potp in args["pots"]:
             pots.extend(cdb.trainers.find(potp)) 
 
+    if args["generic"]:
+        matplotlib.use('Agg')
+        objs = dbs + pots
+        from matdb.plotting.plotter import PlotManager
+        manager = PlotManager(cdb)
+        for cname in args["generic"]:
+            manager.plot(objs, cname)
+            
     if args["bands"]:
-        import matplotlib
         matplotlib.use('Agg')
         from matdb.plotting.comparative import band_plot
         band_plot(dbs, pots, **args)
