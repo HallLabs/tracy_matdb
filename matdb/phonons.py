@@ -8,7 +8,9 @@ from tempfile import mkdtemp
 from phonopy import Phonopy
 from phonopy.file_IO import write_FORCE_CONSTANTS
 from shutil import rmtree
-    
+from ase.optimize.precon import Exp, PreconLBFGS
+from ase.optimize import FIRE
+
 from matdb.base import testmode
 from matdb.utility import chdir, redirect_stdout, convert_dict_to_str, execute
 from matdb import msg
@@ -134,7 +136,22 @@ def _calc_quick(atoms, supercell=(1, 1, 1), delta=0.01):
         numpy.ndarray: Hessian matrix that has dimension `(natoms*3, natoms*3)`,
         where `natoms` is the number of atoms in the *supercell*.
     """
-    primitive = matdb_to_phonopy(atoms)
+    #We need to make sure we are at the zero of the potential before
+    ratoms = atoms.copy()
+    try:
+        with open("phonons.log", 'w') as f:
+            with redirect_stdout(f):
+                precon = None
+                if ratoms.n > 100:
+                    precon = Exp(A=3)
+                #minim = PreconLBFGS(ratoms, precon=precon)
+                minim = FIRE(ratoms)
+                minim.run(fmax=1e-4)
+    except:
+        #The potential is unstable probably. Issue a warning.
+        msg.warn("Couldn't optimize the atoms object. Potential may be unstable.")
+    
+    primitive = matdb_to_phonopy(ratoms)
     phonon = Phonopy(primitive, conform_supercell(supercell))
     phonon.generate_displacements(distance=delta)
     supercells = phonon.get_supercells_with_displacements()
@@ -182,8 +199,8 @@ def calc(primitive, cachedir=None, supercell=(1, 1, 1), delta=0.01, quick=True):
         return _calc_quick(primitive, supercell, delta)
     else:
         atoms = primitive.make_supercell(supercell)
-    
-    from ase.optimize.precon import Exp, PreconLBFGS
+        atoms.set_calculator(primitive.get_calculator())
+
     from ase.vibrations import Vibrations
         
     #The phonon calculator caches the displacements and force sets for each
@@ -192,7 +209,6 @@ def calc(primitive, cachedir=None, supercell=(1, 1, 1), delta=0.01, quick=True):
     #save these in a special directory.
     tempcache = False
     if cachedir is None:
-        from tempfile import mkdtemp
         cachedir = mkdtemp()
         tempcache = True
     else:
@@ -202,19 +218,18 @@ def calc(primitive, cachedir=None, supercell=(1, 1, 1), delta=0.01, quick=True):
 
     result = None
     precon = Exp(A=3)
-    
+    aphash = None
+        
     #Calculate a hash of the calculator and atoms object that we are calculating
     #for. If the potential doesn't have a `to_dict` method, then we ignore the
     #hashing.
-    if hasattr(atoms, "to_dict") and hasattr(atoms._calc, "to_dict"):
+    if not tempcache and hasattr(atoms, "to_dict") and hasattr(atoms._calc, "to_dict"):
         atoms_pot = {"atoms": atoms.to_dict(), "pot": atoms._calc.to_dict()}
         #This UUID will probably be different, even if the positions and species
         #are identical.
         del atoms_pot["atoms"]["uuid"]
         hash_str = convert_dict_to_str(atoms_pot)
         aphash = str(sha1(hash_str).hexdigest())
-    else:
-        aphash = None
 
     if not tempcache:
         #Check whether we should clobber the cache or not.
