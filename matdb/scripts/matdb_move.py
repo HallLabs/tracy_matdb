@@ -163,19 +163,16 @@ def _move_trainer(trainer, dbspec=None, dupe=False, to=None, **kwargs):
         _src = path.join(dst, objname)
         if path.isdir(_src):
             if mvname == objname[0:len(mvname)]:
-                newname = mvname + dirname[len(mvname):]
+                newname = to + objname[len(mvname):]
                 _dst = path.join(dst, newname)
                 move(_src, _dst)
 
     #Rewrite the `matdb.yml` file to include the new fit
     #specifications.
+    if not dupe:
+        spec["fitting"]["fits"].remove(":{}".format(mvname))
     with open(dbspec, 'w') as f:
         yaml.dump(spec, f)
-
-    #If duplication was specified, automatically run the matdb_train -t step.
-    if dupe:
-        xargs = ["matdb_train.py", origspec, "-t"]
-        execute(xargs, root, venv=True)
         
 def run(args):
     """Runs the matdb setup and cleanup to produce database files.
@@ -194,7 +191,8 @@ def run(args):
             for entry in cdb.trainers.find(pattern):
                 matches.append(entry)
         if len(matches) != 1:
-            msg.err("Can only move a single trainer at a time.")
+            msg.err("Can only move a single trainer at a time."
+                    "Found {} trainers.".format(len(matches)))
             exit(-1)
 
         _move_trainer(matches[0], **args)
