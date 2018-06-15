@@ -1,5 +1,5 @@
  #!/usr/bin/python
-from os import path
+from os import path, mkdir
 import matplotlib
 def examples():
     """Prints examples of using the script to the console using colored output.
@@ -119,22 +119,25 @@ def _generate_pkl(pot, dbs=None, **args):
     from matdb.plotting.potentials import generate
     from matdb.atoms import AtomsList
     from cPickle import dump
+    outdir = path.join(args["folder"], pot.fqn)
+    if not path.isdir(outdir):
+        mkdir(outdir)
+        
     if dbs is not None:
         configs = AtomsList()
         for db in dbs:
             configs.extend(list(db.iconfigs))
 
         pdis = generate(args["plots"], pot.calculator,
-                        configs,
-                        args["folder"], args["base64"],
+                        configs, outdir, args["base64"],
                         valkey=args["valkey"])
     else:
         pdis = generate(args["plots"], pot.calculator,
                         pot.configs(args["subset"]),
-                        args["folder"], args["base64"])
+                        outdir, args["base64"])
 
     pklname = "{}-{}-plotgen.pkl".format(args["subset"], args["plots"])
-    target = path.join(pot.root, pklname)
+    target = path.join(outdir, pklname)
     with open(target, 'w') as f:
         dump(pdis, f)
 
@@ -142,17 +145,16 @@ def _generate_html(potlist, **args):
     """Generates the interactive HTML page for the potentials and databases.
     """
     from cPickle import load
-    from os import mkdir
     #We create a new folder for the HTML plot inside the overall system
     #directory.
-    plotdir = path.join(potlist[0].controller.db.plotdir, args["folder"])
+    plotdir = path.join(potlist[0].controller.db.plotdir, args["save"])
     if not path.isdir(plotdir):
         mkdir(plotdir)
 
     data = {}
     pklname = "{}-{}-plotgen.pkl".format(args["subset"], args["plots"])
     for ipot, pot in enumerate(potlist):
-        target = path.join(pot.root, pklname)
+        target = path.join(args["folder"], pot.fqn, pklname)
         if not path.isfile(target):
             _generate_pkl(pot, **args)
         with open(target) as f:
@@ -171,7 +173,7 @@ def _generate_html(potlist, **args):
         for pdi in pdis.values():
             newname = "{}__{}".format(pot.fqn, pdi.url)
             trg = path.join(plotdir, newname)
-            copyfile(path.join(pot.root, pdi.url), trg)
+            copyfile(path.join(args["folder"], pot.fqn, pdi.url), trg)
             pdi.filename = newname
 
     from matdb.plotting.matd3 import html
