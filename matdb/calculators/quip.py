@@ -50,42 +50,14 @@ class SyncQuip(quippy.Potential, SyncCalculator):
         :class:`quippy.atoms.Atoms` object.
 
         Args:
-            atoms (matdb.atoms.Atoms): the atoms object to 
-              perform calculations on.
+            atoms (matdb.atoms.Atoms): the atoms object to perform calculations
+              on.
         """
         if isinstance(atoms, Atoms):
             #No need to do a conversion if we are already a `quippy.Atoms`.
             return atoms
-        
-        props = atoms.properties.copy()
-        params = atoms.params.copy()
-        force = None
-        if 'force' in props:
-            force = props['force'].transpose()
-            props['force'] = force
 
-        #Unfortunately, the momenta gets set to zeros by default anytime it is
-        #requested from the ASE atoms object. Because of the quippy transpose
-        #problem, we don't always transpose. Also, we can't pass it in as a
-        #property in the props dict, that raises weird shaping errors in quippy.
-        momenta = None
-        if "momenta" in props:
-            momenta = props["momenta"]
-            if momenta.shape[0] != atoms.n:
-                momenta = momenta.transpose()
-            del props["momenta"]
-
-        info = atoms.info.copy()
-        if isinstance(atoms, matdbAtoms):
-            del info["params"]
-            del info["properties"]
-        
-        kwargs = {"properties":props, "params":params, "positions":atoms.positions,
-                  "numbers":atoms.get_atomic_numbers(), "momenta": momenta,
-                  "cell":atoms.get_cell(), "pbc":atoms.get_pbc(),
-                  "constraint":atoms.constraints, "info":info,
-                  "n":len(atoms.positions)}
-        return Atoms(**kwargs)
+        return atoms.to_quippy()
 
     def set_atoms(self, atoms):
         """Sets the live atoms object for the calculator.
