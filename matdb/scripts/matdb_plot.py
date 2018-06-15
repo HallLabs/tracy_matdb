@@ -87,7 +87,10 @@ script_options = {
                  "help": "Specify which database subset to use."},
     "--generic": {"help": ("Specify the configuration file to use for a "
                            "generic plot of the data."),
-                  "nargs": '+'}
+                  "nargs": '+'},
+    "--valkey": {"help": ("Specify the key for parameter and property names "
+                          "that should be used to compare to the potential "
+                          "in comparative plots.")}
     }
 """dict: default command-line arguments and their
     :meth:`argparse.ArgumentParser.add_argument` keyword arguments.
@@ -110,14 +113,25 @@ def _parser_options():
 
     return args
 
-def _generate_pkl(pot, **args):
+def _generate_pkl(pot, dbs=None, **args):
     """Generates a pickle file for a single potential and its default databases.
     """
     from matdb.plotting.potentials import generate
+    from matdb.atoms import AtomsList
     from cPickle import dump
-    pdis = generate(args["plots"], pot.calculator,
-                    pot.configs(args["subset"]),
-                    args["folder"], args["base64"])
+    if dbs is not None:
+        configs = AtomsList()
+        for db in dbs:
+            configs.extend(list(db.iconfigs))
+
+        pdis = generate(args["plots"], pot.calculator,
+                        configs,
+                        args["folder"], args["base64"],
+                        valkey=args["valkey"])
+    else:
+        pdis = generate(args["plots"], pot.calculator,
+                        pot.configs(args["subset"]),
+                        args["folder"], args["base64"])
 
     pklname = "{}-{}-plotgen.pkl".format(args["subset"], args["plots"])
     target = path.join(pot.root, pklname)
@@ -177,7 +191,8 @@ def run(args):
     """
     if args is None:
         return
-
+    
+    matplotlib.use('Agg')
     #No matter what other options the user has chosen, we will have to create a
     #database controller for the specification they have given us.
     from matdb.database import Controller
@@ -198,7 +213,7 @@ def run(args):
             pots.extend(cdb.trainers.find(potp)) 
 
     if args["generic"]:
-        matplotlib.use('Agg')
+
         objs = dbs + pots
         from matdb.plotting.plotter import PlotManager
         manager = PlotManager(cdb)
@@ -206,7 +221,6 @@ def run(args):
             manager.plot(objs, cname)
             
     if args["bands"]:
-        matplotlib.use('Agg')
         from matdb.plotting.comparative import band_plot
         band_plot(dbs, pots, **args)
 
@@ -215,7 +229,7 @@ def run(args):
             raise ValueError("Generate only operates for a single trainer "
                              "at a time; don't specify so many patterns.")
         pot = pots[0]
-        _generate_pkl(pot, **args)
+        _generate_pkl(pot, dbs, **args)
 
     if args["html"]:
         _generate_html(pots, **args)
