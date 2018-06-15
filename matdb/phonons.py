@@ -138,12 +138,12 @@ def _calc_quick(atoms, supercell=(1, 1, 1), delta=0.01):
     """
     #We need to make sure we are at the zero of the potential before
     ratoms = atoms.copy()
-    ratoms.get_calculator().reset()
     try:
         with open("phonons.log", 'w') as f:
             with redirect_stdout(f):
+                print(ratoms.get_forces())
                 minim = FIRE(ratoms)
-                minim.run(fmax=1e-4)
+                minim.run(fmax=1e-4, steps=100)
     except:
         #The potential is unstable probably. Issue a warning.
         msg.warn("Couldn't optimize the atoms object. Potential may be unstable.")
