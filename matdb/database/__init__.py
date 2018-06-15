@@ -1294,7 +1294,7 @@ class Database(object):
                                 for q in ["energy", "force", "virial"]]
             hesskey = "{}_hessian".format(db.calculator.key)
             for atconf in db.fitting_configs:
-                ati = _conform_atoms(atoms, ekey, fkey, vkey, hesskey)
+                ati = _conform_atoms(atconf, ekey, fkey, vkey, hesskey)
                 if db.splittable:
                     subconfs.append(ati)
                 else:
