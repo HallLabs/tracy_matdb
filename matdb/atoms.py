@@ -447,7 +447,10 @@ class Atoms(ase.Atoms):
         atoms.set_cutoff(soapy.cutoff())
         atoms.calc_connect()
         PZ = soapy.calc(atoms)
-        return PZ["descriptor"]
+        if average:
+            return PZ["descriptor"].flatten()
+        else:
+            return PZ["descriptor"]
             
     def to_dict(self):
         """Converts the contents of a :class:`matdb.atoms.Atoms` object to a
