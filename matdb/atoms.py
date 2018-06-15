@@ -310,7 +310,7 @@ class Atoms(ase.Atoms):
             self.__init__(symbols=symbols, positions=other.positions, n=other.n,
                           properties=other.properties, magmoms=magmoms,
                           params=other.params, masses=masses, momenta=momenta,
-                          charges=charges, cell=other.cell, pdb=other.pbc,
+                          charges=charges, cell=other.cell, pbc=other.pbc,
                           constraint=constraint, info=info, calculator=other.calc,
                           group_uuid = group_uuid)
 
