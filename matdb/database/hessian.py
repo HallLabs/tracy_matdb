@@ -101,6 +101,8 @@ class Hessian(Group):
         bandmesh (list): mesh for calculating the phonon bands.
         dosmesh (list): mesh for calculating the phonon density-of-states.
     """
+    splittable = False
+    
     def __init__(self, phonopy={}, name="hessian", bandmesh=None,
                  dosmesh=None, tolerance=0.1, dfpt=False, **dbargs):
         self.name = name
@@ -184,7 +186,10 @@ class Hessian(Group):
         of the eigenvalue/eigenvector combinations of the Hessian matrix.
         """
         if len(self.sequence) == 0:
-            return self._hessian_configs()
+            if self.ready():
+                return self.config_atoms.values()
+            else:
+                return AtomsList()
         else:
             result = AtomsList()
             for g in self.sequence.values():
@@ -230,7 +235,10 @@ class Hessian(Group):
         #zip!
         evals, evecs = np.linalg.eigh(self.H)
         natoms = len(evals)/3
-        
+        l0 = np.max(evals)-np.min(evals)
+        sigma0 = 0.01
+        lscaling = 0.005
+
         for l, v in zip(*(evals, evecs.T)):
             #The eigenvalues should all be positive. There may be some really
             #small ones that are essentially zero, but slightly negative.
@@ -244,11 +252,12 @@ class Hessian(Group):
                     
             #Same thing for the eigenvalue.
             atc.add_param(hname, l)
-            
-            #This custom scaling reweights by eigenvalue so that larger
-            #eigenvalues get fitted more closely. The 0.1 is our "default_sigma"
-            #for hessian.
-            atc.add_param("{}_hessian_csigma".format(self.calc.key), 1./(1+l)**2)
+
+            #We want the small eigenvalues to have a weighting of sigma0 and the
+            #largest eigenvalue to have a sigma of 10% of its value.
+            c = (lscaling*l0-sigma0)/l0**2
+            #atc.add_param("{}_hessian_csigma".format(self.calc.key), sigma0 + c*l**2)
+            atc.add_param("{}_hessian_csigma".format(self.calc.key), sigma0)
             atc.add_param("n_{}_hessian".format(self.calc.key), 1)
             configs.append(atc)
 
@@ -374,7 +383,7 @@ class Hessian(Group):
             #to the atoms object it corresponds to.
             self.atoms.info["H"] = self.H
             result = AtomsList()
-            result.append([self.atoms])
+            result.append(self.atoms)
             return result
         else:
             #Check where we are in the stack. If we are just below the database,
