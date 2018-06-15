@@ -76,8 +76,13 @@ class Group(object):
         pgrid (ParamaterGrid): The ParameterGrid for the database.
         grpargs (dict): default arguments to construct the new groups; will
           be overridden by any parameter grid specs.
+        splittable (bool): when True, this Group can be split into training,
+          holdout and super sets because its configs are independent; otherwise,
+          the configs are kept together and used *only* in the training set.
     """
     seeded = False
+    splittable = True
+
     def __init__(self, cls=None, root=None, parent=None, prefix='S', pgrid=None,
                  nconfigs=None, calculator=None, seeds=None,
                  config_type=None, execution=None, trainable=False, override=None,
@@ -102,7 +107,7 @@ class Group(object):
         self.execution = execution if execution is not None else {}
         self.atoms = None
         self.transforms = transforms if transforms is not None else {}
-        
+
         self._trainable = trainable
         self.is_seed_listed = None
         if seeds is not None:
@@ -995,6 +1000,58 @@ class Group(object):
 
         return final_dict
 
+def _conform_atoms(atoms, ekey, fkey, vkey, hesskey):
+    """Renames the parameters and properties in the specified atoms object to
+    conform to the energy, force, virial and hessian fitting names.
+
+    Args:
+        atoms (matdb.Atoms): configuration to conform values to.
+        ekey (str): existing energy parameter key name.
+        fkey (str): existing force parameter key name.
+        vkey (str): existing virial parameter key name.
+        hesskey (str): existing hessian parameter key name.
+
+    Returns:
+    
+    matdb.Atoms: new atoms object with the quantities renamed.
+    """
+    #We need to rename the parameters and properties of the individual atoms
+    #objects to match the refkey and global choice of "ref_energy",
+    #"ref_force" and "ref_virial". *NB* for some of the fitting
+    #configs (for example Hessian fitting), a config may only have
+    #an eigenvalue/eigenvector pair and no energy, force or virial
+    #information.
+    ati = atoms.copy()
+    if ekey in ati.params:
+        energy = ati.params[ekey]
+        ati.params["ref_energy"] = energy
+        del ati.params[ekey]
+    if fkey in ati.properties:
+        force = ati.properties[fkey]
+        ati.properties["ref_force"] = force
+        del ati.properties[fkey]
+    if vkey in ati.params:
+        virial = ati.params[vkey]
+        ati.params["ref_virial"] = virial
+        del ati.params[vkey]
+
+    #There may be many hessian parameters depending on whether
+    #custom parameters are used per-eigenvalue.
+    for pname in list(ati.params.keys()):
+        if hesskey in pname:
+            eigval = ati.params[pname]
+            repkey = pname.replace(hesskey, "ref_hessian")
+            ati.params[repkey] = eigval
+            del ati.params[pname]
+    for pname in list(ati.properties.keys()):
+        if hesskey in pname:
+            eigvec = ati.properties[pname]
+            repkey = pname.replace(hesskey, "ref_hessian")
+            ati.properties[repkey] = eigvec
+            del ati.properties[pname]
+
+    return ati
+    
 class Database(object):
     """Represents a Database of groups (all inheriting from :class:`Group`) that 
     are all related be the atomic configuration that they model.
@@ -1228,6 +1285,7 @@ class Database(object):
         the database specification.
         """
         subconfs = AtomsList()
+        nonsplit = AtomsList()
         for dbname, db in self.isteps:
             if not db.trainable:
                 continue
@@ -1236,45 +1294,16 @@ class Database(object):
                                 for q in ["energy", "force", "virial"]]
             hesskey = "{}_hessian".format(db.calculator.key)
             for atconf in db.fitting_configs:
-                #We need to rename the parameters and properties of the individual atoms
-                #objects to match the refkey and global choice of "ref_energy",
-                #"ref_force" and "ref_virial". *NB* for some of the fitting
-                #configs (for example Hessian fitting), a config may only have
-                #an eigenvalue/eigenvector pair and no energy, force or virial
-                #information.
-                ati = atconf.copy()
-                if ekey in ati.params:
-                    energy = ati.params[ekey]
-                    ati.params["ref_energy"] = energy
-                    del ati.params[ekey]
-                if fkey in ati.properties:
-                    force = ati.properties[fkey]
-                    ati.properties["ref_force"] = force
-                    del ati.properties[fkey]
-                if vkey in ati.params:
-                    virial = ati.params[vkey]
-                    ati.params["ref_virial"] = virial
-                    del ati.params[vkey]
-
-                #There may be many hessian parameters depending on whether
-                #custom parameters are used per-eigenvalue.
-                for pname in list(ati.params.keys()):
-                    if hesskey in pname:
-                        eigval = ati.params[pname]
-                        repkey = pname.replace(hesskey, "ref_hessian")
-                        ati.params[repkey] = eigval
-                        del ati.params[pname]
-                for pname in list(ati.properties.keys()):
-                    if hesskey in pname:
-                        eigvec = ati.properties[pname]
-                        repkey = pname.replace(hesskey, "ref_hessian")
-                        ati.properties[repkey] = eigvec
-                        del ati.properties[pname]
-                subconfs.append(ati)
+                ati = _conform_atoms(atoms, ekey, fkey, vkey, hesskey)
+                if db.splittable:
+                    subconfs.append(ati)
+                else:
+                    nonsplit.append(ati)
                 
         file_targets = {"train": self.train_file, "holdout": self.holdout_file,
                         "super": self.super_file}
-        split(subconfs, self.splits, file_targets, self.splitroot, self.ran_seed, recalc=recalc)
+        split(subconfs, self.splits, file_targets, self.splitroot,
+                        self.ran_seed, recalc=recalc, nonsplit=nonsplit)
         
     def extract(self, cleanup="default"):
         """Runs the extract methods of each database in the collection, in the

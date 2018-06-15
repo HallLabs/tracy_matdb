@@ -11,7 +11,8 @@ from matdb import msg
 from matdb.atoms import AtomsList
 from matdb.utility import dbcat
 
-def split(atlist, splits, targets, dbdir, ran_seed, dbfile=None, recalc=0):
+def split(atlist, splits, targets, dbdir, ran_seed, dbfile=None, recalc=0,
+          nonsplit=None):
     """Splits the :class:`matdb.atoms.AtomsList` multiple times, one for
     each `split` setting in the database specification.
 
@@ -31,7 +32,11 @@ def split(atlist, splits, targets, dbdir, ran_seed, dbfile=None, recalc=0):
           existing *.h5 files. This parameter decreases as
           rewrites proceed down the stack. To re-calculate
           lower-level h5 files, increase this value.
+        nonsplit (AtomsList): a list of atoms to include in the training
+          set "as-is" because they cannot be split (they only have meaning
+          together).
     """
+    assert nonsplit is None or isinstance(nonsplit, AtomsList)
     for name, train_perc in splits.items():
         train_file = targets["train"](name)
         holdout_file = targets["holdout"](name)
@@ -99,6 +104,9 @@ def split(atlist, splits, targets, dbdir, ran_seed, dbfile=None, recalc=0):
         if not path.isfile(train_file):
             tids = ids[0:Ntrain]
             altrain = subconfs[tids]
+            #Add the unsplittable configurations to the training set as-is.
+            if nonsplit is not None:
+                altrain.extend(nonsplit)
             altrain.write(train_file)
             if dbfile is not None:
                 dbcat([dbfile], train_file, docat=False, ids=tids, N=Ntrain)
