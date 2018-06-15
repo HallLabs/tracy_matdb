@@ -118,8 +118,10 @@ class SyncQuip(quippy.Potential, SyncCalculator):
                 new_val = np.array(val)
             else:
                 new_val = val
-            if key in ["force", "momenta"] and isinstance(atoms, matdbAtoms):
-                new_val = np.transpose(new_val)
+
+            if ("force" in key or key == "momenta") and isinstance(atoms, matdbAtoms):
+                if new_val.shape[1] != 3:
+                    new_val = np.transpose(new_val)
             if key=="species" and isinstance(atoms, Atoms):
                 new_val = list(map(lambda r: ''.join(r), new_val.T))
 
