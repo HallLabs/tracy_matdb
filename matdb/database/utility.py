@@ -103,15 +103,22 @@ def split(atlist, splits, targets, dbdir, ran_seed, dbfile=None, recalc=0,
         #so that we can recreate *exactly* the same split again later.
         if not path.isfile(train_file):
             tids = ids[0:Ntrain]
-            altrain = subconfs[tids]
+            #Make sure that we have some atoms to write in the first place!
+            if len(tids) > 0:
+                altrain = subconfs[tids]
+            else:
+                altrain = AtomsList()
             #Add the unsplittable configurations to the training set as-is.
+            Nunsplit = 0
             if nonsplit is not None:
                 altrain.extend(nonsplit)
+                Nunsplit = len(nonsplit)
             altrain.write(train_file)
+            
             if dbfile is not None:
-                dbcat([dbfile], train_file, docat=False, ids=tids, N=Ntrain)
+                dbcat([dbfile], train_file, docat=False, ids=tids, N=Ntrain+Nunsplit)
             else:
-                dbcat([], train_file, docat=False, ids=tids, N=Ntrain)
+                dbcat([], train_file, docat=False, ids=tids, N=Ntrain+Nunsplit)
         if not path.isfile(holdout_file):
             hids = ids[Ntrain:-Nsuper]
             alhold = subconfs[hids]
