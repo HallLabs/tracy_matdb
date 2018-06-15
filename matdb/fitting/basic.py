@@ -314,7 +314,7 @@ class Trainer(object):
             for k in ["train", "holdout", "super"]:
                 db.extend(self.configs(k))
         else:
-            db = self.configs(k)
+            db = self.configs(kind)
 
         result = {}
         if params is not None:
