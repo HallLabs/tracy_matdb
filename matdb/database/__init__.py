@@ -1186,6 +1186,15 @@ class Database(object):
         return str(sha1(hashes).hexdigest())
 
     @property
+    def iconfigs(self):
+        """Returns a generator over all the configurations in all sub-steps of
+        this database.
+        """
+        for dbname, db in self.isteps():
+            for config in db.isteps:
+                yield config
+    
+    @property
     def isteps(self):
         """Returns a generator over steps in this sequence. The generator yields
         the next step *only* if the previous one is already finished (i.e., the
