@@ -71,7 +71,7 @@ class Trainer(object):
                  root=None, parent=None, dbfilter=None):
         self.controller = controller
         self.parent = parent
-        self.fqn = "{}.{}".format(self.parent.name, self.name)
+        self.fqn = "{}.{}".format(self.parent.fqn, self.name)
         self.execution = {} if execution is None else execution.copy()
         self.split = split
         self.params = {}

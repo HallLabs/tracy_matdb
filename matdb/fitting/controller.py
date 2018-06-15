@@ -30,6 +30,7 @@ class TrainingSequence(object):
     """
     def __init__(self, name, repeater, root, controller, steps, **kwargs):
         self.name = name
+        self.fqn = "{}.{}".format(repeater.name, name)
         self.root = path.join(root, name)
         self.repeater = repeater
         self.controller = controller
