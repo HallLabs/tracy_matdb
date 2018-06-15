@@ -577,13 +577,19 @@ class AtomsList(list):
             from matdb.io import load_dict_from_h5
             with h5py.File(target,"r") as hf:
                 data = load_dict_from_h5(hf)
-            # If the data was read in from and hdf5 file written by
-            # the AtomsList object then each atom will have a tag with
-            # it. We check for this by looking for the word 'atom'
-            # inside the first key, if it's present we assume that all
-            # the contents of the file are an atoms list. If it's not
-            # then we assume this is a single atoms object.
-            if "atom" in data.keys()[0]:
+            # If the data was read in from an hdf5 file written by the
+            # AtomsList object then each atom will have a tag with it. We check
+            # for this by looking for the word 'atom' inside the first key, if
+            # it's present we assume that all the contents of the file are an
+            # atoms list. If it's not then we assume this is a single atoms
+            # object.
+
+            #NB! It is possible that the atoms list object could be an *empty*
+            #AtomsList that was written to disk. In that case, just use an empty
+            #list.
+            if len(data) == 0:
+                atoms = []
+            elif "atom" in data.keys()[0]:
                 if isinstance(data.values()[0],dict):
                     atoms = [Atoms(**d) for d in data.values()]
                 elif isinstance(data.values()[0],string_types):
