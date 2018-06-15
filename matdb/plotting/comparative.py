@@ -47,12 +47,19 @@ def band_plot(dbs, fits=None, npts=100, title="{} Phonon Spectrum", save=None,
                          "to plot phonons for.")
 
     db = dbs[0]
-    title = title.format(db.atoms.get_chemical_formula())
+    if db.atoms is not None:
+        ratoms = db.atoms
+    else:
+        #Use the parent group; this one must have been one of the sub-sequence
+        #recursively generated groups.
+        ratoms = db.parent.atoms
+    title = title.format(ratoms.get_chemical_formula())
+        
     nlines = len(dbs) + (0 if fits is None else len(fits))
     colors = plt.cm.nipy_spectral(np.linspace(0, 1, nlines))
     
     bands, style = {}, {}
-    names, kpath = parsed_kpath(db.atoms)
+    names, kpath = parsed_kpath(ratoms)
     #matplotlib needs the $ signs for latex if we are using special
     #characters. We only get names out from the first configuration; all
     #the others have to use the same one.
@@ -69,7 +76,7 @@ def band_plot(dbs, fits=None, npts=100, title="{} Phonon Spectrum", save=None,
     if fits is not None:
         for fiti, fit in enumerate(tqdm(fits)):
             gi = len(dbs) + fiti
-            ai = db.atoms.copy()
+            ai = ratoms.copy()
             ai.set_calculator(fit.calculator)
             H = phon_calc(ai, supercell=db.supercell, delta=delta, quick=quick)
             bands[fit.fqn] = _calc_bands(db.atoms, H, db.supercell)
