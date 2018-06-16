@@ -7,6 +7,8 @@ from ase.calculators.singlepoint import SinglePointCalculator
 from ase.build import make_supercell
 import numpy as np
 from copy import deepcopy
+from itertools import product
+
 import h5py
 from ase import io
 from six import string_types
@@ -436,21 +438,32 @@ class Atoms(ase.Atoms):
         #Convert to quippy atoms so that we can get the SOAP vectors.
         atoms = self.to_quippy()
         descstr = ("soap cutoff={0:.1f} n_max={1:d} l_max={2:d} "
-                   "atom_sigma={3:.2f} n_species={6} species_Z={{{4}}} n_Z={6} Z={{{4}}} "
+                   "atom_sigma={3:.2f} n_species={6} species_Z={{{4}}} n_Z={6} Z={{{9}}} "
                    "trans_width={5:.2f} normalise={7} average={8}")
+
+        
         Z = np.unique(atoms.get_atomic_numbers())
         savg = 'T' if average else 'F'
-        norm = 'T' if normalize else 'F'
-        soapstr = descstr.format(cutoff, nmax, lmax, sigma, ' '.join(map(str, Z)),
-                                 trans_width, len(Z), norm, savg)
-        soapy = D(soapstr)
-        atoms.set_cutoff(soapy.cutoff())
-        atoms.calc_connect()
-        PZ = soapy.calc(atoms)
-        if average:
-            return PZ["descriptor"].flatten()
+        soaps = []
+
+        for Z1, Z2 in product(Z, repeat=2):
+            soapstr = descstr.format(cutoff, nmax, lmax, sigma, str(Z1),
+                                     trans_width, 1, 'F', savg, str(Z2))
+            soapy = D(soapstr)
+            msg.info(soapstr, 2)
+            atoms.set_cutoff(soapy.cutoff())
+            atoms.calc_connect()
+            PZ = soapy.calc(atoms)
+            if average:
+                soaps.append(PZ["descriptor"].flatten())
+            else:
+                soaps.append(PZ["descriptor"])
+
+        P = np.hstack(soaps)
+        if normalize:
+            return P/np.linalg.norm(P)
         else:
-            return PZ["descriptor"]
+            return P
             
     def to_dict(self):
         """Converts the contents of a :class:`matdb.atoms.Atoms` object to a
