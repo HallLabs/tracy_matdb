@@ -59,11 +59,6 @@ class SyncQuip(quippy.Potential, SyncCalculator):
 
         return atoms.to_quippy()
 
-    def set_atoms(self, atoms):
-        """Sets the live atoms object for the calculator.
-        """
-        self.atoms = atoms
-
     def get_property(self, name, atoms=None, allow_calculation=True, rename=False):
         """Overrides the get_property on ASE atoms object to account for atoms
         conversion between `matdb` and back.
