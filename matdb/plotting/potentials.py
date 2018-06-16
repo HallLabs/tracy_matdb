@@ -250,17 +250,13 @@ def _get_xy(pot, atoms, prop, peratom=False, energy=False, force=False,
     if force:
         ipprop = lambda a: a.get_forces()
     if virial:
-        ipprop = lambda a: a.get_stress(False)/a.get_volume()
+        ipprop = lambda a: a.get_stress(False)*a.get_volume()
 
     ref, ip = [], []
     import pudb
     for i, a in tqdm(enumerate(atoms)):
         if hasattr(a, prop):
             a.set_calculator(pot)
-            #set_calculator overwrites the internal calculator atoms object sa
-            #that changes are not detected unless we explicitly call
-            #reset. TODO: figure out how to not have to do this!
-            pot.reset()
             if peratom:
                 ref.append(getattr(a, prop)/float(a.n))
                 ip.append(ipprop(a)/float(a.n))
