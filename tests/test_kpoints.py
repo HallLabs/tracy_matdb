@@ -1,4 +1,22 @@
 """Tests the matdb.kpoints module functions."""
+import numpy as np
+def test_qpoint_finder():
+    try:
+        from matdb.kpoints import find_qpoints
+    except ImportError:
+        return
+    from matdb.atoms import Atoms
+    Si = Atoms(cell=np.identity(3), positions=[[0,0,0]], numbers=[14])
+    supercell = (2,3,1)
+    model = np.array([[ 0.        ,  0.        ,  0.        ],
+                 [ 0.        ,  0.33333333,  0.        ],
+                 [ 0.        , -0.33333333,  0.        ],
+                 [ 0.5       ,  0.        ,  0.        ],
+                 [ 0.5       ,  0.33333333,  0.        ],
+                 [-0.5       , -0.33333333,  0.        ]])
+    result = find_qpoints(Si, supercell)
+    assert np.allclose(model, result)
+
 def test_kpath():
     """Performs a simple test to extract the kpath for an alloy.
     """
