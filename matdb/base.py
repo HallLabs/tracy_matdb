@@ -65,3 +65,14 @@ def set_testmode(testing):
     """
     global testmode
     testmode = testing
+
+debug = False
+"""bool: when True, loggers throughout the `matdb` system are set to debug level
+to produce more verbose logging output. Can also be `int` corresponding to level
+in :mod:`logging`.
+"""
+def set_debug(debugging):
+    """Sets the package testing mode.
+    """
+    global debug
+    debug = debugging

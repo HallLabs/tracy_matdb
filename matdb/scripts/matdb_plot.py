@@ -1,5 +1,6 @@
  #!/usr/bin/python
-from os import path
+from os import path, mkdir
+import matplotlib
 def examples():
     """Prints examples of using the script to the console using colored output.
     """
@@ -58,8 +59,7 @@ script_options = {
     "--figsize": {"nargs": 2, "type": float, "default": (10, 8),
                   "help": "Specify the size of the figure in inches."},
     "--save": {"help": "Specify the name of a file to save the plot to." },
-    "--nbands": {"help": "Number of bands to plot.",
-                 "default": 4},
+    "--nbands": {"help": "Number of bands to plot.", "type": int},
     "--generate": {"action": "store_true",
                    "help": ("Generate the sub-plots for HTML interactive"
                             " package.")},
@@ -84,7 +84,13 @@ script_options = {
     "--splits": {"nargs": "+",
                 "help": "Specify a list of global splits to use for plotting."},
     "--subset": {"choices": ["train", "holdout", "super"], "default": "holdout",
-                 "help": "Specify which database subset to use."}
+                 "help": "Specify which database subset to use."},
+    "--generic": {"help": ("Specify the configuration file to use for a "
+                           "generic plot of the data."),
+                  "nargs": '+'},
+    "--valkey": {"help": ("Specify the key for parameter and property names "
+                          "that should be used to compare to the potential "
+                          "in comparative plots.")}
     }
 """dict: default command-line arguments and their
     :meth:`argparse.ArgumentParser.add_argument` keyword arguments.
@@ -107,17 +113,31 @@ def _parser_options():
 
     return args
 
-def _generate_pkl(pot, **args):
+def _generate_pkl(pot, dbs=None, **args):
     """Generates a pickle file for a single potential and its default databases.
     """
     from matdb.plotting.potentials import generate
+    from matdb.atoms import AtomsList
     from cPickle import dump
-    pdis = generate(args["plots"], pot.calculator,
-                    pot.configs(args["subset"]),
-                    args["folder"], args["base64"])
+    outdir = path.join(args["folder"], pot.fqn)
+    if not path.isdir(outdir):
+        mkdir(outdir)
+        
+    if dbs is not None:
+        configs = AtomsList()
+        for db in dbs:
+            configs.extend(list(db.iconfigs))
+
+        pdis = generate(args["plots"], pot.calculator,
+                        configs, outdir, args["base64"],
+                        valkey=args["valkey"])
+    else:
+        pdis = generate(args["plots"], pot.calculator,
+                        pot.configs(args["subset"]),
+                        outdir, args["base64"])
 
     pklname = "{}-{}-plotgen.pkl".format(args["subset"], args["plots"])
-    target = path.join(pot.root, pklname)
+    target = path.join(outdir, pklname)
     with open(target, 'w') as f:
         dump(pdis, f)
 
@@ -125,17 +145,16 @@ def _generate_html(potlist, **args):
     """Generates the interactive HTML page for the potentials and databases.
     """
     from cPickle import load
-    from os import mkdir
     #We create a new folder for the HTML plot inside the overall system
     #directory.
-    plotdir = path.join(potlist[0].controller.db.plotdir, args["folder"])
+    plotdir = path.join(potlist[0].controller.db.plotdir, args["save"])
     if not path.isdir(plotdir):
         mkdir(plotdir)
 
     data = {}
     pklname = "{}-{}-plotgen.pkl".format(args["subset"], args["plots"])
     for ipot, pot in enumerate(potlist):
-        target = path.join(pot.root, pklname)
+        target = path.join(args["folder"], pot.fqn, pklname)
         if not path.isfile(target):
             _generate_pkl(pot, **args)
         with open(target) as f:
@@ -154,7 +173,7 @@ def _generate_html(potlist, **args):
         for pdi in pdis.values():
             newname = "{}__{}".format(pot.fqn, pdi.url)
             trg = path.join(plotdir, newname)
-            copyfile(path.join(pot.root, pdi.url), trg)
+            copyfile(path.join(args["folder"], pot.fqn, pdi.url), trg)
             pdi.filename = newname
 
     from matdb.plotting.matd3 import html
@@ -174,7 +193,8 @@ def run(args):
     """
     if args is None:
         return
-
+    
+    matplotlib.use('Agg')
     #No matter what other options the user has chosen, we will have to create a
     #database controller for the specification they have given us.
     from matdb.database import Controller
@@ -194,9 +214,15 @@ def run(args):
         for potp in args["pots"]:
             pots.extend(cdb.trainers.find(potp)) 
 
+    if args["generic"]:
+
+        objs = dbs + pots
+        from matdb.plotting.plotter import PlotManager
+        manager = PlotManager(cdb)
+        for cname in args["generic"]:
+            manager.plot(objs, cname)
+            
     if args["bands"]:
-        import matplotlib
-        matplotlib.use('Agg')
         from matdb.plotting.comparative import band_plot
         band_plot(dbs, pots, **args)
 
@@ -205,7 +231,7 @@ def run(args):
             raise ValueError("Generate only operates for a single trainer "
                              "at a time; don't specify so many patterns.")
         pot = pots[0]
-        _generate_pkl(pot, **args)
+        _generate_pkl(pot, dbs, **args)
 
     if args["html"]:
         _generate_html(pots, **args)

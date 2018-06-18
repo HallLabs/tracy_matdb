@@ -5,6 +5,23 @@ have an appropriate special path in the BZ. `matdb` interfaces with
 from os import path, getcwd, chdir, system
 import numpy as np
 
+def find_qpoints(atoms, supercell):
+    """Finds the `q` points that would be "pinned down" by a calculation of the
+    given supercell.
+
+    Args:
+        atoms (matdb.Atoms): *primitive* atoms object.
+        supercell (numpy.ndarray): of shape `(3, 3)` or a list/tuple of shape 3
+          or 9.
+    """
+    from kgridgen import kpointgeneration
+    A = np.asarray(atoms.cell, order='F')
+    B = np.asarray(atoms.make_supercell(supercell).cell, order='F')
+    n = int(np.linalg.det(B)/np.linalg.det(A))    
+    qpoints = np.zeros((n, 3), order='F')
+    kpointgeneration.findqpointsinzone(A, B, n, qpoints)
+    return qpoints
+
 def parsed_kpath(atoms):
     """Gets the special path in the BZ for the structure with the specified
     atoms object and then parses the results into the format required by the package

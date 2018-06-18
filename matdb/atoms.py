@@ -4,8 +4,11 @@ code for some of the implementation.
 
 import ase
 from ase.calculators.singlepoint import SinglePointCalculator
+from ase.build import make_supercell
 import numpy as np
 from copy import deepcopy
+from itertools import product
+
 import h5py
 from ase import io
 from six import string_types
@@ -13,6 +16,7 @@ import lazy_import
 from os import path
 from uuid import uuid4
 from matdb import msg
+from matdb.transforms import conform_supercell
 
 calculators = lazy_import.lazy_module("matdb.calculators")
 
@@ -165,6 +169,14 @@ class Atoms(ase.Atoms):
                 
         self._initialised = True
 
+    def make_supercell(self, supercell):
+        """Returns a new :class:`matdb.Atoms` object that is a supercell of the
+        current one.
+        """
+        scell = conform_supercell(supercell)
+        result = make_supercell(self, scell)
+        return Atoms(result)
+        
     def add_property(self,name,value):
         """Adds an attribute to the class instance.
         Args:
@@ -290,7 +302,7 @@ class Atoms(ase.Atoms):
             self.__init__(symbols=symbols, positions=other.positions, n=other.n,
                           properties=other.properties, magmoms=magmoms,
                           params=other.params, masses=masses, momenta=momenta,
-                          charges=charges, cell=other.cell, pdb=other.pbc,
+                          charges=charges, cell=other.cell, pbc=other.pbc,
                           constraint=constraint, info=info, calculator=other.calc,
                           group_uuid = group_uuid)
 
@@ -361,6 +373,86 @@ class Atoms(ase.Atoms):
 
         else:
             self.__init__(io.read(target,**kwargs))
+
+    def to_quippy(self):
+        """Converts this :class:`matdb.atoms.Atoms` object to a
+        :class:`quippy.atoms.Atoms` object.
+
+        Args:
+            atoms (matdb.atoms.Atoms): the atoms object to perform calculations
+            on.
+        """
+        import quippy
+        props = self.properties.copy()
+        params = self.params.copy()
+        for k, v in props.items():
+            if k == "momenta":
+                continue
+            if k == "species" and len(v.shape) == 2:
+                #Weird string handling inside of quippy means we have to treat
+                #this specially...
+                props[k] = list(map(lambda r: ''.join(r), v.T))
+            elif len(v.shape) == 2 and v.shape[0] != 3:
+                props[k] = v.transpose()
+                
+        #Unfortunately, the momenta gets set to zeros by default anytime it is
+        #requested from the ASE atoms object. Because of the quippy transpose
+        #problem, we don't always transpose. Also, we can't pass it in as a
+        #property in the props dict, that raises weird shaping errors in quippy.
+        momenta = None
+        if "momenta" in props:
+            momenta = props["momenta"]
+            if momenta.shape[0] != self.n:
+                momenta = momenta.transpose()
+            del props["momenta"]
+
+        info = self.info.copy()
+        if isinstance(self, Atoms):
+            del info["params"]
+            del info["properties"]
+
+        kwargs = {"properties":props, "params":params, "positions": self.positions,
+                  "numbers": self.get_atomic_numbers(), "momenta": momenta,
+                  "cell": self.get_cell(), "pbc": self.get_pbc(),
+                  "constraint": self.constraints, "info":info,
+                  "n": len(self.positions)}
+
+        return quippy.Atoms(**kwargs)
+            
+    def S(self, cutoff=5., nmax=8, lmax=8, sigma=0.5, trans_width=0.5,
+          average=True, normalize=True):
+        """Returns the SOAP vectors for each environment in the specified atoms object.
+        """
+        from quippy.descriptors import Descriptor as D
+        #Convert to quippy atoms so that we can get the SOAP vectors.
+        atoms = self.to_quippy()
+        descstr = ("soap cutoff={0:.1f} n_max={1:d} l_max={2:d} "
+                   "atom_sigma={3:.2f} n_species={6} species_Z={{{4}}} n_Z={6} Z={{{9}}} "
+                   "trans_width={5:.2f} normalise={7} average={8}")
+
+        
+        Z = np.unique(atoms.get_atomic_numbers())
+        savg = 'T' if average else 'F'
+        soaps = []
+
+        for Z1, Z2 in product(Z, repeat=2):
+            soapstr = descstr.format(cutoff, nmax, lmax, sigma, str(Z1),
+                                     trans_width, 1, 'F', savg, str(Z2))
+            soapy = D(soapstr)
+            msg.info(soapstr, 2)
+            atoms.set_cutoff(soapy.cutoff())
+            atoms.calc_connect()
+            PZ = soapy.calc(atoms)
+            if average:
+                soaps.append(PZ["descriptor"].flatten())
+            else:
+                soaps.append(PZ["descriptor"])
+
+        P = np.hstack(soaps)
+        if normalize:
+            return P/np.linalg.norm(P)
+        else:
+            return P
             
     def to_dict(self):
         """Converts the contents of a :class:`matdb.atoms.Atoms` object to a
@@ -474,10 +566,12 @@ class AtomsList(list):
         try:
             return self.source.__getattr__(name)
         except AttributeError:
-            try:
-                seq = [getattr(at, name) for at in iter(self)]
-            except AttributeError:
-                raise
+            seq = []
+            for at in iter(self):
+                try:
+                    seq.append(getattr(at, name))
+                except AttributeError:
+                    pass
             if seq == []: #pragma: no cover
                 return None
             else:
@@ -549,13 +643,19 @@ class AtomsList(list):
             from matdb.io import load_dict_from_h5
             with h5py.File(target,"r") as hf:
                 data = load_dict_from_h5(hf)
-            # If the data was read in from and hdf5 file written by
-            # the AtomsList object then each atom will have a tag with
-            # it. We check for this by looking for the word 'atom'
-            # inside the first key, if it's present we assume that all
-            # the contents of the file are an atoms list. If it's not
-            # then we assume this is a single atoms object.
-            if "atom" in data.keys()[0]:
+            # If the data was read in from an hdf5 file written by the
+            # AtomsList object then each atom will have a tag with it. We check
+            # for this by looking for the word 'atom' inside the first key, if
+            # it's present we assume that all the contents of the file are an
+            # atoms list. If it's not then we assume this is a single atoms
+            # object.
+
+            #NB! It is possible that the atoms list object could be an *empty*
+            #AtomsList that was written to disk. In that case, just use an empty
+            #list.
+            if len(data) == 0:
+                atoms = []
+            elif "atom" in data.keys()[0]:
                 if isinstance(data.values()[0],dict):
                     atoms = [Atoms(**d) for d in data.values()]
                 elif isinstance(data.values()[0],string_types):

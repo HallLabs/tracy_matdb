@@ -14,8 +14,22 @@ from phonopy.cui.phonopy_argparse import get_parser
 from phonopy.cui.settings import PhonopyConfParser
 from matdb import msg
 from matdb.atoms import Atoms, AtomsList
-from matdb.phonons import roll as roll_fc
 from matdb.transforms import conform_supercell
+
+def roll_fc(hessian):
+    """Rolls the specified hessian into the `phonopy` force constants format.
+    
+    Args:
+        hessian (numpy.ndarray): of shape `n_atoms * 3`.
+    """
+    n = hessian.shape[0]/3
+    result = np.zeros((n, n, 3, 3), dtype='double')
+    
+    for i in range(n):
+        for j in range(n):
+            result[i, j] = hessian[i*3:(i+1)*3, j*3:(j+1)*3]
+
+    return result
 
 def unroll_fc(fc):
     """Unroll's the phonopy force constants matrix into the Hessian.
@@ -33,16 +47,18 @@ def phonopy_to_matdb(patoms):
     """Converts a :class:`phonopy.structure.atoms.Atoms` to
     :class:`matdb.atoms.Atoms`. See also :func:`matdb_to_phonopy`.
     """
-    return Atoms(symbols=patoms.get_chemical_symbols(),
+    #We hard-code the pbc here because phonons only make sense for solids.
+    return Atoms(numbers=patoms.get_atomic_numbers(),
                  positions=patoms.get_positions(),
                  magmoms=patoms.get_magnetic_moments(),
-                 cell=patoms.get_cell())
+                 cell=patoms.get_cell(),
+                 pbc=[True, True, True])
 
 def matdb_to_phonopy(matoms):
     """Converts a :class:`matdb.atoms.Atoms` to a
     :class:`phonopy.structure.atoms.Atoms`. See also :func:`phonopy_to_matdb`.
     """
-    return PhonopyAtoms(symbols=matoms.get_chemical_symbols(),
+    return PhonopyAtoms(numbers=matoms.get_atomic_numbers(),
                         positions=matoms.positions,
                         masses=matoms.get_masses(),
                         cell=matoms.cell, pbc=matoms.pbc)
@@ -85,6 +101,8 @@ class Hessian(Group):
         bandmesh (list): mesh for calculating the phonon bands.
         dosmesh (list): mesh for calculating the phonon density-of-states.
     """
+    splittable = False
+    
     def __init__(self, phonopy={}, name="hessian", bandmesh=None,
                  dosmesh=None, tolerance=0.1, dfpt=False, **dbargs):
         self.name = name
@@ -168,7 +186,10 @@ class Hessian(Group):
         of the eigenvalue/eigenvector combinations of the Hessian matrix.
         """
         if len(self.sequence) == 0:
-            return self._hessian_configs()
+            if self.ready():
+                return self.config_atoms.values()
+            else:
+                return AtomsList()
         else:
             result = AtomsList()
             for g in self.sequence.values():
@@ -214,8 +235,10 @@ class Hessian(Group):
         #zip!
         evals, evecs = np.linalg.eigh(self.H)
         natoms = len(evals)/3
-        eratio = (np.max(evals)/np.min(evals))**1.5
-        
+        l0 = np.max(evals)-np.min(evals)
+        sigma0 = 0.01
+        lscaling = 0.005
+
         for l, v in zip(*(evals, evecs.T)):
             #The eigenvalues should all be positive. There may be some really
             #small ones that are essentially zero, but slightly negative.
@@ -229,11 +252,12 @@ class Hessian(Group):
                     
             #Same thing for the eigenvalue.
             atc.add_param(hname, l)
-            
-            #This custom scaling reweights by eigenvalue so that larger
-            #eigenvalues get fitted more closely. The 0.1 is our "default_sigma"
-            #for hessian.
-            atc.add_param("{}_hessian_csigma".format(self.calc.key), 0.1/(eratio/l))
+
+            #We want the small eigenvalues to have a weighting of sigma0 and the
+            #largest eigenvalue to have a sigma of 10% of its value.
+            c = (lscaling*l0-sigma0)/l0**2
+            #atc.add_param("{}_hessian_csigma".format(self.calc.key), sigma0 + c*l**2)
+            atc.add_param("{}_hessian_csigma".format(self.calc.key), sigma0)
             atc.add_param("n_{}_hessian".format(self.calc.key), 1)
             configs.append(atc)
 
@@ -359,7 +383,7 @@ class Hessian(Group):
             #to the atoms object it corresponds to.
             self.atoms.info["H"] = self.H
             result = AtomsList()
-            result.append([self.atoms])
+            result.append(self.atoms)
             return result
         else:
             #Check where we are in the stack. If we are just below the database,

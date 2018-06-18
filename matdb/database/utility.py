@@ -16,7 +16,8 @@ from matdb import msg
 from matdb.atoms import AtomsList
 from matdb.utility import dbcat
 
-def split(atlist, splits, targets, dbdir, ran_seed, dbfile=None, recalc=0):
+def split(atlist, splits, targets, dbdir, ran_seed, dbfile=None, recalc=0,
+          nonsplit=None):
     """Splits the :class:`matdb.atoms.AtomsList` multiple times, one for
     each `split` setting in the database specification.
 
@@ -36,7 +37,11 @@ def split(atlist, splits, targets, dbdir, ran_seed, dbfile=None, recalc=0):
           existing *.h5 files. This parameter decreases as
           rewrites proceed down the stack. To re-calculate
           lower-level h5 files, increase this value.
+        nonsplit (AtomsList): a list of atoms to include in the training
+          set "as-is" because they cannot be split (they only have meaning
+          together).
     """
+    assert nonsplit is None or isinstance(nonsplit, AtomsList)
     for name, train_perc in splits.items():
         train_file = targets["train"](name)
         holdout_file = targets["holdout"](name)
@@ -103,12 +108,22 @@ def split(atlist, splits, targets, dbdir, ran_seed, dbfile=None, recalc=0):
         #so that we can recreate *exactly* the same split again later.
         if not path.isfile(train_file):
             tids = ids[0:Ntrain]
-            altrain = subconfs[tids]
-            altrain.write(train_file)
-            if dbfile is not None:
-                dbcat([dbfile], train_file, docat=False, ids=tids, N=Ntrain)
+            #Make sure that we have some atoms to write in the first place!
+            if len(tids) > 0:
+                altrain = subconfs[tids]
             else:
-                dbcat([], train_file, docat=False, ids=tids, N=Ntrain)
+                altrain = AtomsList()
+            #Add the unsplittable configurations to the training set as-is.
+            Nunsplit = 0
+            if nonsplit is not None:
+                altrain.extend(nonsplit)
+                Nunsplit = len(nonsplit)
+            altrain.write(train_file)
+            
+            if dbfile is not None:
+                dbcat([dbfile], train_file, docat=False, ids=tids, N=Ntrain+Nunsplit)
+            else:
+                dbcat([], train_file, docat=False, ids=tids, N=Ntrain+Nunsplit)
         if not path.isfile(holdout_file):
             hids = ids[Ntrain:-Nsuper]
             alhold = subconfs[hids]

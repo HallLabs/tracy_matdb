@@ -350,9 +350,12 @@ class GAP(Trainer):
         #Determine how many random configs we need to generate.
         hessians = [seed for seed, db in self.seeds
                     if isinstance(db, Hessian)]
-        n_ratio = int(np.ceil(float(self.n_random)/len(hessians)))        
+        #The extra factor of 3 here is because we do random displacements of
+        #0.05, 0.1 and 0.2 angstroms.
+        n_ratio = int(np.ceil(float(self.n_random)/len(hessians)/3))        
         N = n_ratio * len(hessians)
-        msg.info("Generating {0:d} random configs as sparse points.".format(N))
+        msg.info("Generating {0:d} random configs each at 0.05, 0.1, 0.2 "
+                 "Ang. as sparse points.".format(N))
         
         result = AtomsList()
         for hseed in hessians:
@@ -372,6 +375,18 @@ class GAP(Trainer):
                 atRand.set_positions(p  + 0.1*2*(np.random.random_sample(p.shape)))
                 result.append(atRand)
 
+            for i in range(n_ratio):
+                atRand = atEmpty.copy()
+                p = atRand.get_positions()
+                atRand.set_positions(p  + 0.05*2*(np.random.random_sample(p.shape)))
+                result.append(atRand)
+
+            for i in range(n_ratio):
+                atRand = atEmpty.copy()
+                p = atRand.get_positions()
+                atRand.set_positions(p  + 0.2*2*(np.random.random_sample(p.shape)))
+                result.append(atRand)
+                
         result.write(self.sparse_file)
 
     def command(self):
