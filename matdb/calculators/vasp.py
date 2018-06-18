@@ -145,7 +145,7 @@ class AsyncVasp(Vasp, AsyncCalculator):
             mkdir(path.join(contr_dir,"POTCARS"))
             
         if "kpoints" in kwargs:
-            self.kpoints = kwargs.pop("kpoints")
+            self.kpoints = kwargs.pop("kpoints")            
 
         # remove the "potcars" section of the kwargs for latter use in
         # creation of the POTCAR file.
@@ -276,7 +276,7 @@ class AsyncVasp(Vasp, AsyncCalculator):
 
         sizeok = lambda x: stat(x).st_size > 25        
         required = ["INCAR", "POSCAR", "POTCAR"]
-        if "kspacing" not in self.kwargs or "KSPACING" not in self.kwargs:
+        if "kspacing" not in self.kwargs and "KSPACING" not in self.kwargs:
             required.append("KPOINTS")
             
         present = {}

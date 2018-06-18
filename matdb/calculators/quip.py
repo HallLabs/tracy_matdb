@@ -39,49 +39,46 @@ class SyncQuip(quippy.Potential, SyncCalculator):
                 self.key = path.splitext(pfile)[0]
             else:
                 self.key = self.args[0].split()[1].lower()
-        
+
+    def __repr__(self):
+        kwargs = ', '.join(map(lambda i: '='.join(i), self.kwargs.items()))
+        relroot = self.folder.replace(self.contr_dir, '.')
+        return "Quip({}, root={}, {})".format(self.args[0], relroot, kwargs)
+                
     def _convert_atoms(self,atoms):
         """Converts an :class:`matdb.atoms.Atoms` object to a
         :class:`quippy.atoms.Atoms` object.
 
         Args:
-            atoms (matdb.atoms.Atoms): the atoms object to 
-              perform calculations on.
+            atoms (matdb.atoms.Atoms): the atoms object to perform calculations
+              on.
         """
-        props = atoms.properties.copy()
-        params = atoms.params.copy()
-        if 'force' in props:
-            props['force'] = np.transpose(props['force'])
+        if isinstance(atoms, Atoms):
+            #No need to do a conversion if we are already a `quippy.Atoms`.
+            return atoms
 
-        info = atoms.info.copy()
-        if isinstance(atoms, matdbAtoms):
-            del info["params"]
-            del info["properties"]
-        
-        kwargs = {"properties":props, "params":params, "positions":atoms.positions,
-                  "numbers":atoms.get_atomic_numbers(),
-                  "cell":atoms.get_cell(), "pbc":atoms.get_pbc(),
-                  "constraint":atoms.constraints, "info":info,
-                  "n":len(atoms.positions)}
-        return Atoms(**kwargs)
-
-    def set_atoms(self, atoms):
-        """Sets the live atoms object for the calculator.
-        """
-        self.atoms = atoms
+        return atoms.to_quippy()
 
     def get_property(self, name, atoms=None, allow_calculation=True, rename=False):
         """Overrides the get_property on ASE atoms object to account for atoms
         conversion between `matdb` and back.
         """
-        if atoms is not None:
+        if atoms is None:
             atoms = self.atoms
-        calcatoms = self._convert_atoms(atoms)
-        calcatoms.set_cutoff(self.cutoff())
-        calcatoms.calc_connect()
-        
+
+        if not isinstance(atoms, Atoms):
+            calcatoms = self._convert_atoms(atoms)
+            calcatoms.set_cutoff(self.cutoff())
+            calcatoms.calc_connect()
+        else:
+            calcatoms = atoms
+
+        #If we already have a quippy.Atoms object, we can call the super method directly
+        #and sidestep all the conversions we have going on.
         r = super(SyncQuip, self).get_property(name, calcatoms, allow_calculation)
-        self._update_results(atoms, calcatoms, rename)
+        if not isinstance(atoms, Atoms):
+            self._update_results(atoms, calcatoms, rename)
+            
         return r
 
     def _update_results(self, atoms, calcatoms, rename=False):
@@ -116,8 +113,10 @@ class SyncQuip(quippy.Potential, SyncCalculator):
                 new_val = np.array(val)
             else:
                 new_val = val
-            if key=="force" and isinstance(atoms, matdbAtoms):
-                new_val = np.transpose(new_val)
+
+            if ("force" in key or key == "momenta") and isinstance(atoms, matdbAtoms):
+                if new_val.shape[1] != 3:
+                    new_val = np.transpose(new_val)
             if key=="species" and isinstance(atoms, Atoms):
                 new_val = list(map(lambda r: ''.join(r), new_val.T))
 
@@ -126,7 +125,7 @@ class SyncQuip(quippy.Potential, SyncCalculator):
             else:
                 atoms.add_property(key, new_val)
                 
-        if not np.allclose(atoms.positions,calcatoms.positions): 
+        if not np.allclose(atoms.positions, calcatoms.positions): 
             atoms.positions = calcatoms.positions        
         
     def calc(self, atoms, rename=False, **kwargs):
@@ -137,9 +136,16 @@ class SyncQuip(quippy.Potential, SyncCalculator):
             kwargs (dict): the key work arguments to the :clas:`quippy.Potential` 
               calc function.
         """
-        temp_A = self._convert_atoms(atoms)
+        if not isinstance(atoms, Atoms):
+            temp_A = self._convert_atoms(atoms)
+            temp_A.set_cutoff(self.cutoff())
+            temp_A.calc_connect()
+        else:
+            temp_A = atoms
+            
         super(SyncQuip, self).calc(temp_A, **kwargs)
-        self._update_results(atoms, temp_A, rename)
+        if not isinstance(atoms, Atoms):
+            self._update_results(atoms, temp_A, rename)
 
     def can_execute(self):
         """Returns `True` if this calculation can calculate properties for the
