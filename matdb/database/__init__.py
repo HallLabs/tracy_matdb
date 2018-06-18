@@ -1333,7 +1333,6 @@ class Database(object):
         else:
             final_dict["hash"] = self.hash_bin()                
 
-        print self.splits
         for name, trani_perc in self.splits.items():
             for f in glob(path.join(self.root,"{0}*-ids.pkl".format(name))):
                 final_dict[f.split(".pkl")[0]] = _recursively_convert_units(pickle.load(f))

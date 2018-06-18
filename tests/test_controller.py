@@ -85,6 +85,25 @@ def Pd_copy(tmpdir):
     return result
 
 @pytest.fixture()
+def Pd_split(tmpdir):
+    from matdb.utility import relpath
+    from matdb.database import Controller
+    from os import mkdir, path
+
+    target = relpath("./tests/Pd/matdb_split")
+    dbdir = str(tmpdir.join("pd_db_splits"))
+    mkdir(dbdir)
+
+    from shutil import copy
+    POSCAR = relpath("./tests/Pd/POSCAR")
+    mkdir(path.join(dbdir,"seed"))
+    copy(POSCAR, path.join(dbdir,"seed","Pd"))
+
+    result = Controller(target, dbdir)
+    return result
+    
+    
+@pytest.fixture()
 def Pd_2(tmpdir):
     from matdb.utility import relpath
     from matdb.database import Controller
@@ -384,7 +403,6 @@ def test_finalize(Pd):
     """ Test the finalize function in the controller module
     """
     from os import path
-    from matdb.utility import chdir
     Pd.setup()
     Pd.execute(env_vars={"SLURM_ARRAY_TASK_ID":"1"})
     folder = path.join(reporoot,"tests","data","Pd","manual")
@@ -406,6 +424,17 @@ def test_finalize(Pd):
         loaded_final = load_dict_from_h5(hf)
     assert path.isfile(target)
 
+def test_split(Pd_split):
+    """ Test the split function in the controller object
+    """
+    from os import path
+    Pd_split.setup()
+    Pd_split.execute(env_vars={"SLURM_ARRAY_TASK_ID":"1"})
+    folder = path.join(reporoot,"tests","data","Pd","manual")
+    _mimic_vasp(folder,Pd_split.root,"S1.1")
+
+    Pd_split.extract()
+    Pd_split.split()
     
 @pytest.mark.skip()    
 def test_Pd_hessian(Pd):

@@ -55,10 +55,10 @@ splits:
 databases:
   #The PhononBase class generates the dynamical matrix that is needed
   #by PhononDatabase.
-  - name: 'manual'
+  - name: 'phonon'
     steps:
       - type: "simple.Manual"
-        seeds: ["POSCAR:Pd"]
+        seeds: ["POSCAR:Pd","POSCAR:Pd"]
         calculator:
           kpoints:
             method: 'mueller'
