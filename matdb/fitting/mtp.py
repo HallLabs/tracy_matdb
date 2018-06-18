@@ -494,7 +494,7 @@ class MTP(Trainer):
             template = ("mpirun -n {} mlp train pot.mtp "
                         "train.cfg".format(self.ncores))
         else:
-            template = "train pot.mtp train.cfg"
+            template = "mlp train pot.mtp train.cfg"
             
         for k, v in self.train_args.items():
             if k == "curr-pot-name" or k == "trained-pot-name":
