@@ -7,16 +7,18 @@ from tqdm import tqdm
 import numpy as np
 import matplotlib.pyplot as plt
 from ase.build import make_supercell
+
 from matdb.atoms import Atoms
 from matdb.phonons import bandplot
 from matdb.utility import chdir
-from matdb.phonons import from_yaml, calc as phon_calc, _calc_bands
+from matdb.phonons import from_yaml, _calc_bands, calc as phon_calc
 from matdb.kpoints import parsed_kpath
 from matdb import msg
 from matdb.transforms import conform_supercell
+from matdb.calculators import build_calc
 
 def band_plot(dbs, fits=None, npts=100, title="{} Phonon Spectrum", save=None,
-              figsize=(10, 8), nbands=12, delta=0.01, **kwargs):
+              figsize=(10, 8), nbands=None, delta=0.01, quick=True, **kwargs):
     """Plots the phonon bands for the specified CLI args.
 
     Args:
@@ -35,6 +37,8 @@ def band_plot(dbs, fits=None, npts=100, title="{} Phonon Spectrum", save=None,
         figsize (tuple): of `float`; the size of the figure in inches.
         delta (float): size of displacement for finite difference derivative.
         nbands (int): number of bands to plot.
+        quick (bool): when True, use symmetry to speed up the Hessian
+          calculation for the specified potentials.
         kwargs (dict): additional "dummy" arguments so that this method can be
           called with arguments to other functions.
     """
@@ -43,12 +47,19 @@ def band_plot(dbs, fits=None, npts=100, title="{} Phonon Spectrum", save=None,
                          "to plot phonons for.")
 
     db = dbs[0]
-    title = title.format(db.atoms.get_chemical_formula())
+    if db.atoms is not None:
+        ratoms = db.atoms
+    else:
+        #Use the parent group; this one must have been one of the sub-sequence
+        #recursively generated groups.
+        ratoms = db.parent.atoms
+    title = title.format(ratoms.get_chemical_formula())
+        
     nlines = len(dbs) + (0 if fits is None else len(fits))
     colors = plt.cm.nipy_spectral(np.linspace(0, 1, nlines))
     
     bands, style = {}, {}
-    names, kpath = parsed_kpath(db.atoms)
+    names, kpath = parsed_kpath(ratoms)
     #matplotlib needs the $ signs for latex if we are using special
     #characters. We only get names out from the first configuration; all
     #the others have to use the same one.
@@ -65,12 +76,10 @@ def band_plot(dbs, fits=None, npts=100, title="{} Phonon Spectrum", save=None,
     if fits is not None:
         for fiti, fit in enumerate(tqdm(fits)):
             gi = len(dbs) + fiti
-            #make_supercell already returns a copy of the atoms object.
-            scell = conform_supercell(db.supercell)
-            ai = make_supercell(db.atoms, scell)
+            ai = ratoms.copy()
             ai.set_calculator(fit.calculator)
-            H = phon_calc(ai, fit.cachedir, delta)
-            bands[fit.fqn] = _calc_bands(db.atoms, H, scell)
+            H = phon_calc(ai, supercell=db.supercell, delta=delta, quick=quick)
+            bands[fit.fqn] = _calc_bands(db.atoms, H, db.supercell)
             style[fit.fqn] = {"color": colors[gi], "lw": 2}
 
     savefile = None
@@ -80,13 +89,16 @@ def band_plot(dbs, fits=None, npts=100, title="{} Phonon Spectrum", save=None,
     bandplot(bands, names, title=title, outfile=savefile,
              figsize=figsize, style=style, nbands=nbands)
 
-def band_raw(poscar, bandfiles, pots=None, supercell=None, npts=100,
+def band_raw(primitive, bandfiles=None, pots=None, supercell=None, npts=100,
              title="{} Phonon Spectrum", save=None, figsize=(10, 8), nbands=4,
-             line_names=None, delta=0.01, **kwargs):
+             line_names=None, delta=0.01, quick=True, **kwargs):
     """Plots the phonon bands from raw `band.yaml` files.
 
     Args:
-        poscar (str): path to the POSCAR file for the *primitive* to plot bands for.
+        primitive (str): path to the atoms file for the *primitive* to plot
+          bands for. Use the ASE format string as a prefix,
+          e.g. `vasp-xml:vasprun.xml` or `extxyz:atoms.xyz`. Default assumes
+          `vasp:{}` if no format is specified.
         bandfiles (list): of `str` file paths to the plain `band.yaml` files.
         supercell (list): of `int`; supercell dimensions for the phonon
           calculations.
@@ -99,18 +111,22 @@ def band_raw(poscar, bandfiles, pots=None, supercell=None, npts=100,
         figsize (tuple): of `float`; the size of the figure in inches.
         nbands (int): number of bands to plot.
         delta (float): size of displacement for finite difference derivative.
+        quick (bool): when True, use symmetry to speed up the Hessian
+          calculation for the specified potentials.
         kwargs (dict): additional "dummy" arguments so that this method can be
           called with arguments to other functions.
     """
-    if len(supercell) == 3:
-        arrsuper = np.diag(supercell)
-    else:
-        arrsuper = np.array(supercell).reshape(3,3)
-
-    nlines = len(bandfiles) + 0 if pots is None else len(pots)
+    nlines = len(bandfiles) + (0 if pots is None else len(pots))
     colors = plt.cm.nipy_spectral(np.linspace(0, 1, nlines))        
     bands, style = {}, {}
-    atoms = Atoms(poscar, format="vasp")
+
+    #Handle DSL format import on the file path for the primitive cell.
+    if ':' not in primitive:
+        atoms = Atoms(primitive, format="vasp")
+    else:
+        fmt, atpath = primitive.split(':')
+        atoms = Atoms(atpath, format=fmt)
+        
     names, kpath = parsed_kpath(atoms)
     
     #matplotlib needs the $ signs for latex if we are using special
@@ -129,18 +145,11 @@ def band_raw(poscar, bandfiles, pots=None, supercell=None, npts=100,
         style[key] = {"color": colors[ifile], "lw": 2}
 
     if pots is not None:
-        for fiti, potfile in enumerate(tqdm(pots)):
+        for fiti, fit in enumerate(tqdm(pots)):
             gi = len(bandfiles) + fiti
-            aprim = atoms.copy()
-            ai = make_supercell(aprim, arrsuper)
-            potdir, potname = path.split(potfile)
-            with chdir(potdir):
-                fit = quippy.Potential("IP GAP", param_filename=potname)
-                cachedir = path.join(potdir, "cache")
-                ai.set_calculator(fit)
-                
-            Hess = phon_calc(ai, cachedir, delta)
-            bands[line_names[gi]] = _calc_bands(aprim, Hess, supercell)
+            atoms.set_calculator(fit)
+            H = phon_calc(atoms, supercell=supercell, delta=delta, quick=quick)
+            bands[line_names[gi]] = _calc_bands(atoms, H, supercell)
             style[line_names[gi]] = {"color": colors[gi], "lw": 2}
         
     title = title.format(atoms.get_chemical_formula())

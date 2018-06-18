@@ -1,12 +1,13 @@
-"""Functions for plotting interatomic potential performance vs. correct (DFT)
-answers within a particular :class:`quippy.AtomsList`.
+"""Functions for plotting interatomic potential performance vs. correct (REF)
+answers within a particular :class:`matdb.AtomsList`.
 """
+from tqdm import tqdm
 import numpy as np
-import quippy
 from matdb.plotting.matd3 import PointDetailImage as PDI
+from matdb.atoms import Atoms
 
 def generate(plots, pot, atoms, folder=None, base64=False, index=0, ndimer=50,
-             ntrimer=75):
+             ntrimer=75, valkey="ref"):
     """Generates a set of plots for the given potential and atoms list. The
     following are possible options; for each one, a shorthand character is
     specified:
@@ -27,8 +28,9 @@ def generate(plots, pot, atoms, folder=None, base64=False, index=0, ndimer=50,
 
     Args:
         plots (str): of character codes as described above.
-        pot (quippy.Potential): IP to calculate properties with.
-        atoms (quippy.AtomsList): list of atoms to calculate correlations with
+        fit (matdb.calculators.Calculator): trainer that has an IP to calculate
+          properties with. 
+        atoms (matdb.AtomsList): list of atoms to calculate correlations with
           respect to.
         folder (str): path to the folder where the saved image should be stored.
         base64 (bool): when True, use a base-64 encoded `src` for the output of
@@ -39,17 +41,19 @@ def generate(plots, pot, atoms, folder=None, base64=False, index=0, ndimer=50,
         ndimer (int): number of samples to take along the dimer trajectory.
         ntrimer (int): number of samples to take along the trimer angle
           trajectory. 
+        valkey (str): prefix on parameter and property names that should be used
+          for comparison.
     """
     #We need to determine the unique list of elements in the atoms list. Lets
     elements = set()
     for a in atoms:
         elements |= set(a.get_chemical_symbols())
-    
+
     plotmap = {
-        'e': lambda i: energy(pot, atoms, folder, base64, i),
-        'f': lambda i: force(pot, atoms, folder, base64, i),
-        'v': lambda i: virial(pot, atoms, folder, base64, i),
-        'o': lambda i: EvsV(pot, atoms, folder, base64, i),
+        'e': lambda i: energy(pot, atoms, folder, base64, i, valkey=valkey),
+        'f': lambda i: force(pot, atoms, folder, base64, i, valkey=valkey),
+        'v': lambda i: virial(pot, atoms, folder, base64, i, valkey=valkey),
+        'o': lambda i: EvsV(pot, atoms, folder, base64, i, valkey=valkey),
         'd': lambda i: dimer(pot, atoms, elements, folder, base64, i, ndimer),
         'z': lambda i: dimer(pot, atoms, elements, folder, base64, i, ndimer, zoom=True),
         't': lambda i: trimer(pot, atoms, elements, folder, base64, i, ndimer)
@@ -76,8 +80,8 @@ def trimer(pot, atoms, elements, folder=None, base64=False, index=None,
 
     Args:
         elements (list): of chemical symbols in the system.
-        pot (quippy.Potential): IP to calculate properties with.
-        atoms (quippy.AtomsList): list of atoms to calculate correlations with
+        pot (matdb.calculator.Calculator): IP to calculate properties with.
+        atoms (matdb.AtomsList): list of atoms to calculate correlations with
           respect to.
         folder (str): path to the folder where the saved image should be stored.
         base64 (bool): when True, use a base-64 encoded `src` for the output of
@@ -111,13 +115,13 @@ def trimer(pot, atoms, elements, folder=None, base64=False, index=None,
         concdict = [elements.count(e)/3. for e in uelements]
         rvegard = vegard(uelements, concdict)
 
-        trimer = quippy.Atoms(n=3, lattice=np.eye(3)*100)
-        trimer.set_cutoff(pot.cutoff())
-        trimer.pos = 0.
+        trimer = Atoms(positions=np.zeros((3, 3)), cell=np.eye(3)*100)
+        trimer.positions = 0.
         trimer.set_chemical_symbols(elements)
+        trimer.set_calculator(pot)
         #Set the position of the second atom to be at equilibrium with respect
         #to the Vegard's law calculation.
-        trimer.pos[1,2] = rvegard
+        trimer.positions[1,2] = rvegard
 
         #Now, vary the angle of the third atom with respect to the original two
         #and see how the angle changes.
@@ -126,10 +130,9 @@ def trimer(pot, atoms, elements, folder=None, base64=False, index=None,
         for t in theta:
             x = rvegard*np.cos(t)
             y = rvegard*np.sin(t)
-            trimer.pos[1,3] = x
-            trimer.pos[2,3] = y
-            pot.calc(trimer,energy=True)
-            energy.append(trimer.energy)
+            trimer.positions[1,2] = x
+            trimer.positions[1,2] = y
+            energy.append(trimer.get_potential_energy())
 
         elemstr = trimer.get_chemical_formula()
         img = PDI(theta, np.array(energy), "plot", subplot_kw=subplot_kw,
@@ -168,8 +171,8 @@ def dimer(pot, atoms, elements, folder=None, base64=False, index=None,
 
     Args:
         elements (list): of chemical symbols in the system.
-        pot (quippy.Potential): IP to calculate properties with.
-        atoms (quippy.AtomsList): list of atoms to calculate correlations with
+        pot (matdb.calculator.Calculator): IP to calculate properties with.
+        atoms (matdb.AtomsList): list of atoms to calculate correlations with
           respect to.
         folder (str): path to the folder where the saved image should be stored.
         base64 (bool): when True, use a base-64 encoded `src` for the output of
@@ -201,9 +204,9 @@ def dimer(pot, atoms, elements, folder=None, base64=False, index=None,
         #law to get a decent domain to plot the energy over.
         rmin, rvegard, rmax = _dimer_range(elements)
 
-        dimer = quippy.Atoms(n=2, lattice=np.eye(3)*100)
-        dimer.set_cutoff(pot.cutoff())
-        dimer.pos = 0.
+        dimer = Atoms(positions=np.zeros((2, 3)), cell=np.eye(3)*100)
+        dimer.positions = 0.
+        dimer.set_calculator(pot)
         dimer.set_chemical_symbols(elements)
 
         if zoom:
@@ -213,9 +216,8 @@ def dimer(pot, atoms, elements, folder=None, base64=False, index=None,
             
         energy = []
         for r in rs:
-            dimer.pos[1,2] = r
-            pot.calc(dimer, energy=True)
-            energy.append(dimer.energy)
+            dimer.positions[1,2] = r
+            energy.append(dimer.get_potential_energy())
 
         elemstr = ''.join(elements) + ('z' if zoom else "")
         img = PDI(rs, np.array(energy), "plot", subplot_kw=subplot_kw,
@@ -225,46 +227,50 @@ def dimer(pot, atoms, elements, folder=None, base64=False, index=None,
 
     return result        
 
-def _get_xy(pot, atoms, prop, peratom=False, **calcargs):
+def _get_xy(pot, atoms, prop, peratom=False, energy=False, force=False,
+            virial=False):
     """Gets the x and y values for the specified potential and property.
     
     Args:
-        pot (quippy.Potential): IP to calculate properties with.
-        atoms (quippy.AtomsList): list of atoms to calculate correlations with
+        pot (matdb.calculator.Calculator): IP to calculate properties with.
+        atoms (matdb.AtomsList): list of atoms to calculate correlations with
           respect to.
         prop (str): name of the property on each atoms object.
         peratom (bool): when True, plot per atom quantities.
-        calcargs (dict): key-value pairs passed to
-          :meth:`~quippy.Potential.calc`.
+        energy (bool): when True, calculate the energy.
+        force (bool): when True, calculate the forces on each atom.
+        virial (bool): when True, calculate the virial tensor..
 
     Returns:
-        tuple: of `(dft, pot)` values.
+        tuple: of `(ref, pot)` values.
     """
-    from tqdm import tqdm
-    if peratom:
-        dft = [getattr(a, prop)/float(a.n) for a in atoms]
-    else:
-        dft = getattr(atoms, prop)
-    ipprop = next(calcargs.iterkeys())
-    ip = []
-    
-    for a in tqdm(atoms):
-        a.set_cutoff(pot.cutoff())
-        a.calc_connect()
-        pot.calc(a, **calcargs)
-        if peratom:
-            ip.append(getattr(a, ipprop)/float(a.n))
-        else:
-            ip.append(getattr(a, ipprop))
-            
-    return (dft, ip)
+    ipprop = None
+    if energy:
+        ipprop = lambda a: a.get_potential_energy()
+    if force:
+        ipprop = lambda a: a.get_forces()
+    if virial:
+        ipprop = lambda a: a.get_stress(False)*a.get_volume()
 
-def energy(pot, atoms, folder=None, base64=False, index=None):
+    ref, ip = [], []
+    import pudb
+    for i, a in tqdm(enumerate(atoms)):
+        if hasattr(a, prop):
+            a.set_calculator(pot)
+            if peratom:
+                ref.append(getattr(a, prop)/float(a.n))
+                ip.append(ipprop(a)/float(a.n))
+            else:
+                ref.append(getattr(a, prop))
+                ip.append(ipprop(a))
+    return (ref, ip)
+
+def energy(pot, atoms, folder=None, base64=False, index=None, valkey="ref"):
     """Produces an energy correlation plot for the specified potential.
 
     Args:
-        pot (quippy.Potential): IP to calculate properties with.
-        atoms (quippy.AtomsList): list of atoms to calculate correlations with
+        pot (matdb.calculator.Calculator): IP to calculate properties with.
+        atoms (matdb.AtomsList): list of atoms to calculate correlations with
           respect to.
         folder (str): path to the folder where the saved image should be stored.
         base64 (bool): when True, use a base-64 encoded `src` for the output of
@@ -272,29 +278,31 @@ def energy(pot, atoms, folder=None, base64=False, index=None):
           name is returned.
         index (int): integer index of this plot in the parent collection.
     """
-    dft, ip = _get_xy(pot, atoms, "dft_energy", energy=True, peratom=True)
-    dft, ip = np.array(dft), np.array(ip)
+    ref, ip = _get_xy(pot, atoms, "{}_energy".format(valkey), energy=True,
+                      peratom=True)
+    ref, ip = np.array(ref), np.array(ip)
     
     #Setup the keyword arguments for the axes labels, etc.
     subplot_kw = {
-        "xlabel": "DFT Energy (eV)",
+        "xlabel": "REF Energy (eV)",
         "ylabel": "IP Energy (eV)"
     }
     if hasattr(atoms[0],"config_type"):
         ctypes = np.array(atoms.config_type)
     else:
         ctypes = None
-    title = "RMSE {0:.4f}".format(np.std(dft-ip))
-    return PDI(dft, ip, subplot_kw=subplot_kw, index=index, base64=base64,
+    title = "RMSE {0:.4f}".format(np.std(ref-ip))
+
+    return PDI(ref, ip, subplot_kw=subplot_kw, index=index, base64=base64,
                name="Energy", imgtype="energy", folder=folder, withdiag=True,
                title=title, partition=ctypes)
 
-def force(pot, atoms, folder=None, base64=False, index=None):
+def force(pot, atoms, folder=None, base64=False, index=None, valkey="ref"):
     """Produces a force correlation plot for the specified potential.
 
     Args:
-        pot (quippy.Potential): IP to calculate properties with.
-        atoms (quippy.AtomsList): list of atoms to calculate correlations with
+        pot (matdb.calculator.Calculator): IP to calculate properties with.
+        atoms (matdb.AtomsList): list of atoms to calculate correlations with
           respect to.
         folder (str): path to the folder where the saved image should be stored.
         base64 (bool): when True, use a base-64 encoded `src` for the output of
@@ -302,34 +310,34 @@ def force(pot, atoms, folder=None, base64=False, index=None):
           name is returned.
         index (int): integer index of this plot in the parent collection.
     """
-    dft, ip = _get_xy(pot, atoms, "dft_force", force=True)
-    dft = np.hstack([np.array(f).flatten() for f in dft]).flatten()
-    ip = np.hstack([np.array(f).flatten() for f in ip]).flatten()
+    ref, ip = _get_xy(pot, atoms, "{}_force".format(valkey), force=True)
+    ref = np.concatenate([np.array(f).flatten() for f in ref]).flatten()
+    ip = np.concatenate([np.array(f).flatten() for f in ip]).flatten()
 
     if hasattr(atoms[0],"config_type"):
         aconfigs = atoms.config_type
         N = np.array(atoms.n)*3
         ctypes = np.array([ac for ac, n in zip(aconfigs, N) for i in range(n)])
-        assert len(ctypes) == len(dft)
+        assert len(ctypes) == len(ref)
     else:
         ctypes = None
     
     #Setup the keyword arguments for the axes labels, etc.
     subplot_kw = {
-        "xlabel": "DFT Forces (eV/A)",
+        "xlabel": "REF Forces (eV/A)",
         "ylabel": "IP Forces (eV/A)"
     }
-    title = "RMSE {0:.4f}".format(np.std(dft-ip))
-    return PDI(dft.flatten(), ip.flatten(), subplot_kw=subplot_kw, index=index,
+    title = "RMSE {0:.4f}".format(np.std(ref-ip))
+    return PDI(ref.flatten(), ip.flatten(), subplot_kw=subplot_kw, index=index,
                base64=base64, name="Force", imgtype="force",
                folder=folder, withdiag=True, title=title, partition=ctypes)
 
-def virial(pot, atoms, folder=None, base64=False, index=None):
+def virial(pot, atoms, folder=None, base64=False, index=None, valkey="ref"):
     """Produces a virial correlation plot for the specified potential.
 
     Args:
-        pot (quippy.Potential): IP to calculate properties with.
-        atoms (quippy.AtomsList): list of atoms to calculate correlations with
+        pot (matdb.calculator.Calculator): IP to calculate properties with.
+        atoms (matdb.AtomsList): list of atoms to calculate correlations with
           respect to.
         folder (str): path to the folder where the saved image should be stored.
         base64 (bool): when True, use a base-64 encoded `src` for the output of
@@ -337,34 +345,34 @@ def virial(pot, atoms, folder=None, base64=False, index=None):
           name is returned.
         index (int): integer index of this plot in the parent collection.
     """
-    dft, ip = _get_xy(pot, atoms, "dft_virial", virial=True, peratom=True)
-    dft = np.hstack([np.array(v).flatten() for v in dft]).flatten()
+    ref, ip = _get_xy(pot, atoms, "{}_virial".format(valkey), virial=True, peratom=True)
+    ref = np.hstack([np.array(v).flatten() for v in ref]).flatten()
     ip = np.hstack([np.array(v).flatten() for v in ip]).flatten()
 
     if hasattr(atoms[0],"config_type"):
         aconfigs = atoms.config_type
         ctypes = np.array([ac for ac in aconfigs for i in range(9)])
-        assert len(ctypes) == len(dft)
+        assert len(ctypes) == len(ref)
     else:
         ctypes = None
     
     #Setup the keyword arguments for the axes labels, etc.
     subplot_kw = {
-        "xlabel": "DFT Virial (eV/A^3)",
+        "xlabel": "REF Virial (eV/A^3)",
         "ylabel": "IP Virial (eV/A^3)"
     }
-    title = "RMSE {0:.4f}".format(np.std(dft-ip))
-    return PDI(dft.flatten(), ip.flatten(), subplot_kw=subplot_kw, index=index,
+    title = "RMSE {0:.4f}".format(np.std(ref-ip))
+    return PDI(ref.flatten(), ip.flatten(), subplot_kw=subplot_kw, index=index,
                base64=base64, name="Virial", imgtype="virial",
                folder=folder, withdiag=True, title=title, partition=ctypes)
 
-def EvsV(pot, atoms, folder=None, base64=False, index=None):
+def EvsV(pot, atoms, folder=None, base64=False, index=None, valkey="ref"):
     """Produces an energy vs. volume plot for the energies predicted by the
     potential.
 
     Args:
-        pot (quippy.Potential): IP to calculate properties with.
-        atoms (quippy.AtomsList): list of atoms to calculate correlations with
+        pot (matdb.calculator.Calculator): IP to calculate properties with.
+        atoms (matdb.AtomsList): list of atoms to calculate correlations with
           respect to.
         folder (str): path to the folder where the saved image should be stored.
         base64 (bool): when True, use a base-64 encoded `src` for the output of
@@ -372,7 +380,7 @@ def EvsV(pot, atoms, folder=None, base64=False, index=None):
           name is returned.
         index (int): integer index of this plot in the parent collection.
     """
-    dft, ip = _get_xy(pot, atoms, "dft_energy", energy=True)
+    ref, ip = _get_xy(pot, atoms, "{}_energy".format(valkey), energy=True)
     vol = np.array([a.get_volume()/a.n for a in atoms])
     
     subplot_kw = {
@@ -380,5 +388,5 @@ def EvsV(pot, atoms, folder=None, base64=False, index=None):
         "ylabel": "IP Energy (eV)"
     }
 
-    return PDI(np.array(dft), np.array(vol), subplot_kw=subplot_kw, index=index,
+    return PDI(np.array(ref), np.array(vol), subplot_kw=subplot_kw, index=index,
                base64=base64, name="EvsV", imgtype="evsv", folder=folder)

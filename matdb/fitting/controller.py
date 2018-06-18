@@ -30,6 +30,7 @@ class TrainingSequence(object):
     """
     def __init__(self, name, repeater, root, controller, steps, **kwargs):
         self.name = name
+        self.fqn = "{}.{}".format(repeater.name, name)
         self.root = path.join(root, name)
         self.repeater = repeater
         self.controller = controller
@@ -306,11 +307,14 @@ class TController(object):
         :class:`Trainer` sub-class. Wildcard `*` or any other
         :func:`~fnmatch.fnmatch` patterns may be used.
         """
-        trainer, step = pattern.split('.')
-        if '-' in trainer:
-            repname = trainer.split('-')[0]
+        if pattern.count('.') == 2:
+            repname, trainer, step = pattern.split('.')
         else:
-            repname = trainer
+            trainer, step = pattern.split('.')
+            if '-' in trainer:
+                repname = trainer.split('-')[0]
+            else:
+                repname = trainer
 
         from fnmatch import fnmatch
         result = []

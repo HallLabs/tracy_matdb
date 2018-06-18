@@ -223,8 +223,7 @@ def test_AtomsList_attributes():
 
     with pytest.raises(AttributeError):
         al1.__getattr__('__dict__')
-    with pytest.raises(AttributeError):
-        al1.energy
+    assert al1.energy is None
 
     alslice = al1[0:2]
     assert len(alslice) == 2

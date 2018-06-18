@@ -240,5 +240,8 @@ class Distortion(Group):
             local_atoms.set_cell(np.matmul(local_atoms.get_cell(), i))
             if (self.rattle != 0.0):
                 local_atoms.rattle(stdev=self.rattle)
+            #Also distort the positions of the atoms just like the lattice
+            #vectors.
+            local_atoms.positions = np.matmul(local_atoms.get_positions(), i)
             atom_seed.append(local_atoms)
         return atom_seed
