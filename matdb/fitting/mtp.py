@@ -194,8 +194,10 @@ class MTP(Trainer):
                 for line in f:
                     old_status = line.strip().split()
                 self.iter_status = old_status[0]
+                self.iter_count = int(old_status[1])
         else:
             self.iter_status = None
+            self.iter_count = None
 
         # we need access to the active learning set
         db_root = self.controller.db.root
@@ -390,8 +392,8 @@ class MTP(Trainer):
         temp_cfg = path.join(self.root, "temp.cfg")
         atoms_to_cfg(atm, temp_cfg)
 
-        if not path.isfile(temp_cfg):
-            raise IOError("Failed to create cfg file for atmso object stored "
+        if not path.isfile(temp_cfg): #pragma: no cover
+            raise IOError("Failed to create cfg file for atoms object stored "
                           "at: {0}".format(atm.calc.folder))
         
         if path.isfile(target):
@@ -525,9 +527,10 @@ class MTP(Trainer):
         #   --nbh-weight=<num>: set the weight for site energy equations, default=0
         #   --mvs-filename =<filename>: name of mvs file        
         template = "mlp calc-grade pot.mtp train.cfg train.cfg temp1.cfg"
-        for k, v in self.grade_args:
+        for k, v in self.grade_args.items():
             if k == "mvs-filename":
                 msg.warn("Renaming the mvs state file is not enabled.")
+                continue
             template = template + " --{0}={1}".format(k,v)
 
         return template
@@ -563,7 +566,7 @@ class MTP(Trainer):
                         "--save-unrelaxed={3}".format(self.ncores,
                                                       "relaxed.cfg",
                                                       "log.txt",
-                                                      "unrelaxd.cfg"))
+                                                      "unrelaxed.cfg"))
         else:
             template = ("mlp relax relax.ini "
                         "--cfg-filename=to-relax.cfg "
@@ -624,7 +627,7 @@ class MTP(Trainer):
 
         if not path.isfile(path.join(self.root,"status.txt")):
             self.iter_status = "train"
-            iter_count = 1
+            self.iter_count = 1
         else:
             with open(path.join(self.root,"status.txt"),"r") as f:
                 for line in f:
@@ -632,14 +635,14 @@ class MTP(Trainer):
 
             if old_status[0] == "done":
                 self.iter_status = "train"
-                iter_count = int(old_status[1]) + 1
+                self.iter_count = int(old_status[1]) + 1
             else:
                 self.iter_status = old_status[0]
-                iter_count = int(old_status[1])
+                self.iter_count = int(old_status[1])
                 
         #if we're at the start of a training iteration use the command to train the potential
         if self.iter_status == "train":
-            self._make_train_cfg(iter_count)
+            self._make_train_cfg(self.iter_count)
 
             #remove the selected.cfg and rexaed.cfg from the last iteration if they exist
             if path.isfile(path.join(self.root,"selected.cfg")):
@@ -653,7 +656,7 @@ class MTP(Trainer):
                 self._make_pot_initial()
             template = self._train_template
             with open(path.join(self.root,"status.txt"),"w+") as f:
-                f.write("relax_setup {0}".format(iter_count))
+                f.write("relax_setup {0}".format(self.iter_count))
 
         if self.iter_status == "relax_setup":
             # If pot has been trained
@@ -677,7 +680,7 @@ class MTP(Trainer):
                 self._setup_to_relax_cfg()
                 template = "matdb_mtp_to_relax.py"
                 with open(path.join(self.root,"status.txt"),"w+") as f:
-                    f.write("relax {0}".format(iter_count))
+                    f.write("relax {0}".format(self.iter_count))
             else:
                 self.iter_status = "relax"
 
@@ -688,7 +691,7 @@ class MTP(Trainer):
 
             template = self._relax_template()
             with open(path.join(self.root,"status.txt"),"w+") as f:
-                f.write("select {0}".format(iter_count))
+                f.write("select {0}".format(self.iter_count))
 
         # if relaxation is done
         if self.iter_status == "select":
@@ -706,9 +709,9 @@ class MTP(Trainer):
                 # input filename sould always be entered before output filename
                 execute(["mlp", "convert-cfg", "new_training.cfg", "POSCAR",
                          "--output-format=vasp-poscar"], self.root)
-                rename("new_training.cfg", "new_training.cfg_iter_{}".format(iter_count))
+                rename("new_training.cfg", "new_training.cfg_iter_{}".format(self.iter_count))
                 if path.isfile(self.relaxed_file):
-                    rename("relaxed.cfg", "relaxed.cfg_iter_{}".format(iter_count))
+                    rename("relaxed.cfg", "relaxed.cfg_iter_{}".format(self.iter_count))
 
                 new_configs = []
                 new_POSCARS = glob("POSCAR*")
@@ -729,15 +732,15 @@ class MTP(Trainer):
                     new_configs.append(Atoms(POSCAR,format="vasp"))
                     remove(POSCAR)
 
-                self.active.add_configs(new_configs, iter_count)
+                self.active.add_configs(new_configs, self.iter_count)
                 self.active.setup()
                 if len(self.active.configs) != self.active.nconfigs: #pragma: no cover
                     raise LogicError("The active database failed to setup the calculations "
-                                     "for iteration {0}".format(iter_count))
+                                     "for iteration {0}".format(self.iter_count))
                 self.active.execute()
             
             with open(path.join(self.root,"status.txt"),"w+") as f:
-                f.write("done {0}".format(iter_count))
+                f.write("done {0}".format(self.iter_count))
             template = ''
 
         return template
@@ -751,17 +754,24 @@ class MTP(Trainer):
         # Our interest is in knowing which MTP model is the latest (if any) and
         # whether the job script has been created for the next one in the
         # sequence.
+        last_iter = self.active.last_iteration
         result = {
-            "trained": path.isfile(self.mtp_file),
+            "trained": self.ready(),
             "file": self.mtp_file,
-            "jobfile": path.isfile(self._jobfile)
+            "jobfile": path.isfile(self._jobfile),
+            "mtp step": self.iter_status,
+            "last addition": len(last_iter) if last_iter is not None else 0
         }
         
         if printed:
-            fqn = "{}.{}".format(self.parent.name, self.name)
-            msg.info("{} => Model ready: {}".format(fqn, result["trained"]))
+            fqn = "{0}.{1}".format(self.parent.name, self.name)
+            msg.info("{0} => Model ready: {1}".format(fqn, result["trained"]))
             x = "exists" if result["jobfile"] else "does not exist"
-            msg.info("{} => Next jobfile '{}' {}".format(fqn, self._jobfile, x))
+            msg.info("{0} => Next jobfile '{1}' {2}".format(fqn, self._jobfile, x))
+            msg.info("{0} => Current MTP step {1} iteration {2}.".format(fqn, self.iter_status,
+                                                                      self.iter_count))
+            msg.info("{0} => {1} configurations added "
+                     "to the training set.".format(fqn, result["last addition"]))
             msg.blank()
         else:
             return result
@@ -771,13 +781,7 @@ class MTP(Trainer):
         """
         if self.split is None:
             self.params["split"] = 1
-        else:
-            if len(self.dbs) > 0:
-                _splitavg = []
-                for db in self.dbs:
-                    if db in self.cust_splits:
-                        splt = self.cust_splits[db]
-                        _splitavg.append(1 if splt == '*' else splt)
-                    else:
-                        _splitavg.append(db.splits[self.split])
-                self.params["split"] = sum(_splitavg)/len(self.dbs)
+        else: #pragma: no cover (this feature is tested by the base
+              #class. It also doesn't make sense to use splits within
+              #the mtp context.
+            super(MTP, self)._update_split_params()
