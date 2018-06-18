@@ -181,11 +181,9 @@ class MTP(Trainer):
         super(MTP, self).__init__(controller, dbs, execution, split, root,
                                   parent, dbfilter)
         self.ncores = execution["ntasks"]
-        if "mtp" not in root:
-            self.root = path.join(root, "mtp")
-        else:
-            self.root = root
-
+        self._root = root
+        self._set_root()
+        
         self._set_local_attributes(mtpargs)
 
         self.species = controller.db.species
@@ -210,6 +208,17 @@ class MTP(Trainer):
                   "calculator":self.controller.db.calculator}
         self.active = Active(**dbargs)
         self._trainfile = path.join(self.root, "train.cfg")
+
+    def _set_root(self):
+        """Sets the root directory.
+        """
+        if "mtp" not in self._root.split('/')[-1]:
+            self.root = path.join(self._root,"mtp")
+        else:
+            self.root = self._root
+        #Configure the fitting directory for this particular potential.
+        if not path.isdir(self.root):
+            mkdir(self.root)        
         
     def _set_local_attributes(self, mtpargs):
         """Sets the attributes of the mtp object from the input dictionary.
@@ -432,7 +441,7 @@ class MTP(Trainer):
             
         setup_args = {}
         
-        if len(self.species) >4:
+        if len(self.species) >=4:
             msg.err("The MTP relaxation isn't setup to create a to-relax.cfg "
                     "file for systems with more than 4 elements.")
             return
@@ -487,7 +496,7 @@ class MTP(Trainer):
         else:
             template = "train pot.mtp train.cfg"
             
-        for k, v in self.train_args.items:
+        for k, v in self.train_args.items():
             if k == "curr-pot-name" or k == "trained-pot-name":
                 msg.warn("Renaming of the potential file is not enabled.")
                 continue
@@ -611,6 +620,7 @@ class MTP(Trainer):
         .. note:: This method also configures the directory that the command
           will run in so that it has the relevant files.
         """
+        self._set_root()
 
         if not path.isfile(path.join(self.root,"status.txt")):
             self.iter_status = "train"
@@ -673,13 +683,20 @@ class MTP(Trainer):
 
         if self.iter_status == "relax":
             # command to relax structures
+            if path.isfile(path.join(self.root,"candidate.cfg")):
+                remove(path.join(self.root,"candidate.cfg"))
+
             template = self._relax_template()
             with open(path.join(self.root,"status.txt"),"w+") as f:
                 f.write("select {0}".format(iter_count))
 
         # if relaxation is done
         if self.iter_status == "select":
-            cat(glob(path.join(self.root,"candidate.cfg_*")), path.join(self.root,"candidate.cfg"))
+            cand_files = glob(path.join(self.root,"candidate.cfg_*"))
+            cat(cand_files, path.join(self.root,"candidate.cfg"))
+            for cfile in cand_files:
+                remove(cfile)
+
             # command to select next training set.
             select_template = self._select_template()
             execute(select_template.split(), self.root)
