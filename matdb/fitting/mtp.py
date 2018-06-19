@@ -207,19 +207,23 @@ class MTP(Trainer):
         dbargs = {"root":db_root,
                   "parent":Database("active", db_root, self.controller.db, steps, {},
                                     self.ran_seed),
-                  "calculator":self.controller.db.calculator}
+                  "calculator": self.controller.db.calculator}
         self.active = Active(**dbargs)
+        fix_static = getattr(self.active.calc, "set_static", None)
+        if callable(fix_static):
+            self.active.calcargs = fix_static(self.active.calcargs)
         self._trainfile = path.join(self.root, "train.cfg")
 
     def _set_root(self):
         """Sets the root directory.
         """
-        if "mtp" not in self._root.split('/')[-1]:
+        if "mtp" != self._root.split('/')[-1]:
             self.root = path.join(self._root,"mtp")
         else:
             self.root = self._root
         #Configure the fitting directory for this particular potential.
-        if not path.isdir(self.root):
+        if not path.isdir(self.root): #pragma: no cover
+            # This never gets run. Kept as a fail safe.
             mkdir(self.root)        
         
     def _set_local_attributes(self, mtpargs):
@@ -363,21 +367,22 @@ class MTP(Trainer):
         """
         if iteration == 1:
             for db in self.dbs:
-                pbar = tqdm(total=len(db.fitting_configs))
-                for atm in db.config_atoms:
-                    self._create_train_cfg(atm, path.join(self.root, "train.cfg"))
-                    pbar.update(1)
+                for step in db.steps.values():
+                    pbar = tqdm(total=len(step.rset))
+                    for atm in step.rset:
+                        self._create_train_cfg(atm, path.join(self.root, "train.cfg"))
+                        pbar.update(1)
         else:
             if self.active.last_iteration is None or len(self.active.last_iteration) < 1:
                 if path.isfile(self.active.iter_file):
                     self.active._load_last_iter()
                 else:
-                    msg.err("File {0} containing most recently added "
-                            "structures is missing.".format(self.active.iter_file))
+                    raise IOError("File {0} containing most recently added "
+                                  "structures is missing.".format(self.active.iter_file))
             msg.info("Extracting from {0} folders".format(len(self.active.last_iteration)))
             self.active.extract()
             pbar = tqdm(total=len(self.active.last_iteration))
-            for atm in db.last_config_atoms:
+            for atm in self.active.last_config_atoms.values():
                 self._create_train_cfg(atm, path.join(self.root, "train.cfg"))
                 pbar.update(1)
 
@@ -397,14 +402,17 @@ class MTP(Trainer):
                           "at: {0}".format(atm.calc.folder))
         
         if path.isfile(target):
-            cat([temp.cfg, target], path.join(self.root, "temp2.cfg"))
+            cat([temp_cfg, target], path.join(self.root, "temp2.cfg"))
             rename(path.join(self.root, "temp2.cfg"), target)
         else:
             rename(temp_cfg, target)
 
         if path.isfile(temp_cfg):
             remove(temp_cfg)
-        if path.isfile(path.join(self.root, "temp2.cfg")):
+        if path.isfile(path.join(self.root, "temp2.cfg")):#pragma: no cover
+            # This line should only get run if something goes terribly
+            # wrong up above. I'm keeping it here purely as a fail
+            # safe.
             remove(path.join(self.root, "temp2.cfg"))
             
     def _make_pot_initial(self):
@@ -645,8 +653,8 @@ class MTP(Trainer):
             self._make_train_cfg(self.iter_count)
 
             #remove the selected.cfg and rexaed.cfg from the last iteration if they exist
-            if path.isfile(path.join(self.root,"selected.cfg")):
-                remove(path.join(self.root,"selected.cfg"))
+            if path.isfile(path.join(self.root,"new_training.cfg")):
+                remove(path.join(self.root,"new_training.cfg"))
             if path.isfile(path.join(self.root,"relaxed.cfg")):
                 remove(path.join(self.root,"relaxed.cfg"))        
         
@@ -666,7 +674,7 @@ class MTP(Trainer):
             calc_grade = self._calc_grade_template()
             execute(calc_grade.split(), self.root)
             remove(path.join(self.root, "temp1.cfg"))
-            if not path.isfile(path.join(self.root, "state.mvs")):
+            if not path.isfile(path.join(self.root, "state.mvs")): #pragma: no cover
                 raise MlpError("mlp failed to produce the 'state.mvs` file with command "
                                "'mlp calc-grade pot.mtp train.cfg train.cfg temp1.cfg'")
             
@@ -701,16 +709,18 @@ class MTP(Trainer):
                 remove(cfile)
 
             # command to select next training set.
-            select_template = self._select_template()
-            execute(select_template.split(), self.root)
+            template = self._select_template()
+            with open(path.join(self.root,"status.txt"),"w+") as f:
+                f.write("add {0}".format(self.iter_count))
 
+        if self.iter_status == "add":
             with chdir(self.root):
                 # Now add the selected atoms to the Active database.
                 # input filename sould always be entered before output filename
                 execute(["mlp", "convert-cfg", "new_training.cfg", "POSCAR",
                          "--output-format=vasp-poscar"], self.root)
                 rename("new_training.cfg", "new_training.cfg_iter_{}".format(self.iter_count))
-                if path.isfile(self.relaxed_file):
+                if path.isfile("relaxed.cfg"):
                     rename("relaxed.cfg", "relaxed.cfg_iter_{}".format(self.iter_count))
 
                 new_configs = []
