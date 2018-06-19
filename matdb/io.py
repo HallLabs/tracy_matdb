@@ -71,8 +71,8 @@ def atoms_to_cfg(atm, target, config_id=None, type_map=None):
         
         f.write("  ")
 
-        if "force" in atm.params:
-            force = atm.force
+        if "{0}force".format(calc_name) in atm.properties:
+            force = atm.properties["{0}force".format(calc_name)]
             f.write(" AtomData:  id type       cartes_x      cartes_y      "
                     "cartes_z           fx          fy          fz\n")
         else:
@@ -80,7 +80,7 @@ def atoms_to_cfg(atm, target, config_id=None, type_map=None):
         iAt = 0
         for type, loc in zip(chem_syms, pos):
             out_lab = local_map[type]
-            if "{0}force".format(calc_name) in atm.params:
+            if "{0}force".format(calc_name) in atm.properties:
                 f.write("             {0}    {1}       "
                         "{2}    {3}\n".format(iAt+1, out_lab,
                                               "  ".join(["{0: .8f}".format(i) for i in loc]),
@@ -91,13 +91,16 @@ def atoms_to_cfg(atm, target, config_id=None, type_map=None):
                                        "  ".join(["{0: .8f}".format(i) for i in loc])))
             iAt += 1
 
-        if "{0}energy".format(calc_name) in atm.properties:
+        if "{0}energy".format(calc_name) in atm.params:
             f.write("  Energy\n")
-            f.write("        {0}\n".format(atm.energy))
+            f.write("        {0}\n".format(atm.params["{0}energy".format(calc_name)]))
 
-        if "{0}stress".format(calc_name) in atm.properties:
+        if "{0}virial".format(calc_name) in atm.params:
+            virial = [atm.params["vasp_virial"][0][0], atm.params["vasp_virial"][1][1],
+                      atm.params["vasp_virial"][2][2], atm.params["vasp_virial"][2][1],
+                      atm.params["vasp_virial"][2][0], atm.params["vasp_virial"][0][1]]
             f.write(" Stress:   xx          yy          zz          yz          xz          xy\n")
-            f.write("            {0}\n".format("    ".join([str(i) for i in atm.stress])))
+            f.write("            {0}\n".format("    ".join(["{0: .8f}".format(i) for i in virial])))
                         
         if config_id is None:
             conf_id = "{0}_{1}".format("".join(np.unique(chem_syms)),len(pos))
