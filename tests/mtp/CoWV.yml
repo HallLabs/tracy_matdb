@@ -1,0 +1,84 @@
+title: 'CoWV first ternary for Gus'
+# Ordered list of species; this is the same order as should be in the
+# POTCAR file for VASP calculations.
+species:
+  - 'Co'
+  - 'W'
+  - 'V'
+# If the POTCAR names are non-standard, include the *suffix* after the
+# element name here.
+# Directory in which the database folder system will be created.
+root: '.tests/mtp'
+venv: 'matdb'
+# Define the calculator to use for this Database
+calculator:
+  name: 'Vasp'
+  prec: 'a'   
+  ediff: 0.00001
+  pp: 'pbe'
+  exec_path: 'vasp6.x'
+  # We use Mueller k-points exclusively. These kpoint settings apply to
+  # all database calculations.
+  kpoints:
+    method: 'mueller'
+    mindistance: 50
+  potcars:
+    versions:
+      Co: '02Aug2007'
+      W: '08Apr2002'
+      V: '08Apr2002'
+    directory: './tests/vasp'
+    xc: 'PBE'
+     
+# Parameters for the job arrays that will be submitted for each
+# database. These can be overridden in each database below as well.
+execution:
+  template: 'run_array_ml.sh'
+  time: 12
+  ntasks: 1
+  nodes: 1
+  mem_per_cpu: 6GB
+  job_name: 'CoWV'
+  array_limit: 50
+  modules_load: ['mkl/11.2.0']
+  exec_path: 'vasp6.x'
+  options:
+    - "--qos=msg"
+    - "-C knl"
+# Next, we include a list of all the databases we want to create. A
+# database following this pattern is created *for each* of the seed
+# configurations listed above.
+databases:
+  #The PhononBase class generates the dynamical matrix that is needed
+  #by PhononDatabase.
+  - name: 'test'
+    steps:
+      - type: "simple.Manual"
+        seeds: ["POSCAR:vasp.*"]
+
+splits:
+  A: 1.0
+  
+fitting:
+  dbs: ['*']
+  execution:
+    template: 'run_mtp_ml.sh'
+    time: 4
+    ntasks: 72
+    nodes: 1
+    mem_per_cpu: 500MB
+    job_name: 'FitRlxSelect'
+    options:
+      - "--qos=msg"
+      - "-C knl"
+    modules: ['mpi/openmpi-1.8.5_intel-15.0.2','compiler_intel/2017']
+  fits:
+    - name: "CoWV_mtp"
+      dbs: ["*"]
+      steps:
+        - type: "mtp.MTP"
+          selection-limit: 200
+          species:
+            - "Co"
+            - "W"
+            - "V"
