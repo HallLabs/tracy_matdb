@@ -296,6 +296,22 @@ class AsyncQe(Espresso, AsyncCalculator):
 
         self.cleanup(folder,clean_level=cleanup)
 
+    @staticmethod
+    def set_static(input_dict):
+        """Converts the input dictionary to one for a static QE calculation.
+        """
+        if "input_data" in input_dict:
+            if "control" in input_dict["input_data"]:
+                input_dict["input_data"]["control"]["calculation"] = "scf"
+            else:
+                input_dict["input_data"]["control"] = {}
+                input_dict["input_data"]["control"]["calculation"] = "scf"
+        else:
+            input_dict["input_data"] = {}
+            input_dict["input_data"]["control"] = {}
+            input_dict["input_data"]["control"]["calculation"] = "scf"
+        return input_dict
+
     def cleanup(self, folder, clean_level="default"):
         """Performs cleanup on the folder where the calculation was
         performed. The clean_level determines which files get removed.
