@@ -61,6 +61,7 @@ def run(args):
     print(keyword)
     if keyword == "calc-grade":
         touch("state.mvs")
+        touch("temp1.cfg")
     elif keyword == "select-add":
         template_root = path.join(_get_reporoot(), "tests", "fitting", "files")
         touch("new_training.cfg")
@@ -68,12 +69,11 @@ def run(args):
         # dest = "new_training.cfg"
         # copyonce(src, dest)
     elif keyword == "convert-cfg":
-        template_root = path.join(_get_reporoot(), "tests", "fitting", "files")
+        template_root = path.join(_get_reporoot(), "tests", "mtp", "training")
         for i in range(1,11):
-            touch("POSCAR{0}".format(i))
-            # src = path.join(template_root,"mtp_convert_POSCAR{0}".format(i))
-            # dest = "POSCAR{0}".format(i)
-            # copyonce(src, dest)
+            src = path.join(template_root,"POSCAR{0}".format(i))
+            dest = "POSCAR{0}".format(i)
+            copyonce(src, dest)
     
 if __name__ == '__main__': # pragma: no cover
     run(_parser_options())
