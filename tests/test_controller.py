@@ -97,7 +97,11 @@ def Pd_split(tmpdir):
     from shutil import copy
     POSCAR = relpath("./tests/Pd/POSCAR")
     mkdir(path.join(dbdir,"seed"))
-    copy(POSCAR, path.join(dbdir,"seed","Pd"))
+    copy(POSCAR, path.join(dbdir,"seed","Pd-1"))
+    copy(POSCAR, path.join(dbdir,"seed","Pd-2"))
+    copy(POSCAR, path.join(dbdir,"seed","Pd-3"))
+    copy(POSCAR, path.join(dbdir,"seed","Pd-4"))
+    copy(POSCAR, path.join(dbdir,"seed","Pd-5"))
 
     result = Controller(target, dbdir)
     return result
@@ -257,9 +261,9 @@ def test_find(Pd):
     assert model == [s.root for s in steps]
 
     steps = Pd.find('*')
-    model = ['manual']
+    model = ['phonon']
     assert model == [s.name for s in steps]
-    model = [path.join(Pd.root,'Manual/phonon')]
+    model = [Pd.root]
     assert model == [s.root for s in steps]
 
     steps = Pd.find("manual/phonon/Pd/S1.1")
@@ -409,6 +413,7 @@ def test_finalize(Pd):
     _mimic_vasp(folder,Pd.root,"S1.1")
 
     Pd.extract()
+    Pd.split()
     Pd.finalize()
 
     from matdb.io import load_dict_from_h5
@@ -430,11 +435,25 @@ def test_split(Pd_split):
     from os import path
     Pd_split.setup()
     Pd_split.execute(env_vars={"SLURM_ARRAY_TASK_ID":"1"})
-    folder = path.join(reporoot,"tests","data","Pd","manual")
+    folder = path.join(reporoot,"tests","data","Pd","manual_split")
     _mimic_vasp(folder,Pd_split.root,"S1.1")
 
     Pd_split.extract()
     Pd_split.split()
+
+    for dbname, db in Pd_split.collections.items():
+        for s, p in db.splits.items():
+            tfile = path.join(db.train_file(s).format(s))
+            hfile = path.join(db.holdout_file(s).format(s))
+            sfile = path.join(db.super_file(s).format(s))
+
+            tal = AtomsList(tfile)
+            hal = AtomsList(hfile)
+            sal = AtomsList(sfile)
+
+            assert len(tal) == int(np.ceil(5*p))
+            assert len(hal) == int(np.ceil((5-len(tal))*p))
+            assert len(sal) == 5-len(tal)-len(hal)
     
 @pytest.mark.skip()    
 def test_Pd_hessian(Pd):

@@ -58,7 +58,7 @@ databases:
   - name: 'phonon'
     steps:
       - type: "simple.Manual"
-        seeds: ["POSCAR:Pd","POSCAR:Pd"]
+        seeds: ["POSCAR:Pd-1","POSCAR:Pd-2","POSCAR:Pd-3","POSCAR:Pd-4","POSCAR:Pd-5"]
         calculator:
           kpoints:
             method: 'mueller'

@@ -1021,7 +1021,7 @@ def _conform_atoms(atoms, ekey, fkey, vkey, hesskey):
     #configs (for example Hessian fitting), a config may only have
     #an eigenvalue/eigenvector pair and no energy, force or virial
     #information.
-    ati = atoms.copy()
+    ati = Atoms(path.join(atoms, "atoms.h5"))
     if ekey in ati.params:
         energy = ati.params[ekey]
         ati.params["ref_energy"] = energy
@@ -1367,12 +1367,18 @@ class Database(object):
             
             for dbname, db in self.isteps:
                 final_dict["dbname"] = db.finalize()
+
+            for name, train_perc in self.splits.items():
+                for f in glob(path.join(self.root,"splits",self.name,"{0}*-ids.pkl".format(name))):
+                    id_file = open(f,'r')
+                    final_dict[f.split(".pkl")[0]] = _recursively_convert_units(pickle.load(id_file), split=True)
         else:
             final_dict["hash"] = self.hash_bin()                
 
-        for name, trani_perc in self.splits.items():
-            for f in glob(path.join(self.root,"{0}*-ids.pkl".format(name))):
-                final_dict[f.split(".pkl")[0]] = _recursively_convert_units(pickle.load(f))
+        # for name, trani_perc in self.splits.items():
+        #     for f in glob(path.join(self.root,"splits",self.name,"{0}*-ids.pkl".format(name))):
+        #         id_file = open(f,'r')
+        #         final_dict[f.split(".pkl")[0]] = _recursively_convert_units(pickle.load(id_file))
 
         return final_dict
         
@@ -1844,7 +1850,7 @@ class Controller(object):
         final_dict["hash"] = self.hash_dbs(dfilter=dfilter)
         final_dict["yml_file"] = self.specs.copy()
         for dbname, seq in self.ifiltered(dfilter):
-            final_dict["dbname"] = seq.finalize()
+            final_dict[dbname] = seq.finalize()
 
         if (dfilter is not None and "rec_bin" in dfilter) or dfilter is None or dfilter=="*":
             final_dict["rec_bin"] = seq.rec_bin.finalize()
