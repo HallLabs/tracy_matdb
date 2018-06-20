@@ -451,7 +451,7 @@ class MTP(Trainer):
             
         setup_args = {}
         
-        if len(self.species) >=4:
+        if len(self.species) >4:
             msg.err("The MTP relaxation isn't setup to create a to-relax.cfg "
                     "file for systems with more than 4 elements.")
             return

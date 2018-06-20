@@ -297,7 +297,7 @@ def test_make_input_files(mtpdb):
     assert to_relax_dict["max_atoms"] == mtpfit.relax_max_atoms
     assert to_relax_dict["root"] == mtpfit.root
     
-    mtpfit.species = ["Co", "Ni", "Ti", "W"]
+    mtpfit.species = ["Co", "Ni", "Ti", "W", "Li"]
 
     assert mtpfit._setup_to_relax_cfg() is None
 
