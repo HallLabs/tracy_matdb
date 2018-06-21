@@ -47,8 +47,6 @@ def test_split(phondb):
     
     phondb.split()
     for s, p in phondb.splits.items():
-        print s
-        print p
         tfile = path.join(phondb.train_file(s).format(s))
         hfile = path.join(phondb.holdout_file(s).format(s))
         sfile = path.join(phondb.super_file(s).format(s))

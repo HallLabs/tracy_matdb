@@ -1861,6 +1861,5 @@ class Controller(object):
         mdb_ver = ".".join(str_ver)
         target = path.join(self.root,"final_{}.h5".format(mdb_ver))
 
-        print final_dict
         with h5py.File(target,"w") as hf:
             save_dict_to_h5(hf,final_dict,'/')

@@ -2,8 +2,7 @@
 """
 import pytest
 import numpy as np
-#import quippy
-quippy = pytest.importorskip('quippy')
+import quippy
 from os import path
 
 from matdb.database.hessian import HessianSupercell
