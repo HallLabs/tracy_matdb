@@ -12,6 +12,7 @@ from collections import namedtuple
 from operator import itemgetter
 
 from ase.build import make_supercell
+from supercell import get_supers
 
 def conform_supercell(supercell):
     """Conforms the specified supercell to be a 3x3 matrix.
@@ -44,11 +45,11 @@ def _get_supers(at, sizes):
         sizes (list): of `int` target cell *sizes*. These should be multiples of
           :attr:`matdb.Atoms.n` or they will be rounded to the nearest multiple.
     """
-    from supercell import get_supers
+    # from supercell import get_supers
     _sizes = [s/at.n if s % at.n == 0 else int(round(s/float(at.n))) for s in sizes]
     maxn = max(_sizes)
     _super = get_supers(at, maxn)
-    
+
     #Create a data container that makes it easier to work with the results.
     HNF = namedtuple("HNF", ['hnf', 'rmin', 'rmax', 'pg', 'det', 'size'])
     supers = {}
@@ -115,5 +116,4 @@ def supercell(at, supercell=None, min_distance=None, max_multiple=None):
         return make_supercell(at, scell)
     else:
         raise NotImplementedError("Supercell enumeration still needs a wheel "
-                                  "implemented before it can be used here...")        
-      
+                                  "implemented before it can be used here...")

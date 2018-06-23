@@ -2,11 +2,19 @@
 """
 import re
 import numpy as np
+from os import path, stat
+
+import h5py
 import ase
-from os import path
+import yaml
+
 from matdb.atoms import Atoms, AtomsList
 from ase.calculators.singlepoint import SinglePointCalculator
-import h5py
+from matdb.utility import chdir, execute
+
+# local imports made global
+
+
 
 _rxcfg = re.compile(r"[a-z\s:\n]+", re.I)
 
@@ -30,8 +38,8 @@ def symmetrize(xx=None, yy=None, zz=None, yz=None, xz=None, xy=None):
 
     .. note:: the components are: xx yy zz xy yz zx.
     """
-    from numpy import array
-    return array([[xx, xy, xz], [xy, yy, yz], [xz, yz, zz]])
+    # from numpy import array
+    return np.array([[xx, xy, xz], [xy, yy, yz], [xz, yz, zz]])
 
 def _cfgd_to_atoms(cfgd, species=None):
     """Converts a CFG dictionary to an atoms object.
@@ -51,7 +59,7 @@ def _cfgd_to_atoms(cfgd, species=None):
     positions = []
     forces = []
     types = []
-    
+
     for entry in cfgd["AtomData"]["vals"]:
         vals = {k: v for k, v in zip(alabels, entry)}
         pos = []
@@ -60,10 +68,10 @@ def _cfgd_to_atoms(cfgd, species=None):
         for poslabel in _cfg_pos:
             pos.append(vals[poslabel])
         positions.append(pos)
-        
+
         for flabel in _cfg_force:
             force.append(vals[flabel])
-        forces.append(force)    
+        forces.append(force)
 
     aseatoms = ase.Atoms(numbers=types, positions=np.array(positions),
                          cell=lattice)
@@ -72,11 +80,11 @@ def _cfgd_to_atoms(cfgd, species=None):
     aseatoms.get_total_energy()
     aseatoms.get_forces()
     aseatoms.get_stress()
-        
+
     result = Atoms()
     result.copy_from(aseatoms)
     result.pbc = True
-    
+
     prefix = ""
     if "EFS_by" in cfgd["features"]:
         prefix = "{}_".format(cfgd["features"]["EFS_by"][0].lower())
@@ -90,7 +98,7 @@ def _cfgd_to_atoms(cfgd, species=None):
     assert result.n == natoms
 
     return result
-        
+
 def cfg_to_xyz(cfgfile, outfile="output.xyz", config_type=None, species=None):
     """Converts MTP's CFG forrmat to XYZ.
 
@@ -110,8 +118,8 @@ def cfg_to_xyz(cfgfile, outfile="output.xyz", config_type=None, species=None):
         for line in f:
             if line.strip() == '':
                 continue
-            
-            if "BEGIN_CFG" in line:                
+
+            if "BEGIN_CFG" in line:
                 cfgd = {"features": {}}
             elif isinstance(cfgd, dict) and "END_CFG" not in line:
                 if _rxcfg.match(line.strip()):
@@ -151,11 +159,12 @@ def cfg_to_xyz(cfgfile, outfile="output.xyz", config_type=None, species=None):
     dirname = path.dirname(cfgfile)
     result.write(path.join(dirname, outfile))
     return result
-                    
-def vasp_to_xyz(folder, outfile="output.xyz", recalc=0,
-                properties=["species", "pos", "z", "dft_force"],
-                parameters=["dft_energy", "dft_virial"],
-                config_type=None):
+
+def vasp_to_xyz(
+        folder, outfile="output.xyz", recalc=0,
+        properties=["species", "pos", "z", "dft_force"],
+        parameters=["dft_energy", "dft_virial"],
+        config_type=None):
     """Creates an extended XYZ file for the calculated structure in
     OUTCAR for the given folder.
 
@@ -167,16 +176,16 @@ def vasp_to_xyz(folder, outfile="output.xyz", recalc=0,
         recalc (bool): when True, re-convert the OUTCAR file, even if
           the target XYZ file already exists.
     """
-    from os import path, stat
+    # from os import path, stat
     if not path.isabs(outfile):
         #Convert to absolute path if one wasn't given.
         outfile = path.join(folder, outfile)
-        
+
     if (path.isfile(outfile)
         and stat(outfile).st_size > 100
         and recalc <= 0):
         return True
-        
+
     p = ','.join(properties)
     P = ','.join(parameters)
     renames = [("energy", "vasp_energy"), ("force", "vasp_force"),
@@ -186,10 +195,10 @@ def vasp_to_xyz(folder, outfile="output.xyz", recalc=0,
         sargs.append("-n")
         sargs.append(s)
         sargs.append(d)
-        
+
     sargs.extend(["-o", outfile, "vasprun.xml"])
 
-    from matdb.utility import execute
+    # from matdb.utility import execute
     execute(sargs, folder, errignore="OMP_STACKSIZE")
 
     if config_type is not None:
@@ -202,9 +211,6 @@ def vasp_to_xyz(folder, outfile="output.xyz", recalc=0,
 
     return path.isfile(outfile) and stat(outfile).st_size > 100
 
-import yaml
-from os import path
-from matdb.utility import chdir
 def is_link(obj):
     """Determines whether the specified object is a link according to the `matdb`
     templating specification.
@@ -240,7 +246,7 @@ def _unpack_obj(context, obj, lcontext=None):
             if lcontext is not None and k in lcontext:
                 with chdir(context):
                     ncontext = path.abspath(lcontext[k])
-            
+
             if is_link(o):
                 result[k] = read(ncontext, o)
             else:
@@ -254,9 +260,9 @@ def _unpack_obj(context, obj, lcontext=None):
                 result.append(_unpack_obj(context, o))
     else:
         result = obj
-                
+
     return result
-                
+
 def read(context, yfile):
     """Reads in the specified YAML file, following any additional file
     directives to compile a full representation of the template hierarchy for
@@ -281,7 +287,7 @@ def read(context, yfile):
                 "to the given context directory ('{}'). Note that all files"
                 " should use the `.yml` extension, *not* `.yaml`.")
         raise ValueError(emsg.format(yfile, context))
-        
+
     with open(target, 'r') as stream:
         result = yaml.load(stream)
 
@@ -295,7 +301,7 @@ def read(context, yfile):
     if isinstance(result, dict) and "context" in result:
         lcontext = result["context"]
         del result["context"]
-    
+
     #The unpacking command will mutate the values in result so that file links
     #are expanded to be full-fledged python objects from their YAML files.
     _unpack_obj(ncontext, result, lcontext)
@@ -307,7 +313,7 @@ def save_dict_to_h5(h5file, dic, path='/'):
     Args:
         h5file (file object): the h5 file to be saved to.
         dic (dict): the dictionary to save.
-        path (str, optional): the path within the h5 file that the dict will be 
+        path (str, optional): the path within the h5 file that the dict will be
             saved to. Default is '/'.
     """
     for key, item in dic.items():
@@ -323,7 +329,7 @@ def load_dict_from_h5(h5file, path='/'):
 
     Args:
         h5file (file object): the h5 file to be read.
-        path (str, optional): the path within the h5 file presently being 
+        path (str, optional): the path within the h5 file presently being
             read. Default is '/'.
 
     Returns:

@@ -6,7 +6,10 @@ from matdb.database import Group
 from os import path, mkdir
 from matdb import msg
 import numpy as np
-
+from hashlib import sha1
+from numpy.random import multivariate_normal
+from numpy.linalg import det
+from numpy import reshape
 
 class Distortion(Group):
     '''Distortion.py: Group to create from a seed configuration and distorts
@@ -185,7 +188,7 @@ class Distortion(Group):
             rerun (int): when > 0, recreate job files; if > 1, recreate the
                 folders even if they already exist.
         """
-        from hashlib import sha1
+        # from hashlib import sha1
         dists = self._get_distortion()
 
         if self.duids is None:
@@ -202,9 +205,9 @@ class Distortion(Group):
         self.save_pkl(self.duids, self.duid_file)
 
     def _get_scaling_matrix(self):
-        from numpy.random import multivariate_normal
-        from numpy.linalg import det
-        from numpy import reshape
+        # from numpy.random import multivariate_normal
+        # from numpy.linalg import det
+        # from numpy import reshape
         np.random.seed(self.ran_seed)
         mean, n = (1, 0, 0, 0, 1, 0, 0, 0, 1), self.cov_diag
         cov = [[n, 0, 0, 0, 0, 0, 0, 0, 0], [0, n, 0, 0, 0, 0, 0, 0, 0],

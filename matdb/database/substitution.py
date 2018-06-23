@@ -1,17 +1,19 @@
 '''Group of matdb.atoms.Atoms objects with changed stoichiometries for atomic
 positions from a seed configuration.
 '''
-from matdb.atoms import AtomsList, Atoms
-from matdb.database import Group
-from os import path, mkdir
-from matdb import msg
-import numpy as np
 import random
+import numpy as np
+from os import path, mkdir
 
+from hashlib import sha1
+
+from matdb import msg
+from matdb.database import Group
+from matdb.atoms import AtomsList, Atoms
 
 class Substitution(Group):
-    """Substitution.py: A Group to create substitutions in the stoichiometry from
-    a seed configuration.
+    """Substitution.py: A Group to create substitutions in the stoichiometry
+    from a seed configuration.
 
     Args:
         name(str): Default name Substitution
@@ -245,7 +247,7 @@ class Substitution(Group):
             rerun (int): when > 0, recreate job files; if > 1, recreate the
                 folders even if they already exist.
         """
-        from hashlib import sha1
+        # from hashlib import sha1
         subs = self._get_substitution()
         if self.suids is None:
             self.suids = []

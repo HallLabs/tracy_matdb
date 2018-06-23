@@ -1,16 +1,16 @@
 """Implements classes and methods for performing a GAP fit over a
 database defined in the YAML specification file.
 """
-from os import path
-from matdb import msg
-from collections import OrderedDict
 import numpy as np
-from tqdm import tqdm
+from os import mkdir, path
+from collections import OrderedDict
 
+from tqdm import tqdm
 from .basic import Trainer
 import lazy_import
 calculators = lazy_import.lazy_module("matdb.calculators")
 
+from matdb import msg
 from matdb.calculators import Quip
 from matdb.atoms import AtomsList
 from matdb.database.hessian import Hessian
@@ -88,12 +88,12 @@ def _n_neighbors(atoms, cutoff):
     neighs = []
     for i in range(acopy.n):
         neighs.append(acopy.n_neighbours(i+1))
-    
+
     return np.mean(neighs)
 
 def _rescale_2body(atoms, settings):
     """Calculates the appropriate scaling factor for the RMS error of a 2-body
-    potential. 
+    potential.
 
     Args:
         atoms (quippy.Atoms): seed configuration to use for getting neighbors.
@@ -105,7 +105,7 @@ def _rescale_2body(atoms, settings):
 
 def _rescale_3body(atoms, settings):
     """Calculates the appropriate scaling factor for the RMS error of a 3-body
-    potential. 
+    potential.
 
     Args:
         atoms (quippy.Atoms): seed configuration to use for getting neighbors.
@@ -174,15 +174,15 @@ class GAP(Trainer):
         self.desc_str()
         if sigmas is not None:
             self.params.update({"sigma_{}".format(k): v for k, v in sigmas.items()})
-        
+
         self.ogaps = [] if ogaps is None else [controller[gap] for gap in ogaps]
         self.gp_file = "{}.xml".format(self.name)
         self.teach_sparse = {} if teach_sparse is None else teach_sparse
-        
+
         #Configure the fitting directory for this particular set of
         #potentials. This way, we can get separate directories if the number of
         #n-body or soap potentials changes.
-        from os import mkdir
+        # from os import mkdir
         if not path.isdir(self.root):
             mkdir(self.root)
 
@@ -209,13 +209,13 @@ class GAP(Trainer):
 
     def ready(self):
         return path.isfile(path.join(self.root, self.gp_file))
-        
+
     @property
     def delta_cache(self):
         """Returns the path the `delta` parameter file for each of the GAPs.
         """
         return path.join(self.root, "delta.dat")
-        
+
     def _get_delta(self):
         """Estimates the value to use for the `delta` parameter for the next GAP
         in the list.
@@ -239,7 +239,7 @@ class GAP(Trainer):
             ens = self.ogaps[-1].validate("ref", force=False, virial=False)
             rms = np.std(ens["e_ref"]-ens["e_ip"])
             msg.info("{0}: {1:.3f} RMS error.".format(self.latest, rms), 2)
-        
+
         #We use the first seed configuration in the database and calculate how
         #many nearest neighbors it has within the specified cutoff of the n-body
         #configuration. SOAP doesn't rescale because the descriptors are already
@@ -251,25 +251,25 @@ class GAP(Trainer):
             -1: lambda a, s: 1.
         }
         scaling = scalers[self.nb](atoms, self.gap)
-            
+
         #Now, we scale the expected error by the number of descriptors per atom
         #in this particular GAP.
         delta = rms/scaling
-            
+
         #Now that we have updated the delta, save it to file.
         with open(self.delta_cache, 'w') as f:
             f.write("{0:.8f}".format(delta))
 
         return delta
-                
+
     def desc_str(self, spacer="  "):
         """Returns the descriptor string for this training object, if it
         exists.
         """
         pdict = self.gap.copy()
         if "delta" not in pdict:
-            pdict["delta"] = self._get_delta()        
-        
+            pdict["delta"] = self._get_delta()
+
         #Add default parameters for the parameters.
         if self.nb < 0:
             update_soap(pdict)
@@ -280,7 +280,7 @@ class GAP(Trainer):
         #Overwrite our parameter dictionary for the model. This is needed by
         #other methods and functions that want to do plotting, etc.
         self.params.update(pdict)
-                
+
         settings = []
         settings.append("soap" if self.nb < 0 else "distance_Nb")
         settings.append(dict_to_str(pdict, spacer="  "))
@@ -294,7 +294,7 @@ class GAP(Trainer):
     def _create_xyz(self):
         """Creates the training.xyz file that `teach_sparse` needs to use.
         """
-        import quippy
+        import quippy # quippy remains a local import
         target = path.join(self.root, "train.xyz")
         if not path.isfile(target):
             al = AtomsList(self._trainfile)
@@ -306,7 +306,7 @@ class GAP(Trainer):
                     del at.info["params"]
                 if len(at.info["properties"]) == 0:
                     del at.info["properties"]
-                
+
                 ai = quippy.Atoms()
                 ai.copy_from(at)
                 if "properties" in at.info:
@@ -315,7 +315,7 @@ class GAP(Trainer):
                     ai.arrays.update(at.info["properties"])
                 if "params" in ai.params:
                     del ai.params["params"]
-                    
+
                 ol.append(ai)
             ol.write(target)
 
@@ -326,7 +326,7 @@ class GAP(Trainer):
             return [self.sparse_file]
         else:
             return []
-            
+
     @property
     def sparse_file(self):
         """Returns the path to the sparse point file that includes random
@@ -334,7 +334,7 @@ class GAP(Trainer):
         energy/force/virial information.
         """
         return path.join(self.root, "sparse_points.h5")
-        
+
     def _sparse_points(self, recalc=False):
         """Creates random sparse points by rattling atoms for hessian-based training.
 
@@ -352,11 +352,11 @@ class GAP(Trainer):
                     if isinstance(db, Hessian)]
         #The extra factor of 3 here is because we do random displacements of
         #0.05, 0.1 and 0.2 angstroms.
-        n_ratio = int(np.ceil(float(self.n_random)/len(hessians)/3))        
+        n_ratio = int(np.ceil(float(self.n_random)/len(hessians)/3))
         N = n_ratio * len(hessians)
         msg.info("Generating {0:d} random configs each at 0.05, 0.1, 0.2 "
                  "Ang. as sparse points.".format(N))
-        
+
         result = AtomsList()
         for hseed in hessians:
             #Make sure that the random sparse points don't have any data for
@@ -386,7 +386,7 @@ class GAP(Trainer):
                 p = atRand.get_positions()
                 atRand.set_positions(p  + 0.2*2*(np.random.random_sample(p.shape)))
                 result.append(atRand)
-                
+
         result.write(self.sparse_file)
 
     def command(self):
@@ -408,7 +408,7 @@ class GAP(Trainer):
                     "    {gap} \\\n"
                     "  }} \\\n"
                     "  {teach_sparse}")
-        
+
         #Compile the GAP string specifying the potential. Check to see if we
         #have other GAPs that were referenced.
         gaplist = []
@@ -433,7 +433,7 @@ class GAP(Trainer):
         }
         #Override any of the default values using user-specified ones.
         tsattrs.update(self.teach_sparse)
-            
+
         if isinstance(self.sigmas, (list, tuple)):
             tsattrs["default_sigma"] = self.sigmas
         else:
@@ -452,13 +452,13 @@ class GAP(Trainer):
         tsattrs["hessian_parameter_name"] = "ref_hessian"
         tsattrs["config_type_parameter_name"] = "config_type"
         tsattrs["sigma_parameter_name"] = "csigma"
-        
+
         if len(custom) > 0:
             #If we have custom sigmas, add them in; make sure we have specified
             #which parameter to use for custom_types.
             tsattrs["config_type_sigma"] = '{' + ':'.join(custom) + '}'
 
-        tsstr = dict_to_str(tsattrs)                
+        tsstr = dict_to_str(tsattrs)
         fields = {
             "train_file": "train.xyz",
             "gap": gapstr,
@@ -482,7 +482,7 @@ class GAP(Trainer):
             "file": self.gp_file,
             "jobfile": path.isfile(self._jobfile)
         }
-        
+
         if printed:
             fqn = "{}.{}".format(self.parent.name, self.name)
             msg.info("{} => Model ready: {}".format(fqn, result["trained"]))

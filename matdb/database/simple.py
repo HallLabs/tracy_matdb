@@ -1,10 +1,11 @@
 """A database of nothing but seed configurations.
 """
-from matdb.database import Group
-from matdb import msg
-from os import path, getcwd, chdir, remove, listdir, mkdir
 import numpy as np
+from os import path, getcwd, chdir, remove, listdir, mkdir
 from six import string_types
+
+from matdb import msg
+from matdb.database import Group
 from matdb.atoms import Atoms, AtomsList
 
 class Manual(Group):
@@ -15,7 +16,7 @@ class Manual(Group):
         name (str): the name of the database group.
         extractable (bool): True if a calculation is to be performed.
         dbargs (dict): a dictionary of arguments for the Group class.
-	  
+
     .. note:: Additional attributes are also exposed by the super class
       :class:`Group`.
 
@@ -33,7 +34,7 @@ class Manual(Group):
         dbargs["prefix"] = "S1"
         dbargs["cls"] = Manual
         if "Manual" not in dbargs['root']:
-            from os import mkdir
+            # from os import mkdir
             new_root =path.join(dbargs['root'],"Manual")
             if not path.isdir(new_root):
                 mkdir(new_root)
@@ -44,7 +45,7 @@ class Manual(Group):
             self._trainable = False
 
         self.nconfigs = 1
-        
+
         #Make sure that we override the global calculator default values with
         #those settings that we know are needed for good phonon calculations.
         calcargs = self.database.calculator.copy()
@@ -52,12 +53,12 @@ class Manual(Group):
             if dbargs["calculator"] is not None and "name" in dbargs["calculator"]:
                 calcargs.update(dbargs["calculator"])
                 self._set_calc_defaults(calcargs)
-                dbargs["calculator"] = calcargs            		
+                dbargs["calculator"] = calcargs
 
     @property
     def fitting_configs(self):
         """Returns a :class:`matdb.atoms.AtomsList` for all configs in this
-        group. 
+        group.
         """
         if len(self.sequence) == 0:
             result = []
@@ -80,7 +81,7 @@ class Manual(Group):
             list: of :class:`matdb.atoms.Atoms`
         """
         if len(self.sequence) == 0:
-            #We are at the bottom of the stack; 
+            #We are at the bottom of the stack;
             result = AtomsList()
             for config in self.fitting_configs:
                 result.append(Atoms(path.join(config,"atoms.h5")))
@@ -100,15 +101,15 @@ class Manual(Group):
 
         Args:
             rerun (bool): when True, recreate the folders even if they
-              already exist. 
+              already exist.
         """
         super(Manual, self).setup(self._setup_configs, rerun)
-            
+
     def _setup_configs(self, rerun):
         """
         Args:
             rerun (bool): when True, recreate the folders even if they
-              already exist. 
+              already exist.
         """
         #We also don't want to setup again if we have the results already.
         if self.ready():
@@ -119,7 +120,7 @@ class Manual(Group):
 
         if self.extractable:
             self.jobfile(rerun)
-            
+
     def ready(self):
         """Returns True if all the calculations have been completed.
         """
@@ -148,9 +149,9 @@ class Manual(Group):
         return {"name": self.name, "extractable": self.extractable}
 
     def can_extract(self):
-        """Runs post-execution routines to clean-up the calculations. This super class
-        implementation only checks that each of the sub-config directories has
-        the necessary files needed for extraction of output.
+        """Runs post-execution routines to clean-up the calculations. This super
+        class implementation only checks that each of the sub-config directories
+        has the necessary files needed for extraction of output.
         """
         if not self.extractable:
             return self.is_setup()

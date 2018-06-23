@@ -1,13 +1,16 @@
 """Group of configurations that is created from an enumerated list of structures.
 """
-from matdb.database import Group
-from matdb import msg
-from os import path, getcwd, chdir, remove, listdir, mkdir
 import numpy as np
-from six import string_types
+from os import path, getcwd, chdir, remove, listdir, mkdir
+
 from glob import glob
-from matdb.atoms import AtomsList, Atoms
 from tqdm import tqdm
+from hashlib import sha1
+from six import string_types
+
+from matdb import msg
+from matdb.database import Group
+from matdb.atoms import AtomsList, Atoms
 
 class Active(Group):
     """Sets up the calculations for a set of configurations that are being
@@ -40,14 +43,14 @@ class Active(Group):
         self.last_iteration = None
         cur_iter = len(glob("iter_*.pkl"))
         self.iter_file = path.join(self.root,"iter_{}.pkl".format(cur_iter))
-        self._load_last_iter()        
-        
+        self._load_last_iter()
+
     def ready(self):
         """Returns True if this database has finished its computations and is
         ready to be used.
         """
         return len(self.fitting_configs) == self.nconfigs
-    
+
     @property
     def auid_file(self):
         """Returns the full path to the euid file for this group.
@@ -67,7 +70,7 @@ class Active(Group):
         """
         if self.last_iteration is None:
             self.last_iteration = self.load_pkl(self.iter_file)
-            
+
     @property
     def fitting_configs(self):
         """Returns a list of full paths to the folders that have `atoms.json` objects
@@ -80,8 +83,8 @@ class Active(Group):
             if path.isfile(target):
                 result.append(folder)
 
-        return result 
-        
+        return result
+
     def rset(self):
         """Returns a :class:`matdb.atoms.AtomsList`, one for each config in the
         latest result set.
@@ -109,7 +112,7 @@ class Active(Group):
 
     def _setup_configs(self, rerun=False):
         """Sets up the database structure for the active set and creates a
-        folder for the `calculator` to run in for each config.        
+        folder for the `calculator` to run in for each config.
         """
         # We need to make sure that none of the configs in this round
         # of the active learning have already been visited by
@@ -117,8 +120,8 @@ class Active(Group):
         # hasn't been visited before.
         dind = len(self.auids) if self.auids is not None else 0
         iter_ind = 0
-        from hashlib import sha1
-        pbar = tqdm(total=len(self.new_configs))        
+        # from hashlib import sha1
+        pbar = tqdm(total=len(self.new_configs))
         for config in self.new_configs:
             auid = sha1(''.join(map(str, (tuple([tuple(i) for i in config.cell]),
                         tuple([tuple(i) for i in config.positions]),
@@ -128,8 +131,8 @@ class Active(Group):
                     self.nconfigs -= 1
                     continue
             else:
-                self.auids = []    
-            
+                self.auids = []
+
             dind += 1
             self.create(config,cid=dind)
             self.index[auid.hexdigest()] = self.configs[dind]
@@ -138,12 +141,12 @@ class Active(Group):
             iter_ind += 1
             pbar.update(1)
         pbar.close()
-            
+
         self.jobfile(rerun)
         self.save_index()
         self.save_pkl(self.auids,self.auid_file)
         self.save_pkl(self.last_iteration,self.iter_file)
-        
+
     def setup(self, rerun=False):
         """Enumerates the desired number of structures and setups up a folder
         for each one.
@@ -153,4 +156,4 @@ class Active(Group):
               already exist.
 
         """
-        super(Active, self).setup(self._setup_configs,rerun)           
+        super(Active, self).setup(self._setup_configs,rerun)
