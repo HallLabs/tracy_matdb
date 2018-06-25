@@ -1,21 +1,26 @@
  #!/usr/bin/python
+import argparse
 from os import path, remove, listdir
-import yaml
 from shutil import move
+import sys
+
+import yaml
 
 from matdb import msg
+from matdb import msg, base
 from matdb.utility import execute
+from matdb.database import Controller
 
 def examples():
     """Prints examples of using the script to the console using colored output.
     """
-    from matdb import msg
+    # from matdb import msg
     script = "MATDB Mover and Duplicator"
     explain = ("During regular research prototyping, it is often useful to "
                "retry a fit with different parameters (for example while "
                "changing the code). This script allows an existing trainer "
                "to be renamed or duplicated.")
-    contents = [(("Rename a soap fit."), 
+    contents = [(("Rename a soap fit."),
                  "matdb_move.py system -p soap.mb --to soap-2.mb",
                  "Use `matdb_find` to test your patterns function.")]
     required = ("'matdb.yaml' file with database settings.")
@@ -42,14 +47,14 @@ script_options = {
 def _parser_options():
     """Parses the options and arguments from the command line."""
     #We have two options: get some of the details from the config file,
-    import argparse
-    import sys
-    from matdb import base
+    # import argparse
+    # import sys
+    # from matdb import base
     pdescr = "MATDB Mover and Duplicator"
     parser = argparse.ArgumentParser(parents=[base.bparser], description=pdescr)
     for arg, options in script_options.items():
         parser.add_argument(arg, **options)
-        
+
     args = base.exhandler(examples, parser)
     if args is None:
         return
@@ -65,7 +70,7 @@ def _get_targets(root, dbspec):
           recursive replacement of file directives).
 
     Returns:
-    
+
     tuple: `(fits, targets, fitroot)`, where `fits` is a list of the *raw* config
     directives for fitters (which may include file directives) and `targets` is
     a `dict` with keys being trainer names and values being config
@@ -75,7 +80,7 @@ def _get_targets(root, dbspec):
     fits = dbspec["fitting"].get("fits", [])
     fitroot = None
     targets = {}
-    
+
     if "context" in dbspec:
         context = dbspec["context"].get("fitting")
         fitroot = path.join(root, context)
@@ -92,7 +97,7 @@ def _get_targets(root, dbspec):
         for k in fits:
             name = k.get("name")
             targets[name] = k
-            
+
     return fits, targets, fitroot
 
 def _move_trainer(trainer, dbspec=None, dupe=False, to=None, **kwargs):
@@ -118,7 +123,7 @@ def _move_trainer(trainer, dbspec=None, dupe=False, to=None, **kwargs):
     with open(dbspec) as f:
         spec = yaml.load(f)
     root = path.dirname(dbspec)
-    
+
     fits, targets, fitroot = _get_targets(root, spec)
     if to in fits:
         raise ValueError("The specified fit name is already taken! "
@@ -148,7 +153,7 @@ def _move_trainer(trainer, dbspec=None, dupe=False, to=None, **kwargs):
             remove(path.join(fitroot, "{}.yml".format(mvname)))
             spec["fitting"]["fits"].append(":{}".format(to))
         else:
-            spec["fitting"]["fits"].append(settings)            
+            spec["fitting"]["fits"].append(settings)
 
     #Next, move the actual directory. We have to be careful because the first
     #level of subdirectories also have the name in them, but they also may have
@@ -173,7 +178,7 @@ def _move_trainer(trainer, dbspec=None, dupe=False, to=None, **kwargs):
         spec["fitting"]["fits"].remove(":{}".format(mvname))
     with open(dbspec, 'w') as f:
         yaml.dump(spec, f)
-        
+
 def run(args):
     """Runs the matdb setup and cleanup to produce database files.
     """
@@ -182,7 +187,7 @@ def run(args):
 
     #No matter what other options the user has chosen, we will have to create a
     #database controller for the specification they have given us.
-    from matdb.database import Controller
+    # from matdb.database import Controller
     cdb = Controller(args["dbspec"])
 
     if args["t"]:
@@ -196,6 +201,6 @@ def run(args):
             exit(-1)
 
         _move_trainer(matches[0], **args)
-        
+
 if __name__ == '__main__': # pragma: no cover
     run(_parser_options())

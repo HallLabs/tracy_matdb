@@ -1,23 +1,26 @@
  #!/usr/bin/python
+import argparse
 from os import path, remove
 import h5py
 import numpy as np
 from shutil import move
+import sys
 
-from matdb import msg
+from matdb import msg, base
 from matdb.atoms import Atoms
 from matdb.io import load_dict_from_h5, save_dict_to_h5
+from matdb.database import Controller
 
 def examples():
     """Prints examples of using the script to the console using colored output.
     """
-    from matdb import msg
+    # from matdb import msg
     script = "MATDB Precomp Atoms Fixer"
     explain = ("In a previous version of `matdb`, the pre-comp-atoms.h5 "
                "file would be removed after cleanup. But, if the cleanup "
                "produced any unnoticed errors, we may lose the pre-comp "
                "file and it is hard to reproduce. This script remedies that.")
-    contents = [(("Reconstitute the missing pre-comp file."), 
+    contents = [(("Reconstitute the missing pre-comp file."),
                  "matdb_move.py system -p distort-1/Distortion/*",
                  "Use `matdb_find` to test your patterns function.")]
     required = ("'matdb.yaml' file with database settings.")
@@ -42,14 +45,14 @@ script_options = {
 def _parser_options():
     """Parses the options and arguments from the command line."""
     #We have two options: get some of the details from the config file,
-    import argparse
-    import sys
-    from matdb import base
+    # import argparse
+    # import sys
+    # from matdb import base
     pdescr = "MATDB Pre-Comp Fixer"
     parser = argparse.ArgumentParser(parents=[base.bparser], description=pdescr)
     for arg, options in script_options.items():
         parser.add_argument(arg, **options)
-        
+
     args = base.exhandler(examples, parser)
     if args is None:
         return
@@ -86,7 +89,7 @@ def run(args):
 
     #No matter what other options the user has chosen, we will have to create a
     #database controller for the specification they have given us.
-    from matdb.database import Controller
+    # from matdb.database import Controller
     cdb = Controller(args["dbspec"])
 
     matches = []
@@ -96,6 +99,6 @@ def run(args):
 
     for db in matches:
         _fix_precomp(db)
-        
+
 if __name__ == '__main__': # pragma: no cover
     run(_parser_options())

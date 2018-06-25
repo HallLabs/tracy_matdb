@@ -1,16 +1,30 @@
  #!/usr/bin/python
+import argparse
+from cPickle import dump, load
+from shutil import copyfile
 from os import path, mkdir
+import sys
+
 import matplotlib
+
+from matdb import msg, base
+from matdb.atoms import AtomsList
+from matdb.database import Controller
+from matdb.plotting.potentials import generate
+from matdb.plotting.plotter import PlotManager
+from matdb.plotting.comparative import band_plot
+from matdb.plotting.matd3 import html
+
 def examples():
     """Prints examples of using the script to the console using colored output.
     """
-    from matdb import msg
+    # from matdb import msg
     script = "MATDB Automated Materials Database Plotter"
     explain = ("While constructing the database, there are several times when "
                "plots are needed: phonon bands, prediction errors, etc. This "
                "script provides a unified interface for all such plotting.")
     contents = [(("Plot the phonon bands for the structure labeled as 'PdAg25' "
-                  "in the `system.yaml` database specification."), 
+                  "in the `system.yaml` database specification."),
                  "matdb_plot.py system.yaml -d PdAg25.phonon.dynmatrix --bands",
                  "If the `bands.yaml` file hasn't been created yet using "
                  "`phonopy`, then this will create that file. Note that "
@@ -18,7 +32,7 @@ def examples():
                  "the names of MTP/GAP potentials to calculate phonons with."),
                 ("Plot the supercell convergence of phonon bands for the "
                  "structure labeled as 'PdAg25' in the `system.yaml` database"
-                 " specification.", 
+                 " specification.",
                  "matdb_plot.py system.yaml -d PdAg25.phonon*.dynmatrix --bands",
                  "Notice that * can be used as a pattern. For example, to plot "
                  "all configurations you could use *.phonon*.dynmatrix, "
@@ -99,14 +113,14 @@ script_options = {
 def _parser_options():
     """Parses the options and arguments from the command line."""
     #We have two options: get some of the details from the config file,
-    import argparse
-    import sys
-    from matdb import base
+    # import argparse
+    # import sys
+    # from matdb import base
     pdescr = "MATDB Database Plotting"
     parser = argparse.ArgumentParser(parents=[base.bparser], description=pdescr)
     for arg, options in script_options.items():
         parser.add_argument(arg, **options)
-        
+
     args = base.exhandler(examples, parser)
     if args is None:
         return
@@ -116,13 +130,13 @@ def _parser_options():
 def _generate_pkl(pot, dbs=None, **args):
     """Generates a pickle file for a single potential and its default databases.
     """
-    from matdb.plotting.potentials import generate
-    from matdb.atoms import AtomsList
-    from cPickle import dump
+    # from matdb.plotting.potentials import generate
+    # from matdb.atoms import AtomsList
+    # from cPickle import dump
     outdir = path.join(args["folder"], pot.fqn)
     if not path.isdir(outdir):
         mkdir(outdir)
-        
+
     if dbs is not None:
         configs = AtomsList()
         for db in dbs:
@@ -144,7 +158,7 @@ def _generate_pkl(pot, dbs=None, **args):
 def _generate_html(potlist, **args):
     """Generates the interactive HTML page for the potentials and databases.
     """
-    from cPickle import load
+    # from cPickle import load
     #We create a new folder for the HTML plot inside the overall system
     #directory.
     plotdir = path.join(potlist[0].controller.db.plotdir, args["save"])
@@ -169,14 +183,14 @@ def _generate_html(potlist, **args):
         }
         data[pot.fqn].update(pdis)
 
-        from shutil import copyfile
+        # from shutil import copyfile
         for pdi in pdis.values():
             newname = "{}__{}".format(pot.fqn, pdi.url)
             trg = path.join(plotdir, newname)
             copyfile(path.join(args["folder"], pot.fqn, pdi.url), trg)
             pdi.filename = newname
 
-    from matdb.plotting.matd3 import html
+    # from matdb.plotting.matd3 import html
     subplot_kw = {
         "title": "Interactive Potential Explorer",
         "xlabel": args["x"],
@@ -186,18 +200,18 @@ def _generate_html(potlist, **args):
         "alpha": 0.3
     }
 
-    html(data, plotdir, subplot_kw=subplot_kw, plot_kw=plot_kw)    
-        
+    html(data, plotdir, subplot_kw=subplot_kw, plot_kw=plot_kw)
+
 def run(args):
     """Runs the matdb setup and cleanup to produce database files.
     """
     if args is None:
         return
-    
+
     matplotlib.use('Agg')
     #No matter what other options the user has chosen, we will have to create a
     #database controller for the specification they have given us.
-    from matdb.database import Controller
+    # from matdb.database import Controller
     cdb = Controller(args["dbspec"])
 
     #We allow any number of databases to be plotted together at the same
@@ -212,18 +226,18 @@ def run(args):
     pots = []
     if args["pots"]:
         for potp in args["pots"]:
-            pots.extend(cdb.trainers.find(potp)) 
+            pots.extend(cdb.trainers.find(potp))
 
     if args["generic"]:
 
         objs = dbs + pots
-        from matdb.plotting.plotter import PlotManager
+        # from matdb.plotting.plotter import PlotManager
         manager = PlotManager(cdb)
         for cname in args["generic"]:
             manager.plot(objs, cname)
-            
+
     if args["bands"]:
-        from matdb.plotting.comparative import band_plot
+        # from matdb.plotting.comparative import band_plot
         band_plot(dbs, pots, **args)
 
     if args["generate"]:
@@ -235,6 +249,6 @@ def run(args):
 
     if args["html"]:
         _generate_html(pots, **args)
-        
+
 if __name__ == '__main__': # pragma: no cover
     run(_parser_options())
