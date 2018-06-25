@@ -5,7 +5,7 @@ transformation that creates new configs, you should use a regular
 
 To create your own transform, make an importable function that accepts a single
 positional argument, `at` of type :class:`matdb.Atoms` and returns an object of
-the same type.
+the same type. 
 """
 import numpy as np
 from collections import namedtuple

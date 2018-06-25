@@ -1,27 +1,36 @@
 """Utility functions for interacting with file system, shell, etc.
 """
-import sys
-from shutil import copyfile
-from itertools import product
-from copy import copy as ocopy
-from os import path, cwd, chdir
-from importlib import import_module
-from contextlib import contextmanager
-from subprocess import Popen, PIPE
+import collections
 from collections import OrderedDict
+from contextlib import contextmanager
+from copy import copy as ocopy
+from datetime import datetime
+from dateutil import parser
+from itertools import product, islice
+from importlib import import_module
+import json
+import math
+import os
+from os import environ, waitpid, path, symlink, remove, cwd, chdir
+from shutil import copyfile
+from subprocess import Popen, PIPE
+import sys
+from uuid import uuid4, UUID
+import unicodedata
 
-import six
 import h5py
 import numpy as np
-from uuid import UUID
+from numpy.random import RandomState
+from operator import itemgetter
+import pytz
+import six
 from six import string_types
 
-# local imports made global
-from matdb import msg
-from operator import itemgetter
+import matdb
+from matdb import msg, __version__
 from matdb.atoms import AtomsList
-
-
+from matdb.database.utility import dbconfig
+from matdb.utility import special_functions
 
 @contextmanager
 def redirect_stdout(new_target):
@@ -123,7 +132,7 @@ def execute(args, folder, wait=True, nlines=100, venv=None,
             prefix = path.dirname(sys.executable)
         args[0] = path.join(prefix, args[0])
 
-    from os import environ
+    # from os import environ
     if env_vars is not None:
         oldvars = {}
         for name, val in env_vars.items():
@@ -134,7 +143,7 @@ def execute(args, folder, wait=True, nlines=100, venv=None,
     pexec = Popen(' '.join(args), shell=True, executable="/bin/bash", **kwargs)
 
     if wait:
-        from os import waitpid
+        # from os import waitpid
         waitpid(pexec.pid, 0)
 
     if env_vars is not None:
@@ -204,8 +213,8 @@ def cat(files, target):
 def symlink(target, source):
     """Creates a symbolic link from `source` to `target`.
     """
-    from os import path, symlink, remove
-    from matdb import msg
+    # from os import path, symlink, remove
+    # from matdb import msg
     if path.isfile(target) or path.islink(target):
         remove(target)
     elif path.isdir(target):
@@ -295,7 +304,7 @@ def _get_reporoot():
     """Returns the absolute path to the repo root directory on the current
     system.
     """
-    import matdb
+    # import matdb
     medpath = path.abspath(matdb.__file__)
     return path.dirname(path.dirname(medpath))
 
@@ -353,7 +362,7 @@ def compare_tree(folder, model):
 def which(program):
     """Tests whether the specified program is anywhere in the environment
     PATH so that it probably exists."""
-    import os
+    # import os
     def is_exe(fpath):
         return os.path.isfile(fpath) and os.access(fpath, os.X_OK)
 
@@ -372,7 +381,7 @@ def touch(fpath):
     """Mimics the `touch` command in the unix to create an empty file with the
     given path.
     """
-    import os
+    # import os
     with open(fpath, 'a'):
         os.utime(fpath, None)
 
@@ -414,9 +423,9 @@ def pgrid(options, ignore=None):
     grid = list(product(*values))
     return (grid, keys)
 
-import pytz
-from datetime import datetime
-from six import string_types
+# import pytz
+# from datetime import datetime
+# from six import string_types
 
 epoch = datetime(1970,1,1, tzinfo=pytz.utc)
 """datetime.datetime: 1/1/1970 for encoding UNIX timestamps.
@@ -442,7 +451,7 @@ def parse_date(v):
         v (str): string representation of the :class:`datetime` returned by
           :func:`datetime_handler`.
     """
-    from dateutil import parser
+    # from dateutil import parser
     if isinstance(v, (list, tuple)):
         return [parse_date(vi) for vi in v]
     elif isinstance(v, string_types):
@@ -499,7 +508,7 @@ def slicer(obj, args):
         obj (iterable): an object to be sliced or divided.
         args (iterable): the locations that the slices should be at.
     """
-    from itertools import islice
+    # from itertools import islice
     if not isinstance(args,(list,tuple)):
         msg.err("The slicer args must be a list or a tuple.")
         return
@@ -522,7 +531,7 @@ def _py_execute(module, function, params):
         params (str): exact parameter string (including parentheses) to pass to
           the function call with `eval`.
     """
-    from importlib import import_module
+    # from importlib import import_module
     module = import_module(module)
     call = getattr(module, function)
 
@@ -581,7 +590,7 @@ def special_values(vs, seed=None):
                     first = rest.index('(')
                     caller = rest[:first]
                 if k == "random:":
-                    from numpy.random import RandomState
+                    # from numpy.random import RandomState
                     rs = RandomState(seed)
                     d = getattr(rs, caller)
                     result = eval("d{}".format(rest[first:]))
@@ -596,7 +605,7 @@ def special_values(vs, seed=None):
 
     return result
 
-import collections
+# import collections
 
 def special_functions(sf,values):
     """Converts the specified function value string into its python
@@ -614,8 +623,8 @@ def special_functions(sf,values):
 
     .. note:: the value returned by the special function must be an integer or a float.
     """
-    import numpy as np
-    import math
+    # import numpy as np
+    # import math
     if sf is None or not isinstance(sf, (string_types,dict)):
         raise ValueError("The special function must be a string.")
 
@@ -655,7 +664,7 @@ def is_number(s):
         pass
 
     try: # pragma: no cover
-        import unicodedata
+        # import unicodedata
         unicodedata.numeric(s)
         return True
     except (TypeError, ValueError):
@@ -687,7 +696,7 @@ def get_suffix(d, k, index, values):
         index (int): the index for the value (gets used as the default suffix).
         values (str, list, float): the value for the parameter.
     """
-    from matdb.utility import special_functions
+    # from matdb.utility import special_functions
     nk = k[0:-1]
     suffix = "{0}_suffix".format(nk)
     ssuff = suffix + '*'
@@ -890,11 +899,11 @@ def dbcat(files, output, sources=None, docat=True, **params):
         params (dict): key-value pairs that characterize *how* the database was
           created using the source files.
     """
-    from uuid import uuid4
-    from datetime import datetime
-    from matdb import __version__
-    from matdb.database.utility import dbconfig
-    import json
+    # from uuid import uuid4
+    # from datetime import datetime
+    # from matdb import __version__
+    # from matdb.database.utility import dbconfig
+    # import json
 
     confpath = output + ".json"
     config = {
@@ -923,7 +932,7 @@ def dbcat(files, output, sources=None, docat=True, **params):
                 else:
                     cat(files, output)
     except:
-        from os import remove
+        # from os import remove
         remove(confpath)
 
 def convert_dict_to_str(dct):

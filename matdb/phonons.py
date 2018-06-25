@@ -17,13 +17,13 @@ from ase.optimize import FIRE
 from ase.vibrations import Vibrations
 
 
-from matdb.base import testmode
-from matdb.utility import chdir, redirect_stdout, convert_dict_to_str, execute
 from matdb import msg
-from matdb.database.hessian import matdb_to_phonopy, unroll_fc, phonopy_to_matdb
-from matdb.transforms import conform_supercell
 from matdb.atoms import Atoms
+from matdb.base import testmode
 from matdb.kpoints import parsed_kpath
+from matdb.transforms import conform_supercell
+from matdb.utility import chdir, redirect_stdout, convert_dict_to_str, execute
+from matdb.database.hessian import matdb_to_phonopy, unroll_fc, phonopy_to_matdb
 
 def _ordered_unique(items):
     """Returns the list of unique items in the list while still *preserving* the

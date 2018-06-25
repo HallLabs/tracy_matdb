@@ -30,7 +30,7 @@ def printer(text, color=None, **kwargs):
     of 'nocolor'.
     """
     if nocolor:
-        # import sys
+        # import sys 
         # sys.stdout.write(text + "" if ("end" in kwargs and kwargs["end"] == "") else '\n')
         # sys.stdout.flush()
         print(text, **kwargs)
