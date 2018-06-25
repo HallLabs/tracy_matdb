@@ -5,9 +5,9 @@ convergence runs against each other.
 from os import path
 import numpy as np
 
+from ase.build import make_supercell
 import matplotlib.pyplot as plt
 from tqdm import tqdm
-from ase.build import make_supercell
 
 from matdb import msg
 from matdb.atoms import Atoms

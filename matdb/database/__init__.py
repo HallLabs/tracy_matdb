@@ -1,45 +1,17 @@
 """Exposes classes and functions for interacting with the database
 folders via a simple configuration file.
 """
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-import json
-import sys
-import random
 import abc
-import pickle
-from fnmatch import fnmatch
-from datetime import datetime
 from collections import OrderedDict
-from importlib import import_module
 from contextlib import contextmanager
+from datetime import datetime
+from fnmatch import fnmatch
+from importlib import import_module
+import json
 from os import path, mkdir, rename, remove, sys, makedirs
+import pickle
+import random
+import sys
 
 import re
 import six
@@ -53,12 +25,9 @@ from hashlib import sha1
 import numpy as np
 from numpy import count_nonzero as cnz
 from jinja2 import Environment, PackageLoader
-
-
 import lazy_import
 calculators = lazy_import.lazy_module("matdb.calculators")
 
-# local imports from the
 from matdb import __version__, msg
 from matdb.io import read, save_dict_to_h5
 from matdb.msg import okay, verbosity
@@ -70,10 +39,6 @@ from matdb.database.legacy import LegacyDatabase
 from matdb.fitting.controller import TController
 from matdb.database.utility import parse_path, split, LegacyDatabase
 from matdb.atoms import Atoms, AtomsList, _recursively_convert_units
-
-
-
-
 
 class Group(object):
     """Represents a collection of material configurations (varying in

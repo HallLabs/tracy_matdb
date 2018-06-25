@@ -5,8 +5,8 @@ import numpy as np
 from os import mkdir, path
 from collections import OrderedDict
 
-from tqdm import tqdm
 from .basic import Trainer
+from tqdm import tqdm
 import lazy_import
 calculators = lazy_import.lazy_module("matdb.calculators")
 

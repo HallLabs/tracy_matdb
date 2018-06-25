@@ -19,7 +19,6 @@ from matdb.database.active import Active
 from matdb.utility import cat, chdir, _get_reporoot
 from .basic import Trainer
 
-
 def RepresentsInt(s):
     try:
         int(s)
