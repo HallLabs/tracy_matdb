@@ -1,14 +1,14 @@
 """Implements a basic trainer that train material models.
 """
 import abc
+from fnmatch import fnmatch
 import operator
-import numpy as np
 from os import path, mkdir
 
-from tqdm import tqdm
-from fnmatch import fnmatch
-from six import string_types
+import numpy as np
 from jinja2 import Environment, PackageLoader
+from six import string_types
+from tqdm import tqdm
 
 from matdb import msg
 from matdb.atoms import AtomsList

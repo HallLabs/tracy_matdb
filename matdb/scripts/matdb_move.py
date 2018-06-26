@@ -6,10 +6,9 @@ import sys
 
 import yaml
 
-from matdb import msg
 from matdb import msg, base
-from matdb.utility import execute
 from matdb.database import Controller
+from matdb.utility import execute
 
 def examples():
     """Prints examples of using the script to the console using colored output.

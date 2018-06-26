@@ -1,11 +1,11 @@
 '''Group of matdb.atoms.Atoms objects with changed stoichiometries for atomic
 positions from a seed configuration.
 '''
+from hashlib import sha1
 import random
-import numpy as np
 from os import path, mkdir
 
-from hashlib import sha1
+import numpy as np
 
 from matdb import msg
 from matdb.database import Group

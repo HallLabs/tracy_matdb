@@ -1,20 +1,16 @@
 """Functions for interacting with various output formats.
 """
-import re
 import numpy as np
 from os import path, stat
 
-import h5py
 import ase
+from ase.calculators.singlepoint import SinglePointCalculator
+import h5py
+import re
 import yaml
 
 from matdb.atoms import Atoms, AtomsList
-from ase.calculators.singlepoint import SinglePointCalculator
 from matdb.utility import chdir, execute
-
-# local imports made global
-
-
 
 _rxcfg = re.compile(r"[a-z\s:\n]+", re.I)
 

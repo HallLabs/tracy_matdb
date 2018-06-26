@@ -1,21 +1,20 @@
 """Methods for calculating the phonon spectra of materials.
 """
-import yaml
-import numpy as np
-import matplotlib
-import matplotlib.pyplot as plt
-
+from glob import glob
 from hashlib import sha1
 from os import path, mkdir, remove
-from glob import glob
-from tempfile import mkdtemp
-from phonopy import Phonopy
-from phonopy.file_IO import write_FORCE_CONSTANTS
 from shutil import rmtree, move
+from tempfile import mkdtemp
+
 from ase.optimize.precon import Exp, PreconLBFGS
 from ase.optimize import FIRE
 from ase.vibrations import Vibrations
-
+import matplotlib
+import matplotlib.pyplot as plt
+import numpy as np
+from phonopy import Phonopy
+from phonopy.file_IO import write_FORCE_CONSTANTS
+import yaml
 
 from matdb import msg
 from matdb.atoms import Atoms

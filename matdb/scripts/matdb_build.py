@@ -1,7 +1,7 @@
- #!/usr/bin/python
+#!/usr/bin/python
 
-import sys
 import argparse
+import sys
 
 from matdb import base, msg
 from matdb.database import Controller

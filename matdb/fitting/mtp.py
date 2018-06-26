@@ -1,23 +1,23 @@
 """Implements classes and methods for performing a GAP fit over a
 database defined in the YAML specification file.
 """
-import numpy as np
+from collections import OrderedDict
+from glob import glob
+from itertools import combinationsfrom os import mkdir
 import os
 from os import path, remove, rename
 
-from glob import glob
+import numpy as np
 from tqdm import tqdm
-from collections import OrderedDict
 from jinja2 import Environment, PackageLoader
-from itertools import combinationsfrom os import mkdir
 
+from .basic import Trainer
 from matdb import msg
 from matdb.atoms import Atoms
 from phenum.makeStr import _make_structures
 from matdb.database import Database
 from matdb.database.active import Active
 from matdb.utility import cat, chdir, _get_reporoot
-from .basic import Trainer
 
 def RepresentsInt(s):
     try:

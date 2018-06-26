@@ -1,10 +1,11 @@
+from inspect import getmodule
+
+from matdb import msg, calculators
 from .vasp import AsyncVasp as Vasp
 from .aflux import AsyncAflow as Aflow
 from .qe import AsyncQe as Qe
-from matdb import msg
+from matdb.atoms import Atoms
 from matdb.utility import chdir
-from matdb import calculators
-from inspect import getmodule
 
 try:
     from .quip import SyncQuip as Quip
@@ -48,7 +49,7 @@ def build_calc(name, relpath, *args, **kwargs):
         msg.err("Cannot import calculator {}. ".format(name) +
                 "Does not exist at package level.")
 
-    from matdb.atoms import Atoms
+    # from matdb.atoms import Atoms
     atoms = Atoms()
     if relpath is not None:
         with chdir(relpath):

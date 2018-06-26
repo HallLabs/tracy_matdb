@@ -2,16 +2,15 @@
 databases of configurations.
 """
 from os import path
-import numpy as np
 from subprocess import Popen, PIPE
 
+import numpy as np
 from tqdm import tqdm
+#quippy imported in __init__. Stays local
 
 from matdb import msg
 from matdb.utility import linecount
 from matdb.database import Group
-
-#quippy imported in __init__. Stays local
 
 class DynamicsGroup(Group):
     """Represents a molecular dynamics run created at a specific

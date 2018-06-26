@@ -3,20 +3,23 @@ eigenvalues of the force constants (aka Hessian matrix) for each of the
 configurations in `seed`.
 """
 from os import path, remove, mkdir
-import numpy as np
 from operator import itemgetter
+
+import numpy as np
 from phonopy import file_IO
 from phonopy.api_phonopy import Phonopy
-from phonopy.structure.atoms import Atoms as PhonopyAtoms
 from phonopy.cui.phonopy_argparse import get_parser
 from phonopy.cui.settings import PhonopyConfParser
+from phonopy.structure.atoms import Atoms as PhonopyAtoms
 
 from matdb import msg
-from matdb.database import Group
-from matdb.utility import execute, chdir
 from matdb.atoms import Atoms, AtomsList
-from matdb.transforms import conform_supercell
+from matdb.database import Group
 from matdb.calculators import get_calculator_module
+from matdb.kpoints import parsed_kpath
+from matdb.phonons import from_yaml
+from matdb.transforms import conform_supercell
+from matdb.utility import execute, chdir
 
 def roll_fc(hessian):
     """Rolls the specified hessian into the `phonopy` force constants format.
@@ -492,7 +495,7 @@ class Hessian(Group):
             along the paths, and their corresponding distances.
         """
         if self._bands is None:
-            from matdb.phonons import from_yaml
+            # from matdb.phonons import from_yaml
             byaml = path.join(self.phonodir, "band.yaml")
             self._bands = from_yaml(byaml)
         return self._bands
@@ -505,7 +508,7 @@ class Hessian(Group):
             labels.
         """
         if self._kpath is None:
-            from matdb.kpoints import parsed_kpath
+            # from matdb.kpoints import parsed_kpath
             self._kpath = parsed_kpath(self.atoms)
 
         return self._kpath

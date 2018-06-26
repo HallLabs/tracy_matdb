@@ -5,11 +5,11 @@ module supplies objects (similar in spirit to :mod:`matdb.database.__init__`
 for producting sequences of training objects that can be repeated across
 parameter grids.
 """
+from collections import OrderedDict
 from copy import copy
-from os import path, mkdir
 from fnmatch import fnmatch
 from importlib import import_module
-from collections import OrderedDict
+from os import path, mkdir
 
 import six
 

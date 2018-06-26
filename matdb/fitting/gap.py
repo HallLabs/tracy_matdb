@@ -1,15 +1,16 @@
 """Implements classes and methods for performing a GAP fit over a
 database defined in the YAML specification file.
 """
-import numpy as np
-from os import mkdir, path
 from collections import OrderedDict
+from os import mkdir, path
 
-from .basic import Trainer
-from tqdm import tqdm
+import numpy as np
 import lazy_import
 calculators = lazy_import.lazy_module("matdb.calculators")
+from tqdm import tqdm
+# quippy imported locally
 
+from .basic import Trainer
 from matdb import msg
 from matdb.calculators import Quip
 from matdb.atoms import AtomsList

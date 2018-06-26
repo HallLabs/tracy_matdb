@@ -3,20 +3,20 @@ product. In order to adjust parameters it is useful to plot potentials and
 convergence runs against each other.
 """
 from os import path
-import numpy as np
 
 from ase.build import make_supercell
 import matplotlib.pyplot as plt
+import numpy as np
 from tqdm import tqdm
 
 from matdb import msg
 from matdb.atoms import Atoms
-from matdb.phonons import bandplot
-from matdb.utility import chdir
-from matdb.phonons import from_yaml, _calc_bands, calc as phon_calc
-from matdb.kpoints import parsed_kpath
-from matdb.transforms import conform_supercell
 from matdb.calculators import build_calc
+from matdb.kpoints import parsed_kpath
+from matdb.phonons import bandplot
+from matdb.phonons import from_yaml, _calc_bands, calc as phon_calc
+from matdb.transforms import conform_supercell
+from matdb.utility import chdir
 
 def band_plot(dbs, fits=None, npts=100, title="{} Phonon Spectrum", save=None,
               figsize=(10, 8), nbands=None, delta=0.01, quick=True, **kwargs):

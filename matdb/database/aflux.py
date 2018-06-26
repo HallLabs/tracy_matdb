@@ -57,14 +57,15 @@ Operators
 6. `|` is the logical `or` between two conditions.
 
 """
-from matdb.database import Group
-import aflow
 import operator
 from os import path
 import pickle
-from matdb.atoms import Atoms, AtomsList
+
+import aflow
 from tqdm import tqdm
 
+from matdb.database import Group
+from matdb.atoms import Atoms, AtomsList
 
 operators = {
     '<': operator.lt,

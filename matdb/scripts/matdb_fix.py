@@ -1,10 +1,11 @@
- #!/usr/bin/python
+#!/usr/bin/python
 import argparse
 from os import path, remove
-import h5py
-import numpy as np
 from shutil import move
 import sys
+
+import h5py
+import numpy as np
 
 from matdb import msg, base
 from matdb.atoms import Atoms

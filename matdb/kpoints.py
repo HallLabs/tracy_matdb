@@ -3,10 +3,10 @@ have an appropriate special path in the BZ. `matdb` interfaces with
 `materialscloud.org` to extract their recommended path in the BZ.
 """
 from os import path, getcwd, chdir, system
+
 import numpy as np
 from kgridgen import kpointgeneration
 from seekpath.hpkot import get_path
-
 
 def find_qpoints(atoms, supercell):
     """Finds the `q` points that would be "pinned down" by a calculation of the

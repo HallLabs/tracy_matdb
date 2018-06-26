@@ -1,13 +1,12 @@
 '''Group of matdb.atoms.Atoms objects with atomic vacancies
 taken from a seed configuration.
 '''
-
-import numpy as np  # for use with arrays and random
-from os import path, mkdir
-from scipy.special import comb as choose  # find number of unique combinations
-
 from hashlib import sha1
+from os import path, mkdir
+
 from itertools import islice, combinations, groupby
+import numpy as np  # for use with arrays and random
+from scipy.special import comb as choose  # find number of unique combinations
 
 from matdb import msg
 from matdb.atoms import Atoms, AtomsList

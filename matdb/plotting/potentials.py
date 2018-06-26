@@ -3,11 +3,11 @@ answers within a particular :class:`matdb.AtomsList`.
 """
 from itertools import product
 
-import pudb
-import numpy as np
-from tqdm import tqdm
 from matdb.data import vegard, latpars
 from matdb.plotting.matd3 import PointDetailImage as PDI
+import numpy as np
+import pudb
+from tqdm import tqdm
 
 from matdb.atoms import Atoms
 

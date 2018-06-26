@@ -1,12 +1,13 @@
 """A database of nothing but seed configurations.
 """
-import numpy as np
 from os import path, getcwd, chdir, remove, listdir, mkdir
+
+import numpy as np
 from six import string_types
 
 from matdb import msg
-from matdb.database import Group
 from matdb.atoms import Atoms, AtomsList
+from matdb.database import Group
 
 class Manual(Group):
     """A basic group that just sets up a calculator for each atoms object

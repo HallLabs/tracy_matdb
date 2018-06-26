@@ -1,37 +1,27 @@
 """Implementation of Atoms object and AtomsList. Borrows from quippy
 code for some of the implementation.
 """
-
-import ase
-from ase.calculators.singlepoint import SinglePointCalculator
-from ase.build import make_supercell
-import numpy as np
 from copy import deepcopy
 from itertools import product
+import numpy as np
+import operator
+from os import path
+import sys
+from uuid import uuid4
 
-import h5py
+import ase
 from ase import io
+from ase.build import make_supercell
+from ase.calculators.singlepoint import SinglePointCalculator
+from ase.spacegroup import Spacegroup
+import h5py
 from six import string_types
 import lazy_import
-from os import path
-from uuid import uuid4
-from matdb import msg
-from matdb.transforms import conform_supercell
-
-# moved from local to global imports
-# lines in the code are retained but commented out
-from ase.spacegroup import Spacegroup
-from matdb.io import load_dict_from_h5
-from matdb.io import save_dict_to_h5
-from matdb import __version__
-import operator
-import sys
-
-
-
-
-
 calculators = lazy_import.lazy_module("matdb.calculators")
+
+from matdb import msg, __version__
+from matdb.transforms import conform_supercell
+from matdb.io import load_dict_from_h5, save_dict_to_h5
 
 def _recursively_convert_units(in_dict):
     """Recursively goes through a dictionary and converts it's units to be

@@ -1,9 +1,9 @@
 #!/usr/bin/python
 import argparse
+from glob import glob
 from os import path
 import sys
 
-from glob import glob
 from tqdm import tqdm
 
 from matdb import msg, base

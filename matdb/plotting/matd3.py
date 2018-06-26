@@ -1,16 +1,15 @@
 """Custom plug-ins to create interactive plots with `matplotlib` and
 `d3.js` for exploring fits and material properties.
 """
-import StringIO
 from os import path
+import StringIO
 import urllib, base64
 
-import numpy as np
 import mpld3
 from mpld3 import utils, plugins
 import matplotlib
 import matplotlib.pyplot as plt
-import matplotlib.pyplot as plt
+import numpy as np
 
 from matdb.utility import relpath, copyonce
 

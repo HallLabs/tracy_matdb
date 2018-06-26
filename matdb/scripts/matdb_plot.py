@@ -1,8 +1,8 @@
  #!/usr/bin/python
 import argparse
 from cPickle import dump, load
-from shutil import copyfile
 from os import path, mkdir
+from shutil import copyfile
 import sys
 
 import matplotlib

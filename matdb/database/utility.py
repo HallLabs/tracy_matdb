@@ -1,13 +1,13 @@
 """Contains all the utility functions that belong to the database groups."""
 
-import json
-import numpy as np
-from itertools import product
 from cPickle import dump, load
-from os import path, rename, remove
-
-from uuid import uuid4
 from glob import glob
+from itertools import product
+import json
+from os import path, rename, remove
+from uuid import uuid4
+
+import numpy as np
 from tqdm import tqdm
 
 from matdb import msg

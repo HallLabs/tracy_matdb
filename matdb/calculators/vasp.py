@@ -9,23 +9,20 @@ he underlying implementation in ASE, you must use a separate
   instance of the :class:`AsyncVasp` for each :class:`ase.Atoms` object that you
   want to calculate for.
 """
-import ase
-from ase.calculators.vasp import Vasp
-from os import path, stat, mkdir, remove, environ, rename
 import mmap
-from matdb.calculators.basic import AsyncCalculator
-from matdb import msg
-from matdb.kpoints import custom as write_kpoints
-from matdb.utility import chdir, execute, relpath, symlink
 from hashlib import sha1
-from matdb.exceptions import VersionError
+from os import path, stat, mkdir, remove, environ, rename
 import re
 
-# local to global
+import ase
+from ase.calculators.vasp import Vasp
 from ase.io.vasp import write_vasp
-# from matdb.utility import symlink
 
-
+from matdb import msg
+from matdb.calculators.basic import AsyncCalculator
+from matdb.exceptions import VersionError
+from matdb.kpoints import custom as write_kpoints
+from matdb.utility import chdir, execute, relpath, symlink
 
 def phonon_defaults(d, dfpt=False):
     """Adds the usual settings for the INCAR file when performing frozen-phonon

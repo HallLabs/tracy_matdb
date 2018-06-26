@@ -4,11 +4,11 @@ we don't necessarily know exactly how they were made, the data can still be
 useful. This module provides a simple class that adapts legacy databases to a
 format that can be used by the `matdb` fitting machinery.
 """
-from os import path, mkdir
-import numpy as np
-
-from tqdm import tqdm
 from glob import glob
+from os import path, mkdir
+
+import numpy as np
+from tqdm import tqdm
 
 from matdb import msg
 from matdb.atoms import AtomsList, Atoms

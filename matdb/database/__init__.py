@@ -6,27 +6,27 @@ from collections import OrderedDict
 from contextlib import contextmanager
 from datetime import datetime
 from fnmatch import fnmatch
+from glob import glob
+from hashlib import sha1
 from importlib import import_module
 import json
 from os import path, mkdir, rename, remove, sys, makedirs
 import pickle
 import random
-import sys
-
 import re
-import six
-import h5py
+import sys
+from uuid import uuid4
+
 import ase.db
 import collections
-from glob import glob
-from uuid import uuid4
-from tqdm import tqdm
-from hashlib import sha1
-import numpy as np
-from numpy import count_nonzero as cnz
+import h5py
 from jinja2 import Environment, PackageLoader
 import lazy_import
 calculators = lazy_import.lazy_module("matdb.calculators")
+import numpy as np
+from numpy import count_nonzero as cnz
+import six
+from tqdm import tqdm
 
 from matdb import __version__, msg
 from matdb.io import read, save_dict_to_h5

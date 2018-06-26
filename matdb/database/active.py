@@ -1,12 +1,12 @@
 """Group of configurations that is created from an enumerated list of structures.
 """
-import numpy as np
+from glob import glob
+from hashlib import sha1
 from os import path, getcwd, chdir, remove, listdir, mkdir
 
-from glob import glob
-from tqdm import tqdm
-from hashlib import sha1
+import numpy as np
 from six import string_types
+from tqdm import tqdm
 
 from matdb import msg
 from matdb.database import Group

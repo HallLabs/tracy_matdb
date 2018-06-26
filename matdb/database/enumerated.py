@@ -1,14 +1,16 @@
 """Group of configurations that is created from an enumerated list of structures.
 """
-from matdb.database import Group
-from matdb import msg
+from glob import glob
 from os import path, getcwd, chdir, remove, listdir, mkdir
+
+from jinja2 import Environment, PackageLoader
 import numpy as np
 from six import string_types
+
+from matdb import msg
 from matdb.atoms import Atoms, AtomsList
+from matdb.database import Group
 from matdb.utility import copyonce
-from glob import glob
-from jinja2 import Environment, PackageLoader
 
 class Enumerated(Group):
     """Sets up the calculations for a random sampling of structures from
