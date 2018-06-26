@@ -1,6 +1,6 @@
 """Group of configurations that is created from an enumerated list of structures.
 """
-from os import path, getcwd, chdir, remove, listdir, mkdir
+from os import path, remove, listdir, mkdir
 import numpy as np
 from six import string_types
 from glob import glob
@@ -12,7 +12,7 @@ from jinja2 import Environment, PackageLoader
 from matdb.database import Group
 from matdb import msg
 from matdb.atoms import Atoms, AtomsList
-from matdb.utility import copyonce
+from matdb.utility import copyonce, chdir
 
 class Enumerated(Group):
     """Sets up the calculations for a random sampling of structures from
@@ -348,18 +348,16 @@ class Enumerated(Group):
         """
         # We need to construct a lattice.in file then run phenum so that
         # each system gets the correct number of configurations.
-        current = getcwd()
         self._build_lattice_file(self.root)
         dind = 0
         # Perform the enumeration, we allow for multiple attempts since the
         # number of configs returned the first time could be to small for
         # enumerations over small systems.
-        chdir(self.root)
-        recurse = 0
-        while dind<self.nconfigs and recurse<5:
-            dind = self._enumerate(dind,recurse,current)
-            recurse += 1
-        chdir(current)
+        with chdir(self.root):
+            recurse = 0
+            while dind<self.nconfigs and recurse<5:
+                dind = self._enumerate(dind,recurse,current)
+                recurse += 1
 
         # Last of all, create the job file to execute the job array.
         self.jobfile(rerun)
@@ -393,14 +391,14 @@ class Enumerated(Group):
         # Now we need to create the folder for each system we've enumerated
         if self.euids is None:
             self.euids = []
-        current = getcwd()
+
         for count, dposcar in enumerate(glob("vasp.*")):
             if euids[count] not in self.euids:
                 dind += 1
                 datoms = Atoms(dposcar,format="vasp")
-                chdir(home)
-                self.create(datoms,cid=dind)
-                chdir(current)
+                with chdir(home):
+                    self.create(datoms,cid=dind)
+
                 copyonce(dposcar,path.join(self.configs[dind],"POSCAR_orig"))
                 self.index[str(euids[count].hexdigest())] = self.configs[dind]
                 self.euids.append(str(euids[count].hexdigest()))
