@@ -514,26 +514,37 @@ def test_command_functions(mtpdb):
         line = f.read()
     assert line.strip() == "add 1"    
 
-# This test doesn't work because something is wrong with the jinja template import
-# def test_command_functions2(mtpdb):
-#     # Finally we test the add step
-#     from matdb.utility import copyonce, _get_reporoot, touch
-#     from os import path, mkdir, remove, rename
-#     from matdb.atoms import Atoms
+#This test doesn't work because something is wrong with the jinja template import
+def test_command_functions2(mtpdb):
+    # Finally we test the add step
+    from matdb.utility import copyonce, _get_reporoot, touch
+    from os import path, mkdir, remove, rename
+    from matdb.atoms import Atoms
 
-#     mtpfit = mtpdb.trainers.fits['CoWV_mtp'].sequences['CoWV_mtp'].steps['mtp']
-#     target = path.join(mtpfit.root, "status.txt")
-#     with open(target, "w+") as f:
-#         f.write("add 1")
-#     touch(path.join(mtpfit.root, "relaxed.cfg"))
-#     touch(path.join(mtpfit.root, "new_training.cfg"))
-#     cmd_template = mtpfit.command()
-#     assert cmd_template == ''
+    mtpfit = mtpdb.trainers.fits['CoWV_mtp'].sequences['CoWV_mtp'].steps['mtp']
+    target = path.join(mtpfit.root, "status.txt")
+    with open(target, "w+") as f:
+        f.write("add 1")
+    touch(path.join(mtpfit.root, "relaxed.cfg"))
+    touch(path.join(mtpfit.root, "new_training.cfg"))
+    cmd_template = mtpfit.command()
+    assert cmd_template == ''
 
-#     assert len(mtpfit.active.last_iter) == 10
-#     assert path.isfile(path.join(mtpfit.root, "relaxed.cfg_iter_1"))
-#     assert path.isfile(path.join(mtpfit.root, "new_training.cfg_iter_1"))
+    assert len(mtpfit.active.last_iteration) == 10
+    assert path.isfile(path.join(mtpfit.root, "relaxed.cfg_iter_1"))
+    assert path.isfile(path.join(mtpfit.root, "new_training.cfg_iter_1"))
     
-#     with open(target, "r") as f:
-#         line = f.read()
-#     assert line.strip() == "done 1"    
+    templates = path.join(_get_reporoot(), "tests", "mtp", "training")
+    act_root = path.join(mtpdb.root, "Active", "active")
+    files = ["OUTCAR{}", "CONTCAR{}"]
+    for i in range(1,11):
+        target = path.join(act_root, "Ac.{0}".format(i))
+        for f in files:
+            copyonce(path.join(templates, f.format(i)), path.join(target, f.format('')))
+
+    target = path.join(mtpfit.root, "status.txt")
+    with open(target, "r") as f:
+        line = f.read()
+    assert line.strip() == "done 1"    
+    cmd_template = mtpfit.command()
+    assert cmd_template == mtpfit._train_template
