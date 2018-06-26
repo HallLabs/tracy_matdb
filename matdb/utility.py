@@ -284,8 +284,12 @@ def _get_reporoot():
     system.
     """
     import matdb
-    medpath = path.abspath(matdb.__file__)
-    return path.dirname(path.dirname(medpath))
+    global reporoot
+    if reporoot is None:
+        medpath = path.abspath(matdb.__file__)
+        reporoot = path.dirname(path.dirname(medpath))
+
+    return reporoot
 
 def relpath(s):
     """Returns the *repository-relative* path for the string `s`.
@@ -476,9 +480,10 @@ def getattrs(obj, chain):
             o = getattr(o, attr)
     return o
         
-reporoot = _get_reporoot()
+reporoot = None
 """The absolute path to the repo root on the local machine.
 """
+_get_reporoot()
 
 def slicer(obj, args):
     """Slices the object along the path defined in args.
