@@ -1,26 +1,18 @@
 """Implements classes and methods for performing a GAP fit over a
 database defined in the YAML specification file.
 """
-from collections import OrderedDict
-from glob import glob
-from itertools import combinationsfrom os import mkdir
-import os
-from os import path, remove, rename
-
-import numpy as np
-from tqdm import tqdm
-from jinja2 import Environment, PackageLoader
-
-from .basic import Trainer
+from os import path, rename
 from matdb import msg
-from matdb.atoms import Atoms
-from phenum.makeStr import _make_structures
-from matdb.database import Database
-from matdb.database.active import Active
-from matdb.utility import cat, chdir, _get_reporoot
+from collections import OrderedDict
+import numpy as np
+from .basic import Trainer
+from matdb.utility import cat, chdir
+from glob import glob
+import os
+from tqdm import tqdm
 
 def RepresentsInt(s):
-    try:
+    try: 
         int(s)
         return True
     except ValueError:
@@ -74,8 +66,8 @@ class MTP(Trainer):
             self.iter_status = None
 
         # we need access to the active learning set
-        # from matdb.database.active import Active
-        # from matdb.database import Database
+        from matdb.database.active import Active
+        from matdb.database import Database
         db_root = self.controller.db.root
         steps = [{"type":"active.Active"}]
         dbargs = {"root":db_root,
@@ -83,9 +75,9 @@ class MTP(Trainer):
                   "calculator":self.controller.db.calculator}
         self.active = Active(**dbargs)
         self._trainfile = path.join(self.root, "train.cfg")
-
+        
         #Configure the fitting directory for this particular potential.
-        # from os import mkdir
+        from os import mkdir
         if not path.isdir(self.root):
             mkdir(self.root)
 
@@ -110,7 +102,7 @@ class MTP(Trainer):
             relax_args["fit_setting"] = relaxargs["fit"]
         else:
             relax_args["fit_setting"] = "FALSE"
-
+        
         if "site-weight" in relaxargs:
             relax_args["site_weight"] = relaxargs["site-weight"]
         else:
@@ -157,10 +149,10 @@ class MTP(Trainer):
         """Creates the 'train.cfg' file needed to train the potential from the
         databeses used.
         Args:
-            iteration (int): the number of iterations of MTP has been
+            iteration (int): the number of iterations of MTP has been 
                 through.
         """
-        # from matdb.utility import cat
+        from matdb.utility import cat
         if iteration == 1:
             for db in self.dbs:
                 pbar = tqdm(total=len(db.fitting_configs))
@@ -177,10 +169,10 @@ class MTP(Trainer):
         """Creates a 'train.cfg' file for the calculation stored at the target
         directory.
         Args:
-            target (str): the path to the directory in which a calculation
+            target (str): the path to the directory in which a calculation 
                 was performed.
         """
-        # from matdb.utility import cat
+        from matdb.utility import cat
         if path.isfile(path.join(target,"OUTCAR")):
             mapping = self._get_mapping(target)
             os.system("mlp convert-cfg {0}/OUTCAR {1}/diff.cfg --input-format=vasp-outcar >> outcar.txt".format(target,self.root))
@@ -216,7 +208,7 @@ class MTP(Trainer):
         """Finds the species mappings for the atomic numbers found in the
         trani.cfg file so that is will be correct.
         Args:
-            target (str): the path to the directory in which a calculation
+            target (str): the path to the directory in which a calculation 
                 was performed.
         """
         if not path.isfile(path.join(target,"POSCAR")):
@@ -240,21 +232,21 @@ class MTP(Trainer):
         """
 
         target = path.join(self.root, "pot.mtp")
-
-        # from jinja2 import Environment, PackageLoader
+        
+        from jinja2 import Environment, PackageLoader
         env = Environment(loader=PackageLoader('matdb', 'templates'))
         template = env.get_template("pot.mtp")
 
         with open(target,'w') as f:
             f.write(template.render(n_species=str(len(self.species))))
-
+    
     def _make_relax_ini(self):
         """Creates the 'relax.ini' file for relaxing the structures.
         """
 
         target = path.join(self.root, "relax.ini")
-
-        # from jinja2 import Environment, PackageLoader
+        
+        from jinja2 import Environment, PackageLoader
         env = Environment(loader=PackageLoader('matdb', 'templates'))
         template = env.get_template("relax.ini")
 
@@ -264,16 +256,16 @@ class MTP(Trainer):
     def _make_to_relax_cfg(self):
         """Creates the list of files to relax to check the mtp against.
         """
-        # from matdb.utility import _get_reporoot
-        # from os import path, remove
-        # from phenum.makeStr import _make_structures
-        # from itertools import combinations
+        from matdb.utility import _get_reporoot
+        from os import path, remove
+        from phenum.makeStr import _make_structures
+        from itertools import combinations
 
         target = path.join(self.root,"to-relax.cfg")
 
         if path.isfile(target):
             remove(target)
-
+        
         args = {"config":"t",
                 "species":self.species,
                 "structures": "all",
@@ -290,16 +282,16 @@ class MTP(Trainer):
         if len(self.species) >4:
             msg.err("The MTP relaxation isn't setup to create a to-relax.cfg "
                     "file for systems with more than 4 elements.")
-
+        
         msg.info("Setting up to-relax.cfg file.")
         for crystal in ["bcc","fcc","sc","hcp"]:
             infile = path.join(_get_reporoot(),"matdb","templates",
                                "struct_enum.out_{0}_{1}".format(len(self.species),crystal))
             args["input"] = infile
             _make_structures(args)
-
-        msg.info("to-relax.cfg file completed.")
-
+                    
+        msg.info("to-relax.cfg file completed.")                   
+        
     def command(self):
         """Returns the command that is needed to train the GAP
         potentials specified by this object.
@@ -311,7 +303,7 @@ class MTP(Trainer):
             self.iter_status = "train"
             iter_count = 1
         else:
-            # from os import remove
+            from os import remove
             with open(path.join(self.root,"status.txt"),"r") as f:
                 for line in f:
                     old_status = line.strip().split()
@@ -322,19 +314,19 @@ class MTP(Trainer):
             else:
                 self.iter_status = old_status[0]
                 iter_count = int(old_status[1])
-
+                
         #if we're at the start of a training iteration use the command to train the potential
         if self.iter_status == "train":
             self._make_train_cfg(iter_count)
 
             #remove the selected.cfg and rexaed.cfg from the last iteration if they exist
             if path.isfile(path.join(self.root,"selected.cfg")):
-                # from os import remove
+                from os import remove
                 remove(path.join(self.root,"selected.cfg"))
             if path.isfile(path.join(self.root,"relaxed.cfg")):
-                # from os import remove
-                remove(path.join(self.root,"relaxed.cfg"))
-
+                from os import remove
+                remove(path.join(self.root,"relaxed.cfg"))        
+        
             if not path.isfile(path.join(self.root,"relax.ini")):
                 self._make_relax_ini()
             if not path.isfile(path.join(self.root,"pot.mtp")):
@@ -346,7 +338,7 @@ class MTP(Trainer):
         if self.iter_status == "relax":
             # If pot has been trained
             rename(path.join(self.root,"Trained.mtp_"), path.join(self.root,"pot.mtp"))
-
+            
             # if the unrelaxed.cfg file exists we need to move it to
             # replace the existing 'to-relax.cfg' otherwise we need to
             # create the 'to-relax.cfg' file.
@@ -364,7 +356,7 @@ class MTP(Trainer):
 
         # if relaxation is done
         if self.iter_status == "select":
-            # from matdb.atoms import Atoms
+            from matdb.atoms import Atoms
             cat(glob(path.join(self.root,"selected.cfg_*")), path.join(self.root,"selected.cfg"))
 
             # command to select next training set.
@@ -392,13 +384,13 @@ class MTP(Trainer):
                     with open(POSCAR, 'w+') as f:
                         for line in pos_file:
                             f.write(line)
-
+                            
                     new_configs.append(Atoms(POSCAR,format="vasp"))
 
                 self.active.add_configs(new_configs, iter_count)
                 self.active.setup()
                 self.active.execute()
-
+            
             with open(path.join(self.root,"status.txt"),"w+") as f:
                 f.write("done {0}".format(iter_count))
             template = ''
@@ -419,7 +411,7 @@ class MTP(Trainer):
             "file": self.mtp_file,
             "jobfile": path.isfile(self._jobfile)
         }
-
+        
         if printed:
             fqn = "{}.{}".format(self.parent.name, self.name)
             msg.info("{} => Model ready: {}".format(fqn, result["trained"]))

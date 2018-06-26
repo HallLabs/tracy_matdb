@@ -2,34 +2,29 @@
 eigenvalues of the force constants (aka Hessian matrix) for each of the
 configurations in `seed`.
 """
-from os import path, remove, mkdir
-from operator import itemgetter
-
+from os import path, remove
 import numpy as np
+from operator import itemgetter
+from matdb.database import Group
+from matdb.utility import execute, chdir
 from phonopy import file_IO
 from phonopy.api_phonopy import Phonopy
+from phonopy.structure.atoms import Atoms as PhonopyAtoms
 from phonopy.cui.phonopy_argparse import get_parser
 from phonopy.cui.settings import PhonopyConfParser
-from phonopy.structure.atoms import Atoms as PhonopyAtoms
-
 from matdb import msg
 from matdb.atoms import Atoms, AtomsList
-from matdb.database import Group
-from matdb.calculators import get_calculator_module
-from matdb.kpoints import parsed_kpath
-from matdb.phonons import from_yaml
 from matdb.transforms import conform_supercell
-from matdb.utility import execute, chdir
 
 def roll_fc(hessian):
     """Rolls the specified hessian into the `phonopy` force constants format.
-
+    
     Args:
         hessian (numpy.ndarray): of shape `n_atoms * 3`.
     """
     n = hessian.shape[0]/3
     result = np.zeros((n, n, 3, 3), dtype='double')
-
+    
     for i in range(n):
         for j in range(n):
             result[i, j] = hessian[i*3:(i+1)*3, j*3:(j+1)*3]
@@ -45,7 +40,7 @@ def unroll_fc(fc):
     for i in range(num_atom):
         for j in range(num_atom):
             result[i*3:(i+1)*3, j*3:(j+1)*3] = fc[i, j]
-
+  
     return result
 
 def phonopy_to_matdb(patoms):
@@ -107,7 +102,7 @@ class Hessian(Group):
         dosmesh (list): mesh for calculating the phonon density-of-states.
     """
     splittable = False
-
+    
     def __init__(self, phonopy={}, name="hessian", bandmesh=None,
                  dosmesh=None, tolerance=0.1, dfpt=False, **dbargs):
         self.name = name
@@ -115,11 +110,12 @@ class Hessian(Group):
         dbargs["prefix"] = "H"
         dbargs["cls"] = Hessian
         if "Hessian" not in dbargs['root']:
+            from os import mkdir
             new_root =path.join(dbargs['root'],"Hessian")
             if not path.isdir(new_root):
                 mkdir(new_root)
             dbargs['root'] = new_root
-
+        
         #Make sure that we override the global calculator default values with
         #those settings that we know are needed for good phonon calculations. We
         #also need to assign the parent here *before* the super.__init__ so that
@@ -136,7 +132,7 @@ class Hessian(Group):
         #We only initialize now because we wanted to first update the dbargs for
         #the calculator, etc.
         super(Hessian, self).__init__(**dbargs)
-
+        
         if "dim" in phonopy:
             self.supercell = phonopy["dim"]
 
@@ -148,7 +144,7 @@ class Hessian(Group):
                 self.supercell = list(np.array(self.supercell)*-1)
         else:
             self.supercell = None
-
+            
         self.bandmesh = bandmesh
         self.dosmesh = dosmesh
         self.tolerance = tolerance
@@ -169,7 +165,7 @@ class Hessian(Group):
 
         self._bzsample = None
         """tuple: returned by :attr:`BZ_sample`."""
-
+        
         self._H = self.load_pkl(self.H_file)
         """np.array: the Hessian matrix, whether it was derived from
         DFPT or from frozen phonon calculations.
@@ -177,6 +173,7 @@ class Hessian(Group):
 
         # Only place these directories if we're at the bottom of the stack.
         if self.pgrid is None or (self.pgrid is not None and len(self.pgrid) ==0):
+            from os import mkdir
             if not path.isdir(self.phonodir):
                 mkdir(self.phonodir)
             if not path.isdir(self.phonocache):
@@ -214,8 +211,8 @@ class Hessian(Group):
         #config_atoms from this sequence or its children.
         atBase = next(self.iconfigs)
         atcalc = atBase.get_calculator()
-
-        #Make sure that energy, force and virial information was found.
+        
+        #Make sure that energy, force and virial information was found. 
         assert getattr(atBase, atcalc.energy_name) < 0
         assert getattr(atBase, atcalc.force_name).shape == (atBase.n, 3)
         assert getattr(atBase, atcalc.virial_name).shape == (3, 3)
@@ -247,12 +244,12 @@ class Hessian(Group):
             #small ones that are essentially zero, but slightly negative.
             if np.abs(l) < 1e-5 or l < 0:
                 continue
-
+                    
             #Add this eigenvector to its own configuration.
             atc = atEmpty.copy()
             Hi = np.reshape(v, (natoms, 3))
             atc.properties[hname] =  Hi
-
+                    
             #Same thing for the eigenvalue.
             atc.add_param(hname, l)
 
@@ -265,7 +262,7 @@ class Hessian(Group):
             configs.append(atc)
 
         return configs
-
+                
     def sub_dict(self):
         """Returns a dict needed to initialize the class.
         """
@@ -278,7 +275,7 @@ class Hessian(Group):
     def BZ_sample(self):
         """Returns a full sampling of the BZ by calculating frequencies at every
         unique k-point as sampled on the :attr:`dosmesh` grid.
-
+        
         Returns:
             tuple: `(q-points, weights, eigenvalues)` where the `q-points` are
             the unique points after symmetry reduction; `weights` are the
@@ -293,7 +290,7 @@ class Hessian(Group):
                 atoms = matdb_to_phonopy(self.atoms)
                 phonpy = Phonopy(atoms, np.array(self.supercell).reshape(3,3))
                 phonpy.set_force_constants(roll_fc(self.H))
-                phonpy._set_dynamical_matrix()
+                phonpy._set_dynamical_matrix()       
 
                 #Phonopy requires full settings to compute the unique grid and
                 #eigenvalues. We spoof the command-line parser.
@@ -311,7 +308,7 @@ class Hessian(Group):
                 self._bzsample = phonpy.get_mesh()[0:3]
 
         return self._bzsample
-
+    
     def compare(self, other):
         """Compares this Hessian group's calculated bands with another Hessian
         group that is taken to the "right" answer.
@@ -329,9 +326,9 @@ class Hessian(Group):
         #Make sure both are running on the same grid. This should always be true
         #unless the primitive is different, or if the grid spacing is different.
         assert np.allclose(sgrid, ogrid)
-
+        
         return (np.mean(np.abs(sfreqs-ofreqs)), np.std(sfreqs-ofreqs))
-
+    
     def _best_bands(self):
         """Returns the name of the band collection that has the smallest *converged*
         phonon bands. This is accomplished by assuming that the largest supercell is
@@ -403,7 +400,7 @@ class Hessian(Group):
                 for p in self.sequence.values():
                     result.extend(p.rset)
                 return result
-
+            
     def _set_calc_defaults(self, calcargs):
         """Sets the default calculator parameters for phonon calculations based
         on the calculator specified in `calcargs`.
@@ -412,7 +409,7 @@ class Hessian(Group):
             calcargs (dict): the "calculator" dictionary that is part of the
               group arguments for db group.
         """
-        # from matdb.calculators import get_calculator_module
+        from matdb.calculators import get_calculator_module
         try:
             mod = get_calculator_module(calcargs)
             if mod is not None and hasattr(mod, "phonon_defaults"):
@@ -427,7 +424,7 @@ class Hessian(Group):
         phonons.
         """
         return path.join(self.phonodir, "total_dos.dat")
-
+    
     def ready(self):
         """Returns True if all the phonon calculations have been completed, the
         force sets have been created, and the DOS has been calculated.
@@ -462,7 +459,7 @@ class Hessian(Group):
         """
         if self._H is not None:
             return self._H
-
+        
         #Otherwise, we need to calculate it from scratch. This depends on
         #whether we are using DFPT or frozen phonons.
         if not self.dfpt:
@@ -476,14 +473,14 @@ class Hessian(Group):
                 msg.err(''.join(xargs["output"]))
         else:
             self.calc_fc()
-
+        
         with chdir(self.phonodir):
             result = file_IO.parse_FORCE_CONSTANTS()
-
-        self._H = unroll_fc(result)
+            
+        self._H = unroll_fc(result)        
         self.save_pkl(self._H, self.H_file)
         return self._H
-
+    
     @property
     def bands(self):
         """Returns the DFT-accurate phonon bands in a format that can be
@@ -495,7 +492,7 @@ class Hessian(Group):
             along the paths, and their corresponding distances.
         """
         if self._bands is None:
-            # from matdb.phonons import from_yaml
+            from matdb.phonons import from_yaml
             byaml = path.join(self.phonodir, "band.yaml")
             self._bands = from_yaml(byaml)
         return self._bands
@@ -508,11 +505,11 @@ class Hessian(Group):
             labels.
         """
         if self._kpath is None:
-            # from matdb.kpoints import parsed_kpath
+            from matdb.kpoints import parsed_kpath
             self._kpath = parsed_kpath(self.atoms)
-
-        return self._kpath
-
+            
+        return self._kpath    
+    
     @property
     def kpath(self):
         """Returns the special path in k-space for the seed configuration of this
@@ -527,10 +524,10 @@ class Hessian(Group):
             return self.get_kpath()
         elif isinstance(self.parent, Hessian):
             return self.parent.get_kpath()
-
+    
     def calc_bands(self, recalc=False):
         """Calculates the bands at the special points given by seekpath.
-
+        
         Args:
             recalc (bool): when True, recalculate the DOS, even if the
               file already exists.
@@ -539,11 +536,11 @@ class Hessian(Group):
         bandfile = path.join(self.phonodir, "band.yaml")
         if not recalc and path.isfile(bandfile):
             return
-
+        
         from matdb.phonons import _calc_bands
         _calc_bands(self.atoms, self.H, supercell=self.supercell,
                     outfile=bandfile, grid=self.bandmesh)
-
+    
     def calc_DOS(self, recalc=False):
         """Calculates the *total* density of states.
         Args:
@@ -584,13 +581,13 @@ class Hessian(Group):
         mod = get_calculator_module(self.calcargs)
         call = getattr(mod, "extract_force_constants")
         xres = call(self.configs, self.phonodir)
-
+        
         #Make sure that phonopy actually produced files; otherwise show the
         #output (phonopy doesn't write to stderr, only stdout).
         if not path.isfile(fcfile): #pragma: no cover
             msg.std(''.join(xres["error"]))
             msg.err("could not calculate the force constants from DFPT.")
-
+            
     def calc_forcesets(self, recalc=False):
         """Extracts the force sets from the displacement calculations.
         Args:
@@ -600,7 +597,7 @@ class Hessian(Group):
         fsets = path.join(self.phonodir, "FORCE_SETS")
         if not recalc and path.isfile(fsets):
             return
-
+        
         from matdb.calculators import get_calculator_module
         mod = get_calculator_module(self.calcargs)
         call = getattr(mod, "extract_force_sets")
@@ -618,9 +615,9 @@ class Hessian(Group):
         Args:
             rerun (int): when > 1, recreate the folders even if they
               already exist. If > 0, then recreate the jobfile.
-        """
+        """        
         super(Hessian, self).setup(self._setup_configs, rerun)
-
+            
     def _setup_configs(self, rerun):
         """Displaces the seed configuration preparatory to calculating the force
         sets for phonon spectra.
@@ -634,14 +631,14 @@ class Hessian(Group):
         Args:
             rerun (int): when > 1, recreate the folders even if they
               already exist. If > 0, recreate the jobfile.
-        """
+        """        
         #We also don't want to setup again if we have the results already.
         if self.ready() and rerun == 0:
             return
 
         if not self.is_setup() or rerun > 1:
             from ase.io import write
-            write(path.join(self.phonodir, "POSCAR"), self.atoms, "vasp")
+            write(path.join(self.phonodir, "POSCAR"), self.atoms, "vasp")        
             scell = ' '.join(map(str, self.supercell))
             sargs = ["phonopy", "-d", '--dim="{}"'.format(scell)]
             pres = execute(sargs, self.phonodir, venv=True)
@@ -651,7 +648,7 @@ class Hessian(Group):
             #about stderr...
             if not path.isfile(path.join(self.phonodir, "SPOSCAR")):
                 msg.err('\n'.join(pres["output"]))
-
+            
             from matdb.atoms import Atoms
             if not self.dfpt:
                 #Frozen phonons, create a config execution folder for each of
@@ -691,7 +688,7 @@ class Hessian(Group):
                 self.calc_forcesets(recalc)
             else:
                 self.calc_fc(recalc)
-
+                
             self.calc_DOS(recalc)
-
+            
         return self.ready()

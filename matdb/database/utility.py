@@ -1,20 +1,15 @@
 """Contains all the utility functions that belong to the database groups."""
 
-from cPickle import dump, load
-from glob import glob
-from itertools import product
-import json
-from os import path, rename, remove
 from uuid import uuid4
-
+from cPickle import dump, load
+from os import path, rename, remove
 import numpy as np
+from glob import glob
 from tqdm import tqdm
-
+        
 from matdb import msg
 from matdb.atoms import AtomsList
 from matdb.utility import dbcat
-from matdb.utility import load_datetime
-from matdb.utility import special_values
 
 def split(atlist, splits, targets, dbdir, ran_seed, dbfile=None, recalc=0,
           nonsplit=None):
@@ -22,18 +17,17 @@ def split(atlist, splits, targets, dbdir, ran_seed, dbfile=None, recalc=0,
     each `split` setting in the database specification.
 
     Args:
-        atlsit (AtomsList, or list): the list of :class:`matdb.atams.Atoms`
-          objects to be split or a list to the files containing the atoms
-          objects.
+        atlsit (AtomsList, or list): the list of :class:`matdb.atams.Atoms` objects
+          to be split or a list to the files containing the atoms objects.
         splits (dict): the splits to perform.
-        targets (dict): the files to save the splits in, these should
+        targets (dict): the files to save the splits in, these should 
           contain a {} in the name which will be replaced with the split
-          name. The dictionary must have the format {"train": file_name,
+          name. The dictionary must have the format {"train": file_name, 
           "holdout": file_name, "super": file_name}.
         dbdir (str): the root *splits* directory for the database.
         dbfile (str): the _dbfile for a legacy database.
-        ran_seed (int or float): the random seed for the splits (i.e. the
-          controllers random seed).
+        ran_seed (int or float): the random seed for the splits (i.e. the controllers
+          random seed).
         recalc (int): when non-zero, re-split the data and overwrite any
           existing *.h5 files. This parameter decreases as
           rewrites proceed down the stack. To re-calculate
@@ -48,7 +42,7 @@ def split(atlist, splits, targets, dbdir, ran_seed, dbfile=None, recalc=0,
         holdout_file = targets["holdout"](name)
         super_file = targets["super"](name)
         idfile = path.join(dbdir, "{0}-ids.pkl".format(name))
-
+        
         if (path.isfile(train_file) and path.isfile(holdout_file)
             and path.isfile(super_file)):
             if recalc <= 0:
@@ -120,7 +114,7 @@ def split(atlist, splits, targets, dbdir, ran_seed, dbfile=None, recalc=0,
                 altrain.extend(nonsplit)
                 Nunsplit = len(nonsplit)
             altrain.write(train_file)
-
+            
             if dbfile is not None:
                 dbcat([dbfile], train_file, docat=False, ids=tids, N=Ntrain+Nunsplit)
             else:
@@ -148,13 +142,13 @@ def dbconfig(dbfile):
     Args:
         dbfile (str): path to the database file to get config information for.
     """
-    # from matdb.utility import load_datetime
-
+    from matdb.utility import load_datetime
+    
     confpath = dbfile + ".json"
     if not path.isfile(confpath):
         return {}
-
-    # import json
+    
+    import json
     with open(confpath) as f:
         config = json.load(f, object_pairs_hook=load_datetime)
 
@@ -165,16 +159,16 @@ def parse_path(root,seeds,ran_seed=None):
     """Finds the full path to the seed files for this system.
     Args:
         root (str): the root directory for the databes.
-        seeds (str or list of str): the seeds for the database that
+        seeds (str or list of str): the seeds for the database that 
             need to be parsed and have the root folder found.
         ran_seed (optional): the seed for the random generator if used.
-
+    
     Returns:
         seed_files (list): a list of the seed files for the database.
     """
-    # from matdb.utility import special_values
-    # from itertools import product
-
+    from matdb.utility import special_values
+    from itertools import product
+    
     seed_files = []
     for seed in seeds:
         # if there is a '/' in the seed then this is a path to the
@@ -196,7 +190,7 @@ def parse_path(root,seeds,ran_seed=None):
                 if len(this_seeds) >= 1:
                     this_seeds.extend([path.join(*i) for i in product(this_seeds,this_level)])
                 else:
-                    this_seeds.extend(this_level)
+                    this_seeds.extend(this_level)                    
 
         else:
             seed_path = path.join(root,"seed")

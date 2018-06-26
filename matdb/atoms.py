@@ -1,27 +1,24 @@
 """Implementation of Atoms object and AtomsList. Borrows from quippy
 code for some of the implementation.
 """
-from copy import deepcopy
-from itertools import product
-import numpy as np
-import operator
-from os import path
-import sys
-from uuid import uuid4
 
 import ase
-from ase import io
-from ase.build import make_supercell
 from ase.calculators.singlepoint import SinglePointCalculator
-from ase.spacegroup import Spacegroup
+from ase.build import make_supercell
+import numpy as np
+from copy import deepcopy
+from itertools import product
+
 import h5py
+from ase import io
 from six import string_types
 import lazy_import
-calculators = lazy_import.lazy_module("matdb.calculators")
-
-from matdb import msg, __version__
+from os import path
+from uuid import uuid4
+from matdb import msg
 from matdb.transforms import conform_supercell
-from matdb.io import load_dict_from_h5, save_dict_to_h5
+
+calculators = lazy_import.lazy_module("matdb.calculators")
 
 def _recursively_convert_units(in_dict):
     """Recursively goes through a dictionary and converts it's units to be
@@ -71,10 +68,10 @@ class Atoms(ase.Atoms):
         masses (list): The masses of each atom.
         charges (list): The charges of each atom.
         cell (list): The lattice vectors for the cell.
-        pbc (list): list of bools for the periodic boundary conditions in x y
-          and z.
+        pbc (list): list of bools for the periodic boundary conditions in x y 
+          and z. 
         calculator (object): a `matdb` calculator object.
-        info (dict): a dictionary containing other info (this will get stored in
+        info (dict): a dictionary containing other info (this will get stored in 
           the params dictionary.
         n (int): the number of atoms in the cell.
         properties (dict): a dictionary of properties where the keys are the property
@@ -112,8 +109,7 @@ class Atoms(ase.Atoms):
         else:
             #NB: make sure that we match exactly on the keyword arguments. Do
             #*NOT* use positional arguments for this constructor.
-            super(Atoms, self).__init__(
-                 symbols=symbols,
+            super(Atoms, self).__init__(symbols=symbols,
                  positions=positions, numbers=numbers,
                  tags=tags, momenta=momenta, masses=masses,
                  magmoms=magmoms, charges=charges,
@@ -153,12 +149,12 @@ class Atoms(ase.Atoms):
                     if k != 'force':
                         self.add_param(k,v)
                     else:
-                        self.add_property(k,v)
+                        self.add_property(k,v)                    
 
         if properties is not None:
             for k, v in properties.items():
                 self.add_property(k,v)
-
+                
         if params is not None:
             for k, v in params.items():
                 self.add_param(k,v)
@@ -167,7 +163,7 @@ class Atoms(ase.Atoms):
             for k, v in info.items():
                 if k not in ["params","properties"]:
                     self.add_param(k,v)
-
+                
         if self.info is not None:
             for k, v in self.info.items():
                 if k not in ["params","properties"]:
@@ -176,7 +172,7 @@ class Atoms(ase.Atoms):
 
         self.group_uuid = group_uuid
         self.uuid = uuid if uuid is not None else str(uuid4())
-
+                
         self._initialised = True
 
     def make_supercell(self, supercell):
@@ -186,7 +182,7 @@ class Atoms(ase.Atoms):
         scell = conform_supercell(supercell)
         result = make_supercell(self, scell)
         return Atoms(result)
-
+        
     def add_property(self,name,value):
         """Adds an attribute to the class instance.
 
@@ -212,7 +208,7 @@ class Atoms(ase.Atoms):
             self.info["params"][name] = value
         else:
             self.info["params"][name]=value
-
+        
     def rm_param(self,name):
         """Removes a parameter as attribute from the class instance and info dictionary.
 
@@ -230,7 +226,7 @@ class Atoms(ase.Atoms):
         """
         if name in self.info["properties"]:
             del self.info["properties"][name]
-
+            
     def __del__(self):
         attributes = list(vars(self))
         for attr in attributes:
@@ -269,7 +265,7 @@ class Atoms(ase.Atoms):
                     return super(Atoms, self).__setattr__(name, value)
             else:
                 return super(Atoms, self).__setattr__(name, value)
-
+        
     def copy(self):
         """Returns a copy of this atoms object that has different pointers to
         self, values, etc.
@@ -277,13 +273,13 @@ class Atoms(ase.Atoms):
         result = Atoms()
         result.copy_from(self)
         return result
-
+                
     def copy_from(self, other):
         """Replace contents of this Atoms object with data from `other`."""
 
-        # from ase.spacegroup import Spacegroup
+        from ase.spacegroup import Spacegroup
         self.__class__.__del__(self)
-
+        
         if isinstance(other, Atoms):
             # We need to convert the attributes of the other atoms
             # object so that we can initialize this one properly.
@@ -307,12 +303,12 @@ class Atoms(ase.Atoms):
                 constraint = other.constraint
             except:
                 constraint = None
-
+                
             masses = other.get_masses()
             momenta = other.get_momenta()
             info = deepcopy(other.info)
             group_uuid = other.group_uuid
-
+            
             self.__init__(symbols=symbols, positions=other.positions, n=other.n,
                           properties=other.properties, magmoms=magmoms,
                           params=other.params, masses=masses, momenta=momenta,
@@ -343,7 +339,7 @@ class Atoms(ase.Atoms):
 
         else:
             raise TypeError('can only copy from instances of matdb.Atoms or ase.Atoms')
-
+        
         # copy any normal attributes we've missed
         for k, v in other.__dict__.iteritems(): #pragma: no cover
             if not k.startswith('_') and k not in self.__dict__:
@@ -358,7 +354,7 @@ class Atoms(ase.Atoms):
 
         frmt = target.split('.')[-1]
         if frmt == "h5" or frmt == "hdf5":
-            # from matdb.io import load_dict_from_h5
+            from matdb.io import load_dict_from_h5
             with h5py.File(target,"r") as hf:
                 data = load_dict_from_h5(hf)
             if "atom" in data.keys()[0]:
@@ -381,7 +377,7 @@ class Atoms(ase.Atoms):
                     if kwargs is not None:
                         calc = calc(self, data["folder"], data["calc_contr_dir"],
                                     data["calc_ran_seed"], **kwargs)
-                    else:
+                    else: 
                         calc = calc(self, data["folder"], data["calc_contr_dir"],
                                     data["calc_ran_seed"])
                 self.set_calculator(calc)
@@ -409,7 +405,7 @@ class Atoms(ase.Atoms):
                 props[k] = list(map(lambda r: ''.join(r), v.T))
             elif len(v.shape) == 2 and v.shape[0] != 3:
                 props[k] = v.transpose()
-
+                
         #Unfortunately, the momenta gets set to zeros by default anytime it is
         #requested from the ASE atoms object. Because of the quippy transpose
         #problem, we don't always transpose. Also, we can't pass it in as a
@@ -433,7 +429,7 @@ class Atoms(ase.Atoms):
                   "n": len(self.positions)}
 
         return quippy.Atoms(**kwargs)
-
+            
     def S(self, cutoff=5., nmax=8, lmax=8, sigma=0.5, trans_width=0.5,
           average=True, normalize=True):
         """Returns the SOAP vectors for each environment in the specified atoms object.
@@ -445,7 +441,7 @@ class Atoms(ase.Atoms):
                    "atom_sigma={3:.2f} n_species={6} species_Z={{{4}}} n_Z={6} Z={{{9}}} "
                    "trans_width={5:.2f} normalise={7} average={8}")
 
-
+        
         Z = np.unique(atoms.get_atomic_numbers())
         savg = 'T' if average else 'F'
         soaps = []
@@ -468,22 +464,22 @@ class Atoms(ase.Atoms):
             return P/np.linalg.norm(P)
         else:
             return P
-
+            
     def to_dict(self):
         """Converts the contents of a :class:`matdb.atoms.Atoms` object to a
         dictionary so it can be saved to file.
 
         Args:
-            atoms (matdb.atams.Atoms): the atoms object to be converted to
+            atoms (matdb.atams.Atoms): the atoms object to be converted to 
               a dictionary
 
         Returns:
-            A dictionary containing the relavent parts of an atoms object to
+            A dictionary containing the relavent parts of an atoms object to 
             be saved.
         """
-        # import sys
-        # from matdb import __version__
-
+        import sys
+        from matdb import __version__
+        
         data = {}
         data["n"] = np.int64(len(self.positions))
         data["pbc"] = np.array(self.pbc)
@@ -501,7 +497,7 @@ class Atoms(ase.Atoms):
             data["calc"] = self.calc.name
             data["calc_contr_dir"] = calc_dict["contr_dir"]
             if "version" in calc_dict:
-                data["calc_version"] = calc_dict["version"]
+                data["calc_version"] = calc_dict["version"] 
             if hasattr(self.calc,"args"):
                 data["calc_args"] = self.calc.args
             if hasattr(self.calc,"kwargs"):
@@ -514,7 +510,7 @@ class Atoms(ase.Atoms):
                 data["calc_kwargs"]["kpoints"] = _recursively_convert_units(self.calc.kpoints)
             if hasattr(self.calc, "potcars") and self.calc.kpoints is not None:
                 data["calc_kwargs"]["potcars"] = _recursively_convert_units(self.calc.potcars)
-
+            
         symbols = self.get_chemical_symbols()
         data["symbols"] = ''.join([i+str(symbols.count(i)) for i in set(symbols)])
         if self.group_uuid is not None:
@@ -533,13 +529,13 @@ class Atoms(ase.Atoms):
 
         frmt = target.split('.')[-1]
         if frmt == "h5" or frmt == "hdf5":
-            # from matdb.io import save_dict_to_h5
+            from matdb.io import save_dict_to_h5
             with h5py.File(target,"w") as hf:
                 data = self.to_dict()
                 save_dict_to_h5(hf,data,'/')
         else:
             io.write(target,self,**kwargs)
-
+            
 class AtomsList(list):
     """An AtomsList like object for storing lists of Atoms objects read in
     from file.
@@ -638,7 +634,7 @@ class AtomsList(list):
         :attr:`Atoms.params` contains an entry named `energy` for each
         configuration; otherwise an :exc:`AttributError` will be raised).
         """
-        # import operator
+        import operator
         if attr is None:
             list.sort(self, cmp, key, reverse)
         else:
@@ -649,18 +645,18 @@ class AtomsList(list):
 
     def apply(self, func):
         return np.array([func(at) for at in self])
-
+        
     def read(self,target,**kwargs):
         """Reads an atoms object in from file.
-
+        
         Args:
             target (str): The path to the target file.
-            kwargs (dict): A dictionary of arguments to pass to the ase
+            kwargs (dict): A dictionary of arguments to pass to the ase 
               read function.
         """
         frmt = target.split('.')[-1]
         if frmt == "h5" or frmt == "hdf5":
-            # from matdb.io import load_dict_from_h5
+            from matdb.io import load_dict_from_h5
             with h5py.File(target,"r") as hf:
                 data = load_dict_from_h5(hf)
             # If the data was read in from an hdf5 file written by the
@@ -695,19 +691,19 @@ class AtomsList(list):
                 self.extend(atoms)
             else:
                 self.__init__(atoms)
-
+            
     def write(self,target,**kwargs):
         """Writes an atoms object to file.
 
         Args:
             target (str): The path to the target file.
-            kwargs (dict): A dictionary of key word args to pass to the ase
+            kwargs (dict): A dictionary of key word args to pass to the ase 
               write function.
         """
 
         frmt = target.split('.')[-1]
         if frmt == "h5" or frmt == "hdf5":
-            # from matdb.io import save_dict_to_h5
+            from matdb.io import save_dict_to_h5
             with h5py.File(target,"w") as hf:
                 for atom in self:
                     data = atom.to_dict()

@@ -1,27 +1,25 @@
 """Implements a basic trainer that train material models.
 """
 import abc
+from os import path
 from fnmatch import fnmatch
-import operator
-from os import path, mkdir
-
-import numpy as np
-from jinja2 import Environment, PackageLoader
-from six import string_types
 from tqdm import tqdm
+from six import string_types
+import operator
+import numpy as np
 
-from matdb import msg
-from matdb.atoms import AtomsList
 from matdb.utility import getattrs
-from matdb.database import Database
+from matdb import msg
 from matdb.utility import chdir, dbcat, execute, import_fqdn
+from matdb.atoms import AtomsList
+from matdb.database import Database
 
 class Trainer(object):
     """Represents an algorithm that can use a :class:`Database` (or set of
     databases) to produce a multi-component potential.
 
     .. note:: This object provides the following methods that must be overriden:
-
+    
       1. :meth:`command` must setup any dependencies in the folder that the
          training executable requires.
       2. :meth:`status` should return either a dictionary or a printed status
@@ -87,7 +85,7 @@ class Trainer(object):
         #Configure the fitting directory for this particular set of
         #potentials. This way, we can get separate directories if the parameters
         #change.
-        # from os import mkdir
+        from os import mkdir
         self.root = path.join(root, self.name)
         if not path.isdir(self.root):
             mkdir(self.root)
@@ -95,7 +93,7 @@ class Trainer(object):
         self.cachedir = path.join(self.root, "cache")
         if not path.isdir(self.cachedir):
             mkdir(self.cachedir)
-
+            
         #Find all the database sequences that match the patterns supplied to us.
         self.dbs = []
         self.cust_splits = {}
@@ -109,11 +107,11 @@ class Trainer(object):
         keys being :class:`Atoms` attribute names and values functions that
         return a bool based on a reference comparison value.
         """
-
+        
         #We allow plotting to use split percentages; calculate the average split
         #percentage.
         self._update_split_params()
-
+            
         self._calculator = None
         """ase.Calculator: potential for the fitted file in this Trainer.
         """
@@ -147,13 +145,13 @@ class Trainer(object):
             if split is not None:
                 for match in matches:
                     self.cust_splits[match.name] = split
-
+        
     def _invert_filters(self):
         """Inverts any available db filters for this trainer for optimization
         purposes.
         """
-
-        alldbs = [db.name for db in self.dbs]
+        
+        alldbs = [db.name for db in self.dbs]        
         for attr, spec in self.dbfilter.items():
             if "dbs" in spec:
                 dbs = [db for db in alldbs
@@ -178,7 +176,7 @@ class Trainer(object):
                                 obj = self.controller.find(oname)
 
                         if len(obj) == 0:
-                            emsg = "Cannot find object {} with type {}."
+                            emsg = "Cannot find object {} with type {}."                            
                             raise ValueError(emsg.format(oname, otype))
                         vals[k] = getattrs(obj[0], chain)
 
@@ -189,7 +187,7 @@ class Trainer(object):
 
                 opf = lambda v: eval(estr.format(__v=v, **vals))
                 self._dbfilters[db][attr] = (opf, vals)
-
+        
     def _update_split_params(self):
         """Updates the parameter set for the trainer to include the splits.
         """
@@ -202,7 +200,7 @@ class Trainer(object):
                 else:
                     _splitavg.append(db.splits[self.split])
             self.params["split"] = sum(_splitavg)/len(self.dbs)
-
+        
     def compile(self):
         """Compiles the cumulative database for this particular fit.
         """
@@ -210,7 +208,7 @@ class Trainer(object):
             #No need to recompile the file. Since the splits are defined
             #globally and cached, we don't have to worry about inconsistencies.
             return
-
+        
         #Setup the train.h5 file for the set of databases specified in the
         #source patterns.
         self._invert_filters()
@@ -241,7 +239,7 @@ class Trainer(object):
         .. note:: This method returns an empty list; override it if necessary.
         """
         return []
-
+    
     def ready(self):
         """Returns True if the training step is complete. This method usually
         just tests whether the :attr:`calculator` is a valid object. However,
@@ -249,7 +247,7 @@ class Trainer(object):
         overridden.
         """
         return self.calculator is not None
-
+    
     @abc.abstractmethod
     def status(self, printed=True):
         """Returns or prints the current status of the training.
@@ -259,7 +257,7 @@ class Trainer(object):
               return a dictionary with the relevant quantities.
         """
         pass
-
+    
     @property
     def calculator(self):
         """Returns an instance of :class:`ase.Calculator` using the latest
@@ -268,7 +266,7 @@ class Trainer(object):
         if self._calculator is None:
             self._calculator = self.get_calculator()
         return self._calculator
-
+            
     @property
     def validation(self):
         """Returns a :class:`matdb.AtomsList` of configurations that can be
@@ -277,7 +275,7 @@ class Trainer(object):
         return self.configs("holdout")
 
     def quantities(self, params=None, properties=None, aggregators=None,
-                   kind="train", **kwargs):
+                   kind="train", **kwargs): 
         """Returns datasets derived from the atoms objects that are present in
         this trainers compiled databases.
 
@@ -352,13 +350,13 @@ class Trainer(object):
             #serialize the actual functions.
             filters = self._dbfilters[seqname].items()
             params = {k: v[1] for k, v in filters}
-
+            
             for dbfile in dbfiles:
                 dbname = path.basename(path.dirname(dbfile))
                 filtdb = path.join(self.root, "__{}.h5".format(dbname))
                 if path.isfile(filtdb):
                     continue
-
+                
                 al = AtomsList(dbfile)
                 nl = AtomsList()
                 for a in al:
@@ -378,7 +376,7 @@ class Trainer(object):
             filtered = dbfiles
 
         return filtered
-
+    
     def configs(self, kind, asatoms=True):
         """Loads a list of configurations of the specified kind.
 
@@ -429,13 +427,13 @@ class Trainer(object):
             #are files that have additional trainer-specific configs to include.
             if kind == "train":
                 cfiles.extend(self.extras())
-
+                
             #First, save the configurations to a single file.
             dbcat(cfiles, cfile)
 
         if asatoms:
             return AtomsList(cfile)
-
+    
     def validate(self, refkey, configs=None, energy=True, force=True, virial=True):
         """Validates the calculator in this training object against the `holdout.h5`
         configurations in the source databases.
@@ -451,7 +449,7 @@ class Trainer(object):
             forces (bool): when True, validate the force *components* of each
               configuration.
             virial (bool): when True, validate the virial *components* of each
-              configuration.
+              configuration.         
 
         Returns:
             dict: with keys ["*_ref", "*_pot"] where the values are
@@ -475,7 +473,7 @@ class Trainer(object):
             result["v_ip"] = np.array(getattr(al, self.calculator.virial_name)).flatten()
 
         return result
-
+    
     def execute(self, dryrun=False):
         """Submits the job script for the currently configured potential training.
 
@@ -491,14 +489,14 @@ class Trainer(object):
             msg.info("Trainer {} is already done;".format(self.root) +
                      "skipping execute step.", 2)
             return
-
+        
         if not path.isfile(self._jobfile):
             return False
 
         if not path.isfile(self._trainfile):
             msg.std("train.h5 missing in {}; can't execute.".format(self.root))
             return False
-
+        
         # We must have what we need to execute. Compile the command and submit.
         cargs = ["sbatch", self._jobfile]
         if dryrun:
@@ -512,7 +510,7 @@ class Trainer(object):
             return True
         else:
             return False
-
+            
     def jobfile(self):
         """Creates the job file for training the potential. This includes creating
         folders, the training file and setting up any other dependencies
@@ -537,8 +535,8 @@ class Trainer(object):
             settings["matdbyml"] = self.controller.db.config
         if self.controller.db.venv is not None:
             settings["venv"] = self.controller.db.venv
-
-        # from jinja2 import Environment, PackageLoader
+        
+        from jinja2 import Environment, PackageLoader
         env = Environment(loader=PackageLoader('matdb', 'templates'))
         template = env.get_template(settings["template"])
         with open(self._jobfile, 'w') as f:

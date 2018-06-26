@@ -1,10 +1,7 @@
-from inspect import getmodule
-
-from matdb import msg, calculators
 from .vasp import AsyncVasp as Vasp
 from .aflux import AsyncAflow as Aflow
 from .qe import AsyncQe as Qe
-from matdb.atoms import Atoms
+from matdb import msg
 from matdb.utility import chdir
 
 try:
@@ -39,7 +36,7 @@ def build_calc(name, relpath, *args, **kwargs):
         ran_seed (int): random seed used to initialized the calculator.
 
     Raises:
-
+    
     ValueError: if the `name` is not a folder-independent interatomic potential.
     """
     globs = globals()
@@ -49,7 +46,7 @@ def build_calc(name, relpath, *args, **kwargs):
         msg.err("Cannot import calculator {}. ".format(name) +
                 "Does not exist at package level.")
 
-    # from matdb.atoms import Atoms
+    from matdb.atoms import Atoms
     atoms = Atoms()
     if relpath is not None:
         with chdir(relpath):
@@ -57,7 +54,7 @@ def build_calc(name, relpath, *args, **kwargs):
     else:
         result = target(atoms, '.', '.', 0, *args, **kwargs)
     return result
-
+    
 def get_calculator_module(calcargs):
     """Returns the module corresponding to the calculator mentioned in
     `calcargs`.
@@ -66,11 +63,11 @@ def get_calculator_module(calcargs):
         calcargs (dict): the "calculator" dictionary that is part of the
           arguments for a db group.
     """
-    # from matdb import calculators
-    # from inspect import getmodule
+    from matdb import calculators
+    from inspect import getmodule
     cls = getattr(calculators, calcargs["name"])
     mod = None
-
+    
     try:
         mod = getmodule(cls)
     except: #pragma: no cover
