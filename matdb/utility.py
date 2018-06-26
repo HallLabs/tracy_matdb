@@ -1,15 +1,36 @@
 """Utility functions for interacting with file system, shell, etc.
 """
-from os import path
-from six import string_types
-from matdb import msg
-import six
-import numpy as np
-import h5py
-
-import sys
+import collections
+from collections import OrderedDict
 from contextlib import contextmanager
+from copy import copy as ocopy
+from datetime import datetime
+from dateutil import parser
+from itertools import product, islice
+from importlib import import_module
+import json
+import math
+import os
+from os import environ, waitpid, path, symlink, remove, cwd, chdir
+from shutil import copyfile
+from subprocess import Popen, PIPE
+import sys
+from uuid import uuid4, UUID
+import unicodedata
+
+import h5py
+import numpy as np
+from numpy.random import RandomState
+from operator import itemgetter
+import pytz
+import six
+from six import string_types
+
+import matdb
+from matdb import msg, __version__
 from matdb.atoms import AtomsList
+from matdb.database.utility import dbconfig
+from matdb.utility import special_functions
 
 @contextmanager
 def redirect_stdout(new_target):
@@ -28,7 +49,7 @@ def chdir(target):
     Args:
         target (str): path to the directory to change into.
     """
-    from os import getcwd, chdir
+    # from os import getcwd, chdir
     current = getcwd()
     try:
         chdir(target)
@@ -48,7 +69,7 @@ def import_fqdn(fqdn):
         tuple: `(module, callable)`, where `module` is the module object that
         `callable` resides in.
     """
-    from importlib import import_module
+    # from importlib import import_module
     parts = fqdn.split('.')
     call = parts[-1]
     module = '.'.join(parts[0:-1])
@@ -93,7 +114,7 @@ def execute(args, folder, wait=True, nlines=100, venv=None,
       first 100 lines will be returned. Use parameter `nlines` to control output
       size.
     """
-    from subprocess import Popen, PIPE
+    # from subprocess import Popen, PIPE
     if "stdout" not in kwargs:
         kwargs["stdout"] = PIPE
     if "stderr" not in kwargs:
@@ -102,27 +123,27 @@ def execute(args, folder, wait=True, nlines=100, venv=None,
 
     if venv is not None: # pragma: no cover No guarantee that virtual
                          # envs exist on testing machine.
-        if isinstance(venv, string_types): 
+        if isinstance(venv, string_types):
             vargs = ["virtualenvwrapper_derive_workon_home"]
             vres = execute(vargs, path.abspath("."))
             prefix = path.join(vres["output"][0].strip(), venv, "bin")
         elif venv == True:
-            import sys
+            # import sys
             prefix = path.dirname(sys.executable)
         args[0] = path.join(prefix, args[0])
 
-    from os import environ
+    # from os import environ
     if env_vars is not None:
         oldvars = {}
         for name, val in env_vars.items():
             oldvars[name] = environ[name] if name in environ else None
             environ[name] = val
-        
+
     msg.std("Executing `{}` in {}.".format(' '.join(args), folder), 2)
     pexec = Popen(' '.join(args), shell=True, executable="/bin/bash", **kwargs)
-    
+
     if wait:
-        from os import waitpid
+        # from os import waitpid
         waitpid(pexec.pid, 0)
 
     if env_vars is not None:
@@ -132,7 +153,7 @@ def execute(args, folder, wait=True, nlines=100, venv=None,
                 del environ[name]
             else:
                 environ[name] = val
-        
+
     #Redirect the output and errors so that we don't pollute stdout.
     output = None
     if kwargs["stdout"] is PIPE:
@@ -159,7 +180,7 @@ def execute(args, folder, wait=True, nlines=100, venv=None,
         "process": pexec,
         "output": output,
         "error": error
-    }    
+    }
 
 def h5cat(files, target):
     """Concatenates a list of h5 AtomsList files into a single AtomsList.
@@ -192,14 +213,14 @@ def cat(files, target):
 def symlink(target, source):
     """Creates a symbolic link from `source` to `target`.
     """
-    from os import path, symlink, remove
-    from matdb import msg
+    # from os import path, symlink, remove
+    # from matdb import msg
     if path.isfile(target) or path.islink(target):
         remove(target)
     elif path.isdir(target):
         msg.warn("Cannot auto-delete directory '{}' for symlinking.".format(target))
         return
-    
+
     symlink(source, target)
 
 def linecount(filename):
@@ -210,7 +231,7 @@ def linecount(filename):
     """
     if not path.isfile(filename):
         return 0
-    
+
     i = 0
     with open(filename) as f:
         for i, l in enumerate(f):
@@ -258,7 +279,7 @@ def obj_update(obj, k, v, copy=True):
         v: value to set at the final key.
         copy (bool): when True, return a copy of the dictionary.
     """
-    from copy import copy as ocopy
+    # from copy import copy as ocopy
     chain = list(reversed(k.split('.')))
     result = ocopy(obj) if copy else obj
     target = obj
@@ -266,7 +287,7 @@ def obj_update(obj, k, v, copy=True):
     if isinstance(target, list):
         firstkey = chain[-1]
         target = next(d for d in target if firstkey in d)
-    
+
     while len(chain) > 1:
         key = chain.pop()
         target = (target[key] if isinstance(target, dict)
@@ -276,14 +297,14 @@ def obj_update(obj, k, v, copy=True):
         target[chain[0]] = v
     else:
         setattr(target, chain[0], v)
-        
+
     return result
-        
+
 def _get_reporoot():
     """Returns the absolute path to the repo root directory on the current
     system.
     """
-    import matdb
+    # import matdb
     medpath = path.abspath(matdb.__file__)
     return path.dirname(path.dirname(medpath))
 
@@ -311,7 +332,7 @@ def copyonce(src, dst):
     already exist.
     """
     if not path.isfile(dst):
-        from shutil import copyfile
+        # from shutil import copyfile
         copyfile(src, dst)
 
 def compare_tree(folder, model):
@@ -341,7 +362,7 @@ def compare_tree(folder, model):
 def which(program):
     """Tests whether the specified program is anywhere in the environment
     PATH so that it probably exists."""
-    import os
+    # import os
     def is_exe(fpath):
         return os.path.isfile(fpath) and os.access(fpath, os.X_OK)
 
@@ -360,7 +381,7 @@ def touch(fpath):
     """Mimics the `touch` command in the unix to create an empty file with the
     given path.
     """
-    import os
+    # import os
     with open(fpath, 'a'):
         os.utime(fpath, None)
 
@@ -380,9 +401,9 @@ def pgrid(options, ignore=None):
         each key in `options` and keys is a listed of the keys in the order they
         appear in the tuples.
     """
-    from itertools import product
-    from collections import OrderedDict
-    from operator import itemgetter
+    # from itertools import product
+    # from collections import OrderedDict
+    # from operator import itemgetter
 
     #Sort the dict so that we get the same ordering of parameters in the
     #product.
@@ -392,19 +413,19 @@ def pgrid(options, ignore=None):
     for k, v in params.items():
         if ignore is None or k in ignore:
             continue
-        
+
         if k[-1] != '*':
             values.append([v])
         else:
             values.append(v)
         keys.append(k.strip('*'))
-        
+
     grid = list(product(*values))
     return (grid, keys)
 
-import pytz
-from datetime import datetime
-from six import string_types
+# import pytz
+# from datetime import datetime
+# from six import string_types
 
 epoch = datetime(1970,1,1, tzinfo=pytz.utc)
 """datetime.datetime: 1/1/1970 for encoding UNIX timestamps.
@@ -430,7 +451,7 @@ def parse_date(v):
         v (str): string representation of the :class:`datetime` returned by
           :func:`datetime_handler`.
     """
-    from dateutil import parser
+    # from dateutil import parser
     if isinstance(v, (list, tuple)):
         return [parse_date(vi) for vi in v]
     elif isinstance(v, string_types):
@@ -450,7 +471,7 @@ def load_datetime(pairs):
             except ValueError:# pragma: no cover
                 d[k] = v
         else:
-            d[k] = v             
+            d[k] = v
     return d
 
 def getattrs(obj, chain):
@@ -475,19 +496,19 @@ def getattrs(obj, chain):
         else:
             o = getattr(o, attr)
     return o
-        
+
 reporoot = _get_reporoot()
 """The absolute path to the repo root on the local machine.
 """
 
 def slicer(obj, args):
     """Slices the object along the path defined in args.
-    
+
     Args:
         obj (iterable): an object to be sliced or divided.
         args (iterable): the locations that the slices should be at.
     """
-    from itertools import islice
+    # from itertools import islice
     if not isinstance(args,(list,tuple)):
         msg.err("The slicer args must be a list or a tuple.")
         return
@@ -510,7 +531,7 @@ def _py_execute(module, function, params):
         params (str): exact parameter string (including parentheses) to pass to
           the function call with `eval`.
     """
-    from importlib import import_module
+    # from importlib import import_module
     module = import_module(module)
     call = getattr(module, function)
 
@@ -543,7 +564,7 @@ def special_values(vs, seed=None):
     """
     if vs is None or not isinstance(vs, string_types):
         return vs
-    
+
     sdict = {
         "linspace": ("numpy", "linspace"),
         "logspace": ("numpy", "logspace"),
@@ -556,7 +577,7 @@ def special_values(vs, seed=None):
     #We allow for |nogs| to be appended if the person is just specifying weights
     #for each input value (for example).
     v = vs.replace("|nogs|", "")
-    
+
     for k, f in sdict.items():
         if k in v:
             module, function = f
@@ -569,7 +590,7 @@ def special_values(vs, seed=None):
                     first = rest.index('(')
                     caller = rest[:first]
                 if k == "random:":
-                    from numpy.random import RandomState
+                    # from numpy.random import RandomState
                     rs = RandomState(seed)
                     d = getattr(rs, caller)
                     result = eval("d{}".format(rest[first:]))
@@ -580,18 +601,18 @@ def special_values(vs, seed=None):
                     result = slicer(range(1,max(temp)),temp)
             break
     else:
-        result = v    
-        
+        result = v
+
     return result
 
-import collections
+# import collections
 
 def special_functions(sf,values):
     """Converts the specified function value string into its python
-    representation and evaluates it for each item in the values list. 
+    representation and evaluates it for each item in the values list.
     We allow the following "special" directives for parameter values:
 
-    1. "linalg:{id}" 'id' is an operation to be performed on a matrix 
+    1. "linalg:{id}" 'id' is an operation to be performed on a matrix
         from the numpy.linalg package.
     2. "math:{id}" 'id' is an operation from the math package.
     3. "numpy:{id}" 'id' is any operation from numpy.
@@ -602,11 +623,11 @@ def special_functions(sf,values):
 
     .. note:: the value returned by the special function must be an integer or a float.
     """
-    import numpy as np
-    import math
+    # import numpy as np
+    # import math
     if sf is None or not isinstance(sf, (string_types,dict)):
         raise ValueError("The special function must be a string.")
-    
+
     sdict = {
         "linalg": np.linalg,
         "math": math,
@@ -625,32 +646,32 @@ def special_functions(sf,values):
         arg = np.array(values).reshape(reshape)
     else:
         arg = values
-        
+
     call = getattr(sdict[modname], func)
     return call(arg)
-    
+
 def is_number(s):
     """Determines if the given string is a number.
-    
+
     Args:
         s (str): the string to checke.
     """
-    
+
     try:
         float(s)
         return True
     except ValueError:
         pass
- 
+
     try: # pragma: no cover
-        import unicodedata
+        # import unicodedata
         unicodedata.numeric(s)
         return True
     except (TypeError, ValueError):
         pass
- 
+
     return False
-    
+
 def is_nested(d):
     """Determines if a dictoinary is nested, i.e. contains another dictionary.
 
@@ -675,11 +696,11 @@ def get_suffix(d, k, index, values):
         index (int): the index for the value (gets used as the default suffix).
         values (str, list, float): the value for the parameter.
     """
-    from matdb.utility import special_functions
+    # from matdb.utility import special_functions
     nk = k[0:-1]
     suffix = "{0}_suffix".format(nk)
     ssuff = suffix + '*'
-    
+
     if suffix in d and (isinstance(d[suffix], dict) or ':' in d[suffix]):
         keyval = special_functions(d[suffix], values)
     elif suffix in d and isinstance(suffix, six.string_types):
@@ -688,7 +709,7 @@ def get_suffix(d, k, index, values):
         keyval = d[ssuff][index]
     else:
         keyval = index+1
-    
+
     if isinstance(keyval, float):
         return "{0}-{1:.2f}".format(nk[:3], keyval)
     else:
@@ -696,12 +717,12 @@ def get_suffix(d, k, index, values):
 
 def get_grid(d, suffices=None):
     """Recursively generates a grid of parameters from the dictionary of parameters
-    that has duplicates or wildcars in it. 
-    
+    that has duplicates or wildcars in it.
+
     Args:
        d (dict): the dictionary to be turned into a grid.
        suffices (list): an optional list of suffices.
-    
+
     Returns:
        A dictionary of (key: value) where the key is the suffix string for
        the parameters and the value are the exact parameters for each
@@ -710,7 +731,7 @@ def get_grid(d, suffices=None):
     dcopy = d.copy()
     stack = [(dcopy, None)]
     result = {}
-    
+
     if suffices is None:
         suffices = {k: v for k, v in d.items() if "suffix" in k[-8:]}
         for k in suffices:
@@ -721,13 +742,13 @@ def get_grid(d, suffices=None):
                 suffices[k] = v
         for k in suffices:
             if k in dcopy:
-                del dcopy[k]            
-        
+                del dcopy[k]
+
     while len(stack) > 0:
         oned, nsuffix = stack.pop()
         for k, v in sorted(oned.items()):
             if k[-1] == '*':
-                nk = k[0:-1]                    
+                nk = k[0:-1]
                 for ival, value in enumerate(v):
                     suffix = get_suffix(suffices, k, ival, value)
                     dc = oned.copy()
@@ -746,7 +767,7 @@ def get_grid(d, suffices=None):
                 break
         else:
             result[nsuffix] = oned
-            
+
     return result
 
 class ParameterGrid(collections.MutableSet):
@@ -757,9 +778,9 @@ class ParameterGrid(collections.MutableSet):
     "temperature": 1.2})
     Args:
         params (dict): the paramaters needed to build the database.
-    
+
     Attributes:
-        values (dict): keys are the suffix tuple and the values are the 
+        values (dict): keys are the suffix tuple and the values are the
           actual values needed by the database.
         keys (list): the `str` names of the different parameters in
           the database.
@@ -771,7 +792,7 @@ class ParameterGrid(collections.MutableSet):
                 params.pop(k)
         grid = get_grid(params)
         #add these items to the set.
-        self.end = end = [] 
+        self.end = end = []
         end += [None, end, end]         # sentinel node for doubly linked list
         self.map = {}                   # key --> [key, prev, next]
         self.values = {}
@@ -779,7 +800,7 @@ class ParameterGrid(collections.MutableSet):
         for i, v in grid.items():
             if i is not None:
                 self.add(i,v)
-            
+
     def __len__(self):
         return len(self.map)
 
@@ -788,13 +809,13 @@ class ParameterGrid(collections.MutableSet):
 
     def __getitem__(self, key):
         return self.values[key]
-                        
+
     def add(self, key, value):
         """Adds key to the set if it is not already in the set.
 
         Args:
             key (tuple): Anything that could be added to the set.
-            value (tuple): The actual values that the suffix's 
+            value (tuple): The actual values that the suffix's
               correspond to.
         """
         if key not in self.map:
@@ -810,8 +831,8 @@ class ParameterGrid(collections.MutableSet):
 
         Args:
             key (tuple): An element of the set.
-        """        
-        if key in self.map:        
+        """
+        if key in self.map:
             key, prev, next = self.map.pop(key)
             prev[2] = next
             next[1] = prev
@@ -839,27 +860,27 @@ class ParameterGrid(collections.MutableSet):
             return '%s()' % (self.__class__.__name__,)
         return '%s(%r)' % (self.__class__.__name__, list(self))
 
-    def __eq__(self, other): 
+    def __eq__(self, other):
         if isinstance(other, ParameterGrid):
             return len(self) == len(other) and list(self) == list(other)
-        return set(self) == set(other) 
+        return set(self) == set(other)
 
 def is_uuid4(uuid_string):
     """Determines of the string passed in is a valid uuid4 string.
     """
-    from uuid import UUID
-    
+    # from uuid import UUID
+
     try:
         val = UUID(uuid_string, version=4)
     except:
         return False
 
-    # If the uuid_string is a valid hex code, 
+    # If the uuid_string is a valid hex code,
     # but an invalid uuid4,
-    # the UUID.__init__ will convert it to a 
+    # the UUID.__init__ will convert it to a
     # valid uuid4. This is bad for validation purposes.
 
-    return val.hex == uuid_string.replace('-','')    
+    return val.hex == uuid_string.replace('-','')
 
 def dbcat(files, output, sources=None, docat=True, **params):
     """Constructs a new database file using a set of existing database files.
@@ -878,12 +899,12 @@ def dbcat(files, output, sources=None, docat=True, **params):
         params (dict): key-value pairs that characterize *how* the database was
           created using the source files.
     """
-    from uuid import uuid4
-    from datetime import datetime
-    from matdb import __version__
-    from matdb.database.utility import dbconfig
-    import json
-    
+    # from uuid import uuid4
+    # from datetime import datetime
+    # from matdb import __version__
+    # from matdb.database.utility import dbconfig
+    # import json
+
     confpath = output + ".json"
     config = {
         "version": str(uuid4()),
@@ -911,8 +932,8 @@ def dbcat(files, output, sources=None, docat=True, **params):
                 else:
                     cat(files, output)
     except:
-        from os import remove
-        remove(confpath)                
+        # from os import remove
+        remove(confpath)
 
 def convert_dict_to_str(dct):
     """Recursively converts a dictionary to a string.
@@ -941,7 +962,7 @@ def check_deps():
         A dictionary of the dependencies and their version numbers.
     """
 
-    req_pckgs = required_packages()    
+    req_pckgs = required_packages()
     versions = {}
     instld_pckgs = [l.strip() for l in execute(["pip freeze"], ".", venv=True)["output"]]
 
@@ -978,4 +999,3 @@ def required_packages():
             "numpy", "phenum", "phonopy", "pyparsing", "python-dateutil", "pytz",
             "PyYAML", "requests", "six", "subprocess32", "termcolor",
             "tqdm", "urllib3", "webencodings", "lazy-import", "seekpath"]
-

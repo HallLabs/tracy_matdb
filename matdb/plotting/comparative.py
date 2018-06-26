@@ -3,19 +3,20 @@ product. In order to adjust parameters it is useful to plot potentials and
 convergence runs against each other.
 """
 from os import path
-from tqdm import tqdm
-import numpy as np
-import matplotlib.pyplot as plt
-from ase.build import make_supercell
 
-from matdb.atoms import Atoms
-from matdb.phonons import bandplot
-from matdb.utility import chdir
-from matdb.phonons import from_yaml, _calc_bands, calc as phon_calc
-from matdb.kpoints import parsed_kpath
+from ase.build import make_supercell
+import matplotlib.pyplot as plt
+import numpy as np
+from tqdm import tqdm
+
 from matdb import msg
-from matdb.transforms import conform_supercell
+from matdb.atoms import Atoms
 from matdb.calculators import build_calc
+from matdb.kpoints import parsed_kpath
+from matdb.phonons import bandplot
+from matdb.phonons import from_yaml, _calc_bands, calc as phon_calc
+from matdb.transforms import conform_supercell
+from matdb.utility import chdir
 
 def band_plot(dbs, fits=None, npts=100, title="{} Phonon Spectrum", save=None,
               figsize=(10, 8), nbands=None, delta=0.01, quick=True, **kwargs):
@@ -54,10 +55,10 @@ def band_plot(dbs, fits=None, npts=100, title="{} Phonon Spectrum", save=None,
         #recursively generated groups.
         ratoms = db.parent.atoms
     title = title.format(ratoms.get_chemical_formula())
-        
+
     nlines = len(dbs) + (0 if fits is None else len(fits))
     colors = plt.cm.nipy_spectral(np.linspace(0, 1, nlines))
-    
+
     bands, style = {}, {}
     names, kpath = parsed_kpath(ratoms)
     #matplotlib needs the $ signs for latex if we are using special
@@ -65,7 +66,7 @@ def band_plot(dbs, fits=None, npts=100, title="{} Phonon Spectrum", save=None,
     #the others have to use the same one.
     names = ["${}$".format(n) if '\\' in n or '_' in n
              else n for n in names]
-    
+
     for dbi, db in enumerate(dbs):
         db.calc_bands()
         bands[db.key] = db.bands
@@ -85,7 +86,7 @@ def band_plot(dbs, fits=None, npts=100, title="{} Phonon Spectrum", save=None,
     savefile = None
     if save:
         savefile = path.join(db.database.parent.plotdir, save)
-                             
+
     bandplot(bands, names, title=title, outfile=savefile,
              figsize=figsize, style=style, nbands=nbands)
 
@@ -117,7 +118,7 @@ def band_raw(primitive, bandfiles=None, pots=None, supercell=None, npts=100,
           called with arguments to other functions.
     """
     nlines = len(bandfiles) + (0 if pots is None else len(pots))
-    colors = plt.cm.nipy_spectral(np.linspace(0, 1, nlines))        
+    colors = plt.cm.nipy_spectral(np.linspace(0, 1, nlines))
     bands, style = {}, {}
 
     #Handle DSL format import on the file path for the primitive cell.
@@ -126,21 +127,21 @@ def band_raw(primitive, bandfiles=None, pots=None, supercell=None, npts=100,
     else:
         fmt, atpath = primitive.split(':')
         atoms = Atoms(atpath, format=fmt)
-        
+
     names, kpath = parsed_kpath(atoms)
-    
+
     #matplotlib needs the $ signs for latex if we are using special
     #characters. We only get names out from the first configuration; all
     #the others have to use the same one.
     names = ["${}$".format(n) if '\\' in n or '_' in n
              else n for n in names]
-    
+
     for ifile, fpath in enumerate(bandfiles):
         if line_names is not None:
             key = line_names[ifile]
         else:
             key = "File {}".format(ifile)
-            
+
         bands[key] = from_yaml(fpath)
         style[key] = {"color": colors[ifile], "lw": 2}
 
@@ -151,12 +152,11 @@ def band_raw(primitive, bandfiles=None, pots=None, supercell=None, npts=100,
             H = phon_calc(atoms, supercell=supercell, delta=delta, quick=quick)
             bands[line_names[gi]] = _calc_bands(atoms, H, supercell)
             style[line_names[gi]] = {"color": colors[gi], "lw": 2}
-        
+
     title = title.format(atoms.get_chemical_formula())
     savefile = None
     if save:
         savefile = save
-                             
+
     bandplot(bands, names, title=title, outfile=savefile,
              figsize=figsize, style=style, nbands=nbands)
-    

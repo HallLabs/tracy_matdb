@@ -1,35 +1,38 @@
 """Group of configurations that is created from an enumerated list of structures.
 """
-from matdb.database import Group
-from matdb import msg
+from glob import glob
 from os import path, getcwd, chdir, remove, listdir, mkdir
+
+from jinja2 import Environment, PackageLoader
 import numpy as np
 from six import string_types
+
+from matdb import msg
 from matdb.atoms import Atoms, AtomsList
+from matdb.database import Group
 from matdb.utility import copyonce
-from glob import glob
 
 class Enumerated(Group):
     """Sets up the calculations for a random sampling of structures from
     an enumerated list.
 
     Args:
-        sizes (list): a list containing the smallest and larges cell sizes to 
+        sizes (list): a list containing the smallest and larges cell sizes to
             include in the database.
-        lattice (list or str): either the name of the lattice to use 
+        lattice (list or str): either the name of the lattice to use
             ('sc','fcc','bcc', 'hcp') or the atomic basis vectors to use.
-        basis (list, optional): the atomic basis to use for the enumeration. 
+        basis (list, optional): the atomic basis to use for the enumeration.
             Defaults to [0,0,0] the origin.
-        concs (list, optional): the concentrations of each atomic species. 
+        concs (list, optional): the concentrations of each atomic species.
             Defaults to None.
         arrows (list, optional): the maximum number of atoms to displace.
             Defaults ot None.
-        eps (float, optional): floating point tolerance for comparisons. 
+        eps (float, optional): floating point tolerance for comparisons.
             Defaults to 1E-3.
         ran_seed (int or float, optional): a seed to feed to the random number generator.
             Defaults to None.
         rattle (float, optional): the amount to rattle the atoms by. Defaults to 0.0.
-        keep_supers (bool, optional): True if the superperiodic cells are to be kept 
+        keep_supers (bool, optional): True if the superperiodic cells are to be kept
             in the enumerated list. Defaults to False.
         displace (float, optional): the amount to displace atoms with arrows. Defaults
             to 0.0.
@@ -64,7 +67,7 @@ class Enumerated(Group):
                 mkdir(new_root)
             dbargs['root'] = new_root
         super(Enumerated, self).__init__(**dbargs)
-        
+
         if eps is None:
             self.eps = 10**(-3)
         else:
@@ -85,12 +88,12 @@ class Enumerated(Group):
             self.keep_supers = False
         else:
             self.keep_supers = keep_supers
-            
+
         if displace is None:
             self.displace = 0.0
         else:
             self.displace = displace
-        
+
         if sizes is not None and len(sizes)==1 and isinstance(sizes,list):
             self.min_size = 1
             self.max_size = sizes[0]
@@ -104,14 +107,14 @@ class Enumerated(Group):
                              "and the second value is the largest cell size to include, "
                              "i.e., [10,12].")
         self.euids = None
-        self._load_euids()            
+        self._load_euids()
 
     def sub_dict(self):
         """Writes the attributes of this instance of the class to a dictionary.
         """
         enum_dict = {}
         enum_dict["sizes"] = [self.min_size,self.max_size]
-        enum_dict["basis"] = self.basis 
+        enum_dict["basis"] = self.basis
         enum_dict["lattice"] = self.lattice
         enum_dict["concs"] = self.concs
         enum_dict["arrows"] = self.arrows
@@ -122,12 +125,12 @@ class Enumerated(Group):
         enum_dict["keep_supers"] = self.keep_supers
         enum_dict["displace"] = self.displace
         return enum_dict
-        
+
     def _get_lattice(self,lattice):
         """Gets the lattice vectors for the system.
-        
+
         Args:
-            lattice (str or list): either a string containing the lattice 
+            lattice (str or list): either a string containing the lattice
                 name or a 3x3 list of the vectors as [a1,a2,a3].
         """
         # determine the lattice.
@@ -164,7 +167,7 @@ class Enumerated(Group):
 
     def _get_basis(self,basis):
         """Determines the atomic basis vectors for the system.
-        
+
         Args:
             basis (list or None): A list of the atomic basis vectors or None,
                 if None then the default basis is assumed.
@@ -224,7 +227,7 @@ class Enumerated(Group):
         else: #pragma: no cover
             msg.err("The number of species and arrow concentrations must have the "
                     "same length.")
-        
+
     def ready(self):
         """Returns True if this database has finished its computations and is
         ready to be used.
@@ -236,7 +239,7 @@ class Enumerated(Group):
             for e in self.sequence.values():
                 temp=e.ready()
             return all(e.ready() for e in self.sequence.values())
-    
+
     @property
     def euid_file(self):
         """Returns the full path to the euid file for this group.
@@ -264,7 +267,7 @@ class Enumerated(Group):
                 result.append(folder)
 
         return result
-    
+
     @property
     def rset(self):
         """Returns a :class:`matdb.atoms.AtomsList`, one for each config in the
@@ -282,17 +285,16 @@ class Enumerated(Group):
             for e in self.sequence.values():
                 result.extend(e.rset())
             return result
-    
+
     def _build_lattice_file(self,target):
         """Creates the 'lattice.in' file that phenum needs in order to perform
         the enumeration.
 
         Args:
-            target (str): relative path to where the 'lattice.in' file should be 
+            target (str): relative path to where the 'lattice.in' file should be
                 saved.
         """
 
-        from os import path
         target = path.join(target, "lattice.in")
 
         # We need to create a dictionary of the arguments to pass into
@@ -309,7 +311,7 @@ class Enumerated(Group):
                     temp.append("{0} {1}".format(" ".join([str(j) for j in self.concs[i]]),a))
             else:
                 temp = [" ".join([str(i) for i in j]) for j in self.concs]
-                    
+
             settings["concetrations"] = temp
         else:
             settings["conc_res"] = "F"
@@ -320,9 +322,8 @@ class Enumerated(Group):
         settings["lattice"] = [" ".join([str(i) for i in j]) for j in self.lattice]
         settings["k_nary"] = self.knary
         settings["atomic_basis"] = [" ".join([str(i) for i in j]) for j in self.basis]
-        settings["n_basis"] = len(self.basis)        
-        
-        from jinja2 import Environment, PackageLoader
+        settings["n_basis"] = len(self.basis)
+
         env = Environment(loader=PackageLoader('matdb', 'templates'))
         template = env.get_template("lattice.in")
 
@@ -337,9 +338,9 @@ class Enumerated(Group):
         the number of systems that are superperiodic is sinificant and
         so the number reported by polya is significantly larger than
         the actual number of unique configs).
-        
+
         Args:
-            group (:class:`matdb.database.basic.Group`): An instance of 
+            group (:class:`matdb.database.basic.Group`): An instance of
                 the group class.
 
         """
@@ -373,8 +374,7 @@ class Enumerated(Group):
                 a unique set of enumerations over the same range.
             home (str): The home directory.
         """
-        from phenum.enumeration import _enum_out
-        from phenum.makeStr import _make_structures
+
         _enum_out({"input":"enum.in","outfile":"enum.out",
                    "seed":self.ran_seed if self.ran_seed is None else self.ran_seed+dind+recurse,
                    "lattice":"lattice.in","distribution":["all",str(self.nconfigs-dind)],
@@ -406,7 +406,7 @@ class Enumerated(Group):
         [remove(f) for f in listdir('.') if f.startswith("vasp.")]
 
         return dind
-        
+
     def setup(self, rerun=False):
         """Enumerates the desired number of structures and setups up a folder
         for each one.
@@ -425,4 +425,3 @@ class Enumerated(Group):
                 self.euids.extend(seq.euids)
         self.save_index()
         self.save_pkl(self.euids,self.euid_file)
-            

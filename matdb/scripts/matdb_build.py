@@ -1,8 +1,15 @@
- #!/usr/bin/python
+#!/usr/bin/python
+
+import argparse
+import sys
+
+from matdb import base, msg
+from matdb.database import Controller
+
 def examples():
     """Prints examples of using the script to the console using colored output.
     """
-    from matdb import msg
+    # from matdb import msg
     script = "MATDB Automated Materials Database Constructor"
     explain = ("In order to apply machine learning to produce potentials "
                "we first need a collection of atomic configurations from "
@@ -12,7 +19,7 @@ def examples():
                "`matdb.database package to produce just such a set of "
                "configurations.")
     contents = [(("Setup as many DFT folders as possible, taking dependencies "
-                  "between databases into account."), 
+                  "between databases into account."),
                  "matdb.py system.yaml -s",
                  "This creates a directory for each configuration in the YAML "
                  "configuration file 'system.yaml'. Within in configuration's "
@@ -68,14 +75,14 @@ script_options = {
 def _parser_options():
     """Parses the options and arguments from the command line."""
     #We have two options: get some of the details from the config file,
-    import argparse
-    import sys
-    from matdb import base
+    # import argparse
+    # import sys
+    # from matdb import base
     pdescr = "MATDB Database Constructor"
     parser = argparse.ArgumentParser(parents=[base.bparser], description=pdescr)
     for arg, options in script_options.items():
         parser.add_argument(arg, **options)
-        
+
     args = base.exhandler(examples, parser)
     if args is None:
         return
@@ -90,20 +97,20 @@ def run(args):
 
     #No matter what other options the user has chosen, we will have to create a
     #database controller for the specification they have given us.
-    from matdb.database import Controller
+    # from matdb.database import Controller
     cdb = Controller(args["dbspec"])
     if args["s"]:
         cdb.setup(args["rerun"], args["dfilter"])
     if args["x"]:
         cdb.execute(args["recover"], args["dfilter"], dryrun=args["dryrun"])
     if args["e"]:
-        cdb.extract(args["dfilter"], cleanup=args["clean"])    
+        cdb.extract(args["dfilter"], cleanup=args["clean"])
 
     if args["recover"] and not args["x"]:
         cdb.recover(args["rerun"], args["dfilter"])
-        
+
     if args["status"]:
         cdb.status(args["busy"], args["dfilter"])
-        
+
 if __name__ == '__main__': # pragma: no cover
     run(_parser_options())

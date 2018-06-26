@@ -5,6 +5,7 @@ provide access to configurations from the global `matdb.yml` file, which can
 include file directives to other folders.
 """
 from matdb.plotting.matd3 import PointDetailImage as PDI
+
 class PlotManager(object):
     """Represents a collection of plots that can be made generically for
     multiple objects.
@@ -43,7 +44,7 @@ class PlotManager(object):
 
         if "savefmt" not in plotargs:
             plotargs["savefmt"] = "pdf"
-            
+
         for obj in objs:
             caller = getattr(obj, method)
             data = caller(**config)

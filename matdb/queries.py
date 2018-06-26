@@ -4,8 +4,8 @@
 from matdb.utility import execute
 
 def sbatch(jobfile, folder, kwargs):
-    """Submits jobs to a supercomputer with sbatch. 
-    
+    """Submits jobs to a supercomputer with sbatch.
+
     Args:
        jobfile (str): the name of jobfile that needs to be submitted.
        folder (str): the path to the jobfile.

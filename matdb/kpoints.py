@@ -3,7 +3,10 @@ have an appropriate special path in the BZ. `matdb` interfaces with
 `materialscloud.org` to extract their recommended path in the BZ.
 """
 from os import path, getcwd, chdir, system
+
 import numpy as np
+from kgridgen import kpointgeneration
+from seekpath.hpkot import get_path
 
 def find_qpoints(atoms, supercell):
     """Finds the `q` points that would be "pinned down" by a calculation of the
@@ -14,10 +17,10 @@ def find_qpoints(atoms, supercell):
         supercell (numpy.ndarray): of shape `(3, 3)` or a list/tuple of shape 3
           or 9.
     """
-    from kgridgen import kpointgeneration
+    # from kgridgen import kpointgeneration
     A = np.asarray(atoms.cell, order='F')
     B = np.asarray(atoms.make_supercell(supercell).cell, order='F')
-    n = int(np.linalg.det(B)/np.linalg.det(A))    
+    n = int(np.linalg.det(B)/np.linalg.det(A))
     qpoints = np.zeros((n, 3), order='F')
     kpointgeneration.findqpointsinzone(A, B, n, qpoints)
     return qpoints
@@ -40,7 +43,7 @@ def parsed_kpath(atoms):
 
     def fix_gamma(s):
         return r"\Gamma" if s == "GAMMA" else s
-    
+
     for name in names:
         #Unfortunately, the web service that returns the path names returns
         #GAMMA for \Gamma, so that the labels need to be fixed.
@@ -68,7 +71,7 @@ def kpath(atoms):
         and `points` is a dict with the same names as keys and :class:`numpy.ndarray` as
         values.
     """
-    from seekpath.hpkot import get_path
+    # from seekpath.hpkot import get_path
     s = (atoms.cell, atoms.get_scaled_positions(), atoms.get_atomic_numbers())
     kdict = get_path(s)
 
@@ -82,9 +85,9 @@ def kpath(atoms):
         else:
             names.append((e0, s1))
     names.append(kdict["path"][-1][1])
-    
+
     pts = {k: np.array(v) for k, v in kdict["point_coords"].items()}
-    return (names, pts)   
+    return (names, pts)
 
 def _gamma_only(target, atoms):
     """Saves a KPOINTS file with gamma-point only in the specified
@@ -104,7 +107,7 @@ rec ! in units of the reciprocal lattice vector
 
 def _mueller(target,atoms,mindistance=None):
     """Gets the Mueller style k-points from Mueller's server.
-    
+
     Args:
         target(str): path to the directory to create the KPOINTS file.
         rmin (float): the cutoff for the k-point density by Mueller's
@@ -122,7 +125,7 @@ def _mueller(target,atoms,mindistance=None):
     chdir(target)
     system("getKPoints")
     chdir(cur_dir)
-       
+
 def custom(target, key, atoms=None):
     """Creates the KPOINT file with the specified custom configuration
     in `target`.

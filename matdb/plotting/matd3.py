@@ -1,9 +1,17 @@
 """Custom plug-ins to create interactive plots with `matplotlib` and
 `d3.js` for exploring fits and material properties.
 """
-from mpld3 import utils, plugins
 from os import path
+import StringIO
+import urllib, base64
+
+import mpld3
+from mpld3 import utils, plugins
+import matplotlib
+import matplotlib.pyplot as plt
 import numpy as np
+
+from matdb.utility import relpath, copyonce
 
 class PointDetailImage(object):
     """Container for an image associated with a single point in the main plot.
@@ -22,7 +30,7 @@ class PointDetailImage(object):
           :class:`matplotlib.axes._subplots.AxesSubplot`.
         subplot_kw (dict): keywords passed to the
           :meth:`~matplotlib.figure.Figure.add_subplot` call used to create each
-          subplot. 
+          subplot.
         gridspec_kw (dict): keywords passed to the
           :class:`~matplotlib.gridspec.GridSpec` constructor used to create the
           grid the subplots are placed on.
@@ -57,9 +65,9 @@ class PointDetailImage(object):
                  imgtype=None, index=None, folder=None, save_kw=None,
                  withdiag=False, title=None, partition=None, labels=None,
                  savefmt="png"):
-        import matplotlib.pyplot as plt
+        # import matplotlib.pyplot as plt
         self.x, self.y = x, y
-        
+
         #Create the figure and axes for this plot.
         if fig_kw is None:
             fig_kw = {}
@@ -75,7 +83,7 @@ class PointDetailImage(object):
             plot_kw = {}
         if "lw" not in plot_kw and plot == "scatter":
             plot_kw["lw"] = 0
-            
+
         plotter = getattr(axes, plot)
         if partition is not None:
             colors = ['k', 'b', 'g', 'r', 'c', 'm', 'y' ]
@@ -110,7 +118,7 @@ class PointDetailImage(object):
         self.base64 = base64
         self.filename, self.savepath = None, None
         self.encoded = None
-        
+
         if save_kw is None:
             save_kw = {}
         if folder is None and not base64:
@@ -121,8 +129,8 @@ class PointDetailImage(object):
             savepath = path.join(folder, self.filename)
             plt.savefig(savepath, format=savefmt, **save_kw)
         else:
-            import StringIO
-            import urllib, base64
+            # import StringIO
+            # import urllib, base64
             imgdata = StringIO.StringIO()
             plt.savefig(imgdata, format=savefmt, **save_kw)
             imgdata.seek(0)
@@ -156,13 +164,13 @@ def html(data, folder, plot="scatter", subplot_kw=None, gridspec_kw=None,
           :class:`matplotlib.axes._subplots.AxesSubplot`.
         subplot_kw (dict): keywords passed to the
           :meth:`~matplotlib.figure.Figure.add_subplot` call used to create each
-          subplot. 
+          subplot.
         gridspec_kw (dict): keywords passed to the
           :class:`~matplotlib.gridspec.GridSpec` constructor used to create the
           grid the subplots are placed on.
         fig_kw (dict): keyword arguments are passed to the
           :func:`~matplotlib.pyplot.figure` call.
-        plot_kw (dict): keyword arguments passed to the particular plot method.        
+        plot_kw (dict): keyword arguments passed to the particular plot method.
         titles (dict): keys are image types in `data`; values are `str` titles
           to display for each of the image types.
         ncols (int): number of columns for the grid of detail images.
@@ -190,37 +198,37 @@ def html(data, folder, plot="scatter", subplot_kw=None, gridspec_kw=None,
             }
         }
     """
-    import matplotlib
+    # import matplotlib
     if font is None:
         font = {'size'   : 22}
-    matplotlib.rc('font', **font)    
+    matplotlib.rc('font', **font)
 
     #Sort the data by index.
     sdata = sorted(data.items(), key=(lambda d: d[1]["index"]))
-    
+
     #Next, compile lists of URLs to use for each of the plot types.
     first = next(data.itervalues())
     imgtypes = [k for k in first.keys() if k not in ["location", "index"]]
     images = {k: [] for k in imgtypes}
-    names, x, y = [], [], []    
-    
+    names, x, y = [], [], []
+
     for name, detail in sdata:
         for img in imgtypes:
             images[img].append(detail[img].url)
-            
+
         names.append(name)
         x.append(detail["location"][0])
         y.append(detail["location"][1])
 
-    import matplotlib.pyplot as plt
-    import numpy as np
-    import mpld3
+    # import matplotlib.pyplot as plt
+    # import numpy as np
+    # import mpld3
     if fig_kw is None:
         fig_kw = {}
     figure, axes = plt.subplots(subplot_kw=subplot_kw,
                                 gridspec_kw=gridspec_kw,
                                 **fig_kw)
-    
+
     #Grab the particular plot type that the user wants to make, then
     #generate the figure. We need to compile the x and y arrays from the
     #location information in each point.
@@ -230,19 +238,19 @@ def html(data, folder, plot="scatter", subplot_kw=None, gridspec_kw=None,
         plot_kw["s"] = 300
     plotter = getattr(axes, plot)
     points = plotter(np.array(x), np.array(y), **plot_kw)
-            
-    from matdb.plotting.matd3 import ImagesAtPoint
+
+    from matdb.plotting.matd3 import ImagesAtPoint # local import: no change
     plugiap = ImagesAtPoint(points, names, ncols, titles, **images)
     mpld3.plugins.connect(figure, plugiap)
 
     #Next, copy the JS and CSS dependencies over from the package data into the
     #directory.
-    from matdb.utility import relpath, copyonce
+    # from matdb.utility import relpath, copyonce
     folder = path.abspath(path.expanduser(folder))
     js = relpath("matdb/js/imagepoint.js")
     copyonce(js, path.join(folder, "imagepoint.js"))
     css = relpath("matdb/css/imagepoint.css")
-    copyonce(css, path.join(folder, "imagepoint.css"))    
+    copyonce(css, path.join(folder, "imagepoint.css"))
 
     target = path.join(folder, "index.html")
     with open(target, 'w') as f:
@@ -272,17 +280,17 @@ class ImagesAtPoint(plugins.PluginBase):
           values are a list of base64-encode URLs (returned by
           :func:`to_base64`) to display for each point in `points`.
     """
-    
+
     JAVASCRIPT = """
     mpld3.register_plugin("image@point", ImagesAtPoint);
     ImagesAtPoint.prototype = Object.create(mpld3.Plugin.prototype);
     ImagesAtPoint.prototype.constructor = ImagesAtPoint;
     ImagesAtPoint.prototype.requiredProps = ["id", "images", "settings"];
-    
+
     function ImagesAtPoint(fig, props){
         mpld3.Plugin.call(this, fig, props);
     };
-    
+
     ImagesAtPoint.prototype.draw = function() {
 	var iap = this;
         mpld3_load_lib("imagepoint.js", function() {
@@ -309,6 +317,6 @@ class ImagesAtPoint(plugins.PluginBase):
         if self.titles is None:# pragma: no cover
             self.titles = {k: k for k in images}
         self.dict_["settings"]["titles"] = self.titles
-        
+
         for attr in self.settings:
             self.dict_["settings"][attr] = getattr(self, attr)

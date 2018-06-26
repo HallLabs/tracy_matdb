@@ -1,12 +1,14 @@
 """Implements a generalized synchronous calculator interface for using
 :class:`quippy.Potential` objects.
 """
-from matdb.calculators.basic import SyncCalculator
-from quippy.atoms import Atoms
-import quippy
-import numpy as np
 from os import path
+
+import numpy as np
+import quippy
+from quippy.atoms import Atoms
+
 from matdb.atoms import Atoms as matdbAtoms
+from matdb.calculators.basic import SyncCalculator
 
 class SyncQuip(quippy.Potential, SyncCalculator):
     """Implements a synchronous `matdb` calculator for QUIP potentials.
@@ -16,7 +18,7 @@ class SyncQuip(quippy.Potential, SyncCalculator):
         folder (str): path to the directory where the calculation should take
           place.
         contr_dir (str): The absolute path of the controller's root directory.
-        ran_seed (int or float): the random seed to be used for this calculator.    
+        ran_seed (int or float): the random seed to be used for this calculator.
     """
     def __init__(self, atoms, folder, contr_dir, ran_seed, *args, **kwargs):
         self.init_calc(kwargs)
@@ -44,7 +46,7 @@ class SyncQuip(quippy.Potential, SyncCalculator):
         kwargs = ', '.join(map(lambda i: '='.join(i), self.kwargs.items()))
         relroot = self.folder.replace(self.contr_dir, '.')
         return "Quip({}, root={}, {})".format(self.args[0], relroot, kwargs)
-                
+
     def _convert_atoms(self,atoms):
         """Converts an :class:`matdb.atoms.Atoms` object to a
         :class:`quippy.atoms.Atoms` object.
@@ -78,7 +80,7 @@ class SyncQuip(quippy.Potential, SyncCalculator):
         r = super(SyncQuip, self).get_property(name, calcatoms, allow_calculation)
         if not isinstance(atoms, Atoms):
             self._update_results(atoms, calcatoms, rename)
-            
+
         return r
 
     def _update_results(self, atoms, calcatoms, rename=False):
@@ -124,16 +126,16 @@ class SyncQuip(quippy.Potential, SyncCalculator):
                 atoms.add_property("{}_{}".format(self.key, key), new_val)
             else:
                 atoms.add_property(key, new_val)
-                
-        if not np.allclose(atoms.positions, calcatoms.positions): 
-            atoms.positions = calcatoms.positions        
-        
+
+        if not np.allclose(atoms.positions, calcatoms.positions):
+            atoms.positions = calcatoms.positions
+
     def calc(self, atoms, rename=False, **kwargs):
         """Replaces the calc function with one that returns a matdb atoms object.
-        
+
         Args:
             atoms (matdb.atoms.Atoms): the atoms object to do calculations on.
-            kwargs (dict): the key work arguments to the :clas:`quippy.Potential` 
+            kwargs (dict): the key work arguments to the :clas:`quippy.Potential`
               calc function.
         """
         if not isinstance(atoms, Atoms):
@@ -142,7 +144,7 @@ class SyncQuip(quippy.Potential, SyncCalculator):
             temp_A.calc_connect()
         else:
             temp_A = atoms
-            
+
         super(SyncQuip, self).calc(temp_A, **kwargs)
         if not isinstance(atoms, Atoms):
             self._update_results(atoms, temp_A, rename)

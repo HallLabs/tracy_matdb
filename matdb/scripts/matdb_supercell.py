@@ -1,22 +1,25 @@
- #!/usr/bin/python
-from os import path
+#!/usr/bin/python
+import argparse
 from glob import glob
+from os import path
+import sys
+
 from tqdm import tqdm
 
-from matdb import msg
-from matdb.utility import chdir
-from matdb.transforms import _get_supers
+from matdb import msg, base
 from matdb.atoms import Atoms
+from matdb.transforms import _get_supers
+from matdb.utility import chdir
 
 def examples():
     """Prints examples of using the script to the console using colored output.
     """
-    from matdb import msg
+    # from matdb import msg
     script = "MATDB Supercell Generator"
     explain = ("When producing hessians with the Hessian group, a supercell "
                "needs to be selected. This script streamlines the selection "
                "process for multiple seeds and sizes.")
-    contents = [(("Select supercells for all the seeds and sizes 32 and 64."), 
+    contents = [(("Select supercells for all the seeds and sizes 32 and 64."),
                  "matdb_supercell.py * --sizes 32 64",
                  "")]
     required = ("Seed files in the `seed` directory.")
@@ -39,14 +42,14 @@ script_options = {
 def _parser_options():
     """Parses the options and arguments from the command line."""
     #We have two options: get some of the details from the config file,
-    import argparse
-    import sys
-    from matdb import base
+    # import argparse
+    # import sys
+    # from matdb import base
     pdescr = "MATDB Supercell Selector"
     parser = argparse.ArgumentParser(parents=[base.bparser], description=pdescr)
     for arg, options in script_options.items():
         parser.add_argument(arg, **options)
-        
+
     args = base.exhandler(examples, parser)
     if args is None:
         return
@@ -67,7 +70,7 @@ def run(args):
                 fmt, pat = pattern.split(':')
             else:
                 fmt, pat = "vasp", pattern
-            for filename in glob(pat): 
+            for filename in glob(pat):
                 targets[filename] = Atoms(filename, format=fmt)
 
     result = {}
@@ -96,8 +99,8 @@ def run(args):
                                 for name, item in zip(names, items)])
             msg.arb(text, [msg.cenum[i[2]] for i in items], '|')
         msg.blank(2)
-        
+
     return result
-        
+
 if __name__ == '__main__': # pragma: no cover
     run(_parser_options())

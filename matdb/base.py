@@ -1,11 +1,15 @@
+import argparse
 import warnings
+
+from matdb.msg import set_verbosity
+
 class abstractstatic(staticmethod):
     __slots__ = ()
     def __init__(self, function):
         super(abstractstatic, self).__init__(function)
         function.__isabstractmethod__ = True
     __isabstractmethod__ = True
-    
+
 def deprecated(func):
     """This is a decorator which can be used to mark functions
     as deprecated. It will result in a warning being emitted
@@ -32,7 +36,6 @@ def exhandler(function, parser):
         function()
         return
     if args["verbose"]:
-        from matdb.msg import set_verbosity
         set_verbosity(args["verbose"])
 
     args.update(vars(parser.parse_known_args()[0]))
@@ -42,7 +45,6 @@ def _common_parser():
     """Returns a parser with common command-line options for all the scripts
     in the matdb suite.
     """
-    import argparse
     parser = argparse.ArgumentParser(add_help=False)
     parser.add_argument("--examples", action="store_true",
                         help="See detailed help and examples for this script.")

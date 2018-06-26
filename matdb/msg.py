@@ -2,6 +2,7 @@
 for coloring for warnings, errors, etc."""
 from __future__ import print_function
 from termcolor import cprint
+
 verbosity = None
 """The verbosity level of messages being printed by the module."""
 quiet = None
@@ -21,7 +22,7 @@ lines in the arb().
 """
 icols = ["red", "yellow", "cyan", "blue", "white", "green"]
 nocolor = False
-"""When true, the colored outputs all use the regular print() instead 
+"""When true, the colored outputs all use the regular print() instead
 so that the stdout looks ordinary.
 """
 def printer(text, color=None, **kwargs):
@@ -29,7 +30,7 @@ def printer(text, color=None, **kwargs):
     of 'nocolor'.
     """
     if nocolor:
-        # import sys
+        # import sys 
         # sys.stdout.write(text + "" if ("end" in kwargs and kwargs["end"] == "") else '\n')
         # sys.stdout.flush()
         print(text, **kwargs)
@@ -68,7 +69,7 @@ def example(script, explain, contents, requirements, output, outputfmt, details)
         if post != "":
             std('\n' + post)
         blank()
-            
+
 def arb(text, cols, split):
     """Prints a line of text in arbitrary colors specified by the numeric
     values contained in msg.cenum dictionary.
@@ -110,7 +111,7 @@ def will_print(level=1):
         return ((isinstance(verbosity, int) and level <= verbosity) or
                 (isinstance(verbosity, bool) and verbosity == True) or
                 (verbosity is None and level <= 0))
-    
+
 def warn(msg, level=0, prefix=True):
     """Prints the specified message as a warning; prepends "WARNING" to
     the message, so that can be left off.
