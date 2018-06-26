@@ -1,6 +1,6 @@
 """Group of configurations that is created from an enumerated list of structures.
 """
-from os import path, remove, listdir, mkdir
+from os import path, remove, listdir, mkdir, getcwd
 import numpy as np
 from six import string_types
 from glob import glob
@@ -353,6 +353,7 @@ class Enumerated(Group):
         # Perform the enumeration, we allow for multiple attempts since the
         # number of configs returned the first time could be to small for
         # enumerations over small systems.
+        current = getcwd()
         with chdir(self.root):
             recurse = 0
             while dind<self.nconfigs and recurse<5:
