@@ -742,12 +742,12 @@ class MTP(Trainer):
                     new_configs.append(Atoms(POSCAR,format="vasp"))
                     remove(POSCAR)
 
-                self.active.add_configs(new_configs, self.iter_count)
-                self.active.setup()
-                if len(self.active.configs) != self.active.nconfigs: #pragma: no cover
-                    raise LogicError("The active database failed to setup the calculations "
-                                     "for iteration {0}".format(self.iter_count))
-                self.active.execute()
+            self.active.add_configs(new_configs, self.iter_count)
+            self.active.setup()
+            if len(self.active.configs) != self.active.nconfigs: #pragma: no cover
+                raise LogicError("The active database failed to setup the calculations "
+                                 "for iteration {0}".format(self.iter_count))
+            self.active.execute()
             
             with open(path.join(self.root,"status.txt"),"w+") as f:
                 f.write("done {0}".format(self.iter_count))
