@@ -70,7 +70,7 @@ def run(args):
     matches = []
     configs = AtomsList()
     for pattern in args["p"]:
-        for entry in cdb.trainers.find(pattern):
+        for entry in cdb.find(pattern):
             for iatoms in entry.iconfigs:
                 configs.append(iatoms)
 
