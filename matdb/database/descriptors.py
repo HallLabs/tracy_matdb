@@ -5,10 +5,9 @@ is available. To remedy this, we construct heuristics to determine when we have
 reached the threshold of descriptor coverage to provide good behavior for all
 pieces of the overall GAP potential.
 """
+import quippy
 import numpy as np
 import pandas as pd
-import quippy
-
 def d2b(atoms, cutoff):
     """Returns histogram data for the specified *list* of atoms within the given
     cutoff.

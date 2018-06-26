@@ -57,15 +57,11 @@ Operators
 6. `|` is the logical `or` between two conditions.
 
 """
+from matdb.database import Group
+import aflow
 import operator
 from os import path
 import pickle
-
-import aflow
-from tqdm import tqdm
-
-from matdb.database import Group
-from matdb.atoms import Atoms, AtomsList
 
 operators = {
     '<': operator.lt,
@@ -82,7 +78,7 @@ the corresponding functions in :mod:`operator`.
 
 def kfilter(dsl):
     """Constructs a :class:`aflow.keywords.Keyword` for the given DSL entries.
-
+    
     Args:
         dsl (list): of `str` or other primitive types that defines a filter.
     """
@@ -106,7 +102,7 @@ def kfilter(dsl):
             assert op in operators
             kword = get_kw(kw)
             return operators[op](kword)
-
+        
         elif len(dsl) == 3:
             #Has an operator and an argument.
             l, op, right = dsl
@@ -119,7 +115,7 @@ def get_kw(kwstr):
     name.
     """
     return getattr(aflow.K, kwstr)
-
+        
 class Aflow(Group):
     """Represents a group of configurations that are downloaded from AFLOW.
 
@@ -158,18 +154,18 @@ class Aflow(Group):
         dbargs["prefix"] = 'A'
         dbargs["calculator"] = {"name": "Aflow"}
         super(Aflow, self).__init__(**dbargs)
-
+        
         self.catalog = catalog
         self.batch_size = batch_size
-
+        
         self.filters = []
         if filters is not None:
             self.filters = list(map(kfilter, filters))
-
+            
         self.select = []
         if select is not None:
             self.select = list(map(get_kw, select))
-
+            
         self.reverse = False
         self.orderby = None
         if orderby is not None:
@@ -198,7 +194,7 @@ class Aflow(Group):
 
     def _load_auids(self):
         """Loads the list of `auid` from the `rset.pkl` file for this database
-        group.
+        group. 
         """
         if self.auids is None:
             self.auids = self.load_pkl(self.auid_file)
@@ -215,16 +211,16 @@ class Aflow(Group):
             target = path.join(folder, "atoms.h5")
             if path.isfile(target):
                 result.append(folder)
-
+    
         return result
-
+    
     @property
     def rset(self):
         """Returns a :class:`matdb.atoms.AtomsList`, one for each config in the
         latest result set.
         """
 
-        # from matdb.atoms import Atoms, AtomsList
+        from matdb.atoms import Atoms, AtomsList
         result = AtomsList()
         for apath in self.fitting_configs:
             result.append(Atoms(apath))
@@ -261,7 +257,7 @@ class Aflow(Group):
             return result[0:self.nconfigs]
         else:
             return result
-
+    
     def _setup_configs(self, rerun):
         """Sets up the folders for each of the configs retrieved from the AFLOW
         query.
@@ -270,10 +266,10 @@ class Aflow(Group):
             rerun (bool): when True, re-execute the query, even if we have the
               correct number of configurations already.
         """
-        # from tqdm import tqdm
+        from tqdm import tqdm
         if len(self.configs) == self.nconfigs and not rerun:
             return
-
+            
         #Execute the AFLOW query; look at the results and then see which of them
         #need to be created into new folders.
         query = self._build_query()
@@ -292,7 +288,7 @@ class Aflow(Group):
                 #This creates the folder and configures the atoms object in the
                 #group. However, it does *not* create `atoms.json`, which
                 #happens only when extract is called.
-                atoms = entry.atoms(quippy=True, keywords=self.keywords)
+                atoms = entry.atoms(quippy=True, keywords=self.keywords)                
                 cid = self.create(atoms, calcargs={"entry": entry})
                 self.index[entry.auid] = self.configs[cid]
         finally:

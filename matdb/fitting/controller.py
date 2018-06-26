@@ -6,15 +6,9 @@ for producting sequences of training objects that can be repeated across
 parameter grids.
 """
 from collections import OrderedDict
-from copy import copy
-from fnmatch import fnmatch
-from importlib import import_module
-from os import path, mkdir
-
+from os import path
 import six
-
 from matdb import msg
-from matdb.utility import obj_update, pgrid, dict_update
 
 class TrainingSequence(object):
     """Represents a sequence of training steps (each sub-classing
@@ -40,17 +34,17 @@ class TrainingSequence(object):
         self.root = path.join(root, name)
         self.repeater = repeater
         self.controller = controller
-
+        
         if not path.isdir(self.root):
-            # from os import mkdir
+            from os import mkdir
             mkdir(self.root)
 
-        # from importlib import import_module
+        from importlib import import_module
         self._settings = steps
         """dict: with keys and values describing the kinds of training steps to setup.
         """
 
-        # from collections import OrderedDict
+        from collections import OrderedDict
         self.steps = OrderedDict()
         for tspec in steps:
             if isinstance(tspec, six.string_types):
@@ -59,7 +53,7 @@ class TrainingSequence(object):
                 instance = self.controller[tspec]
                 self.steps[instance.name] = instance
                 continue
-
+                
             modname, clsname = tspec["type"].split('.')
             fqdn = "matdb.fitting.{}".format(modname)
             module = import_module(fqdn)
@@ -68,7 +62,7 @@ class TrainingSequence(object):
                 #initialization for now.
                 msg.warn("Cannot find trainer of type {}.".format(tspec["type"]))
                 continue
-
+            
             cls = getattr(module, clsname)
 
             #Make a copy of the original dictionary so that we don't mess up the
@@ -108,7 +102,7 @@ class TrainingSequence(object):
         """
         for fitname, fit in self.isteps:
             if fit.ready():
-                continue
+                continue        
 
             fit.jobfile()
             if path.isfile(path.join(fit._jobfile)):
@@ -135,7 +129,7 @@ class TrainingSequence(object):
         """
         for fitname, fit in self.isteps:
             fit.execute(dryrun)
-
+            
 class TSequenceRepeater(object):
     """Represents a group of training sequences that share the same underlying
     database of configurations for training and validation, but that vary only
@@ -146,19 +140,19 @@ class TSequenceRepeater(object):
         self.name = name
         self.sequences = OrderedDict()
         self.root = path.join(root, name)
-
+        
         if not path.isdir(self.root):
-            # from os import mkdir
+            from os import mkdir
             mkdir(self.root)
-
+        
         if niterations is not None:
-            # from matdb.utility import obj_update, pgrid
-            # from copy import copy
-
+            from matdb.utility import obj_update, pgrid
+            from copy import copy
+            
             for i, sequence in enumerate(niterations):
                 suffix = sequence.get("suffix")
                 grid, keys = pgrid(sequence, ["suffix"])
-
+                
                 for ival, vals in enumerate(grid):
                     isteps = copy(steps)
                     for k, oval in zip(keys, vals):
@@ -190,13 +184,13 @@ class TController(object):
           `eV`.
         plotting (dict): keyword arguments for plotting to generate for each
           trainer after it is finished fitting. This uses
-          :func:`~matdb.plotting.potentials.generate`.
+          :func:`~matdb.plotting.potentials.generate`. 
         kwargs (dict): additional key-value pairs to pass down to the individual
           trainer objects.
     """
     def __init__(self, db=None, root=None, fits=None, e0=None, plotting=None,
                  **kwargs):
-        # from matdb.utility import dict_update
+        from matdb.utility import dict_update
         self.db = db
         self.e0 = e0
         self.root = root
@@ -220,7 +214,7 @@ class TController(object):
             tfilter (list): of `str` patterns to match against *fit* names.
             tfilter (list): of `str` patterns to match against *step* names.
         """
-        # from fnmatch import fnmatch
+        from fnmatch import fnmatch
         for name, fit in self.fits.items():
             if tfilter is None or any(fnmatch(name, t) for t in tfilter):
                 for fitn, seq in fit.sequences.items():
@@ -237,8 +231,8 @@ class TController(object):
                     for step in seq.steps:
                         result.append("{0}.{1}".format(parent, step))
 
-        return sorted(result)
-
+        return sorted(result)        
+    
     def sequences(self):
         """Compiles a list of all sequences in this set of trainers.
         """
@@ -247,7 +241,7 @@ class TController(object):
             for repeater in fits.values():
                 result.extend(repeater.sequences.keys())
 
-        return sorted(result)
+        return sorted(result) 
 
     def validate(self, datafile=None, tfilter=None, sfilter=None, energy=True,
                  force=True, virial=True):
@@ -258,7 +252,7 @@ class TController(object):
         Args:
             datafile (str): path to the data file to read the atoms list from.
             tfilter (list): of `str` patterns to match against *fit* names.
-            tfilter (list): of `str` patterns to match against *step* names.
+            tfilter (list): of `str` patterns to match against *step* names.        
             energy (bool): when True, validate the energies of each
               configuration.
             forces (bool): when True, validate the force *components* of each
@@ -273,7 +267,7 @@ class TController(object):
 
         for trainer in self.ifiltered(tfilter, sfilter):
             trainer.validate(configs, energy, force, virial)
-
+    
     def jobfiles(self, tfilter=None, sfilter=None):
         """Creates the jobfiles for every trainer in the system.
 
@@ -305,7 +299,7 @@ class TController(object):
         """
         for fitname, fit in self.ifiltered(tfilter, sfilter):
             fit.status(printed)
-
+            
     def find(self, pattern):
         """Finds a list of trainers that match the specified pattern. Trainer FQNs
         follow the pattern `trainer-suffix.step` where the suffix may be
@@ -322,7 +316,7 @@ class TController(object):
             else:
                 repname = trainer
 
-        # from fnmatch import fnmatch
+        from fnmatch import fnmatch
         result = []
         reps = [irep for krep, irep in self.fits.items()
                 if fnmatch(krep, repname)]
@@ -334,7 +328,7 @@ class TController(object):
                                if fnmatch(kstep, step)])
 
         return result
-
+            
     def __getitem__(self, key):
         """Gets the trainer or sequence with the specified key. The keys follow
         the pattern `trainer-suffix.step` where the suffix may be optional and
