@@ -11,7 +11,7 @@ from importlib import import_module
 import json
 import math
 import os
-from os import environ, waitpid, path, symlink, remove, cwd, chdir
+from os import environ, waitpid, path, symlink, remove, getcwd, chdir
 from shutil import copyfile
 from subprocess import Popen, PIPE
 import sys
