@@ -1,23 +1,37 @@
-title: 'AgPd Enumerated'
+title: 'Pd `phonopy` Supercell Convergence'
 # Ordered list of species; this is the same order as should be in the
 # POTCAR file for VASP calculations.
 species:
   - 'Pd'
-  - 'Ag'
 # If the POTCAR names are non-standard, include the *suffix* after the
 # element name here.
-potcars:
-  directory: './tests/vasp'
-  xc: 'PBE'
-  versions:
-    Ag: '02Apr2005'
-    Pd: '28Jan2005'
-  setups:
-    Ag: '_pv'
-    Pd: '_pv'
 # Directory in which the database folder system will be created.
-root: './tests/AgPd'
+root: './tests/Pd'
 venv: 'matdb-dev'
+# Define the calculator to use for this Database
+calculator:
+  name: 'Vasp'
+  prec: 'a'   
+  encut: 400
+  isym: 0
+  lwave: False
+  lreal: 'auto'
+  ediff: 0.00001
+  ismear: 1
+  sigma: 0.1
+  pp: 'pbe'
+  # We use Mueller k-points exclusively. These kpoint settings apply to
+  # all database calculations.
+  kpoints:
+    method: 'mueller'
+    mindistance: 20
+  potcars:
+    directory: './tests/vasp'
+    xc: 'PBE'
+    versions:
+      Pd: '28Jan2005'
+    setups:
+      Pd: '_pv'
 # Parameters for the job arrays that will be submitted for each
 # database. These can be overridden in each database below as well.
 execution:
@@ -26,7 +40,7 @@ execution:
   ntasks: 1
   nodes: 1
   mem_per_cpu: 4
-  job_name: 'AgPd DB'
+  job_name: 'Pd DB'
   partition: 'physics'
   array_limit: 50
   modules_load: ['mkl/11.2.0']
@@ -41,19 +55,13 @@ splits:
 databases:
   #The PhononBase class generates the dynamical matrix that is needed
   #by PhononDatabase.
-  - name: 'enumerated'
+  - name: 'phonon'
     steps:
-      - type: "enumerated.Enumerated"
-        lattice*:
-          - "bcc"
-          - "fcc"
-        nconfigs: 10
-        sizes: [1,4]
-        ran_seed: 10
+      - type: "simple.Manual"
+        seeds: ["POSCAR:Pd"]
         calculator:
-          name: Vasp
-          nsw: 1
-          pp: 'pbe'
           kpoints:
             method: 'mueller'
             mindistance: 30
+  - name: 'phonon_copy'
+    steps: ['manual/phonon']

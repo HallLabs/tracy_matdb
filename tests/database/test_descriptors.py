@@ -2,7 +2,6 @@
 """
 import pytest
 from matdb.utility import relpath
-from matdb.database import basic
 import matdb.database.descriptors as ds
 from pandas.util.testing import assert_frame_equal
 import pandas as pd
@@ -13,7 +12,7 @@ def atoms():
     """
 
     POSCAR = relpath("./tests/Pd/POSCAR")
-    from quippy.atoms import Atoms
+    from matdb.atoms import Atoms
     datoms = Atoms(POSCAR,format="POSCAR")
 
     return datoms

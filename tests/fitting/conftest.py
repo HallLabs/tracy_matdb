@@ -7,7 +7,7 @@ from os import path
 @pytest.fixture()
 def Pd_db(tmpdir):
     from matdb.utility import relpath, reporoot
-    from matdb.database.controller import Controller
+    from matdb.database import Controller
     from os import mkdir
 
     target = relpath("./tests/Pd/matdb")

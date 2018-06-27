@@ -173,6 +173,8 @@ class AsyncVasp(Vasp, AsyncCalculator):
         super(AsyncVasp, self).__init__(**kwargs)
         if not path.isdir(self.folder):
             mkdir(self.folder)
+
+        self.input_params["setups"] = self.potcars["setups"]
             
         self.atoms = atoms
         pot_args = self.potcars.copy()
