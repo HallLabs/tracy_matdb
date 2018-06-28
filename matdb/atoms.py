@@ -20,7 +20,7 @@ from matdb.transforms import conform_supercell
 
 calculators = lazy_import.lazy_module("matdb.calculators")
 
-def _recursively_convert_units(in_dict):
+def _recursively_convert_units(in_dict, split = False):
     """Recursively goes through a dictionary and converts it's units to be
     numpy instead of standard arrays.
     Args:
@@ -38,7 +38,13 @@ def _recursively_convert_units(in_dict):
         elif isinstance(item,dict):
             dict_copy[key] = _recursively_convert_units(item)
         elif isinstance(item,list):
-            dict_copy[key] = np.array(item)
+            if split and isinstance(item[0], Atoms):
+                atoms_dict = {}
+                for i,a in enumerate(item):
+                    atoms_dict[str(i)] = a.to_dict()
+                dict_copy[key] = _recursively_convert_units(atoms_dict)
+            else:
+                dict_copy[key] = np.array(item)
         elif item is None: #pragma: no cover I'm not sure this ever
                            #will happen but better safe than sorry.
             del dict_copy[key]
@@ -164,7 +170,9 @@ class Atoms(ase.Atoms):
                     self.add_param(k,v)
                     del self.info[k]
 
-        self.group_uuid = group_uuid
+        if not hasattr(self, "group_uuid"):
+            self.group_uuid = group_uuid
+    
         self.uuid = uuid if uuid is not None else str(uuid4())
                 
         self._initialised = True

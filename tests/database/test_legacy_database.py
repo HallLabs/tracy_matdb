@@ -21,7 +21,7 @@ def phondb(tmpdir):
     folder = relpath("./tests/data/legacy")
 
     return LegacyDatabase("AgPd-50", root, None, splits, folder, "p-50-*.xyz",
-                          "ph")
+                          "ph", energy="dft_energy", force="dft_force", virial="dft_virial")
 
 @pytest.fixture
 def rendb(tmpdir):
@@ -47,9 +47,9 @@ def test_split(phondb):
     
     phondb.split()
     for s, p in phondb.splits.items():
-        tfile = path.join(phondb.train_file().format(s))
-        hfile = path.join(phondb.holdout_file().format(s))
-        sfile = path.join(phondb.super_file().format(s))
+        tfile = path.join(phondb.train_file(s).format(s))
+        hfile = path.join(phondb.holdout_file(s).format(s))
+        sfile = path.join(phondb.super_file(s).format(s))
 
         tal = AtomsList(tfile)
         hal = AtomsList(hfile)
@@ -68,13 +68,13 @@ def test_split(phondb):
     #Remove one of the files so that we can trigger reading from existing ids.
     from os import remove
     for s, p in phondb.splits.items():
-        sfile = path.join(phondb.super_file().format(s))
+        sfile = path.join(phondb.super_file(s).format(s))
         remove(sfile)
         
     phondb.split()
 
     for s, p in phondb.splits.items():
-        sfile = path.join(phondb.super_file().format(s))
+        sfile = path.join(phondb.super_file(s).format(s))
         sal = AtomsList(sfile)
         assert sal == supers[s]
 
@@ -111,9 +111,9 @@ def test_rename(rendb):
     """Tests renaming of properties to meet `matdb` conventions.
     """
     first = Atoms(rendb._dbfile)
-    assert "dft_energy" in first.params
-    assert "dft_force" in first.properties
-    assert "dft_virial" in first.params
+    assert "ref_energy" in first.params
+    assert "ref_force" in first.properties
+    assert "ref_virial" in first.params
     assert  first.params["config_type"] == "re"
 
     al = AtomsList(rendb._dbfile)

@@ -41,6 +41,19 @@ databases:
         nconfigs: 10
         sizes: [1,4]
         ran_seed: 10
+        calculator:
+          name: Vasp
+          nsw: 1
+          pp: 'pbe'
+          kpoints:
+            method: 'mueller'
+            mindistance: 30
+          versions:
+            Ag: '02Apr2005'
+            Pd: '28Jan2005'
+          setups:
+            Ag: '_pv'
+            Pd: '_pv'
 
 calculator:
   name: Vasp
@@ -77,3 +90,4 @@ fitting:
           species:
             - "Ag"
             - "Pd"
+

@@ -63,3 +63,5 @@ databases:
           kpoints:
             method: 'mueller'
             mindistance: 30
+  - name: 'phonon_copy'
+    steps: ['manual/phonon']
