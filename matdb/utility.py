@@ -30,7 +30,7 @@ import matdb
 from matdb import msg, __version__
 from matdb.atoms import AtomsList
 from matdb.database.utility import dbconfig
-from matdb.utility import special_functions
+# from matdb.utility import special_functions
 
 @contextmanager
 def redirect_stdout(new_target):
@@ -696,7 +696,7 @@ def get_suffix(d, k, index, values):
         index (int): the index for the value (gets used as the default suffix).
         values (str, list, float): the value for the parameter.
     """
-    # from matdb.utility import special_functions
+    from matdb.utility import special_functions
     nk = k[0:-1]
     suffix = "{0}_suffix".format(nk)
     ssuff = suffix + '*'
