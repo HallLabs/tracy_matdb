@@ -1,16 +1,8 @@
  #!/usr/bin/python
-import argparse
-import sys
-
-import numpy as np
-
-from matdb import msg, base
-from matdb.database import Controller
-
 def examples():
     """Prints examples of using the script to the console using colored output.
     """
-    # from matdb import msg
+    from matdb import msg
     script = "MATDB Automated Materials Database Constructor"
     explain = ("Once a database of configurations has been built, the next "
                "step is to train some interatomic potentials. This script "
@@ -18,12 +10,12 @@ def examples():
                "the database of configurations to it according to best "
                "practices. Note that 2+3+xxx training is an iterative process "
                "and so this script needs to be run multiple times.")
-    contents = [(("Start training a new potential for the first time."),
+    contents = [(("Start training a new potential for the first time."), 
                  "matdb.py system.yaml -t",
                  "This generates the XYZ database of configurations, and sets "
                  "up the jobfile for execution."),
                 (("Continue training the next step in the sequence after "
-                  "execution of the previous example is completed."),
+                  "execution of the previous example is completed."), 
                  "matdb.py system.yaml -c",
                  "This generates a new jobfile for execution and updates the "
                  "parameters based on fitting errors. This should be "
@@ -82,14 +74,14 @@ dict: default command-line arguments and their
 def _parser_options():
     """Parses the options and arguments from the command line."""
     #We have two options: get some of the details from the config file,
-    # import argparse
-    # import sys
-    # from matdb import base
+    import argparse
+    import sys
+    from matdb import base
     pdescr = "MATDB Potential Fitter"
     parser = argparse.ArgumentParser(parents=[base.bparser], description=pdescr)
     for arg, options in script_options.items():
         parser.add_argument(arg, **options)
-
+        
     args = base.exhandler(examples, parser)
     if args is None:
         return
@@ -102,12 +94,12 @@ def run(args):
     if args is None:
         return
 
-    # import numpy as np
-    # from matdb import msg
+    import numpy as np
+    from matdb import msg
 
     #No matter what other options the user has chosen, we will have to create a
     #database controller for the specification they have given us.
-    # from matdb.database import Controller
+    from matdb.database import Controller
     cdb = Controller(args["dbspec"])
     if args["xyz"]:
         cdb.split(cdb.trainers.split, recalc=args["recalc"])
@@ -128,9 +120,9 @@ def run(args):
         if "v_ref" in vdict:
             v_err = np.std(vdict["v_ref"].flatten()-vdict["v_pot"].flatten())
             msg.info("Virial RMS: {0:.4f}".format(v_err))
-
+        
     if args["status"]:
         cdb.trainers.status()
-
+        
 if __name__ == '__main__': # pragma: no cover
     run(_parser_options())

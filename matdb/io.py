@@ -1,9 +1,10 @@
 """Functions for interacting with various output formats.
 """
+import re
 import numpy as np
-from os import path, stat
-
 import ase
+from os import path
+from matdb.atoms import Atoms, AtomsList
 from ase.calculators.singlepoint import SinglePointCalculator
 import h5py
 import re
@@ -34,8 +35,8 @@ def symmetrize(xx=None, yy=None, zz=None, yz=None, xz=None, xy=None):
 
     .. note:: the components are: xx yy zz xy yz zx.
     """
-    # from numpy import array
-    return np.array([[xx, xy, xz], [xy, yy, yz], [xz, yz, zz]])
+    from numpy import array
+    return array([[xx, xy, xz], [xy, yy, yz], [xz, yz, zz]])
 
 def _cfgd_to_atoms(cfgd, species=None):
     """Converts a CFG dictionary to an atoms object.
@@ -161,11 +162,10 @@ def cfg_to_xyz(cfgfile, outfile="output.xyz", config_type=None, species=None):
     result.write(path.join(dirname, outfile))
     return result
 
-def vasp_to_xyz(
-        folder, outfile="output.xyz", recalc=0,
-        properties=["species", "pos", "z", "dft_force"],
-        parameters=["dft_energy", "dft_virial"],
-        config_type=None):
+def vasp_to_xyz(folder, outfile="output.xyz", recalc=0,
+                properties=["species", "pos", "z", "dft_force"],
+                parameters=["dft_energy", "dft_virial"],
+                config_type=None):
     """Creates an extended XYZ file for the calculated structure in
     OUTCAR for the given folder.
 
@@ -177,7 +177,7 @@ def vasp_to_xyz(
         recalc (bool): when True, re-convert the OUTCAR file, even if
           the target XYZ file already exists.
     """
-    # from os import path, stat
+    from os import path, stat
     if not path.isabs(outfile):
         #Convert to absolute path if one wasn't given.
         outfile = path.join(folder, outfile)
@@ -199,7 +199,7 @@ def vasp_to_xyz(
 
     sargs.extend(["-o", outfile, "vasprun.xml"])
 
-    # from matdb.utility import execute
+    from matdb.utility import execute
     execute(sargs, folder, errignore="OMP_STACKSIZE")
 
     if config_type is not None:
@@ -212,6 +212,9 @@ def vasp_to_xyz(
 
     return path.isfile(outfile) and stat(outfile).st_size > 100
 
+import yaml
+from os import path
+from matdb.utility import chdir
 def is_link(obj):
     """Determines whether the specified object is a link according to the `matdb`
     templating specification.
@@ -318,10 +321,19 @@ def save_dict_to_h5(h5file, dic, path='/'):
             saved to. Default is '/'.
     """
     for key, item in dic.items():
-        if isinstance(item, (np.ndarray, np.int64, np.float64, str, bytes, tuple)):
+        if isinstance(item, (np.ndarray, np.int64, np.float64, str, bytes, tuple, float, int)):
             h5file[path + key] = item
         elif isinstance(item, dict):
             save_dict_to_h5(h5file, item, path + key + '/')
+        elif isinstance(item, list):
+            for i in range(len(item)):
+                try:
+                    save_dict_to_h5(h5file, item[i], path + key + '/')
+                except AttributeError:
+                    h5file[path + key + '/' + str(i)] = item
+        elif item is None:
+            continue
+
         else:
             raise ValueError('Cannot save %s type'%type(item))
 

@@ -25,9 +25,13 @@ from operator import itemgetter
 import pytz
 import six
 from six import string_types
+from matdb import msg
+import six
+import numpy as np
+import h5py
 
-import matdb
-from matdb import msg, __version__
+import sys
+from contextlib import contextmanager
 from matdb.atoms import AtomsList
 from matdb.database.utility import dbconfig
 # from matdb.utility import special_functions
@@ -49,7 +53,7 @@ def chdir(target):
     Args:
         target (str): path to the directory to change into.
     """
-    # from os import getcwd, chdir
+    from os import getcwd, chdir
     current = getcwd()
     try:
         chdir(target)
@@ -69,7 +73,7 @@ def import_fqdn(fqdn):
         tuple: `(module, callable)`, where `module` is the module object that
         `callable` resides in.
     """
-    # from importlib import import_module
+    from importlib import import_module
     parts = fqdn.split('.')
     call = parts[-1]
     module = '.'.join(parts[0:-1])
@@ -114,7 +118,7 @@ def execute(args, folder, wait=True, nlines=100, venv=None,
       first 100 lines will be returned. Use parameter `nlines` to control output
       size.
     """
-    # from subprocess import Popen, PIPE
+    from subprocess import Popen, PIPE
     if "stdout" not in kwargs:
         kwargs["stdout"] = PIPE
     if "stderr" not in kwargs:
@@ -128,11 +132,11 @@ def execute(args, folder, wait=True, nlines=100, venv=None,
             vres = execute(vargs, path.abspath("."))
             prefix = path.join(vres["output"][0].strip(), venv, "bin")
         elif venv == True:
-            # import sys
+            import sys
             prefix = path.dirname(sys.executable)
         args[0] = path.join(prefix, args[0])
 
-    # from os import environ
+    from os import environ
     if env_vars is not None:
         oldvars = {}
         for name, val in env_vars.items():
@@ -143,7 +147,7 @@ def execute(args, folder, wait=True, nlines=100, venv=None,
     pexec = Popen(' '.join(args), shell=True, executable="/bin/bash", **kwargs)
 
     if wait:
-        # from os import waitpid
+        from os import waitpid
         waitpid(pexec.pid, 0)
 
     if env_vars is not None:
@@ -159,9 +163,12 @@ def execute(args, folder, wait=True, nlines=100, venv=None,
     if kwargs["stdout"] is PIPE:
         output = []
         for line in pexec.stdout:
-            output.append(line)
-            if len(output) >= nlines:
-                break
+            #Filter non fatal exceptions such as future warnings. A full list can be found here
+            # https://docs.python.org/3/library/exepctions.html#exception-hierarchy
+            if not ("FutureWarning" in line or "import" in line or "\x1b[0m" in line):
+                output.append(line)
+                if len(output) >= nlines:
+                    break
         pexec.stdout.close()
 
     error = None
@@ -213,8 +220,8 @@ def cat(files, target):
 def symlink(target, source):
     """Creates a symbolic link from `source` to `target`.
     """
-    # from os import path, symlink, remove
-    # from matdb import msg
+    from os import path, symlink, remove
+    from matdb import msg
     if path.isfile(target) or path.islink(target):
         remove(target)
     elif path.isdir(target):
@@ -279,7 +286,7 @@ def obj_update(obj, k, v, copy=True):
         v: value to set at the final key.
         copy (bool): when True, return a copy of the dictionary.
     """
-    # from copy import copy as ocopy
+    from copy import copy as ocopy
     chain = list(reversed(k.split('.')))
     result = ocopy(obj) if copy else obj
     target = obj
@@ -304,7 +311,7 @@ def _get_reporoot():
     """Returns the absolute path to the repo root directory on the current
     system.
     """
-    # import matdb
+    import matdb
     medpath = path.abspath(matdb.__file__)
     return path.dirname(path.dirname(medpath))
 
@@ -332,7 +339,7 @@ def copyonce(src, dst):
     already exist.
     """
     if not path.isfile(dst):
-        # from shutil import copyfile
+        from shutil import copyfile
         copyfile(src, dst)
 
 def compare_tree(folder, model):
@@ -362,7 +369,7 @@ def compare_tree(folder, model):
 def which(program):
     """Tests whether the specified program is anywhere in the environment
     PATH so that it probably exists."""
-    # import os
+    import os
     def is_exe(fpath):
         return os.path.isfile(fpath) and os.access(fpath, os.X_OK)
 
@@ -381,7 +388,7 @@ def touch(fpath):
     """Mimics the `touch` command in the unix to create an empty file with the
     given path.
     """
-    # import os
+    import os
     with open(fpath, 'a'):
         os.utime(fpath, None)
 
@@ -401,9 +408,9 @@ def pgrid(options, ignore=None):
         each key in `options` and keys is a listed of the keys in the order they
         appear in the tuples.
     """
-    # from itertools import product
-    # from collections import OrderedDict
-    # from operator import itemgetter
+    from itertools import product
+    from collections import OrderedDict
+    from operator import itemgetter
 
     #Sort the dict so that we get the same ordering of parameters in the
     #product.
@@ -423,9 +430,9 @@ def pgrid(options, ignore=None):
     grid = list(product(*values))
     return (grid, keys)
 
-# import pytz
-# from datetime import datetime
-# from six import string_types
+import pytz
+from datetime import datetime
+from six import string_types
 
 epoch = datetime(1970,1,1, tzinfo=pytz.utc)
 """datetime.datetime: 1/1/1970 for encoding UNIX timestamps.
@@ -451,7 +458,7 @@ def parse_date(v):
         v (str): string representation of the :class:`datetime` returned by
           :func:`datetime_handler`.
     """
-    # from dateutil import parser
+    from dateutil import parser
     if isinstance(v, (list, tuple)):
         return [parse_date(vi) for vi in v]
     elif isinstance(v, string_types):
@@ -508,7 +515,7 @@ def slicer(obj, args):
         obj (iterable): an object to be sliced or divided.
         args (iterable): the locations that the slices should be at.
     """
-    # from itertools import islice
+    from itertools import islice
     if not isinstance(args,(list,tuple)):
         msg.err("The slicer args must be a list or a tuple.")
         return
@@ -531,7 +538,7 @@ def _py_execute(module, function, params):
         params (str): exact parameter string (including parentheses) to pass to
           the function call with `eval`.
     """
-    # from importlib import import_module
+    from importlib import import_module
     module = import_module(module)
     call = getattr(module, function)
 
@@ -590,7 +597,7 @@ def special_values(vs, seed=None):
                     first = rest.index('(')
                     caller = rest[:first]
                 if k == "random:":
-                    # from numpy.random import RandomState
+                    from numpy.random import RandomState
                     rs = RandomState(seed)
                     d = getattr(rs, caller)
                     result = eval("d{}".format(rest[first:]))
@@ -605,7 +612,7 @@ def special_values(vs, seed=None):
 
     return result
 
-# import collections
+import collections
 
 def special_functions(sf,values):
     """Converts the specified function value string into its python
@@ -623,8 +630,8 @@ def special_functions(sf,values):
 
     .. note:: the value returned by the special function must be an integer or a float.
     """
-    # import numpy as np
-    # import math
+    import numpy as np
+    import math
     if sf is None or not isinstance(sf, (string_types,dict)):
         raise ValueError("The special function must be a string.")
 
@@ -664,7 +671,7 @@ def is_number(s):
         pass
 
     try: # pragma: no cover
-        # import unicodedata
+        import unicodedata
         unicodedata.numeric(s)
         return True
     except (TypeError, ValueError):
@@ -868,7 +875,7 @@ class ParameterGrid(collections.MutableSet):
 def is_uuid4(uuid_string):
     """Determines of the string passed in is a valid uuid4 string.
     """
-    # from uuid import UUID
+    from uuid import UUID
 
     try:
         val = UUID(uuid_string, version=4)
@@ -899,11 +906,11 @@ def dbcat(files, output, sources=None, docat=True, **params):
         params (dict): key-value pairs that characterize *how* the database was
           created using the source files.
     """
-    # from uuid import uuid4
-    # from datetime import datetime
-    # from matdb import __version__
-    # from matdb.database.utility import dbconfig
-    # import json
+    from uuid import uuid4
+    from datetime import datetime
+    from matdb import __version__
+    from matdb.database.utility import dbconfig
+    import json
 
     confpath = output + ".json"
     config = {
@@ -932,7 +939,7 @@ def dbcat(files, output, sources=None, docat=True, **params):
                 else:
                     cat(files, output)
     except:
-        # from os import remove
+        from os import remove
         remove(confpath)
 
 def convert_dict_to_str(dct):

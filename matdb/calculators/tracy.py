@@ -1,6 +1,7 @@
 """Implements the classes needed for the Tracy calculations, i.e.,
 those calculations that will be added to the Tracy compute queue.
 """
+
 from matdb.calculators import Qe
 
 class Tracy(object):
@@ -15,7 +16,7 @@ class Tracy(object):
                  notifications=None, contract_priority=None, ecommerce_priority=None,
                  max_time=None, min_flops=None, min_ram=None, min_mem_storage=None,
                  n_cores=None, max_net_latency=None, group_preds=None, contract_preds=None):
-
+        
 
 
     def submit(self):
@@ -29,7 +30,8 @@ class Tracy_QE(Tracy, Qe):
     Args:
 
     Attributes:
-
+    
     """
 
     def __init__(self, atoms, folder, contr_dir, ran_seed, *args, **kwargs):
+        

@@ -8,20 +8,20 @@
   instance of the :class:`AsyncQe` for each :class:`ase.Atoms` object that you
   want to calculate for.
 """
-import mmap
 from os import path, stat, mkdir, remove, environ, rename, rmdir
+import mmap
 from xml.etree import ElementTree
 
 import ase
 from ase.calculators.espresso import Espresso
 import numpy as np
 
-from matdb import msg
 from matdb.calculators.basic import AsyncCalculator
-from matdb.exceptions import VersionError
+from matdb import msg
 from matdb.kpoints import custom as write_kpoints
 from matdb.utility import chdir, execute, relpath
-
+from matdb.exceptions import VersionError
+        
 class AsyncQe(Espresso, AsyncCalculator):
     """Represents a calculator that can compute material properties with Quantum Espresso,
     but which can do so asynchronously.
@@ -35,7 +35,7 @@ class AsyncQe(Espresso, AsyncCalculator):
           place.
         contr_dir (str): The absolute path of the controller's root directory.
         ran_seed (int or float): the random seed to be used for this calculator.
-
+    
     Attributes:
         tarball (list): of `str` QE output file names that should be included
           in an archive that represents the result of the calculation.
@@ -46,12 +46,12 @@ class AsyncQe(Espresso, AsyncCalculator):
         out_file (str): the output file that QE will write too.
         out_dir (str): the output directory for QE files.
         version (str): the version of QE used for calculations.
-        atoms (matdb.Atoms): the configuration for calculations.
+        atoms (matdb.Atoms): the configuration for calculations.    
     """
     key = "qe"
 
     def __init__(self, atoms, folder, contr_dir, ran_seed, *args, **kwargs):
-
+        
         self.folder = path.abspath(path.expanduser(folder))
         self.kpoints = None
         if path.isdir(contr_dir):
@@ -113,18 +113,18 @@ class AsyncQe(Espresso, AsyncCalculator):
             input_data = None
             self.out_file = "pwscf"
             self.out_dir = "{0}.save".format(self.out_file)
-
+        
         self.ran_seed = ran_seed
         self.version = None
         super(AsyncQe, self).__init__(pseudopotentials=pseudopotentials, pseudo_dir=pseudo_dir,
                                       input_data=input_data, kpts=kpts, koffset=koffset,
                                       kspacing=kspacing, **kwargs)
-
+        
         if not path.isdir(self.folder):
             mkdir(self.folder)
-
+            
         self.atoms = atoms
-
+           
         self.tarball = ["{0}.xml".format(self.out_file)]
         self._check_potcars()
 
@@ -157,20 +157,20 @@ class AsyncQe(Espresso, AsyncCalculator):
                                 raise VersionError("{0} does not match supplied version "
                                              "{1} for species {2}".format(line, v1, spec))
                         elif "<PP_INPUTFILE>" in line:
-                            break
+                            break    
                         else:
                             if v2 in temp_line:
                                 v2_found = True
                                 break
                         l_count += 1
-
+                        
                 if not v2_found:
                     raise VersionError("Version {0} could not be found in potential file {1} "
                                  "for species {2}".format(v2, target, spec))
-
+                    
             else:
                 raise IOError("Potential file {0} does not exist".format(target))
-
+        
     def write_input(self, atoms):
         """Overload of the ASE input writer.
         """
@@ -188,7 +188,7 @@ class AsyncQe(Espresso, AsyncCalculator):
 
         sizeok = lambda x: stat(x).st_size > 25
         required = ["espresso.pwi"]
-
+            
         present = {}
         for rfile in required:
             target = path.join(folder, rfile)
@@ -229,7 +229,7 @@ class AsyncQe(Espresso, AsyncCalculator):
         line = None
         with open(outxml, 'r') as f:
             # memory-map the file, size 0 means whole file
-            m = mmap.mmap(f.fileno(), 0, prot=mmap.PROT_READ)
+            m = mmap.mmap(f.fileno(), 0, prot=mmap.PROT_READ)  
             i = m.rfind('</closed>')
             # we look for this second line to verify that VASP wasn't
             # terminated during runtime for memory or time
@@ -253,7 +253,7 @@ class AsyncQe(Espresso, AsyncCalculator):
         outxml = path.join(folder, "{0}.xml".format(self.out_file))
         outxml = path.isfile(outxml)
         defxml = path.isfile(path.join(folder, "pwscf.xml"))
-        busy = not self.can_extract(folder)
+        busy = not self.can_extract(folder)            
         return (outxml or defxml) and busy
 
     def create(self, rewrite=False):
@@ -318,7 +318,7 @@ class AsyncQe(Espresso, AsyncCalculator):
             rm_files = light + default + aggressive
         else:
             rm_files = light + default
-
+        
         for f in rm_files:
             target = path.join(folder,f)
             if path.isfile(target):
@@ -364,5 +364,9 @@ class AsyncQe(Espresso, AsyncCalculator):
 
         if self.version is None:
             self.version = data.findall('general_info/creator')[0].attrib["VERSION"]
-
+            
         return results
+        
+            
+        
+        

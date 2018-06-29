@@ -6,13 +6,8 @@ for producting sequences of training objects that can be repeated across
 parameter grids.
 """
 from collections import OrderedDict
-from copy import copy
-from fnmatch import fnmatch
-from importlib import import_module
-from os import path, mkdir
-
+from os import path
 import six
-
 from matdb import msg
 # from matdb.utility import obj_update, pgrid, dict_update
 
@@ -42,15 +37,15 @@ class TrainingSequence(object):
         self.controller = controller
 
         if not path.isdir(self.root):
-            # from os import mkdir
+            from os import mkdir
             mkdir(self.root)
 
-        # from importlib import import_module
+        from importlib import import_module
         self._settings = steps
         """dict: with keys and values describing the kinds of training steps to setup.
         """
 
-        # from collections import OrderedDict
+        from collections import OrderedDict
         self.steps = OrderedDict()
         for tspec in steps:
             if isinstance(tspec, six.string_types):
@@ -148,7 +143,7 @@ class TSequenceRepeater(object):
         self.root = path.join(root, name)
 
         if not path.isdir(self.root):
-            # from os import mkdir
+            from os import mkdir
             mkdir(self.root)
 
         if niterations is not None:
@@ -158,7 +153,6 @@ class TSequenceRepeater(object):
             for i, sequence in enumerate(niterations):
                 suffix = sequence.get("suffix")
                 grid, keys = pgrid(sequence, ["suffix"])
-
                 for ival, vals in enumerate(grid):
                     isteps = copy(steps)
                     for k, oval in zip(keys, vals):
@@ -220,7 +214,7 @@ class TController(object):
             tfilter (list): of `str` patterns to match against *fit* names.
             tfilter (list): of `str` patterns to match against *step* names.
         """
-        # from fnmatch import fnmatch
+        from fnmatch import fnmatch
         for name, fit in self.fits.items():
             if tfilter is None or any(fnmatch(name, t) for t in tfilter):
                 for fitn, seq in fit.sequences.items():
@@ -322,7 +316,7 @@ class TController(object):
             else:
                 repname = trainer
 
-        # from fnmatch import fnmatch
+        from fnmatch import fnmatch
         result = []
         reps = [irep for krep, irep in self.fits.items()
                 if fnmatch(krep, repname)]

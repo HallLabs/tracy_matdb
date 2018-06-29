@@ -1,13 +1,10 @@
 """Contains all the utility functions that belong to the database groups."""
 
-from cPickle import dump, load
-from glob import glob
-from itertools import product
-import json
-from os import path, rename, remove
 from uuid import uuid4
-
+from cPickle import dump, load
+from os import path, rename, remove
 import numpy as np
+from glob import glob
 from tqdm import tqdm
 
 from matdb import msg
@@ -22,9 +19,8 @@ def split(atlist, splits, targets, dbdir, ran_seed, dbfile=None, recalc=0,
     each `split` setting in the database specification.
 
     Args:
-        atlsit (AtomsList, or list): the list of :class:`matdb.atams.Atoms`
-          objects to be split or a list to the files containing the atoms
-          objects.
+        atlsit (AtomsList, or list): the list of :class:`matdb.atams.Atoms` objects
+          to be split or a list to the files containing the atoms objects.
         splits (dict): the splits to perform.
         targets (dict): the files to save the splits in, these should
           contain a {} in the name which will be replaced with the split
@@ -32,8 +28,8 @@ def split(atlist, splits, targets, dbdir, ran_seed, dbfile=None, recalc=0,
           "holdout": file_name, "super": file_name}.
         dbdir (str): the root *splits* directory for the database.
         dbfile (str): the _dbfile for a legacy database.
-        ran_seed (int or float): the random seed for the splits (i.e. the
-          controllers random seed).
+        ran_seed (int or float): the random seed for the splits (i.e. the controllers
+          random seed).
         recalc (int): when non-zero, re-split the data and overwrite any
           existing *.h5 files. This parameter decreases as
           rewrites proceed down the stack. To re-calculate
@@ -156,7 +152,7 @@ def dbconfig(dbfile):
     if not path.isfile(confpath):
         return {}
 
-    # import json
+    import json
     with open(confpath) as f:
         config = json.load(f, object_pairs_hook=load_datetime)
 
@@ -174,8 +170,8 @@ def parse_path(root,seeds,ran_seed=None):
     Returns:
         seed_files (list): a list of the seed files for the database.
     """
-    # from matdb.utility import special_values
-    # from itertools import product
+    from matdb.utility import special_values
+    from itertools import product
 
     seed_files = []
     for seed in seeds:

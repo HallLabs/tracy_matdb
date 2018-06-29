@@ -4,12 +4,8 @@ we don't necessarily know exactly how they were made, the data can still be
 useful. This module provides a simple class that adapts legacy databases to a
 format that can be used by the `matdb` fitting machinery.
 """
-from glob import glob
-from os import path, mkdir
-
+from os import path
 import numpy as np
-from tqdm import tqdm
-
 from matdb import msg
 from matdb.atoms import AtomsList, Atoms
 from matdb.database.utility import dbconfig, split
@@ -92,7 +88,7 @@ class LegacyDatabase(object):
         self.name = name
         self.root = path.join(root, self.name)
         if not path.isdir(self.root):
-            # from os import mkdir
+            from os import mkdir
             mkdir(self.root)
 
         self.controller = controller
@@ -113,14 +109,14 @@ class LegacyDatabase(object):
         self.dbfiles = []
         self.config_type = config_type
 
-        # from matdb.database.utility import dbconfig
+        from matdb.database.utility import dbconfig
         config = dbconfig(self._dbfull)
         if path.isfile(self._dbfile) and len(config) > 0:
             self.dbfiles = [db[0] for db in config["sources"]]
             self.config_type = config["config_type"]
             self.folder = folder
         else:
-            # from matdb.utility import dbcat
+            from matdb.utility import dbcat
             if not path.isfile(self._dbfull):
                 self._create_dbfull(folder, pattern, energy, force, virial, config_type)
 
@@ -146,10 +142,17 @@ class LegacyDatabase(object):
         """Creates the full combined database.
         """
         from matdb.utility import chdir, dbcat
+<<<<<<< HEAD
         # from glob import glob
         # from tqdm import tqdm
         # from os import path
 
+=======
+        from glob import glob
+        from tqdm import tqdm
+        from os import path
+
+>>>>>>> rosenbrock_master/master
         #NB! There is a subtle bug here: if you try and open a matdb.atoms.Atoms
         #within the context manager of `chdir`, something messes up with the
         #memory sharing in fortran and it dies. This has to be separate.
@@ -214,7 +217,7 @@ class LegacyDatabase(object):
         all_atoms.write(self._dbfull)
 
         #Finally, create the config file.
-        # from matdb.utility import dbcat
+        from matdb.utility import dbcat
         with chdir(folder):
             dbcat(self.dbfiles, self._dbfull, config_type=self.config_type, docat=False)
 
@@ -249,7 +252,7 @@ class LegacyDatabase(object):
         """Splits the database multiple times, one for each `split` setting in
         the database specification.
         """
-        # from matdb.database.utility import split
+        from matdb.database.utility import split
 
         # Get the AtomsList object
         subconfs = AtomsList(self._dbfile)

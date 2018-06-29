@@ -9,8 +9,12 @@ species:
 potcars:
   directory: './tests/vasp'
   xc: 'PBE'
+  versions:
+    Ag: '02Apr2005'
+    Pd: '28Jan2005'
   setups:
     Ag: '_pv'
+    Pd: '_pv'
 # Directory in which the database folder system will be created.
 root: './tests/AgPd'
 venv: 'matdb-dev'
@@ -46,10 +50,10 @@ databases:
         nconfigs: 10
         sizes: [1,4]
         ran_seed: 10
-calculator:
-  name: Vasp
-  nsw: 1
-  pp: 'pbe'
-  kpoints:
-    method: 'mueller'
-    mindistance: 30
+        calculator:
+          name: Vasp
+          nsw: 1
+          pp: 'pbe'
+          kpoints:
+            method: 'mueller'
+            mindistance: 30
