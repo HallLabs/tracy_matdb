@@ -14,7 +14,7 @@ from os import path, mkdir
 import six
 
 from matdb import msg
-from matdb.utility import obj_update, pgrid, dict_update
+# from matdb.utility import obj_update, pgrid, dict_update
 
 class TrainingSequence(object):
     """Represents a sequence of training steps (each sub-classing
@@ -152,7 +152,7 @@ class TSequenceRepeater(object):
             mkdir(self.root)
 
         if niterations is not None:
-            # from matdb.utility import obj_update, pgrid
+            from matdb.utility import obj_update, pgrid
             # from copy import copy
 
             for i, sequence in enumerate(niterations):
@@ -196,7 +196,7 @@ class TController(object):
     """
     def __init__(self, db=None, root=None, fits=None, e0=None, plotting=None,
                  **kwargs):
-        # from matdb.utility import dict_update
+        from matdb.utility import dict_update
         self.db = db
         self.e0 = e0
         self.root = root
