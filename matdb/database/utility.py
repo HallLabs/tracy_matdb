@@ -12,9 +12,9 @@ from tqdm import tqdm
 
 from matdb import msg
 from matdb.atoms import AtomsList
-from matdb.utility import dbcat
-from matdb.utility import load_datetime
-from matdb.utility import special_values
+# from matdb.utility import dbcat
+# from matdb.utility import load_datetime
+# from matdb.utility import special_values
 
 def split(atlist, splits, targets, dbdir, ran_seed, dbfile=None, recalc=0,
           nonsplit=None):
@@ -42,6 +42,8 @@ def split(atlist, splits, targets, dbdir, ran_seed, dbfile=None, recalc=0,
           set "as-is" because they cannot be split (they only have meaning
           together).
     """
+    from matdb.utility import dbcat
+
     assert nonsplit is None or isinstance(nonsplit, AtomsList)
     for name, train_perc in splits.items():
         train_file = targets["train"](name)
@@ -148,7 +150,7 @@ def dbconfig(dbfile):
     Args:
         dbfile (str): path to the database file to get config information for.
     """
-    # from matdb.utility import load_datetime
+    from matdb.utility import load_datetime
 
     confpath = dbfile + ".json"
     if not path.isfile(confpath):
