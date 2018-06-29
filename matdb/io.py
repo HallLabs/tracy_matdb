@@ -9,7 +9,7 @@ import h5py
 import re
 import yaml
 
-from matdb.atoms import Atoms, AtomsList
+# from matdb.atoms import Atoms, AtomsList
 from matdb.utility import chdir, execute
 
 _rxcfg = re.compile(r"[a-z\s:\n]+", re.I)
@@ -45,6 +45,9 @@ def _cfgd_to_atoms(cfgd, species=None):
         species (list): of element names corresponding to the integer species in
           the CFG dictionary.
     """
+    from matdb.atoms import Atoms #, AtomsList
+
+
     lattice = np.array(cfgd["Supercell"]["vals"])
     natoms = cfgd["Size"]["vals"][0][0]
     stressdict = cfgd["PlusStress"]
@@ -108,6 +111,8 @@ def cfg_to_xyz(cfgfile, outfile="output.xyz", config_type=None, species=None):
         species (list): of element names corresponding to the integer species in
           the CFG dictionary.
     """
+    from matdb.atoms import AtomsList #, Atoms
+
     configs = []
     cfgd = None
     with open(cfgfile) as f:
