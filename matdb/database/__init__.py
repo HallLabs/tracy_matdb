@@ -37,7 +37,7 @@ from matdb.utility import (
         ParameterGrid, convert_dict_to_str, import_fqdn)
 from matdb.database.legacy import LegacyDatabase
 from matdb.fitting.controller import TController
-from matdb.database.utility import parse_path, split, LegacyDatabase
+# from matdb.database.utility import parse_path, split, LegacyDatabase
 from matdb.atoms import Atoms, AtomsList, _recursively_convert_units
 
 class Group(object):
@@ -1584,7 +1584,7 @@ class Controller(object):
         Args:
             pattern (str): the pattern to match.
         """
-        # from matdb.database.utility import parse_path
+        from matdb.database.utility import parse_path
         return parse_path(self.root,pattern,ran_seed=self.ran_seed)
 
     def find(self, pattern):
