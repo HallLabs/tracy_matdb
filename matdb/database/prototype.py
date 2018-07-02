@@ -1,6 +1,5 @@
 """Group of configurations selected from the prototypes database.
 """
-
 from itertools import product, permutations
 from copy import deepcopy
 from glob import glob
