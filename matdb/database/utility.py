@@ -1,11 +1,16 @@
 """Contains all the utility functions that belong to the database groups."""
 
-from uuid import uuid4
 from cPickle import dump, load
+from copy import deepcopy
+from itertools import combinations
 from os import path, rename, remove
-import numpy as np
+from uuid import uuid4
+
 from glob import glob
+import numpy as np
 from tqdm import tqdm
+from phenum.symmetry import bring_into_cell, _does_mapping_exist, _get_transformations
+from phenum.grouptheory import _find_minmax_indices
 
 from matdb import msg
 from matdb.atoms import AtomsList
@@ -212,3 +217,355 @@ def parse_path(root,seeds,ran_seed=None):
                 msg.err("The seed file {} could not be found.".format(t_seed))
 
         return seed_files
+
+def make_primitive(atm, eps=None):
+    """Finds the primitive cell of a given crystal and the HNF needed to
+    convert the primitive to the current crystal.
+
+    Args:
+        atm (matdb.Atoms): an atoms object.
+        esp (float): floating point tollerance.
+
+    Returns:
+        The lattice and atomic basis vectors of the primitive cell along
+        with the HNF needed to map the primitive cell to the original cell.
+    """
+    #extract data from the atoms object to be used.
+    a_vecs = atm.cell
+    atom_pos = atm.positions
+    atom_type = None
+    new_vecs = None
+    unique_pos = None
+    unique_types = None
+    try:
+        atom_type = atm.get_chemical_symbols()
+        atom_type = [i for i in atom_type if i != "X"]
+        # mapping = {k:v for v, k in enumerate(np.unique(temp))}
+        # atom_type = [mapping[i] for i in types]
+    except: #pragma: no cover
+        atom_type = atm.numbers
+        # mapping = {k:v for v, k in enumerate(np.unique(temp))}
+        # atom_type = [mapping[i] for i in types]
+
+    if atom_type is None or len(atom_type) == 0:
+        raise ValueError("The atoms object doesn't contain species information. "
+                         "The primitive cell can't be found without the species information.")
+    if eps is None:
+        eps = 1E-3
+
+    #Armed with the data we can now make the cell primitive.
+    num_atoms = len(atom_pos)
+
+    latt_to_cart, cart_to_latt = _get_transformations(a_vecs)
+
+    #Ensure that all the basis atoms are in the unit cell.
+    atom_pos = np.array([bring_into_cell(pos, cart_to_latt, latt_to_cart, eps) for pos in atom_pos])
+
+    #If the cell isn't primitive then there will be lattice vectors
+    #inside the cell. If a lattice vector is inside the unit cell then
+    #it will bring any atom inside the cell back unto itself via a
+    #fractional transaltion. Such a translation must exist for each
+    #atom of the same type.
+    fracts = []
+    for i_atom, a_type in enumerate(atom_type):
+        #Only proceed for atoms of the same type as the first type of
+        #atom that aren't the first atom.
+        if not a_type == atom_type[0] or i_atom == 0:
+            continue
+
+        fract = atom_pos[i_atom] - atom_pos[0]
+        fract = np.array(bring_into_cell(fract, cart_to_latt, latt_to_cart, eps))
+        for j_atom, this_type in enumerate(atom_type):
+            #Find the new location of the atom after the fractional
+            #translation.
+            new_pos = fract + atom_pos[j_atom]
+            new_pos = np.array(bring_into_cell(new_pos, cart_to_latt, latt_to_cart, eps))
+            mapped = _does_mapping_exist(new_pos, this_type, atom_pos, atom_type, eps)
+            if not mapped:
+                break
+
+        #If the loop was successfull (mapped==True) then this
+        #translation takes all atoms to another of the same type so it
+        #is a valid fractional translation and should be kept.
+        if mapped:
+            fracts.append(list(fract))
+
+    #If the lattice isn't primitive then extra lattice points, i.e.,
+    #fractional rotations, were found above.
+    if len(fracts) > 0:
+        #Collect all lattices points, i.e., potential new primitive vectors.
+        lattice_points = deepcopy(fracts)
+        lattice_points.extend(a_vecs)
+
+        #Consider all possible triplets of the lattices points to see
+        #if the form a set of primitive basis vectors. A triplet will
+        #form a basis set if all lattice points will be integer
+        #combinations of the triplet.
+        for new_vecs in combinations(lattice_points, 3):
+            try:
+                cart_to_latt = np.linalg.inv(np.transpose(new_vecs))
+            except: #pragma: no cover
+                continue
+            for point in lattice_points:
+                vec = np.matmul(cart_to_latt, point)
+
+                #Check if the new vecs are all integers. If not then
+                #this lattice point wasn't preserved, move on to the
+                #next one.
+                mapped = True
+                if not np.allclose(vec, np.rint(vec), rtol=eps): #pragma: no cover
+                    # I could never get this flag to fire.
+                    mapped = False
+                    msg.err("Reached portion of code that has never been tested. "
+                            "Please submit following to developers for testing: "
+                            "a_vecs: {0}, atom_pos: {1}, atom_types: "
+                            "{2}".format(a_vecs, atom_pos, atom_type))
+                    break
+
+            #If all lattice points were mapped then we've found a valid new basis and can exit.
+            if mapped:
+                break
+
+        if not mapped: #pragma: no cover
+            raise LogicError("Error in make_primitive. Valid basis not found.")
+
+        #Bring all the atoms into the new cell.
+        atom_pos = np.array([bring_into_cell(pos, cart_to_latt, np.transpose(new_vecs), eps)
+                             for pos in atom_pos])
+        # Check for redundant atoms in the basis. If any are present then remove them.
+        unique_pos = []
+        unique_types = []
+        removed = np.zeros(len(atom_type))
+        for i_atom, this_type in enumerate(atom_type):
+            pos = atom_pos[i_atom]
+            mapped = False
+            for j in range(i_atom+1, len(atom_type)):
+                if (atom_type[j] == this_type) and (np.allclose(pos, atom_pos[j], rtol=eps)):
+                    mapped = True
+                    removed[i_atom] = i_atom+1
+
+            if not mapped:
+                unique_pos.append(pos)
+                unique_types.append(this_type)
+
+    if new_vecs is None:
+        new_vecs = a_vecs
+    if unique_pos is None:
+        unique_pos = atom_pos
+    if unique_types is None:
+        unique_types = atom_type
+    #Now that we have the new atomic and lattice basis we need to
+    #define the HNF that mapps the primitive to the supercell.
+    n = np.rint(np.matmul(np.linalg.inv(np.transpose(new_vecs)), np.transpose(a_vecs)))
+    hnf, b = hermite_normal_form(n)
+    hnf = hnf.astype(int)
+    return (new_vecs, unique_pos, unique_types, hnf)
+
+def hermite_normal_form(n):
+    """Converts an integer matrix to hermite normal form.
+
+    Args:
+        n (list): a 2D list of integers.
+
+    Returns:
+        The integer matrix converted to Hermite Normal Form and
+        the matrix needed to transform the input matrix to the HNF.
+    """
+
+    if np.equal(np.linalg.det(n), 0):
+        raise ValueError("The input matrix N is singular in hermite_normal_form.")
+
+    hnf = np.array(deepcopy(n))
+    b = np.identity(3)
+
+    # Keep doing colum operations until all elements in row 1 are zero
+    # except the one on the diagonal.
+    count = 0
+    while (list(hnf[0]).count(0) != 2):
+        count += 1
+        min_index, max_index = _find_minmax_indices(hnf[0])
+        minm = hnf[0, min_index]
+        multiple = hnf[0, max_index]//minm
+
+        hnf[:,max_index] = hnf[:, max_index] - multiple*hnf[:, min_index]
+        b[:,max_index] = b[:, max_index] - multiple*b[:, min_index]
+
+        if not np.allclose(np.matmul(n,b), hnf): #pragma: no cover
+            raise LogicError("COLS1: Transformation matrix failed in hermite_normal_form")
+
+    if hnf[0,0] == 0:
+        hnf, b = swap_column(hnf, b, 0)
+    if abs(hnf[0,0] < 0):
+        hnf[:,0] = -hnf[:,0]
+        b[:,0] = -b[:,0]
+    if not np.allclose(np.matmul(n,b),hnf): #pragma: no cover
+        raise LogicError("COLSWAP1: Transformation matrix failed in hermite_normal_form")
+
+    #Now work on getting hnf[1][2]==0.
+    while not hnf[1,2] == 0:
+        if hnf[1,1] == 0:
+            temp_col = deepcopy(hnf[:,1])
+            hnf[:,1] = hnf[:,2]
+            hnf[:,2] = temp_col
+
+            temp_col = deepcopy(b[:,1])
+            b[:,1] = b[:,2]
+            b[:,2] = temp_col
+        if hnf[1,2] == 0:
+            continue
+
+        if (abs(hnf[1,2])<abs(hnf[1,1])):
+            max_idx = 1
+            min_idx = 2
+        else:
+            max_idx = 2
+            min_idx = 1
+
+        multiple = hnf[1,max_idx]//hnf[1,min_idx]
+        hnf[:, max_idx] = hnf[:,max_idx] - multiple*hnf[:, min_idx]
+        b[:, max_idx] = b[:,max_idx] - multiple*b[:, min_idx]
+        if not np.allclose(np.matmul(n,b), hnf): #pragma: no cover
+            raise LogicError("COLS2: Transformation matrix failed in hermite_normal_form")
+
+    if hnf[1,1]<0:
+        hnf[:,1] = -hnf[:,1]
+        b[:,1] = -b[:,1]
+    if not np.allclose(np.matmul(n,b),hnf): #pragma: no cover
+        raise LogicError("COLSWAP2: Transformation matrix failed in hermite_normal_form")
+
+    if hnf[2,2]<0:
+        hnf[:,2] = -hnf[:,2]
+        b[:,2] = -b[:,2]
+
+    if not (hnf[0,1]==0 and hnf[0,2]==0 and hnf[1,2]==0): #pragma: no cover
+        print(hnf)
+        raise LogicError("hermite_normal_form not lower triangular.")
+
+    if not np.allclose(np.matmul(n,b),hnf): #pragma: no cover
+        raise LogicError("End Part 1: Transformation matrix failed in hermite_normal_form")
+
+    #Now that the matrix is lower triangular we need to make sure that
+    #the off diagonal elemnts are less than the diagonal elements.
+
+    while (hnf[1,1] <= hnf[1,0] or hnf[1,0]<0):
+        multiple = -1
+        if hnf[1,1] <= hnf[1,0]:
+            multiple = 1
+        hnf[:,0] = hnf[:,0] - multiple*hnf[:,1]
+        b[:,0] = b[:,0] - multiple*b[:,1]
+
+    for j in [0,1]:
+        while (hnf[2,2] <= hnf[2,j] or hnf[2,j]<0):
+            multiple = -1
+            if hnf[2,2] <= hnf[2,j]:
+                multiple = 1
+            hnf[:,j] = hnf[:,j] - multiple*hnf[:,2]
+            b[:,j] = b[:,j] - multiple*b[:,2]
+
+    if not np.allclose(np.matmul(n,b),hnf): #pragma: no cover
+        raise LogicError("End: Transformation matrix failed in hermite_normal_form")
+
+    if not (hnf[0,1]==0 and hnf[0,2]==0 and hnf[1,2]==0): #pragma: no cover
+        raise LogicError("END: hermite_normal_form not lower triangular.")
+
+    if (hnf[1,2]<0 and hnf[2,1]<0 or hnf[2,1]<0): #pragma: no cover
+        raise LogicError("END: negative off diagonals (hermite_normal_form).")
+
+    if (hnf[1,0]>hnf[1,1] or hnf[2,0]>hnf[2,2] or hnf[2,1]>hnf[2,2]): #pragma: no cover
+        raise LogicError("END: off diagonals larger than diagonals (hermite_normal_form).")
+
+    return hnf, b
+
+def swap_column(hnf, b, row):
+    """Swaps the non-zero element in the designated row for both hnf and b
+    matrices.
+
+    Args:
+        hnf (numpy.ndarray): an integer matrix.
+        b (numpy.ndarray): an integer matrix.
+        row (int): the row that the swap will be centered on.
+
+    Returns:
+        The hnf and b matrices with their columns swapped so that hnf[row,row] is
+        non-zero.
+    """
+
+    min_idx, max_idx = _find_minmax_indices(abs(hnf[row,row:]))
+    max_idx += row
+
+    temp_col = deepcopy(hnf[:,row])
+    hnf[:,row] = hnf[:,max_idx]
+    hnf[:,max_idx] = temp_col
+
+    temp_col = deepcopy(b[:,row])
+    b[:,row] = b[:,max_idx]
+    b[:,max_idx] = temp_col
+
+    return hnf, b
+
+def decompress(prim, basis, types_int, hnf_int):
+    """Decompresses the crystal back into it's original form.
+
+    Args:
+        prim (list): the primitive lattice vectors as rows of a matrix.
+        basis (list): the atomic basis vectors as rows of a matrix.
+        types (int): list of species converted to a single int.
+        hnf_int (int): hnf entries converted to integer.
+
+    Returns:
+        The new crystal lattice vectors, atomic basis and atomic types.
+    """
+
+    hnf = _get_hnf_from_int(hnf_int)
+    lat_vecs = np.transpose(np.matmul(np.transpose(prim), hnf))
+
+    vol_fact = hnf[0][0]*hnf[1][1]*hnf[2][2]
+
+    types = [int(i) for i in str(types_int)]
+
+    latt_to_cart, cart_to_latt = _get_transformations(np.transpose(lat_vecs))
+    eps = 1E-3
+    new_basis = []
+    new_types = []
+    prim = np.array(prim)
+    for a in range(hnf[0][0]):
+        for b in range(hnf[1][1]):
+            for c in range(hnf[2][2]):
+                #calculate the vector that will point to a new atom in
+                #the basis by taking a linear combination of the
+                #primitive cell vectors.
+                add_vec = prim[0]*a + prim[1]*b + prim[2]*c
+                for old_t, old_b in zip(types, basis):
+                    new_b = list(np.array(old_b)+add_vec)
+                    new_basis.append(bring_into_cell(new_b, latt_to_cart, cart_to_latt, eps))
+                    new_types.append(old_t)
+
+    if vol_fact*len(basis) != len(new_basis): #pragma: no cover
+        raise ValueError("Error occured in decompression.")
+
+    return lat_vecs, new_basis, new_types
+
+def _get_hnf_from_int(hnf_int):
+    """Converts a compressed HNF to the full HNF.
+
+    Args:
+        hnf_int (int): the hnf converted to an integer.
+
+    Returns:
+        hnf (list): the hnf matrix.
+    """
+
+    hnf_str = str(hnf_int)
+
+    hnf_vals = []
+    cur_index = 0
+    for i in range(1,len(hnf_str)):
+        if hnf_str[i] != "0" and hnf_str[i-1] == "0":
+            hnf_vals.append(int(hnf_str[cur_index:i-1]))
+            cur_index = i
+
+    hnf_vals.append(int(hnf_str[cur_index:i]))
+
+    hnf = [[hnf_vals[0]-1, 0, 0], [hnf_vals[1]-1, hnf_vals[2]-1, 0],
+           [hnf_vals[3]-1, hnf_vals[4]-1, hnf_vals[5]-1]]
+    return hnf

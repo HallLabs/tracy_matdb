@@ -47,7 +47,7 @@ def test_get_calc_mod():
     assert isinstance(mod, ModuleType)
 
 def test_qe_setup(tmpdir):
-    """Tests Vasp calculator initialization.
+    """Tests QE calculator initialization.
     """
 
     target = str(tmpdir.join("Qe"))        

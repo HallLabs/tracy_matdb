@@ -1,5 +1,13 @@
 # Revision History for `matdb`
 
+## Revision 1.2.0
+- Added Tracy calculator for QE/DFT to the code.
+- Implemented new methods in the `Group` class to ensure that the
+  calculator gets the correct arguments.
+- Fixed a minor logic error in the override portion of the `Group`
+  initialization.
+- Made some updates and fixes to the `Active` group.
+- Refactored the `MTP` fitter.
 
 ## Revision 1.1.6
 - Working distortion groups.
