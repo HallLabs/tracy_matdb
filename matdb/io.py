@@ -9,7 +9,7 @@ import h5py
 import re
 import yaml
 
-from matdb.atoms import Atoms, AtomsList
+# from matdb.atoms import Atoms, AtomsList
 from matdb.utility import chdir, execute
 
 _rxcfg = re.compile(r"[a-z\s:\n]+", re.I)
@@ -45,6 +45,8 @@ def _cfgd_to_atoms(cfgd, species=None):
         species (list): of element names corresponding to the integer species in
           the CFG dictionary.
     """
+    from matdb.atoms import Atoms
+    
     lattice = np.array(cfgd["Supercell"]["vals"])
     natoms = cfgd["Size"]["vals"][0][0]
     stressdict = cfgd["PlusStress"]
@@ -71,8 +73,10 @@ def _cfgd_to_atoms(cfgd, species=None):
 
     aseatoms = ase.Atoms(numbers=types, positions=np.array(positions),
                          cell=lattice)
-    aseatoms.calc = SinglePointCalculator(aseatoms, energy=energy, forces=np.array(forces),
-                                          stress=order_stress(**stress))
+    aseatoms.calc = SinglePointCalculator(
+                                    aseatoms, energy=energy,
+                                    forces=np.array(forces),
+                                    stress=order_stress(**stress))
     aseatoms.get_total_energy()
     aseatoms.get_forces()
     aseatoms.get_stress()
@@ -108,6 +112,8 @@ def cfg_to_xyz(cfgfile, outfile="output.xyz", config_type=None, species=None):
         species (list): of element names corresponding to the integer species in
           the CFG dictionary.
     """
+    from matdb.atoms import AtomsList
+
     configs = []
     cfgd = None
     with open(cfgfile) as f:
@@ -172,7 +178,9 @@ def vasp_to_xyz(
         recalc (bool): when True, re-convert the OUTCAR file, even if
           the target XYZ file already exists.
     """
+    from matdb.atoms import Atoms
     # from os import path, stat
+
     if not path.isabs(outfile):
         #Convert to absolute path if one wasn't given.
         outfile = path.join(folder, outfile)

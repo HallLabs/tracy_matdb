@@ -13,7 +13,7 @@ from tqdm import tqdm
 from matdb import msg
 from matdb.atoms import AtomsList, Atoms
 from matdb.database.utility import dbconfig, split
-from matdb.utility import chdir, dbcat, symlink
+# from matdb.utility import dbcat, chdir, symlink
 
 def _atoms_conform(dbfile, energy, force, virial):
     """Determines whether the specified database conforms to the constraints for
@@ -120,7 +120,7 @@ class LegacyDatabase(object):
             self.config_type = config["config_type"]
             self.folder = folder
         else:
-            # from matdb.utility import dbcat
+            from matdb.utility import dbcat
             if not path.isfile(self._dbfull):
                 self._create_dbfull(folder, pattern, energy, force, virial, config_type)
 
@@ -135,7 +135,7 @@ class LegacyDatabase(object):
                 dbcat([self._dbfull], self._dbfile, docat=False, limit=limit,
                       ids=ids)
             else:
-                # from matdb.utility import symlink
+                from matdb.utility import symlink
                 symlink(self._dbfile, self._dbfull)
 
         #The rest of matdb expects each database to have an atoms object that is
@@ -145,7 +145,7 @@ class LegacyDatabase(object):
     def _create_dbfull(self, folder, pattern, energy, force, virial, config_type):
         """Creates the full combined database.
         """
-        # from matdb.utility import chdir, dbcat
+        from matdb.utility import chdir, dbcat
         # from glob import glob
         # from tqdm import tqdm
         # from os import path

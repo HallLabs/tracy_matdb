@@ -11,7 +11,9 @@ from importlib import import_module
 import json
 import math
 import os
-from os import environ, waitpid, path, symlink, remove, getcwd, chdir
+from os import environ, waitpid, path, remove, getcwd#, chdir, symlink
+from os import chdir as os_chdir
+from os import symlink as os_symlink
 from shutil import copyfile
 from subprocess import Popen, PIPE
 import sys
@@ -29,8 +31,8 @@ from six import string_types
 import matdb
 from matdb import msg, __version__
 from matdb.atoms import AtomsList
-from matdb.database.utility import dbconfig
-from matdb.utility import special_functions
+# from matdb.database.utility import dbconfig
+# from matdb.utility import special_functions
 
 @contextmanager
 def redirect_stdout(new_target):
@@ -49,13 +51,13 @@ def chdir(target):
     Args:
         target (str): path to the directory to change into.
     """
-    # from os import getcwd, chdir
+    # from os import chdir, #getcwd
     current = getcwd()
     try:
-        chdir(target)
+        os_chdir(target)
         yield target
     finally:
-        chdir(current)
+        os_chdir(current)
 
 def import_fqdn(fqdn):
     """Returns the object from the specified FQDN. Any exceptions raised will
@@ -213,7 +215,7 @@ def cat(files, target):
 def symlink(target, source):
     """Creates a symbolic link from `source` to `target`.
     """
-    # from os import path, symlink, remove
+    # from os import symlink# path, remove
     # from matdb import msg
     if path.isfile(target) or path.islink(target):
         remove(target)
@@ -221,7 +223,7 @@ def symlink(target, source):
         msg.warn("Cannot auto-delete directory '{}' for symlinking.".format(target))
         return
 
-    symlink(source, target)
+    os_symlink(source, target)
 
 def linecount(filename):
     """Counts the number of lines in file.
@@ -696,7 +698,7 @@ def get_suffix(d, k, index, values):
         index (int): the index for the value (gets used as the default suffix).
         values (str, list, float): the value for the parameter.
     """
-    # from matdb.utility import special_functions
+    from matdb.utility import special_functions
     nk = k[0:-1]
     suffix = "{0}_suffix".format(nk)
     ssuff = suffix + '*'
@@ -899,11 +901,11 @@ def dbcat(files, output, sources=None, docat=True, **params):
         params (dict): key-value pairs that characterize *how* the database was
           created using the source files.
     """
+    # import json
     # from uuid import uuid4
     # from datetime import datetime
     # from matdb import __version__
-    # from matdb.database.utility import dbconfig
-    # import json
+    from matdb.database.utility import dbconfig
 
     confpath = output + ".json"
     config = {
