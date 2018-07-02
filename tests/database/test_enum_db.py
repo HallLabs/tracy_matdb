@@ -31,7 +31,7 @@ def compare_nested_dicts(dict1,dict2):
 @pytest.fixture()
 def AgPd(tmpdir):
     from matdb.utility import relpath
-    from matdb.database.controller import Controller
+    from matdb.database import Controller
     from os import mkdir, symlink, remove
 
     target = relpath("./tests/AgPd/matdb")
@@ -45,7 +45,7 @@ def test_setup(AgPd):
     """Tetsts the setup of the enumerated database.
     """
 
-    assert not AgPd.collections['enumerated']['enumerated'].steps['enum'].is_setup()
+    assert not AgPd.collections['enumerated'].steps['enum'].is_setup()
     
     AgPd.setup()
 
@@ -91,13 +91,13 @@ def test_setup(AgPd):
         dbfolder = path.join(AgPd.root,db)
         compare_tree(dbfolder,folders)    
 
-    assert AgPd.collections['enumerated']['enumerated'].steps['enum'].is_setup()
+    assert AgPd.collections['enumerated'].steps['enum'].is_setup()
 
     # test the euid and index creation for the entire database.
     assert path.isfile(path.join(AgPd.root,"Enum/enumerated/euids.pkl"))
     assert path.isfile(path.join(AgPd.root,"Enum/enumerated/index.json"))
 
-    enum = AgPd.collections['enumerated']['enumerated'].steps['enum']
+    enum = AgPd.collections['enumerated'].steps['enum']
     assert len(enum.index) == 20
     assert len(enum.euids) == 20
 
@@ -119,17 +119,19 @@ def test_setup(AgPd):
             dest = path.join(dbfolder,"E.{}".format(j),"CONTCAR")
             symlink(src,dest)
 
-    enum.cleanup()
-    assert len(enum.atoms_paths) == 20
-    assert len(enum.rset()) == 20
+    enum.extract()
+    assert len(enum.rset) == 20
 
 def test_functions(AgPd):
     """Tests the enumerated specific functions of the database.
     """
 
-    enum = AgPd.collections['enumerated']['enumerated'].steps['enum']
+    enum = AgPd.collections['enumerated'].steps['enum']
 
     #test the lattice settings for the system
+    enum._get_lattice("fcc")
+    assert np.allclose(enum.lattice,[[0.5,0.5,0],[0.5,0,0.5],[0,0.5,0.5]])
+    assert enum.lattice_name == "fcc"
     enum._get_lattice("sc")
     assert np.allclose(enum.lattice,[[1,0,0],[0, 1, 0],[0, 0, 1]])
     assert enum.lattice_name == "sc"
@@ -164,7 +166,7 @@ def test_initial(AgPd):
     """Tests the enumerated specific functions of the database.
     """
 
-    enum = AgPd.collections['enumerated']['enumerated'].steps['enum']
+    enum = AgPd.collections['enumerated'].steps['enum']
 
     enum.__init__(root=enum.root, eps=0.001, rattle=0.01, keep_supers=True,
                   displace=0.01, sizes=[2],lattice="hcp",parent=enum.parent)
@@ -185,7 +187,7 @@ def test_build_lattice(AgPd):
     """Tests the enumerated specific functions of the database.
     """
 
-    enum = AgPd.collections['enumerated']['enumerated'].steps['enum']
+    enum = AgPd.collections['enumerated'].steps['enum']
 
     enum.__init__(root=enum.root, keep_supers=True, lattice="bcc",
                   sizes=[2], parent=enum.parent, concs=[[0,2,2],[0,1,2]],
@@ -201,18 +203,33 @@ def test_build_lattice(AgPd):
 
     enum._build_lattice_file(enum.root)
     assert path.isfile(path.join(enum.root,"lattice.in"))
+    remove(path.join(enum.root,"lattice.in"))
+        
+    enum.__init__(root=enum.root, keep_supers=True, lattice="bcc",
+                  sizes=[2], parent=enum.parent)
+
+    enum._build_lattice_file(enum.root)
+    assert path.isfile(path.join(enum.root,"lattice.in"))
 
 def test_to_dict(AgPd):
     """Tests the to dict method.
     """
-
-    enum = AgPd.collections['enumerated']['enumerated'].steps['enum']
+    from matdb import __version__
+    
+    enum = AgPd.collections['enumerated'].steps['enum']
 
     out = enum.to_dict()
-    model = {'rattle': 0.0, 'calculator': None, 'trainable': False, 'rseed': 10,
-             'prefix': 'E', 'config_type': None, 'basis': [[0, 0, 0]],
-             'lattice': None, 'override': {},
-             'displace': 0.0, 'execution': {}, 'keep_supers': False, 'name': 'enum',
+    model = {'rattle': 0.0, 'prefix': 'E', 'basis': [[0, 0, 0]],
+             'lattice': None, 'displace': 0.0, 'execution': {}, "override": {},
+             'keep_supers': False, 'name': 'enum', 'calculator': None, 'trainable': False,
              'sizes': [1, 4], 'arrows': None, 'eps': 0.001, 'concs': None, 'nconfigs': 10,
-             'root': enum.root}
+             'root': enum.root, 'config_type': None, 'version': __version__,
+             'ran_seed': 10}
+    # some things we can't know before hand like the python version
+    # and the datetime stamp for these entries we simply need to
+    # verify that they are present.
+    assert "python_version" in out
+    assert "datetime" in out
+    model["python_version"] = out["python_version"]
+    model["datetime"] = out["datetime"]
     assert compare_nested_dicts(out, model)

@@ -1,17 +1,19 @@
 """Group of configurations selected from the prototypes database.
 """
 
-from matdb.database import Group
-from matdb import msg
 from os import path, getcwd, chdir, remove, listdir, mkdir
 import numpy as np
 from six import string_types
-from matdb.atoms import Atoms, AtomsList
 from glob import glob
-from phenum.element_data import get_lattice_parameter
-from matdb.utility import _get_reporoot, chdir
 from copy import deepcopy
 from hashlib import sha1
+
+from phenum.element_data import get_lattice_parameter
+
+from matdb.database import Group
+from matdb import msg
+from matdb.atoms import Atoms, AtomsList
+from matdb.utility import _get_reporoot, chdir
 
 class Prototypes(Group):
     """Constructs a selection of configurations based off the AFLOW

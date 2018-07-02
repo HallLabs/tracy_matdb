@@ -221,3 +221,55 @@ def test_vasp_xyz(tmpdir):
 
     remove(relpath("tests/files/io_convert/vasp.xyz"))
     remove(relpath("tests/files/io_convert/vasp.xyz.idx"))   
+
+def test_atoms_to_cfg(tmpdir):
+    """Tests the writing of an atoms object to cfg format. 
+    """
+    from matdb.io import atoms_to_cfg
+    from matdb.atoms import Atoms
+    from os import path, remove
+    from ase.calculators.singlepoint import SinglePointCalculator
+    from matdb.calculators import Vasp
+
+    atSi = Atoms("Si8",positions=[[0,0,0],[0.25,0.25,0.25],[0.5,0.5,0],[0.75,0.75,0.25],
+                                  [0.5,0,0.5],[0.75,0.25,0.75],[0,0.5,0.5],[0.25,0.75,0.75]],
+                 cell=[5.43,5.43,5.43])
+
+    target = "train.cfg"
+
+    atoms_to_cfg(atSi, target)
+
+    assert path.isfile(target)
+
+    remove(target)
+    
+    energy = 10.0
+    forces = [[1,1,1],[2,2,2],[3,3,3],[4,4,4],[5,5,5],[6,6,6],[7,7,7],[8,8,8]]
+    stress = [0,1,2,3,4,5]
+
+    atSi.calc = SinglePointCalculator(atSi, energy=energy, forces=np.array(forces),
+                                          stress=stress)
+
+    atSi.add_property("energy", energy)
+    atSi.add_property("stress", stress)
+    atSi.add_param("force", forces)
+    atoms_to_cfg(atSi, target)
+
+    assert path.isfile(target)
+    
+    remove(target)
+
+    atSi = Atoms("Si8",positions=[[0,0,0],[0.25,0.25,0.25],[0.5,0.5,0],[0.75,0.75,0.25],
+                                  [0.5,0,0.5],[0.75,0.25,0.75],[0,0.5,0.5],[0.25,0.75,0.75]],
+                 cell=[5.43,5.43,5.43])
+
+    type_map = {0:1}
+    
+    kwargs = {"kpoints":{"rmin":50}, "potcars": {"directory":"./tests/vasp",
+                                                 "versions": {"Si":"05Jan2001"}}, "xc":"pbe"}
+    atSi.calc = Vasp(atSi, str(tmpdir.join("Vasp")) , str(tmpdir), 0, **kwargs)
+
+    atoms_to_cfg(atSi, target, type_map=type_map, config_id="test")
+    assert path.isfile(target)
+    
+    remove(target)

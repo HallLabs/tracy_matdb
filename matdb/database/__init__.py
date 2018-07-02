@@ -213,16 +213,19 @@ class Group(object):
                                 f.write("{0} \n {1}".format(obj_ins.uuid,obj_ins.time_stamp))
                             self.database.parent.uuids[obj_ins.uuid] = obj_ins
 
+                        lcargs = None
                         if "name" in v["calc"]:
                             new_calc = getattr(calculators, v["calc"]["name"])
-                            new_lcarlgs = v.copy()
-                            del new_lcargs["name"]
+                            if "Tracy" in v["calc"]["name"]:
+                                lcargs = self._tracy_setup(calcargs = v["calc"]["calcargs"])
                         else:
                             new_calc = obj_ins.calc
-                        lcargs = self.calcargs.copy()
-                        del lcargs["name"]
-                        if v["calc"]["calcargs"] is not None:
-                            lcargs.update(calcargs)
+                            
+                        if lcargs is None:
+                            lcargs = self.calcargs.copy()
+                            lcargs.update(v["calc"]["calcargs"])
+                            del lcargs["name"]
+                            
                         calc = new_calc(atoms, obj_ins.calc.folder, obj_ins.calc.contr_dir,
                                         obj_ins.calc.ran_seed, **lcargs)
                         obj_ins.set_calculator(calc)                    
@@ -677,9 +680,54 @@ class Group(object):
         else:
             for group in self.sequence.values():
                 group.jobfile(rerun=rerun, recovery=recovery)
-                    
+
+    def _tracy_setup(self, calcargs=None):
+        """Extracts the needed information from the group that needs to be
+        passed to the Tracy calculator.
+        
+        Args:
+            calcargs (dict): the updates to the global calculation arguments.
+        """
+        calcinput = self.calcargs.copy()
+        if calcargs is not None:
+            calcinput.update(calcargs)
+        del calcinput["name"]
+        
+        tracy = {}
+        exec_settings = self.Database.execution.copy()
+        if self.prev is not None and self.seeded:
+            tracy["group_preds"] = self.prev.uuid
+
+        if "eCommerce" in exec_settings:
+            tracy["ecommerce"] = exec_settings["eCommerce"]
+        
+        if "contract_predecessors" in exec_settings:
+            tracy["contract_preds"] = exec_settings["contract_predecessors"]
+
+        if "priority" in exec_settings:
+            tracy["contract_priority"] = exec_settings["priority"]
+
+        keys = ["time", "flops", "minimum_ram", "minimum_mem", "ncores", "network_latency",
+                "role"]
+        for key in keys:
+            if key not in exec_settings.keys():
+                raise ValueError("{0} must be set by the user.")
+        
+        tracy["max_time"] = int(exec_settings["time"])*360
+        tracy["min_flops"] = int(exec_settings["flops"])
+        tracy["min_ram"] = int(exec_settings["minimum_ram"])
+        tracy["min_mem"] = int(exec_settings["minimum_mem"])
+        tracy["ncores"] = int(exec_settings["ncores"])
+        tracy["max_net_lat"] = int(exec_settings["network_latency"])
+        tracy["role"] = exec_settings["role"]
+        if "notifications" in exec_settings:
+            tracy["notifications"] = exec_settings["notifications"]
+
+        return {"calcargs": calcinput, "tracy": tracy}
+
     def create(self, atoms, cid=None, rewrite=False, sort=None, calcargs=None,
                extractable=True):
+
         """Creates a folder within this group to calculate properties.
         Args:
             atoms (matdb.atoms.Atoms): atomic configuration to run.
@@ -734,11 +782,14 @@ class Group(object):
             trans_atoms.uuid = uid
             trans_atoms.time_stamp = time_stamp
             trans_atoms.group_uuid = self.uuid
-            lcargs = self.calcargs.copy()
-            del lcargs["name"]
-            if calcargs is not None:
-                lcargs.update(calcargs)
-                
+            if "Tracy" in self.calcargs["name"]:
+                lcargs = self._tracy_setup(calcargs)
+            else:                
+                lcargs = self.calcargs.copy()                
+                del lcargs["name"]
+                if calcargs is not None:
+                    lcargs.update(calcargs)
+
             calc = self.calc(trans_atoms, target, self.database.parent.root,
                              self.database.parent.ran_seed, **lcargs)
             calc.create()

@@ -6,11 +6,13 @@ def stubs(request, tmpdir_factory):
     #stubs that we created.
     from os import path, pathsep, environ
     from matdb.utility import which, symlink, touch
+    from glob import glob
     stubs = {
         "vasp": "matdb_vasp.py",
         "module": "matdb_module.py",
         "sbatch": "matdb_sbatch.py",
-        "getKPoints": "matdb_getkpoints.py"
+        "getKPoints": "matdb_getkpoints.py",
+        "mlp": "matdb_mlp.py"
     }
 
     #Validate the existence of installed stub scripts in the python path.
@@ -48,6 +50,13 @@ def stubs(request, tmpdir_factory):
     assert path.isfile(path.join(stubpath, "KPOINTS"))
     xres = execute(["./vasp"], stubpath)
     assert path.isfile(path.join(stubpath, "CONTCAR"))
+
+    xres = execute(["./mlp", "calc-grade"], stubpath)
+    assert path.isfile(path.join(stubpath, "state.mvs"))
+    xres = execute(["./mlp", "select-add"], stubpath)
+    assert path.isfile(path.join(stubpath, "new_training.cfg"))
+    xres = execute(["./mlp", "convert-cfg"], stubpath)
+    assert len(glob(path.join(stubpath, "POSCAR*"))) == 10
     
     def restore():
         paths = environ["PATH"].split(pathsep)
