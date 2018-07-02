@@ -1,16 +1,16 @@
 """Functions for interacting with various output formats.
 """
-import re
-import numpy as np
-import ase
 from os import path
-from matdb.atoms import Atoms, AtomsList
+
+import ase
 from ase.calculators.singlepoint import SinglePointCalculator
 import h5py
+import numpy as np
 import re
 import yaml
 
 # from matdb.atoms import Atoms, AtomsList
+from matdb.atoms import Atoms, AtomsList
 from matdb.utility import chdir, execute
 
 _rxcfg = re.compile(r"[a-z\s:\n]+", re.I)
@@ -37,15 +37,15 @@ def symmetrize(xx=None, yy=None, zz=None, yz=None, xz=None, xy=None):
     from numpy import array
     return array([[xx, xy, xz], [xy, yy, yz], [xz, yz, zz]])
 
- 
+
 def atoms_to_cfg(atm, target, config_id=None, type_map=None):
     """Converts an :class:`matdb.atoms.Atoms` object to a cfg file.
-    
+
     Args:
         atm (matdb.atoms.Atoms): the atoms object.
         target (str): path to the cfg file to be written.
         config_id (str): the config id for the atoms object.
-        type_map (dict): a type map to match the species to a larger 
+        type_map (dict): a type map to match the species to a larger
           system than present in the system.
     """
 
@@ -56,7 +56,7 @@ def atoms_to_cfg(atm, target, config_id=None, type_map=None):
         calc_name = "{0}_".format(atm.calc.key)
     else:
         calc_name = ""
-    
+
     local_map = {}
     for i, specs in enumerate(np.unique(chem_syms)):
         if type_map is None:
@@ -73,7 +73,7 @@ def atoms_to_cfg(atm, target, config_id=None, type_map=None):
         for i in range(3):
             f.write("   {}\n".format("      ".join(
                 ["{0: .6f}".format(j) for j in lat_vecs[i]])))
-        
+
         f.write("  ")
 
         if "{0}force".format(calc_name) in atm.properties:
@@ -106,7 +106,7 @@ def atoms_to_cfg(atm, target, config_id=None, type_map=None):
                       atm.params["vasp_virial"][2][0], atm.params["vasp_virial"][0][1]]
             f.write(" Stress:   xx          yy          zz          yz          xz          xy\n")
             f.write("            {0}\n".format("    ".join(["{0: .8f}".format(i) for i in virial])))
-                        
+
         if config_id is None:
             conf_id = "{0}_{1}".format("".join(np.unique(chem_syms)),len(pos))
         else:
@@ -404,7 +404,7 @@ def save_dict_to_h5(h5file, dic, path='/'):
             h5file[path + key] = item
         elif isinstance(item, np.ndarray):
             if item.ndim==1 and isinstance(item[0], np.ndarray): #pragma: no cover
-                # this chunk of code is only ever used by the unit testing suite. 
+                # this chunk of code is only ever used by the unit testing suite.
                 dt = h5py.special_dtype(vlen=np.float64)
                 h5file.create_dataset(path+key, data=item, dtype=dt)
             else:

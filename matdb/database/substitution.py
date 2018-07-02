@@ -1,13 +1,15 @@
 '''Group of matdb.atoms.Atoms objects with changed stoichiometries for atomic
 positions from a seed configuration.
 '''
-from matdb.atoms import AtomsList, Atoms
-from matdb.database import Group
 from os import path, mkdir
-from matdb import msg
-import numpy as np
 import random
 
+
+import numpy as np
+
+from matdb import msg
+from matdb.atoms import AtomsList, Atoms
+from matdb.database import Group
 
 class Substitution(Group):
     """Substitution.py: A Group to create substitutions in the stoichiometry from

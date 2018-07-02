@@ -1,12 +1,13 @@
 '''Group of quippy.atoms.Atoms objects with displaced atomic positions from
 a seed configuration.
 '''
-from matdb.atoms import Atoms, AtomsList
-from matdb.database import Group
 from os import path, mkdir
-from matdb import msg
+
 import numpy as np
 
+from matdb import msg
+from matdb.atoms import Atoms, AtomsList
+from matdb.database import Group
 
 class Distortion(Group):
     '''Distortion.py: Group to create from a seed configuration and distorts

@@ -1,17 +1,17 @@
 """Group of configurations selected from the prototypes database.
 """
 
+from copy import deepcopy
+from glob import glob
+from hashlib import sha1
 from os import path, getcwd, chdir, remove, listdir, mkdir
 import numpy as np
 from six import string_types
-from glob import glob
-from copy import deepcopy
-from hashlib import sha1
 
 from phenum.element_data import get_lattice_parameter
 
-from matdb.database import Group
 from matdb import msg
+from matdb.database import Group
 from matdb.atoms import Atoms, AtomsList
 from matdb.utility import _get_reporoot, chdir
 

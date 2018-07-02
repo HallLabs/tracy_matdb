@@ -5,7 +5,9 @@ useful. This module provides a simple class that adapts legacy databases to a
 format that can be used by the `matdb` fitting machinery.
 """
 from os import path
+
 import numpy as np
+
 from matdb import msg
 from matdb.atoms import AtomsList, Atoms
 from matdb.database.utility import dbconfig, split

@@ -1,35 +1,36 @@
 """Exposes classes and functions for interacting with the database
 folders via a simple configuration file.
 """
-from os import path, mkdir, makedirs
-from matdb import msg
-import numpy as np
-import six
-import collections
-from glob import glob
-from uuid import uuid4
 import abc
-import pickle
-from datetime import datetime
+import collections
 from contextlib import contextmanager
+from datetime import datetime
+from glob import glob
+import pickle
+from os import path, mkdir, makedirs
+from uuid import uuid4
+
 import ase.db
 from collections import OrderedDict
-import json
-import lazy_import
+from hashlib import sha1
 import h5py
-import re
+import json
+import numpy as np
+import lazy_import
 from importlib import import_module
 calculators = lazy_import.lazy_module("matdb.calculators")
-from matdb.atoms import Atoms, AtomsList
+import re
+import six
 from tqdm import tqdm
-from hashlib import sha1
+
+from matdb import msg
+from matdb.atoms import Atoms, AtomsList
 from matdb.database.utility import split
 from matdb.utility import chdir, ParameterGrid, convert_dict_to_str, import_fqdn
 from matdb.database.legacy import LegacyDatabase
 from matdb.fitting.controller import TController
 # from matdb.database.utility import parse_path, split, LegacyDatabase
 from matdb.atoms import Atoms, AtomsList, _recursively_convert_units
-
 from matdb import __version__, msg
 from matdb.atoms import Atoms, AtomsList, _recursively_convert_units
 from matdb.database.legacy import LegacyDatabase
