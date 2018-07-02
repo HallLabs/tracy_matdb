@@ -11,7 +11,9 @@ from importlib import import_module
 import json
 import math
 import os
-from os import environ, waitpid, path, symlink, remove, getcwd, chdir
+from os import environ, waitpid, path, remove, getcwd#, chdir, symlink
+from os import chdir as os_chdir
+from os import symlink as os_symlink
 from shutil import copyfile
 from subprocess import Popen, PIPE
 import sys
@@ -33,7 +35,7 @@ import h5py
 import sys
 from contextlib import contextmanager
 from matdb.atoms import AtomsList
-from matdb.database.utility import dbconfig
+# from matdb.database.utility import dbconfig
 # from matdb.utility import special_functions
 
 @contextmanager
@@ -53,13 +55,13 @@ def chdir(target):
     Args:
         target (str): path to the directory to change into.
     """
-    from os import getcwd, chdir
+    # from os import chdir, #getcwd
     current = getcwd()
     try:
-        chdir(target)
+        os_chdir(target)
         yield target
     finally:
-        chdir(current)
+        os_chdir(current)
 
 def import_fqdn(fqdn):
     """Returns the object from the specified FQDN. Any exceptions raised will
@@ -220,15 +222,15 @@ def cat(files, target):
 def symlink(target, source):
     """Creates a symbolic link from `source` to `target`.
     """
-    from os import path, symlink, remove
-    from matdb import msg
+    # from os import symlink# path, remove
+    # from matdb import msg
     if path.isfile(target) or path.islink(target):
         remove(target)
     elif path.isdir(target):
         msg.warn("Cannot auto-delete directory '{}' for symlinking.".format(target))
         return
 
-    symlink(source, target)
+    os_symlink(source, target)
 
 def linecount(filename):
     """Counts the number of lines in file.
@@ -906,11 +908,11 @@ def dbcat(files, output, sources=None, docat=True, **params):
         params (dict): key-value pairs that characterize *how* the database was
           created using the source files.
     """
-    from uuid import uuid4
-    from datetime import datetime
-    from matdb import __version__
+    # import json
+    # from uuid import uuid4
+    # from datetime import datetime
+    # from matdb import __version__
     from matdb.database.utility import dbconfig
-    import json
 
     confpath = output + ".json"
     config = {

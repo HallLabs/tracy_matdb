@@ -171,7 +171,7 @@ def parse_path(root,seeds,ran_seed=None):
         seed_files (list): a list of the seed files for the database.
     """
     from matdb.utility import special_values
-    from itertools import product
+    # from itertools import product
 
     seed_files = []
     for seed in seeds:

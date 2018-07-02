@@ -143,6 +143,9 @@ class LegacyDatabase(object):
         """
         from matdb.utility import chdir, dbcat
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> fixbranch
         # from glob import glob
         # from tqdm import tqdm
         # from os import path
