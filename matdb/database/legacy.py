@@ -144,20 +144,10 @@ class LegacyDatabase(object):
         """Creates the full combined database.
         """
         from matdb.utility import chdir, dbcat
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
->>>>>>> fixbranch
-        # from glob import glob
-        # from tqdm import tqdm
-        # from os import path
-
-=======
         from glob import glob
         from tqdm import tqdm
         from os import path
 
->>>>>>> rosenbrock_master/master
         #NB! There is a subtle bug here: if you try and open a matdb.atoms.Atoms
         #within the context manager of `chdir`, something messes up with the
         #memory sharing in fortran and it dies. This has to be separate.

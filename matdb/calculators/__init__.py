@@ -48,7 +48,8 @@ def build_calc(name, relpath, *args, **kwargs):
                 "Does not exist at package level.")
 
     from matdb.atoms import Atoms
-        atoms = Atoms()
+    
+    atoms = Atoms()
     if relpath is not None:
         with chdir(relpath):
             result = target(atoms, '.', '.', 0, *args, **kwargs)

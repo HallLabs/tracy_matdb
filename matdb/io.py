@@ -186,11 +186,8 @@ def cfg_to_xyz(cfgfile, outfile="output.xyz", config_type=None, species=None):
         species (list): of element names corresponding to the integer species in
           the CFG dictionary.
     """
-<<<<<<< HEAD
-    from matdb.atoms import AtomsList #, Atoms
-=======
+
     from matdb.atoms import AtomsList
->>>>>>> fixbranch
 
     configs = []
     cfgd = None
