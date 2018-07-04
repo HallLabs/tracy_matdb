@@ -77,11 +77,18 @@ class Tracy(AsyncCalculator):
     def __init__(self, folder, role=None, notifications=None,
                  group_preds=None, contract_preds=None, ecommerce=None,
                  contract_priority=None, max_time=None, min_flops=None,
-                 min_mem=None, ncores=None, max_net_lat=None, min_ram=None):
+                 min_mem=None, ncores=None, max_net_lat=None, min_ram=None,
+                 user=None, password=None):
 
         # If this folder has already been submitted then there will be
         # a file containing the contract number in it. We want to read
         # this in so we can check it's status later.
+        if user is None or password is None
+            raise ValueError("A user name and password must be specified to use a "
+                             "Tracy calculotar.")
+
+        self.user = user
+        self.password = password
         self.folder = folder
         if path.isfile(path.join(folder, "contract.txt")):
             with open(path.join(folder, "contract.txt"), "r") as f:        
@@ -201,6 +208,8 @@ class Tracy(AsyncCalculator):
         package["minimumStorage"] = self.sys_specs["min_mem"]
         package["numberOfCores"] = self.sys_specs["ncores"]
         package["maximumNetworkLatency"] = self.sys_specs["max_net_lat"]
+        package["user"] = self.user
+        package["password"] = self.password
 
         #Move this to the wrapper script that reads the json.
         # if self.can_execute(self.folder):
