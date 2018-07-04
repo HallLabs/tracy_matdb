@@ -7,12 +7,63 @@ from random import seed, uniform
 import json
 import abc
 import numpy as np
+import binascii
 
 from matdb.database.utility import make_primitive
 from matdb.descriptors import soap
 from matdb.calculators.basic import AsyncCalculator
 from matdb.calculators import Qe
+from matdb.utility impor _get_reporoot
 
+def _get_struct_info(struct, local_label):
+    """Gets the structure info for the atomic species.
+
+    Args:
+        struct (str): The structure for which data is wanted.
+        local_label (int): The local, i.e., this instance of matdb 
+          label for the structure.
+    
+    Returns:
+        Dictionary of structure data.
+    """
+
+    struct_data = ""
+    with open(path.join(_get_reporoot(), "matdb", "templates",
+                        "struct_enum.out.bin"), "rb") as f:
+        for line in f:
+            struct_data += _text_from_bits(line)
+
+    data_dict = json.loads(struct_data)
+
+    for s in temp["structs"]["details"]:
+        if s["title"] == struct:
+            detalis = s.copy()
+            details["title"] = local_label
+            details["fileName"] = details["fileName"].replace(struct,str(local_label))
+
+    return details
+
+def _text_from_bits(bits, encoding='utf-8', errors='surrogatepass'):
+    """Converts the data in bits to texte.
+
+    Args:
+        bits (binary): binary data to convert.
+
+    Returns:
+        The text inside the binary.
+    """
+    n = int(bits, 2)
+    return int2bytes(n).decode(encoding, errors)
+
+def _int2bytes(i):
+    """Converts the integer to bytes.
+    
+    Args:
+        i (int): integer to convert.
+    """
+    hex_string = '%x' % i
+    n = len(hex_string)
+    return binascii.unhexlify(hex_string.zfill(n + (n & 1)))        
 
 class Tracy(AsyncCalculator):
     """Represents a calculator that will be submitted to the Tracy queue.
