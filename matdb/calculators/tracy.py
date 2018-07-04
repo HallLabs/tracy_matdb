@@ -338,26 +338,16 @@ class Tracy_QE(Tracy, Qe):
                     if key not in self.input_dict.keys():
                         self.input_dict[key] = {}
 
-#        self.input_dict["potential"] = self._get_potential_data()
+       self.input_dict["potential"] = self._get_data()
 
-    def _get_potential_data(self):
+    def _get_data(self):
         """Uses the QE input to construct the dictionary of potential information.
         """
         results = {"numPotential": len(self.type_map.keys()),
                    "details":[]}
 
-        for el in self.type_map.keys():
-            details = {"dft": "PBE", "lpaw": "true", "pseudotype": "3", "AugFun": "PSQ",
-                       "rmatchAugFunNC": "true", "tm": "true"}
-            details["title"] =  self.type_map[el]
-            details["gamma"] = get_gamma(el)
-            details["rel"] = get_rel(el)
-            details["config"] = get_config(el)
-            details["iswitch"] = get_iswitch(el)
-            details["fileName"] = "{0}-pot".format(self.type_map[el])
-            details["lloc"] = get_lloc(el)
-            details["orb"] = get_orbit(el)
-            results["details"].append(details)
+        for struct, val in self.type_map.items():
+            results["details"].append(_get_struct_info(struct, val))
 
         return results
 
@@ -374,7 +364,7 @@ class Tracy_QE(Tracy, Qe):
     def extract(self, folder):
         """Extracts the results from the returned data package.
         """
-        # Waiting on Andrew for this part
+        # This will be handled externally for now.
         pass
         
     def to_dict(self):
