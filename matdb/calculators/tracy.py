@@ -338,7 +338,7 @@ class Tracy_QE(Tracy, Qe):
                     if key not in self.input_dict.keys():
                         self.input_dict[key] = {}
 
-       self.input_dict["potential"] = self._get_data()
+       self.input_dict["structure_data"] = self._get_data()
 
     def _get_data(self):
         """Uses the QE input to construct the dictionary of potential information.
