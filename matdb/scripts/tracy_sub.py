@@ -1,13 +1,20 @@
 #!/usr/bin/python
 
-import tracy_wrapper
 import datetime
 import json
+import argparse
+import sys
+from os import path
+
+import tracy_wrapper
+
+from matdb.utility import _get_reporoot
+from matdb import msg
+from matdb import base
 
 def examples():
     """Prints examples of using the script to the console using colored output.
     """
-    from matdb import msg
     script = "MATDB Tracy Queue submission"
     explain = ("Once a database of configurations has been built and prepped "
                "for submission to the Tracy Queue this script will grab the data "
@@ -35,9 +42,6 @@ dict: default command-line arguments and their
 def _parser_options():
     """Parses the options and arguments from the command line."""
     #We have two options: get some of the details from the config file,
-    import argparse
-    import sys
-    from matdb import base
     pdescr = "MATDB Tracy Queue submission"
     parser = argparse.ArgumentParser(parents=[base.bparser], description=pdescr)
     for arg, options in script_options.items():
@@ -63,7 +67,11 @@ def submit(subfil, test=False):
     payload["input"] = str(payload["input"])
     payload["dateReady"] = datetime.datetime.now()
 
+    username = payload.pop("user")
+    password = payload.pop("password")
+    
     tracy_client = tracy_wrapper.get_client()
+    tracy_client.auth_manager.authenticate(username, password)
     if test:
         tracy_client.api.Contract.add.add(results=payload)
     else: #pragma: no cover
@@ -77,6 +85,12 @@ def run(args):
     
     #No matter what other options the user has chosen, we will have to create a
     #database controller for the specification they have given us.
+    if args["debug"]:
+        tracy_wrapper.setup_logger(log_dirpath=path.join(_get_reporoot(), "tracy_logs"),
+                                   loglevel="DEBUG")
+    else:
+        tracy_wrapper.setup_logger(log_dirpath=path.join(_get_reporoot(), "tracy_logs"))
+    
     if args["test_run"]:
         submit(args["subspec"], test=True)
     else:
