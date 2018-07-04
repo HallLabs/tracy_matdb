@@ -341,9 +341,10 @@ class Tracy_QE(Tracy, Qe):
        self.input_dict["structure_data"] = self._get_data()
 
     def _get_data(self):
-        """Uses the QE input to construct the dictionary of potential information.
+        """Uses the QE input to construct the dictionary of information needed
+        for the cloud compute code.
         """
-        results = {"numPotential": len(self.type_map.keys()),
+        results = {"numEntries": len(self.type_map.keys()),
                    "details":[]}
 
         for struct, val in self.type_map.items():
