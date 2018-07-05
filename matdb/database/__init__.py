@@ -33,8 +33,7 @@ from matdb.fitting.controller import TController
 from matdb.atoms import Atoms, AtomsList, _recursively_convert_units
 from matdb import __version__, msg
 from matdb.atoms import Atoms, AtomsList, _recursively_convert_units
-from matdb.database.legacy import LegacyDatabase
-from matdb.database.utility import parse_path, split, LegacyDatabase
+from matdb.database.utility import parse_path, split
 from matdb.fitting.controller import TController
 from matdb.io import read, save_dict_to_h5
 from matdb.msg import okay, verbosity

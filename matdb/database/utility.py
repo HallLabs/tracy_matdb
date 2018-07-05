@@ -3,6 +3,7 @@
 from cPickle import dump, load
 from copy import deepcopy
 from itertools import combinations
+import json
 from os import path, rename, remove
 from uuid import uuid4
 
@@ -157,7 +158,7 @@ def dbconfig(dbfile):
     if not path.isfile(confpath):
         return {}
 
-    import json
+    # import json
     with open(confpath) as f:
         config = json.load(f, object_pairs_hook=load_datetime)
 

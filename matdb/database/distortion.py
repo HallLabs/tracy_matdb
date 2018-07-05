@@ -1,4 +1,4 @@
-'''Group of quippy.atoms.Atoms objects with displaced atomic positions from
+    '''Group of quippy.atoms.Atoms objects with displaced atomic positions from
 a seed configuration.
 '''
 from os import path, mkdir
