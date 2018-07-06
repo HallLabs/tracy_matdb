@@ -7,7 +7,7 @@ from contextlib import contextmanager
 from datetime import datetime
 from glob import glob
 import pickle
-from os import path, mkdir, makedirs
+from os import path, mkdir, makedirs, sys
 from uuid import uuid4
 
 import ase.db

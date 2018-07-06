@@ -31,9 +31,9 @@ from matdb import msg
 import six
 import numpy as np
 import h5py
-
-import sys
 from contextlib import contextmanager
+
+from matdb import __version__
 from matdb.atoms import AtomsList
 # from matdb.database.utility import dbconfig
 # from matdb.utility import special_functions
