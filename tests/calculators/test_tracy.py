@@ -4,6 +4,7 @@ import pytest
 from os import path, mkdir, remove
 import six
 import numpy as np
+import json
 
 from matdb.atoms import Atoms
 from matdb.utility import reporoot, relpath, symlink, touch
@@ -67,7 +68,10 @@ def test_tracy_qe_setup(tmpdir):
         f.write("12345")
     with open(path.join(target, "post_print.txt"), "w+") as f:
         f.write("abcde")
-    calc = TracyQE(atm, target, 'def', 0, **kwargs)
+    authenticate = {"user": "user", "password": "password"}
+    with open(str(tmpdir.join("user_cred.json")), "w+") as f:
+        json.dump(authenticate,f)
+    calc = TracyQE(atm, target, '.', 0, **kwargs)
 
     assert isinstance(calc, TracyQE)
     assert calc.parameters["input_data"]["control"]["calculation"] == "relax"
@@ -77,6 +81,7 @@ def test_tracy_qe_setup(tmpdir):
     assert calc.sys_specs["max_time"] == 10
     assert calc.contract_id == "12345"
     assert calc.after_print == "abcde"
+    remove(str(tmpdir.join("user_cred.json")))
 
 def test_Tracy(tmpdir):
     """Tests the writing of the input files for the TracyQE calculator.
@@ -94,12 +99,16 @@ def test_Tracy(tmpdir):
               "tracy": {"max_time": 10, "min_flops": 10, "min_ram": 10, "min_mem": 10,
                         "ncores": 1, "role": "Enumerated", "notifications": "stuff"}}
 
-    calc = TracyQE(atm, target, 'def', 0, **kwargs)
+    authenticate = {"user": "user", "password": "password"}
+    with open(str(tmpdir.join("user_cred.json")), "w+") as f:
+        json.dump(authenticate,f)
+    calc = TracyQE(atm, target, '.', 0, **kwargs)
+
     with pytest.raises(ValueError):
         compressed = calc._compress_struct(calc.atoms)
 
     atm = Atoms("Al",positions=[[0, 0, 0]], cell=[[1,0,0],[0,1,0],[0,0,1]])
-    calc = TracyQE(atm, target, 'def', 0, **kwargs)
+    calc = TracyQE(atm, target, '.', 0, **kwargs)
     compressed = calc._compress_struct(calc.atoms)
 
     assert np.allclose(compressed["a"], atm.cell)
@@ -117,6 +126,7 @@ def test_Tracy(tmpdir):
     calc.role = "dump"
     with pytest.raises(ValueError):
         calc._get_source()
+    remove(str(tmpdir.join("user_cred.json")))
 
 def test_TracyQE(tmpdir):
     """Tests the Tracy QE methods."""
@@ -127,14 +137,17 @@ def test_TracyQE(tmpdir):
 
     kwargs = {"calcargs":{"potcars": {"directory":"./tests",
                           "potentials": {"Al": "Al.pbe-n-kjpaw_psl.1.0.0.UPF"},
-                          "versions": {"Al": ["2.0.1", ".5.1"]}},
+                          "versio2ns": {"Al": ["2.0.1", ".5.1"]}},
                           "kpoints":{"method": "MP", "divisions": (3, 3, 3)},
                           "input_data": {"control":{"calculation": "relax", "prefix": "test"}}},
               "tracy": {"max_time": 10, "min_flops": 10, "min_ram": 10, "min_mem": 10,
                         "ncores": 1, "role": "Enumerated", "notifications": "stuff",
                         "group_preds": "abcd", "contract_preds":"1234", "notifications": "stuff"}}
 
-    calc = TracyQE(atm, target, 'def', 0, **kwargs)
+    authenticate = {"user": "user", "password": "password"}
+    with open(str(tmpdir.join("user_cred.json")), "w+") as f:
+        json.dump(authenticate,f)
+    calc = TracyQE(atm, target, '.', 0, **kwargs)
 
     calc.write_input(atm)
 
@@ -152,6 +165,7 @@ def test_TracyQE(tmpdir):
     assert "kwargs" in Qe_dict
     assert Qe_dict["folder"] == target
     assert Qe_dict["ran_seed"] == 0
+    remove(str(tmpdir.join("user_cred.json")))
 
 def test_array_to_int():
     """Tests conversion of arrays to ints."""
@@ -166,7 +180,10 @@ def test_array_to_int():
                         "ncores": 1, "role": "Enumerated", "notifications": "stuff",
                         "group_preds": "abcd", "contract_preds":"1234"}}
 
-    calc = TracyQE(atm, '.', 'def', 0, **kwargs)
+    authenticate = {"user": "user", "password": "password"}
+    with open(path.join('.',"user_cred.json"), "w+") as f:
+        json.dump(authenticate,f)
+    calc = TracyQE(atm, '.', '.', 0, **kwargs)
 
     in_put = [1,2,3,4,5]
     out_put = 12345
@@ -181,3 +198,4 @@ def test_array_to_int():
     test_out = calc._intarray_to_int(in_put, pad=True)
 
     assert out_put == test_out
+    remove(str(tmpdir.join("user_cred.json")))
