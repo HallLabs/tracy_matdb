@@ -1782,8 +1782,21 @@ class Controller(object):
             dfilter (list): of `str` patterns to match against *database*
               names. This limits which databases sequences are returned.
         """
-        for dbname, dbi in self.ifiltered(dfilter):
-            dbi.setup(rerun)
+        try:
+            for dbname, dbi in self.ifiltered(dfilter):
+                dbi.setup(rerun)
+
+        finally:
+            # Save the paths to the setup atoms objects for the Tracy
+            # extract method.
+            uuid_paths = {}
+            for matdb_id, matdb_obj in self.uuids.values():
+                if isinstance(matdb_obj, Atoms):
+                    uuid_paths[matdb_id] = matdb_obj.calc.folder
+            with open(path.join(self.root,"atoms_paths.json"),"w+") as f:
+                json.dump(uuid_paths, f)
+            if path.isfile(path.join(self.root, "user_cred.json")):
+                remove(path.join(self.root, "user_cred.json"))
 
     def extract(self, dfilter=None, cleanup="default"):
         """Runs extract on each of the configuration's databases.
