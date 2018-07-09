@@ -13,7 +13,7 @@ from matdb.database.utility import make_primitive
 from matdb.descriptors import soap
 from matdb.calculators.basic import AsyncCalculator
 from matdb.calculators import Qe
-from matdb.utility impor _get_reporoot
+from matdb.utility import _get_reporoot
 
 def _get_struct_info(struct, local_label):
     """Gets the structure info for the atomic species.
@@ -35,16 +35,16 @@ def _get_struct_info(struct, local_label):
 
     data_dict = json.loads(struct_data)
 
-    for s in temp["structs"]["details"]:
+    for s in data_dict["structs"]["details"]:
         if s["title"] == struct:
-            detalis = s.copy()
+            details = s.copy()
             details["title"] = local_label
             details["fileName"] = details["fileName"].replace(struct,str(local_label))
 
     return details
 
 def _text_from_bits(bits, encoding='utf-8', errors='surrogatepass'):
-    """Converts the data in bits to texte.
+    """Converts the data in bits to text.
 
     Args:
         bits (binary): binary data to convert.
@@ -53,7 +53,7 @@ def _text_from_bits(bits, encoding='utf-8', errors='surrogatepass'):
         The text inside the binary.
     """
     n = int(bits, 2)
-    return int2bytes(n).decode(encoding, errors)
+    return _int2bytes(n).decode(encoding, errors)
 
 def _int2bytes(i):
     """Converts the integer to bytes.
@@ -77,18 +77,11 @@ class Tracy(AsyncCalculator):
     def __init__(self, folder, role=None, notifications=None,
                  group_preds=None, contract_preds=None, ecommerce=None,
                  contract_priority=None, max_time=None, min_flops=None,
-                 min_mem=None, ncores=None, max_net_lat=None, min_ram=None,
-                 user=None, password=None):
+                 min_mem=None, ncores=None, max_net_lat=None, min_ram=None):
 
         # If this folder has already been submitted then there will be
         # a file containing the contract number in it. We want to read
         # this in so we can check it's status later.
-        if user is None or password is None
-            raise ValueError("A user name and password must be specified to use a "
-                             "Tracy calculotar.")
-
-        self.user = user
-        self.password = password
         self.folder = folder
         if path.isfile(path.join(folder, "contract.txt")):
             with open(path.join(folder, "contract.txt"), "r") as f:        
@@ -281,11 +274,23 @@ class Tracy_QE(Tracy, Qe):
         if self.ran_seed is not None:
             seed(self.ran_seed)            
 
+        if not path.isfile(path.join(contr_dir, "user_cred.json")): #pragma: no cover
+            self.user = input("User name: ")
+            self.password = input("User password: ")
+            authenticate = {"user": self.user, "password": self.password}
+            with open(path.join(contr_dir, "user_cred.json"), "w+") as f:
+                json.dump(authenticate, f)
+        else:
+            with open(path.join(contr_dir, "user_cred.json"), "r") as f:
+                authenticate = json.load(f)
+            self.user = authenticate["user"]
+            self.password = authenticate["password"]
+            
         Qe.__init__(self, atoms, folder, contr_dir, ran_seed, **self.QE_input)
         Tracy.__init__(self, folder, **self.tracy_input)
 
     def _check_potcars(self):
-        """We don't construct the potetial files on the user's end so we don't
+        """We don't construct the potential files on the user's end so we don't
         actuall want to do any checking.
         """
         pass
@@ -347,7 +352,7 @@ class Tracy_QE(Tracy, Qe):
                     if key not in self.input_dict.keys():
                         self.input_dict[key] = {}
 
-       self.input_dict["structure_data"] = self._get_data()
+        self.input_dict["structure_data"] = self._get_data()
 
     def _get_data(self):
         """Uses the QE input to construct the dictionary of information needed
