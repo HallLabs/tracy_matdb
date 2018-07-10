@@ -987,3 +987,50 @@ def required_packages():
             "PyYAML", "requests", "six", "subprocess32", "termcolor",
             "tqdm", "urllib3", "webencodings", "lazy-import", "seekpath"]
 
+def recursive_getattr(o, fqn):
+    """Recursively gets a '.'-separated path of attributes from an object.
+    
+    Args:
+        fqn (str): '.'-separated attribute path.
+    """
+    if '.' in fqn:
+        attrs = fqn.split('.')
+        for cattr in attrs[0:-1]:
+            if isinstance(o, dict) and cattr in o:
+                o = o[cattr]
+            elif hasattr(o, cattr):
+                o = getattr(o, cattr)
+            else:
+                return None
+    else:
+        attrs = [fqn]
+    
+    if isinstance(o, dict) and attrs[-1] in o:
+        return o[attrs[-1]]
+    elif hasattr(o, attrs[-1]):
+        return getattr(o, attrs[-1])        
+    else:
+        return None
+
+def recursive_setattr(o, fqn, value):
+    """Recursively sets a '.'-separated path of attributes from an object.
+    
+    Args:
+        fqn (str): '.'-separated attribute path.
+    """
+    if '.' in fqn:
+        attrs = fqn.split('.')
+        for cattr in attrs[0:-1]:
+            if isinstance(o, dict) and cattr in o:
+                o = o[cattr]
+            elif hasattr(o, cattr):
+                o = getattr(o, cattr)
+            else:
+                return None
+    else:
+        attrs = [fqn]
+    
+    if isinstance(o, dict):
+        o[attrs[-1]] = value
+    else:
+        setattr(o, attrs[-1], value)
