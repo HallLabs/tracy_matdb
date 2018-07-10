@@ -251,13 +251,10 @@ def vasp_to_xyz(folder, outfile="output.xyz", recalc=0,
         recalc (bool): when True, re-convert the OUTCAR file, even if
           the target XYZ file already exists.
     """
-<<<<<<< HEAD
-    from os import path, stat
-=======
+
     from matdb.atoms import Atoms
     # from os import path, stat
 
->>>>>>> fixbranch
     if not path.isabs(outfile):
         #Convert to absolute path if one wasn't given.
         outfile = path.join(folder, outfile)
