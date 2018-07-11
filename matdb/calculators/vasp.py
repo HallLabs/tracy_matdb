@@ -12,13 +12,15 @@ import ase
 from ase.calculators.vasp import Vasp
 from os import path, stat, mkdir, remove, environ, rename
 import mmap
+from hashlib import sha1
+import re
+
 from matdb.calculators.basic import AsyncCalculator
 from matdb import msg
 from matdb.kpoints import custom as write_kpoints
 from matdb.utility import chdir, execute, relpath
-from hashlib import sha1
-import re
 from matdb.exceptions import VersionError, SpeciesError
+from matdb.calculators import paths
 
 def phonon_defaults(d, dfpt=False):
     """Adds the usual settings for the INCAR file when performing frozen-phonon
@@ -129,6 +131,7 @@ class AsyncVasp(Vasp, AsyncCalculator):
     """
     key = "vasp"
     tarball = ["vasprun.xml"]
+    pathattrs = ["potcars.directory"]
 
     def __init__(self, atoms, folder, contr_dir, ran_seed, *args, **kwargs):
         self.init_calc(kwargs)
@@ -429,7 +432,13 @@ class AsyncVasp(Vasp, AsyncCalculator):
         # run vasp in the root directory in order to determine the
         # version number.
         if hasattr(self,"potcars"):
-            vasp_dict["kwargs"]["potcars"] = self.potcars
+            potdict = self.potcars.copy()
+            namehash = str(sha1(path.abspath().encode("ASCII")).hexdigest())
+            for hid, hpath in paths[namehash].items():
+                if potdict["directory"] == hpath:
+                    potdict["directory"] = hid
+                    break
+            vasp_dict["kwargs"]["potcars"] = potdict
         if hasattr(self,"kpoints"):
             vasp_dict["kwargs"]["kpoints"] = self.kpoints
         if self.version is None:
