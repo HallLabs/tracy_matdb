@@ -1,7 +1,7 @@
 """Contains all the utility functions that belong to the database groups."""
 
 from uuid import uuid4
-from cPickle import dump, load
+from pickle import dump, load
 from os import path, rename, remove
 import numpy as np
 from glob import glob
