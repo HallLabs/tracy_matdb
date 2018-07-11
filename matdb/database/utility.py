@@ -15,9 +15,7 @@ from phenum.grouptheory import _find_minmax_indices
 
 from matdb import msg
 from matdb.atoms import AtomsList
-# from matdb.utility import dbcat
-# from matdb.utility import load_datetime
-# from matdb.utility import special_values
+from matdb.utility import dbcat, load_datetime, special_values
 
 def split(atlist, splits, targets, dbdir, ran_seed, dbfile=None, recalc=0,
           nonsplit=None):
@@ -152,7 +150,7 @@ def dbconfig(dbfile):
     Args:
         dbfile (str): path to the database file to get config information for.
     """
-    from matdb.utility import load_datetime
+    # from matdb.utility import load_datetime
 
     confpath = dbfile + ".json"
     if not path.isfile(confpath):
@@ -176,7 +174,7 @@ def parse_path(root,seeds,ran_seed=None):
     Returns:
         seed_files (list): a list of the seed files for the database.
     """
-    from matdb.utility import special_values
+    # from matdb.utility import special_values
     # from itertools import product
 
     seed_files = []

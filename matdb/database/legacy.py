@@ -11,7 +11,7 @@ import numpy as np
 from matdb import msg
 from matdb.atoms import AtomsList, Atoms
 from matdb.database.utility import dbconfig, split
-# from matdb.utility import chdir, dbcat, symlink
+from matdb.utility import chdir, dbcat, symlink
 
 def _atoms_conform(dbfile, energy, force, virial):
     """Determines whether the specified database conforms to the constraints for

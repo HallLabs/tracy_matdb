@@ -11,9 +11,8 @@ from importlib import import_module
 import json
 import math
 import os
-from os import environ, waitpid, path, remove, getcwd#, chdir, symlink
-from os import chdir as os_chdir
-from os import symlink as os_symlink
+from os import environ, waitpid, path, remove, getcwd
+from os import chdir as os_chdir, symlink as os_symlink
 from shutil import copyfile
 from subprocess import Popen, PIPE
 import sys
@@ -35,7 +34,7 @@ from contextlib import contextmanager
 
 from matdb import __version__
 from matdb.atoms import AtomsList
-# from matdb.database.utility import dbconfig
+from matdb.database.utility import dbconfig
 # from matdb.utility import special_functions
 
 @contextmanager
@@ -75,7 +74,7 @@ def import_fqdn(fqdn):
         tuple: `(module, callable)`, where `module` is the module object that
         `callable` resides in.
     """
-    from importlib import import_module
+    # from importlib import import_module
     parts = fqdn.split('.')
     call = parts[-1]
     module = '.'.join(parts[0:-1])
@@ -120,7 +119,7 @@ def execute(args, folder, wait=True, nlines=100, venv=None,
       first 100 lines will be returned. Use parameter `nlines` to control output
       size.
     """
-    from subprocess import Popen, PIPE
+    # from subprocess import Popen, PIPE
     if "stdout" not in kwargs:
         kwargs["stdout"] = PIPE
     if "stderr" not in kwargs:
@@ -345,7 +344,7 @@ def copyonce(src, dst):
     already exist.
     """
     if not path.isfile(dst):
-        from shutil import copyfile
+        # from shutil import copyfile
         copyfile(src, dst)
 
 def compare_tree(folder, model):
@@ -882,7 +881,7 @@ class ParameterGrid(collections.MutableSet):
 def is_uuid4(uuid_string):
     """Determines of the string passed in is a valid uuid4 string.
     """
-    from uuid import UUID
+    # from uuid import UUID
 
     try:
         val = UUID(uuid_string, version=4)
@@ -917,7 +916,7 @@ def dbcat(files, output, sources=None, docat=True, **params):
     # from uuid import uuid4
     # from datetime import datetime
     # from matdb import __version__
-    from matdb.database.utility import dbconfig
+    # from matdb.database.utility import dbconfig
 
     confpath = output + ".json"
     config = {

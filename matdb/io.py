@@ -9,7 +9,6 @@ import numpy as np
 import re
 import yaml
 
-# from matdb.atoms import Atoms, AtomsList
 from matdb.atoms import Atoms, AtomsList
 from matdb.utility import chdir, execute
 

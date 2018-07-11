@@ -7,7 +7,7 @@ from contextlib import contextmanager
 from datetime import datetime
 from glob import glob
 import pickle
-from os import path, mkdir, makedirs, sys
+from os import path, mkdir, makedirs, sys, rename, remove
 from uuid import uuid4
 
 import ase.db
@@ -23,24 +23,15 @@ import re
 import six
 from tqdm import tqdm
 
-from matdb import msg
-from matdb.atoms import Atoms, AtomsList
-from matdb.database.utility import split
-from matdb.utility import chdir, ParameterGrid, convert_dict_to_str, import_fqdn
-from matdb.database.legacy import LegacyDatabase
-from matdb.fitting.controller import TController
-# from matdb.database.utility import parse_path, split, LegacyDatabase
-from matdb.atoms import Atoms, AtomsList, _recursively_convert_units
 from matdb import __version__, msg
 from matdb.atoms import Atoms, AtomsList, _recursively_convert_units
+from matdb.database.legacy import LegacyDatabase
 from matdb.database.utility import parse_path, split
 from matdb.fitting.controller import TController
 from matdb.io import read, save_dict_to_h5
 from matdb.msg import okay, verbosity
-# from matdb.utility import (
-#         check_deps, relpath, is_uuid4, chdir,
-#         ParameterGrid, convert_dict_to_str, import_fqdn,
-#          linecount, __version__, execute)
+from matdb.utility import (chdir, ParameterGrid, convert_dict_to_str,
+                            import_fqdn, is_uuid4)
 
 class Group(object):
     """Represents a collection of material configurations (varying in
@@ -215,7 +206,7 @@ class Group(object):
                             obj_ins.write(new_path)
                             self.database.parent.uuids[obj_ins.uuid] = new_path
                             if path.isfile(path.join(obj_ins.calc.folder,"atoms.h5")):
-                                from os import remove
+                                # from os import remove
                                 remove(path.join(obj_ins.calc.folder,"atoms.h5"))
                             # Make a new uuid for the new atoms object
                             # and overwrite the uuid file.
@@ -253,7 +244,7 @@ class Group(object):
                     args = obj_ins.to_dict()
                     if self.rec_bin is not None:
                         for atm in self.fitting_configs():
-                            from os import rename
+                            # from os import rename
                             atms = Atoms(atm)
                             new_atm = path.join(selg.rec_bin.root,
                                                 "{}-atoms.h5".format(atms.uuid))
@@ -417,8 +408,8 @@ class Group(object):
     def to_dict(self,include_time_stamp=True):
         """Returns a dictionary of the parameters passed into the group instance.
         """
-        from matdb import __version__
-        import sys
+        # from matdb import __version__
+        # import sys
 
         kw_dict = self.grpargs.copy()
         args_dict = {"root": self.root, "override": self.override,
@@ -448,7 +439,7 @@ class Group(object):
     def hash_group(self):
         """Hashes the rset and the parameters of the  for the group.
         """
-        from matdb.utility import convert_dict_to_str
+        # from matdb.utility import convert_dict_to_str
         hash_str = convert_dict_to_str(self.to_dict(include_time_stamp=False))
         for atom in self.rset:
             temp_atom = Atoms(atom)
@@ -987,7 +978,7 @@ class Group(object):
                 parts.append("{}.*/{}".format(self.prefix, fname))
 
             targs = ["tar", "-cvzf", filename, ' '.join(parts)]
-            from matdb.utility import execute
+            # from matdb.utility import execute
             execute(targs, self.root)
         else:
             for group in self.sequence.values():
@@ -1416,7 +1407,7 @@ class Database(object):
     def to_dict(self):
         """Returns a dictionary of the database parameters and settings.
         """
-        from matdb.utility import __version__
+        # from matdb.utility import __version__
         # from os import sys
         data = {"version":__version__,"python_version":sys.version,"name":self.name,
                 "root":self.root,"steps":self._settings,"uuid":self.uuid}
@@ -1913,8 +1904,8 @@ class Controller(object):
               names. This limits which databases are returned.
         """
 
-        from matdb.io import save_dict_to_h5
-        from matdb import __version__
+        # from matdb.io import save_dict_to_h5
+        # from matdb import __version__
 
         final_dict = self.versions.copy()
         final_dict["hash"] = self.hash_dbs(dfilter=dfilter)
