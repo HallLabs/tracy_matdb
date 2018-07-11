@@ -1,15 +1,33 @@
+from six import string_types
+from os import path
+from hashlib import sha1
+from operator import itemgetter
+
 from .vasp import AsyncVasp as Vasp
 from .aflux import AsyncAflow as Aflow
 from .qe import AsyncQe as Qe
 from .tracy import Tracy_QE as TracyQE
 from matdb import msg
-from matdb.utility import chdir
+from matdb.utility import chdir, recursive_getattr
 
 try:
     from .quip import SyncQuip as Quip
 except:
     msg.info("Could not import the Quip calculator.")
 
+def get_calc_class(name):
+    """Gets the class definition objects for the calculator that has the
+    specified name.
+    """
+    globs = globals()
+    try:
+        target = globs[name]
+    except KeyError:
+        msg.err("Cannot import calculator {}. ".format(name) +
+                "Does not exist at package level.")
+
+    return target
+    
 def build_calc(name, relpath, *args, **kwargs):
     """Builds a calculator instance using sensible defaults for *interatomic potentials*
     that do *not* require a temporary directory to dump files.
@@ -40,14 +58,9 @@ def build_calc(name, relpath, *args, **kwargs):
     
     ValueError: if the `name` is not a folder-independent interatomic potential.
     """
-    globs = globals()
-    try:
-        target = globs[name]
-    except KeyError:
-        msg.err("Cannot import calculator {}. ".format(name) +
-                "Does not exist at package level.")
-
+    #This import is purposefully here to avoid recursive import loops.
     from matdb.atoms import Atoms
+    target = get_calc_class(name)
     atoms = Atoms()
     if relpath is not None:
         with chdir(relpath):
@@ -75,3 +88,69 @@ def get_calculator_module(calcargs):
         pass
 
     return mod
+
+def get_calculator_hashes(key, value, breadcrumb, result):
+    """Looks for calculator absolute paths recursively in configuration dicts.
+    
+    .. warning: The `result` parameter will be mutated.
+    
+    Args:
+        key (str): key that this entry was under in the configuration dict.
+        value: value object may be any supported type.
+        breadcrumb (str): recursive path description for this key-value pair.
+        result (dict): keys are breadcrumb hashes; values are absolute paths.
+    """
+    #Update the breadcrumb based on the context.
+    if isinstance(key, int):
+        breadcrumb += "[{0:d}]".format(key)
+    elif isinstance(key, string_types):
+        breadcrumb += "{0}{1}".format('.' if breadcrumb != "" else "", key)
+
+    #We only recurse for list and dict types; other scalar types can't be
+    #dictionary configs.
+    if isinstance(value, list):
+        for i, o in enumerate(value):
+            get_calculator_hashes(i, o, breadcrumb, result)
+    elif isinstance(value, dict):
+        for k, v in sorted(value.items(), key=itemgetter(0)):
+            get_calculator_hashes(k, v, breadcrumb, result)
+        
+    if (key == "calculator" and isinstance(value, dict)):
+        if "name" in value:
+            calcname = value["name"]
+            calccls = get_calc_class(calcname)            
+        else:
+            #Get the global calculator name/class instance.
+            calcname = next(iter(result.keys()))
+            calccls = get_calc_class(calcname)
+            
+        for pathattr in calccls.pathattrs:
+            attrval = recursive_getattr(value, pathattr)
+            if attrval is not None:
+                abspath = path.abspath(attrval)
+                icrumb = "{0}.{1}".format(breadcrumb, pathattr)
+                phash = str(sha1(icrumb.encode("ASCII")).hexdigest())
+                #Add a new dictionary for the calculator if it is the first time
+                if calcname not in result:
+                    result[calccls.key] = {}
+                result[calcname][phash] = abspath
+
+paths = {}
+"""dict: keys are hashed `matdb` names from multiple `matdb.yml` files. Values
+are dictionaries populated by a call to :func:`get_calculator_hashes`.
+"""
+
+def set_paths(configyml):
+    """Sets the absolute paths to any calculator-specific file resources based
+    on the specified *live* configuration settings derived from a `matdb.yml`
+    file.
+
+    Args:
+        configyml (dict): contents of the `matdb.yml` file to set paths for.
+    """
+    global paths
+    name = configyml["title"].strip()
+    namehash = str(sha1(name.encode("ASCII")).hexdigest())
+    calcpaths = {}
+    get_calculator_hashes("matdb", configyml, "", calcpaths)
+    paths[namehash] = calcpaths
