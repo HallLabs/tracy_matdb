@@ -15,7 +15,7 @@ from phenum.grouptheory import _find_minmax_indices
 
 from matdb import msg
 from matdb.atoms import AtomsList
-from matdb.utility import dbcat, load_datetime, special_values
+from matdb.utility import load_datetime, special_values, dbcat
 
 def split(atlist, splits, targets, dbdir, ran_seed, dbfile=None, recalc=0,
           nonsplit=None):

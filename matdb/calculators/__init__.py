@@ -4,7 +4,6 @@ from .qe import AsyncQe as Qe
 from .tracy import Tracy_QE as TracyQE
 from matdb import msg
 from matdb.utility import chdir
-
 try:
     from .quip import SyncQuip as Quip
 except:
@@ -48,7 +47,7 @@ def build_calc(name, relpath, *args, **kwargs):
                 "Does not exist at package level.")
 
     from matdb.atoms import Atoms
-    
+
     atoms = Atoms()
     if relpath is not None:
         with chdir(relpath):

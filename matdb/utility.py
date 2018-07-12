@@ -34,7 +34,7 @@ from contextlib import contextmanager
 
 from matdb import __version__
 from matdb.atoms import AtomsList
-from matdb.database.utility import dbconfig
+# from matdb.database.utility import dbconfig
 # from matdb.utility import special_functions
 
 @contextmanager
@@ -916,7 +916,7 @@ def dbcat(files, output, sources=None, docat=True, **params):
     # from uuid import uuid4
     # from datetime import datetime
     # from matdb import __version__
-    # from matdb.database.utility import dbconfig
+    from matdb.database.utility import dbconfig
 
     confpath = output + ".json"
     config = {
