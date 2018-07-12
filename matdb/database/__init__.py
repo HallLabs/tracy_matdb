@@ -956,7 +956,7 @@ class Group(object):
             pbar = tqdm(total=len(self.sequence))
             cleaned = []
             for group in self.sequence.values():
-                cleaned.append(group.extract(cleanup=cleanup))
+                cleaned.append(group.extract(cleanup=cleanup, asis=asis))
                 pbar.update(1)
             cleaned = all(cleaned)
             pbar.close()
