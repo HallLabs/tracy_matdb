@@ -1,13 +1,18 @@
 """Group of configurations that is created from an enumerated list of structures.
 """
-from matdb.database import Group
-from matdb import msg
-from os import path, getcwd, chdir, remove, listdir, mkdir
+from os import path, remove, listdir, mkdir, getcwd
 import numpy as np
 from six import string_types
-from matdb.atoms import Atoms, AtomsList
-from matdb.utility import copyonce
 from glob import glob
+
+from phenum.enumeration import _enum_out
+from phenum.phenumStr import _make_structures
+from jinja2 import Environment, PackageLoader
+
+from matdb.database import Group
+from matdb import msg
+from matdb.atoms import Atoms, AtomsList
+from matdb.utility import copyonce, chdir
 
 class Enumerated(Group):
     """Sets up the calculations for a random sampling of structures from
@@ -283,7 +288,7 @@ class Enumerated(Group):
         else:
             result = []
             for e in self.sequence.values():
-                result.extend(e.rset())
+                result.extend(e.rset)
             return result
     
     def _build_lattice_file(self,target):
@@ -295,7 +300,6 @@ class Enumerated(Group):
                 saved.
         """
 
-        from os import path
         target = path.join(target, "lattice.in")
 
         # We need to create a dictionary of the arguments to pass into
@@ -325,7 +329,6 @@ class Enumerated(Group):
         settings["atomic_basis"] = [" ".join([str(i) for i in j]) for j in self.basis]
         settings["n_basis"] = len(self.basis)        
         
-        from jinja2 import Environment, PackageLoader
         env = Environment(loader=PackageLoader('matdb', 'templates'))
         template = env.get_template("lattice.in")
 
@@ -348,18 +351,17 @@ class Enumerated(Group):
         """
         # We need to construct a lattice.in file then run phenum so that
         # each system gets the correct number of configurations.
-        current = getcwd()
         self._build_lattice_file(self.root)
         dind = 0
         # Perform the enumeration, we allow for multiple attempts since the
         # number of configs returned the first time could be to small for
         # enumerations over small systems.
-        chdir(self.root)
-        recurse = 0
-        while dind<self.nconfigs and recurse<5:
-            dind = self._enumerate(dind,recurse,current)
-            recurse += 1
-        chdir(current)
+        current = getcwd()
+        with chdir(self.root):
+            recurse = 0
+            while dind<self.nconfigs and recurse<5:
+                dind = self._enumerate(dind,recurse,current)
+                recurse += 1
 
         # Last of all, create the job file to execute the job array.
         self.jobfile(rerun)
@@ -376,8 +378,6 @@ class Enumerated(Group):
                 a unique set of enumerations over the same range.
             home (str): The home directory.
         """
-        from phenum.enumeration import _enum_out
-        from phenum.makeStr import _make_structures
         _enum_out({"input":"enum.in","outfile":"enum.out",
                    "seed":self.ran_seed if self.ran_seed is None else self.ran_seed+dind+recurse,
                    "lattice":"lattice.in","distribution":["all",str(self.nconfigs-dind)],
@@ -395,14 +395,14 @@ class Enumerated(Group):
         # Now we need to create the folder for each system we've enumerated
         if self.euids is None:
             self.euids = []
-        current = getcwd()
+
         for count, dposcar in enumerate(glob("vasp.*")):
             if euids[count] not in self.euids:
                 dind += 1
                 datoms = Atoms(dposcar,format="vasp")
-                chdir(home)
-                self.create(datoms,cid=dind)
-                chdir(current)
+                with chdir(home):
+                    self.create(datoms,cid=dind)
+
                 copyonce(dposcar,path.join(self.configs[dind],"POSCAR_orig"))
                 self.index[str(euids[count].hexdigest())] = self.configs[dind]
                 self.euids.append(str(euids[count].hexdigest()))

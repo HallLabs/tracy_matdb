@@ -213,16 +213,19 @@ class Group(object):
                                 f.write("{0} \n {1}".format(obj_ins.uuid,obj_ins.time_stamp))
                             self.database.parent.uuids[obj_ins.uuid] = obj_ins
 
+                        lcargs = None
                         if "name" in v["calc"]:
                             new_calc = getattr(calculators, v["calc"]["name"])
-                            new_lcarlgs = v.copy()
-                            del new_lcargs["name"]
+                            if "Tracy" in v["calc"]["name"]:
+                                lcargs = self._tracy_setup(calcargs = v["calc"]["calcargs"])
                         else:
                             new_calc = obj_ins.calc
-                        lcargs = self.calcargs.copy()
-                        del lcargs["name"]
-                        if v["calc"]["calcargs"] is not None:
-                            lcargs.update(calcargs)
+                            
+                        if lcargs is None:
+                            lcargs = self.calcargs.copy()
+                            lcargs.update(v["calc"]["calcargs"])
+                            del lcargs["name"]
+                            
                         calc = new_calc(atoms, obj_ins.calc.folder, obj_ins.calc.contr_dir,
                                         obj_ins.calc.ran_seed, **lcargs)
                         obj_ins.set_calculator(calc)                    
@@ -299,7 +302,6 @@ class Group(object):
         """Recursively expands the nested groups to populate :attr:`sequence`.
         """
         self._expand_seeds(self._seed)
-        
         if self.seeds is not None:
             for seedname, at_seed in self.seeds.items():
                 seed_root = path.join(self.root, seedname)                    
@@ -433,7 +435,7 @@ class Group(object):
         """
         
         hash_str = convert_dict_to_str(self.to_dict(include_time_stamp=False))
-        for atom in self.rset():
+        for atom in self.rset:
             temp_atom = Atoms(atom)
             hash_str += convert_dict_to_str(temp_atom.to_dict())
 
@@ -678,9 +680,54 @@ class Group(object):
         else:
             for group in self.sequence.values():
                 group.jobfile(rerun=rerun, recovery=recovery)
-                    
+
+    def _tracy_setup(self, calcargs=None):
+        """Extracts the needed information from the group that needs to be
+        passed to the Tracy calculator.
+        
+        Args:
+            calcargs (dict): the updates to the global calculation arguments.
+        """
+        calcinput = self.calcargs.copy()
+        if calcargs is not None:
+            calcinput.update(calcargs)
+        del calcinput["name"]
+        
+        tracy = {}
+        exec_settings = self.Database.execution.copy()
+        if self.prev is not None and self.seeded:
+            tracy["group_preds"] = self.prev.uuid
+
+        if "eCommerce" in exec_settings:
+            tracy["ecommerce"] = exec_settings["eCommerce"]
+        
+        if "contract_predecessors" in exec_settings:
+            tracy["contract_preds"] = exec_settings["contract_predecessors"]
+
+        if "priority" in exec_settings:
+            tracy["contract_priority"] = exec_settings["priority"]
+
+        keys = ["time", "flops", "minimum_ram", "minimum_mem", "ncores", "network_latency",
+                "role"]
+        for key in keys:
+            if key not in exec_settings.keys():
+                raise ValueError("{0} must be set by the user.")
+        
+        tracy["max_time"] = int(exec_settings["time"])*360
+        tracy["min_flops"] = int(exec_settings["flops"])
+        tracy["min_ram"] = int(exec_settings["minimum_ram"])
+        tracy["min_mem"] = int(exec_settings["minimum_mem"])
+        tracy["ncores"] = int(exec_settings["ncores"])
+        tracy["max_net_lat"] = int(exec_settings["network_latency"])
+        tracy["role"] = exec_settings["role"]
+        if "notifications" in exec_settings:
+            tracy["notifications"] = exec_settings["notifications"]
+
+        return {"calcargs": calcinput, "tracy": tracy}
+
     def create(self, atoms, cid=None, rewrite=False, sort=None, calcargs=None,
                extractable=True):
+
         """Creates a folder within this group to calculate properties.
         Args:
             atoms (matdb.atoms.Atoms): atomic configuration to run.
@@ -735,11 +782,14 @@ class Group(object):
             trans_atoms.uuid = uid
             trans_atoms.time_stamp = time_stamp
             trans_atoms.group_uuid = self.uuid
-            lcargs = self.calcargs.copy()
-            del lcargs["name"]
-            if calcargs is not None:
-                lcargs.update(calcargs)
-                
+            if "Tracy" in self.calcargs["name"]:
+                lcargs = self._tracy_setup(calcargs)
+            else:                
+                lcargs = self.calcargs.copy()                
+                del lcargs["name"]
+                if calcargs is not None:
+                    lcargs.update(calcargs)
+
             calc = self.calc(trans_atoms, target, self.database.parent.root,
                              self.database.parent.ran_seed, **lcargs)
             calc.create()
@@ -976,11 +1026,12 @@ class Group(object):
         """
 
         from matdb.atoms import _recursively_convert_units
-        
-        final_dict["hash"] = self.hash()
+
+        final_dict = self.to_dict()
+        final_dict["hash"] = self.hash_group()
         final_dict["uuid"] = self.uuid
-        
-        rset = self.rset()
+
+        rset = self.rset
         atoms = AtomsList(rset)
 
         # The rset exists for a set of parameters. We want to know
@@ -996,9 +1047,9 @@ class Group(object):
                 # the group and it's key to store the parameters under
                 uuids.append(this_uuid)
                 group_inst = self.database.parent.find(this_uuid)
-                key = group_inst.key()
+                key = group_inst.key
                 params = group_inst.to_dict(include_time_stamp=True)
-                params.extend(group_inst.grpargs)
+                params[key] = group_inst.grpargs
                 params_dict[key] = _recursively_convert_units(params)
             pbar.update(1)
 
@@ -1025,7 +1076,7 @@ def _conform_atoms(atoms, ekey, fkey, vkey, hesskey):
     #configs (for example Hessian fitting), a config may only have
     #an eigenvalue/eigenvector pair and no energy, force or virial
     #information.
-    ati = atoms.copy()
+    ati = Atoms(path.join(atoms, "atoms.h5"))
     if ekey in ati.params:
         energy = ati.params[ekey]
         ati.params["ref_energy"] = energy
@@ -1101,7 +1152,8 @@ class Database(object):
         self.splits = {} if splits is None else splits
         self.ran_seed = ran_seed
         self.splitroot = path.join(root, "splits", name)
-        
+
+        from os import mkdir, makedirs
         if not path.isdir(self.root):
             mkdir(self.root)
         if not path.isdir(self.splitroot):
@@ -1183,7 +1235,7 @@ class Database(object):
         """Creates the hash for the database.
         """
         hashes = ''
-        for step in self.steps:
+        for name, step in self.steps.items():
             hashes += ' '
             hashes += step.hash_group()
 
@@ -1354,7 +1406,7 @@ class Database(object):
     def to_dict(self):
         """Returns a dictionary of the database parameters and settings.
         """
-        from matdb.utility import __version__
+        from matdb import __version__
         from os import sys
         data = {"version":__version__,"python_version":sys.version,"name":self.name,
                 "root":self.root,"steps":self._settings,"uuid":self.uuid}
@@ -1366,15 +1418,25 @@ class Database(object):
         from matdb.atoms import _recursively_convert_units
         
         final_dict = self.to_dict()
-        final_dict["hash"] = self.hash()
         final_dict["uuid"] = self.uuid
-        
-        for dbname, db in self.isteps:
-            final_dict["dbname"] = db.finalize()
 
-        for name, trani_perc in self.splits():
-            for f in glob(path.join(self.root,"{0}*-ids.pkl".format(name))):
-                final_dict[f.split(".pkl")[0]] = _recursively_convert_units(pickle.load(f))
+        if not isinstance(self,RecycleBin):
+            final_dict["hash"] = self.hash_db()
+            
+            for dbname, db in self.isteps:
+                final_dict["dbname"] = db.finalize()
+
+            for name, train_perc in self.splits.items():
+                for f in glob(path.join(self.root,"splits",self.name,"{0}*-ids.pkl".format(name))):
+                    id_file = open(f,'r')
+                    final_dict[f.split(".pkl")[0]] = _recursively_convert_units(pickle.load(id_file), split=True)
+        else:
+            final_dict["hash"] = self.hash_bin()                
+
+        # for name, trani_perc in self.splits.items():
+        #     for f in glob(path.join(self.root,"splits",self.name,"{0}*-ids.pkl".format(name))):
+        #         id_file = open(f,'r')
+        #         final_dict[f.split(".pkl")[0]] = _recursively_convert_units(pickle.load(id_file))
 
         return final_dict
         
@@ -1406,7 +1468,7 @@ class RecycleBin(Database):
         self.parent.uuids[self.uuid] = self        
 
     def to_dict(self):
-        pass
+        return {}
         
     @property
     def rset(self):
@@ -1419,7 +1481,7 @@ class RecycleBin(Database):
         """
 
         hash_str = ""
-        for atom in self.rset():
+        for atom in self.rset:
             temp_atom = Atoms(atom)
             hash_str += convert_dict_to_str(temp_atom.to_dict())
 
@@ -1606,12 +1668,12 @@ class Controller(object):
                 
         from fnmatch import fnmatch
         if pattern.count('/') == 3:
-            dbname, groupname, seed, params = pattern.split('/')
+            groupname, dbname, seed, params = pattern.split('/')
         elif pattern.count('/') == 2:
-            dbname, groupname, seed = pattern.split('/')
+            groupname, dbname, seed = pattern.split('/')
             params = None
         elif pattern.count('/') == 1:
-            dbname, groupname = pattern.split('/')
+            groupname, dbname = pattern.split('/')
             params = None
             seed = None
         else:
@@ -1627,7 +1689,6 @@ class Controller(object):
             if isinstance(dbi, LegacyDatabase) or groupname is None:
                 result.append(dbi)
                 continue
-            
             groups = [groupi for groupn, groupi in dbi.steps.items()
                       if fnmatch(groupn, groupname)]
             for group in groups:
@@ -1636,6 +1697,7 @@ class Controller(object):
                     seeds = [si for sn, si in group.sequence.items()
                              if fnmatch(sn, seed)]
                     for seedi in seeds:
+                        
                         seedi._expand_sequence()
                         if len(seedi.sequence) > 0 and params is not None:
                             result.extend([si for sn, si in seedi.sequence.items()
@@ -1656,20 +1718,19 @@ class Controller(object):
         """Compiles a list of all steps in this set of databases.
         """
         result = []
-        for config, coll in self.collections.items():
-            for db_name, db in coll.items():
-                for group_name, group in db.steps.items():
-                    if len(group.sequence) > 0:
-                        for seed_name, seed in group.sequence.items():
-                            if len(seed.sequence) > 0:
-                                for param_name, param in seed.sequence.items():
-                                    result.append("{0}/{1}/{2}/{3}".format(group_name,db_name,
+        for db_name, db in self.collections.items():
+            for group_name, group in db.steps.items():
+                if len(group.sequence) > 0:
+                    for seed_name, seed in group.sequence.items():
+                        if len(seed.sequence) > 0:
+                            for param_name, param in seed.sequence.items():
+                                result.append("{0}/{1}/{2}/{3}".format(group_name,db_name,
                                                                            seed_name,param_name))
-                            else: 
-                                result.append("{0}/{1}/{2}".format(group_name,db_name,
+                        else: 
+                            result.append("{0}/{1}/{2}".format(group_name,db_name,
                                                                    seed_name))
-                    else:
-                        result.append("{0}/{1}".format(group_name,db_name))
+                else:
+                    result.append("{0}/{1}".format(group_name,db_name))
 
         return sorted(result)        
     
@@ -1677,16 +1738,15 @@ class Controller(object):
         """Compiles a list of all sequences in this set of databases.
         """
         result = []
-        for config, coll in self.collections.items():
-            for db_name, db in coll.items():
-                for group_name, group in db.steps.items():
-                    if len(group.sequence) > 0:
-                        for seed_name, seed in group.sequence.items():
-                            if len(seed.sequence) > 0:
-                                for param_name, param in seed.sequence.items():
-                                    result.append("{0}/{1}".format(seed_name,param_name))
-                            else: 
-                                result.append("{0}".format(seed_name))
+        for db_name, db in self.collections.items():
+            for group_name, group in db.steps.items():
+                if len(group.sequence) > 0:
+                    for seed_name, seed in group.sequence.items():
+                        if len(seed.sequence) > 0:
+                            for param_name, param in seed.sequence.items():
+                                result.append("{0}/{1}".format(seed_name,param_name))
+                        else: 
+                            result.append("{0}".format(seed_name))
 
         return sorted(result)        
     
@@ -1697,15 +1757,15 @@ class Controller(object):
         """
         if key.count('/') == 3:
             group, dbname, seed, params = key.split('/')
-        elif key.count('.') == 2:
+        elif key.count('/') == 2:
             group, dbname, seed = key.split('/')
-            seed = None
+            params = None
         else:
             group, dbname = key.split('/')
             seed = None
             params = None
             
-        coll = self.collections[dbname][dbname]
+        coll = self.collections[dbname]
         if group.lower() in coll.steps:
             step = coll.steps[group.lower()]
             if seed is not None and seed in step.sequence:
@@ -1848,15 +1908,19 @@ class Controller(object):
         from matdb import __version__
         
         final_dict = self.versions.copy()
-        final_dict["hash"] = self.hash(dfilter=dfilter)
+        final_dict["hash"] = self.hash_dbs(dfilter=dfilter)
         final_dict["yml_file"] = self.specs.copy()
         for dbname, seq in self.ifiltered(dfilter):
-            final_dict["dbname"] = seq.finalize()
+            final_dict[dbname] = seq.finalize()
 
-        if "rec_bin" in dfilter or dfilter is None or dfilter=="*":
+        if (dfilter is not None and "rec_bin" in dfilter) or dfilter is None or dfilter=="*":
             final_dict["rec_bin"] = seq.rec_bin.finalize()
-
-        mdb_ver = ".".join(__version__)
+            
+        str_ver = []
+        for item in __version__:
+            str_ver.append(str(item))
+        mdb_ver = ".".join(str_ver)
         target = path.join(self.root,"final_{}.h5".format(mdb_ver))
+
         with h5py.File(target,"w") as hf:
             save_dict_to_h5(hf,final_dict,'/')

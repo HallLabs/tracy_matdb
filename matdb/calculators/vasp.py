@@ -18,7 +18,7 @@ from matdb.kpoints import custom as write_kpoints
 from matdb.utility import chdir, execute, relpath
 from hashlib import sha1
 import re
-from matdb.exceptions import VersionError
+from matdb.exceptions import VersionError, SpeciesError
 
 def phonon_defaults(d, dfpt=False):
     """Adds the usual settings for the INCAR file when performing frozen-phonon
@@ -177,6 +177,8 @@ class AsyncVasp(Vasp, AsyncCalculator):
         super(AsyncVasp, self).__init__(**kwargs)
         if not path.isdir(self.folder):
             mkdir(self.folder)
+
+        self.input_params["setups"] = self.potcars["setups"]
             
         self.atoms = atoms
         pot_args = self.potcars.copy()
@@ -340,6 +342,13 @@ class AsyncVasp(Vasp, AsyncCalculator):
               latest settings.
         """
         self.write_input(self.atoms, self.folder)
+
+    @staticmethod
+    def set_static(input_dict):
+        """Converts the input dictionary to one for a static VASP calculation.
+        """
+        input_dict["nsw"] = 0
+        return input_dict
 
     def read_convergence(self):
         """Overrides the convergence reader to allow "as-is" result extraction.

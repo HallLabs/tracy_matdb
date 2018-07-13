@@ -78,7 +78,7 @@ class TrainingSequence(object):
             for k, v in kwargs.items():
                 if k not in cpspec:
                     cpspec[k] = v
-
+            
             instance = cls(**cpspec)
             self.steps[instance.name] = instance
 
@@ -152,7 +152,6 @@ class TSequenceRepeater(object):
             for i, sequence in enumerate(niterations):
                 suffix = sequence.get("suffix")
                 grid, keys = pgrid(sequence, ["suffix"])
-                
                 for ival, vals in enumerate(grid):
                     isteps = copy(steps)
                     for k, oval in zip(keys, vals):

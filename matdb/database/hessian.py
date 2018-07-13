@@ -150,7 +150,6 @@ class Hessian(Group):
         self.tolerance = tolerance
         self.phonodir = path.join(self.root, "phonopy")
         self.phonocache = path.join(self.root, "phoncache")
-
         self._kpath = None
         """tuple: Special point path in k-space. First term is a list of special point
         labels; second is the list of points corresponding to those labels.
@@ -170,7 +169,6 @@ class Hessian(Group):
         """np.array: the Hessian matrix, whether it was derived from
         DFPT or from frozen phonon calculations.
         """
-
         # Only place these directories if we're at the bottom of the stack.
         if self.pgrid is None or (self.pgrid is not None and len(self.pgrid) ==0):
             from os import mkdir
@@ -262,7 +260,7 @@ class Hessian(Group):
             configs.append(atc)
 
         return configs
-                
+
     def sub_dict(self):
         """Returns a dict needed to initialize the class.
         """

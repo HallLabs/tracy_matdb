@@ -20,13 +20,11 @@ from matdb.transforms import conform_supercell
 
 calculators = lazy_import.lazy_module("matdb.calculators")
 
-def _recursively_convert_units(in_dict):
+def _recursively_convert_units(in_dict, split = False):
     """Recursively goes through a dictionary and converts it's units to be
     numpy instead of standard arrays.
-
     Args:
         in_dict (dict): the input dictionary.
-
     Returns:
         a copy of the dict with the entries converted to numpy ints,
         floats, and arrays.
@@ -40,7 +38,13 @@ def _recursively_convert_units(in_dict):
         elif isinstance(item,dict):
             dict_copy[key] = _recursively_convert_units(item)
         elif isinstance(item,list):
-            dict_copy[key] = np.array(item)
+            if split and isinstance(item[0], Atoms):
+                atoms_dict = {}
+                for i,a in enumerate(item):
+                    atoms_dict[str(i)] = a.to_dict()
+                dict_copy[key] = _recursively_convert_units(atoms_dict)
+            else:
+                dict_copy[key] = np.array(item)
         elif item is None: #pragma: no cover I'm not sure this ever
                            #will happen but better safe than sorry.
             del dict_copy[key]
@@ -56,10 +60,8 @@ def _calc_name_converter(name):
 class Atoms(ase.Atoms):
     """An implementation of the :class:`ase.Atoms` object that adds the
     additional attributes of params and properties.
-
     .. note:: All arguments are optional. The user only needs to
     specify the symbols or the atomic numbers for the system not both.
-
     Args:
         symbols (str): The chemical symbols for the system, i.e., 'Si8' or 'CoNb'
         positions (list): The (x,y,z) position of each atom in the cell.
@@ -79,10 +81,8 @@ class Atoms(ase.Atoms):
         params (dict): a dictionary of parameters that apply to the entire system.
         group_uuid (str): the uuid for the group.
         uuid (str): a uuid4 str for unique identification.
-
     .. note:: Additional attributes are also exposed by the super class
       :class:`ase.Atoms`.
-
     Attributes:
         properties (dict): a dictionary of properties where the keys are the property
           names and the values are a list containing the property value for each atom.
@@ -170,7 +170,9 @@ class Atoms(ase.Atoms):
                     self.add_param(k,v)
                     del self.info[k]
 
-        self.group_uuid = group_uuid
+        if not hasattr(self, "group_uuid"):
+            self.group_uuid = group_uuid
+    
         self.uuid = uuid if uuid is not None else str(uuid4())
                 
         self._initialised = True
@@ -185,7 +187,6 @@ class Atoms(ase.Atoms):
         
     def add_property(self,name,value):
         """Adds an attribute to the class instance.
-
         Args:
             name (str): the name of the attribute.
             value: the value/values that are associated with the attribute.
@@ -198,7 +199,6 @@ class Atoms(ase.Atoms):
 
     def add_param(self,name,value):
         """Adds an attribute to the class instance.
-
         Args:
             name (str): the name of the attribute.
             value: the value/values that are associated with the attribute.
@@ -211,7 +211,6 @@ class Atoms(ase.Atoms):
         
     def rm_param(self,name):
         """Removes a parameter as attribute from the class instance and info dictionary.
-
         Args:
             name (str): the name of the attribute.
         """
@@ -220,7 +219,6 @@ class Atoms(ase.Atoms):
 
     def rm_property(self, name):
         """Removes a property as attribute from the class instance and info dictionary.
-
         Args:
             name (str): the name of the property/attribute.
         """
@@ -347,7 +345,6 @@ class Atoms(ase.Atoms):
 
     def read(self,target="atoms.h5",**kwargs):
         """Reads an atoms object in from file.
-
         Args:
             target (str): The path to the target file. Default "atoms.h5".
         """
@@ -468,11 +465,9 @@ class Atoms(ase.Atoms):
     def to_dict(self):
         """Converts the contents of a :class:`matdb.atoms.Atoms` object to a
         dictionary so it can be saved to file.
-
         Args:
             atoms (matdb.atams.Atoms): the atoms object to be converted to 
               a dictionary
-
         Returns:
             A dictionary containing the relavent parts of an atoms object to 
             be saved.
@@ -522,7 +517,6 @@ class Atoms(ase.Atoms):
 
     def write(self,target="atoms.h5",**kwargs):
         """Writes an atoms object to file.
-
         Args:
             target (str): The path to the target file. Default is "atoms.h5".
         """
@@ -627,9 +621,7 @@ class AtomsList(list):
         :meth:`list.sort` method, except for the additional `attr`
         argument. If this is present then the sorted list will be
         ordered by the :class:`Atoms` attribute `attr`, e.g.::
-
            al.sort(attr='energy')
-
         will order the configurations by their `energy` (assuming that
         :attr:`Atoms.params` contains an entry named `energy` for each
         configuration; otherwise an :exc:`AttributError` will be raised).
@@ -694,7 +686,6 @@ class AtomsList(list):
             
     def write(self,target,**kwargs):
         """Writes an atoms object to file.
-
         Args:
             target (str): The path to the target file.
             kwargs (dict): A dictionary of key word args to pass to the ase 

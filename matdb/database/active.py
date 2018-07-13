@@ -1,13 +1,15 @@
 """Group of configurations that is created from an enumerated list of structures.
 """
-from matdb.database import Group
-from matdb import msg
 from os import path, getcwd, chdir, remove, listdir, mkdir
+from hashlib import sha1
 import numpy as np
 from six import string_types
 from glob import glob
-from matdb.atoms import AtomsList, Atoms
 from tqdm import tqdm
+
+from matdb.database import Group
+from matdb import msg
+from matdb.atoms import AtomsList, Atoms
 
 class Active(Group):
     """Sets up the calculations for a set of configurations that are being
@@ -38,7 +40,7 @@ class Active(Group):
         self._load_auids()
         self.nconfigs = len(self.auids) if self.auids is not None else 0
         self.last_iteration = None
-        cur_iter = len(glob("iter_*.pkl"))
+        cur_iter = len(glob(path.join(self.root,"iter_*.pkl")))
         self.iter_file = path.join(self.root,"iter_{}.pkl".format(cur_iter))
         self._load_last_iter()        
         
@@ -65,8 +67,25 @@ class Active(Group):
         """Loads the list of paths from the `iter_{}.pkl` file for this
         database group's last iteration.
         """
-        if self.last_iteration is None:
-            self.last_iteration = self.load_pkl(self.iter_file)
+        self.last_iteration = self.load_pkl(self.iter_file)
+
+    @property
+    def last_config_atoms(self):
+        """Returns the atoms objects from the last iteration.
+        """
+
+        last_atoms = {}
+        last_count = 0
+        if self.last_iteration is None or (self.last_iteration is not None and
+                                           len(self.last_iteration) == 0):
+            return None
+        else:
+            for i in range(len(self.config_atoms)-len(self.last_iteration),
+                           len(self.config_atoms)):
+                last_atoms[last_count] = self.config_atoms[self.config_atoms.keys()[i]]
+                last_count += 1
+
+        return last_atoms
             
     @property
     def fitting_configs(self):
@@ -78,10 +97,11 @@ class Active(Group):
             folder = self.index[str(auid)]
             target = path.join(folder,"atoms.h5")
             if path.isfile(target):
-                result.append(folder)
+                result.append(target)
 
         return result 
-        
+
+    @property
     def rset(self):
         """Returns a :class:`matdb.atoms.AtomsList`, one for each config in the
         latest result set.
@@ -104,7 +124,7 @@ class Active(Group):
 
         self.new_configs = new_configs
         self.nconfigs += len(new_configs)
-        self.iter_file = path.join(self.root,"iter_{}.pkl".format(iteration))
+        self.iter_file = path.join(self.root,"iter_{}.pkl".format(iteration))           
         self.last_iteration = {}
 
     def _setup_configs(self, rerun=False):
@@ -117,14 +137,13 @@ class Active(Group):
         # hasn't been visited before.
         dind = len(self.auids) if self.auids is not None else 0
         iter_ind = 0
-        from hashlib import sha1
-        pbar = tqdm(total=len(self.new_configs))        
+        pbar = tqdm(total=len(self.new_configs))
         for config in self.new_configs:
             auid = sha1(''.join(map(str, (tuple([tuple(i) for i in config.cell]),
                         tuple([tuple(i) for i in config.positions]),
                         tuple(config.get_chemical_symbols())))).encode('utf-8'))
             if self.auids is not None:
-                if auid in self.auids:
+                if auid.hexdigest() in self.auids:
                     self.nconfigs -= 1
                     continue
             else:
@@ -153,4 +172,28 @@ class Active(Group):
               already exist.
 
         """
-        super(Active, self).setup(self._setup_configs,rerun)           
+        super(Active, self).setup(self._setup_configs,rerun)
+
+    def is_executing(self):
+        """Returns True if the most recently added configurations are in
+        process of being executed.
+        """
+
+        is_executing = False
+        if len(self.configs) != self.nconfigs:
+            # There have been configurations added to the database
+            # that haven't been setup yet.
+            return False
+        else:
+            # We only want to know if the last iteration's files are
+            # being executed, the old iterations don't matter.
+            for config in self.last_iteration.values():
+                try:
+                    atoms = Atoms(path.join(config, "pre_comp_atoms.h5"))
+                except:
+                    atoms = Atoms(path.join(config, "atoms.h5"))
+                is_executing = atoms.calc.is_executing(config)
+                if is_executing:
+                    break                
+            
+        return is_executing

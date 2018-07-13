@@ -138,9 +138,12 @@ def execute(args, folder, wait=True, nlines=100, venv=None,
     if kwargs["stdout"] is PIPE:
         output = []
         for line in pexec.stdout:
-            output.append(line)
-            if len(output) >= nlines:
-                break
+            #Filter non fatal exceptions such as future warnings. A full list can be found here
+            # https://docs.python.org/3/library/exepctions.html#exception-hierarchy
+            if not ("FutureWarning" in line or "import" in line or "\x1b[0m" in line):
+                output.append(line)
+                if len(output) >= nlines:
+                    break
         pexec.stdout.close()
 
     error = None
@@ -284,8 +287,12 @@ def _get_reporoot():
     system.
     """
     import matdb
-    medpath = path.abspath(matdb.__file__)
-    return path.dirname(path.dirname(medpath))
+    global reporoot
+    if reporoot is None:
+        medpath = path.abspath(matdb.__file__)
+        reporoot = path.dirname(path.dirname(medpath))
+
+    return reporoot
 
 def contract_absolute(abspath, root=None):
     """Contracts the specified absolute path to be relative to another path.
@@ -493,9 +500,10 @@ def getattrs(obj, chain):
             o = getattr(o, attr)
     return o
         
-reporoot = _get_reporoot()
+reporoot = None
 """The absolute path to the repo root on the local machine.
 """
+_get_reporoot()
 
 def slicer(obj, args):
     """Slices the object along the path defined in args.
