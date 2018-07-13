@@ -92,7 +92,7 @@ class Group(object):
             #have to expand our root to use that name over here. However, for
             #recursively nested groups, we use the root passed in because it
             #already includes the relevant suffixes, etc.
-            self.root = path.join(root, parent.name)
+            self.root = path.join(root, "{0}.{1}".format(parent.name, self.name))
         else:
             self.root = root
 
