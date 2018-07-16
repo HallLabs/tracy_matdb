@@ -165,10 +165,16 @@ class AsyncVasp(Vasp, AsyncCalculator):
         potdict = kwargs.pop("potcars")
         name = config_specs["name"]
         namehash = str(sha1(name.encode("ASCII")).hexdigest())
-        for hid, hpath in paths[namehash].items():
-            if potdict["directory"] == hid:
-                potdict["directory"] = hpath
-                break
+        try:
+            for hid, hpath in paths[namehash].items():
+                if potdict["directory"] == hid:
+                    potdict["directory"] = hpath
+                    break
+        except KeyError:
+            msg.err("The %s title does not exist in the dictionary. "
+                    "Is the correct YML file loaded?")
+            exit()
+            
         self.potcars = potdict
         
         if "exec_path" in kwargs:
