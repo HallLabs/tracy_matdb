@@ -262,6 +262,9 @@ class Enumerated(Group):
         for the latest result set.
         """
         result = []
+        if self.euids is None:
+            return result
+        
         for euid in self.euids:
             folder = self.index[euid]
             target = path.join(folder,"atoms.h5")

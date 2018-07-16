@@ -59,7 +59,10 @@ script_options = {
                            "finish computing so that they can be re-run.")},
     "--dryrun": {"action": "store_true",
                   "help": ("For execution, doesn't actually submit any jobs, "
-                           "just prints what would be done.")}
+                           "just prints what would be done.")},
+    "--asis": {"action": "store_true",
+               "help": ("When specified, extract results even if the"
+                        " calculations didn't converge completely.")}
     }
 """dict: default command-line arguments and their
     :meth:`argparse.ArgumentParser.add_argument` keyword arguments.
@@ -97,7 +100,7 @@ def run(args):
     if args["x"]:
         cdb.execute(args["recover"], args["dfilter"], dryrun=args["dryrun"])
     if args["e"]:
-        cdb.extract(args["dfilter"], cleanup=args["clean"])    
+        cdb.extract(args["dfilter"], cleanup=args["clean"], asis=args["asis"])
 
     if args["recover"] and not args["x"]:
         cdb.recover(args["rerun"], args["dfilter"])
