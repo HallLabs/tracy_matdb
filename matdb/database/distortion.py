@@ -1,12 +1,13 @@
-'''Group of quippy.atoms.Atoms objects with displaced atomic positions from
+    '''Group of quippy.atoms.Atoms objects with displaced atomic positions from
 a seed configuration.
 '''
-from matdb.atoms import Atoms, AtomsList
-from matdb.database import Group
 from os import path, mkdir
-from matdb import msg
+
 import numpy as np
 
+from matdb import msg
+from matdb.atoms import Atoms, AtomsList
+from matdb.database import Group
 
 class Distortion(Group):
     '''Distortion.py: Group to create from a seed configuration and distorts
@@ -47,7 +48,7 @@ class Distortion(Group):
              distribution specified.
     '''
     def __init__(self, rattle=0, ran_seed=None, volume_factor=1.0,
-                 cov_diag=0.001, min_index=0, name="Distortion", **dbargs):
+                 cov_diag=0.001, min_index=0, name="distortion", **dbargs):
         self.name = name
         self.seeded = True
         dbargs['prefix'] = "D"

@@ -1,11 +1,12 @@
 """Implements the classes needed for the Tracy calculations, i.e.,
 those calculations that will be added to the Tracy compute queue.
 """
+import abc
 from datetime import datetime
+import json
 from os import path
 from random import seed, uniform
-import json
-import abc
+
 import numpy as np
 
 from matdb.database.utility import make_primitive
@@ -22,7 +23,7 @@ class Tracy(AsyncCalculator):
         role (str): The role of the user, i.e., "Cheif Scientist".
     """
     key = "tracy"
-    
+
     def __init__(self, folder, role=None, notifications=None,
                  group_preds=None, contract_preds=None, ecommerce=None,
                  contract_priority=None, max_time=None, min_flops=None,
@@ -33,11 +34,11 @@ class Tracy(AsyncCalculator):
         # this in so we can check it's status later.
         self.folder = folder
         if path.isfile(path.join(folder, "contract.txt")):
-            with open(path.join(folder, "contract.txt"), "r") as f:        
+            with open(path.join(folder, "contract.txt"), "r") as f:
                 self.contract_id = f.readline().strip()
         else:
             self.contract_id = None
-            
+
         if path.isfile(path.join(folder, "post_print.txt")):
             with open(path.join(folder, "post_print.txt"), "r") as f:
                 self.after_print = f.readline().strip()
@@ -60,10 +61,10 @@ class Tracy(AsyncCalculator):
     def _compress_struct(self, atoms):
         """Compresess the input atoms object so that it is ready to be sent to
         the queue.
-        
+
         Args:
             atoms (matdb.Atoms): the atoms object for the calculaton.
-        
+
         Returns:
             A dictionary of the compressed structure that the
             decompression algorithm can unpack.
@@ -71,13 +72,13 @@ class Tracy(AsyncCalculator):
         if np.allclose(0, atoms.cell):
             raise ValueError("The Atoms object must contian cell vectors in order "
                              "to be compressed.")
-        
+
         a_vecs, pos, types, hnf = make_primitive(self.atoms)
         if self.type_map is None:
             self.type_map = {}
             for v, k in enumerate(types):
                 self.type_map[k] = v+1
-            
+
 
         result = {"a": [list(a) for a in a_vecs],
                   "b": [list(b) for b in pos],
@@ -112,7 +113,7 @@ class Tracy(AsyncCalculator):
         """Constructs the input dictionary from the files written.
         """
         pass
-    
+
     def _get_source(self):
         """Determines the priority of the source submitting the calculations.
         """
@@ -127,7 +128,7 @@ class Tracy(AsyncCalculator):
         else:
             raise ValueError("The source {0} is not recognized. Cannot assign "
                              "priority.".format(self.role))
-    
+
 
     def prep_submit(self, folder):
         """Submits the job to the authetication code before being sent to the queue.
@@ -155,7 +156,7 @@ class Tracy(AsyncCalculator):
         # if self.can_execute(self.folder):
         #     fmt = '%Y%m%d%H%M%S'
         #     package["Date Ready"] = datetime.now().strftime(fmt)
-            
+
         if self.group_preds is not None:
             package["groupPredecessors"] = self.group_preds
         if self.contract_preds is not None:
@@ -163,17 +164,17 @@ class Tracy(AsyncCalculator):
 
         if self.notifications is not None:
             package["notifications"] = self.notifications
-            
+
         target = path.join(folder, "submission.json")
 
         with open(target, "w+") as f:
             json.dump(package, f)
-        
+
 
     def can_extract(self, folder):
         """Returns `True` if the calculation has been completed and the data
         is ready for extraction.
-    
+
         Args:
             folder (str): the directory to the folder.
         """
@@ -187,7 +188,7 @@ class Tracy(AsyncCalculator):
         # Here we need to da a querry of the endpoint to determin if
         # the calculation has been started.
         pass
-        
+
 class Tracy_QE(Tracy, Qe):
     """Represents a DFT calculation that will be submitted to the Tracy queue.
 
@@ -202,11 +203,11 @@ class Tracy_QE(Tracy, Qe):
     Attributes:
         input_data (dict): A dictionary of the keywords and args needed to perform
           the calculations, using the ASE format.
-    
+
     """
 
     key = "tracy_qe"
-        
+
     def __init__(self, atoms, folder, contr_dir, ran_seed, *args, **kwargs):
 
         self.in_kwargs = kwargs.copy()
@@ -219,7 +220,7 @@ class Tracy_QE(Tracy, Qe):
         self.atoms = atoms
 
         if self.ran_seed is not None:
-            seed(self.ran_seed)            
+            seed(self.ran_seed)
 
         Qe.__init__(self, atoms, folder, contr_dir, ran_seed, **self.QE_input)
         Tracy.__init__(self, folder, **self.tracy_input)
@@ -232,7 +233,7 @@ class Tracy_QE(Tracy, Qe):
 
     def write_input(self, atoms):
         """Writes the input to a folder.
-        
+
         Args:
             atoms (Atoms): an instance of :class:`matdb.atoms.Atoms`.
         """
@@ -278,12 +279,12 @@ class Tracy_QE(Tracy, Qe):
                             species = line.strip().split()[0]
                             if species not in self.type_map.keys():
                                 self.type_map[species] = len(self.type_map.keys()) + 1
-                            
+
                             self.input_dict[key][self.type_map[species]] = uniform(0, 100)
                         else: #pragma: no cover
                             msg.warn("Could no process line {0} of file "
                                      "{1}".format(line, path.join(self.folder, "espresso.pwi")))
-                            
+
                     if key not in self.input_dict.keys():
                         self.input_dict[key] = {}
 
@@ -312,23 +313,23 @@ class Tracy_QE(Tracy, Qe):
 
     def can_execute(self, folder):
         """Returns True if the specified file is ready to be submitted to the queue.
-        
+
         Args:
             folder (str): the path to the folder.
         """
         qe_ready = Qe.can_execute(self, folder)
         sub_ready = path.isfile(path.join(folder,"submission.json"))
         return qe_ready and sub_ready
-                    
+
     def extract(self, folder):
         """Extracts the results from the returned data package.
         """
         # Waiting on Andrew for this part
         pass
-        
+
     def to_dict(self):
         """Converts the arguments of the calculation to a dictionary.
         """
         results = {"kwargs": self.in_kwargs, "folder": self.folder,
                    "ran_seed": self.ran_seed, "contr_dir": self.contr_dir}
-        return results        
+        return results

@@ -3,8 +3,9 @@ answers within a particular :class:`matdb.AtomsList`.
 """
 from tqdm import tqdm
 import numpy as np
-from matdb.plotting.matd3 import PointDetailImage as PDI
+
 from matdb.atoms import Atoms
+from matdb.plotting.matd3 import PointDetailImage as PDI
 
 def generate(plots, pot, atoms, folder=None, base64=False, index=0, ndimer=50,
              ntrimer=75, valkey="ref"):
@@ -29,7 +30,7 @@ def generate(plots, pot, atoms, folder=None, base64=False, index=0, ndimer=50,
     Args:
         plots (str): of character codes as described above.
         fit (matdb.calculators.Calculator): trainer that has an IP to calculate
-          properties with. 
+          properties with.
         atoms (matdb.AtomsList): list of atoms to calculate correlations with
           respect to.
         folder (str): path to the folder where the saved image should be stored.
@@ -40,7 +41,7 @@ def generate(plots, pot, atoms, folder=None, base64=False, index=0, ndimer=50,
           incremented automatically for each plot added.
         ndimer (int): number of samples to take along the dimer trajectory.
         ntrimer (int): number of samples to take along the trimer angle
-          trajectory. 
+          trajectory.
         valkey (str): prefix on parameter and property names that should be used
           for comparison.
     """
@@ -76,7 +77,7 @@ def trimer(pot, atoms, elements, folder=None, base64=False, index=None,
     trimer.
 
     .. note:: This produces a *dict* of all possible 3-body interactions between
-      distinct element types. 
+      distinct element types.
 
     Args:
         elements (list): of chemical symbols in the system.
@@ -105,7 +106,7 @@ def trimer(pot, atoms, elements, folder=None, base64=False, index=None,
         "xlabel": "Angle (Rad)",
         "ylabel": "IP Energy (eV)"
     }
-    
+
     result = {}
     for elements in target:
         #Look up the lattice parameters for each of the elements. Use Vegard's
@@ -140,7 +141,7 @@ def trimer(pot, atoms, elements, folder=None, base64=False, index=None,
                   folder=folder)
         result[elemstr] = img
 
-    return result        
+    return result
 
 def _dimer_range(elements):
     """Calculates a reasonable range over which to vary distance in a dimer.
@@ -167,7 +168,7 @@ def dimer(pot, atoms, elements, folder=None, base64=False, index=None,
     dimer.
 
     .. note:: This produces a *dict* of all possible 2-body interaction between
-      distinct element types. 
+      distinct element types.
 
     Args:
         elements (list): of chemical symbols in the system.
@@ -197,7 +198,7 @@ def dimer(pot, atoms, elements, folder=None, base64=False, index=None,
         "xlabel": "Distance (Ang)",
         "ylabel": "IP Energy (eV)"
     }
-    
+
     result = {}
     for elements in target:
         #Look up the lattice parameters for each of the elements. Use Vegard's
@@ -213,7 +214,7 @@ def dimer(pot, atoms, elements, folder=None, base64=False, index=None,
             rs = np.linspace(0.7*rmin, pot.cutoff(), nsamples)
         else:
             rs = np.linspace(0.4*rmin, pot.cutoff(), nsamples)
-            
+
         energy = []
         for r in rs:
             dimer.positions[1,2] = r
@@ -225,12 +226,12 @@ def dimer(pot, atoms, elements, folder=None, base64=False, index=None,
                   folder=folder)
         result[elemstr] = img
 
-    return result        
+    return result
 
 def _get_xy(pot, atoms, prop, peratom=False, energy=False, force=False,
             virial=False):
     """Gets the x and y values for the specified potential and property.
-    
+
     Args:
         pot (matdb.calculator.Calculator): IP to calculate properties with.
         atoms (matdb.AtomsList): list of atoms to calculate correlations with
@@ -281,7 +282,7 @@ def energy(pot, atoms, folder=None, base64=False, index=None, valkey="ref"):
     ref, ip = _get_xy(pot, atoms, "{}_energy".format(valkey), energy=True,
                       peratom=True)
     ref, ip = np.array(ref), np.array(ip)
-    
+
     #Setup the keyword arguments for the axes labels, etc.
     subplot_kw = {
         "xlabel": "REF Energy (eV)",
@@ -321,7 +322,7 @@ def force(pot, atoms, folder=None, base64=False, index=None, valkey="ref"):
         assert len(ctypes) == len(ref)
     else:
         ctypes = None
-    
+
     #Setup the keyword arguments for the axes labels, etc.
     subplot_kw = {
         "xlabel": "REF Forces (eV/A)",
@@ -355,7 +356,7 @@ def virial(pot, atoms, folder=None, base64=False, index=None, valkey="ref"):
         assert len(ctypes) == len(ref)
     else:
         ctypes = None
-    
+
     #Setup the keyword arguments for the axes labels, etc.
     subplot_kw = {
         "xlabel": "REF Virial (eV/A^3)",
@@ -382,7 +383,7 @@ def EvsV(pot, atoms, folder=None, base64=False, index=None, valkey="ref"):
     """
     ref, ip = _get_xy(pot, atoms, "{}_energy".format(valkey), energy=True)
     vol = np.array([a.get_volume()/a.n for a in atoms])
-    
+
     subplot_kw = {
         "xlabel": "Volume/Atom (A^3)",
         "ylabel": "IP Energy (eV)"

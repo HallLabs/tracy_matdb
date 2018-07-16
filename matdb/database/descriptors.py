@@ -8,6 +8,7 @@ pieces of the overall GAP potential.
 import quippy
 import numpy as np
 import pandas as pd
+
 def d2b(atoms, cutoff):
     """Returns histogram data for the specified *list* of atoms within the given
     cutoff.

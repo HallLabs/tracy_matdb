@@ -55,7 +55,7 @@ def build_calc(name, relpath, *args, **kwargs):
         ran_seed (int): random seed used to initialized the calculator.
 
     Raises:
-    
+
     ValueError: if the `name` is not a folder-independent interatomic potential.
     """
     #This import is purposefully here to avoid recursive import loops.
@@ -68,7 +68,7 @@ def build_calc(name, relpath, *args, **kwargs):
     else:
         result = target(atoms, '.', '.', 0, *args, **kwargs)
     return result
-    
+
 def get_calculator_module(calcargs):
     """Returns the module corresponding to the calculator mentioned in
     `calcargs`.
@@ -81,7 +81,7 @@ def get_calculator_module(calcargs):
     from inspect import getmodule
     cls = getattr(calculators, calcargs["name"])
     mod = None
-    
+
     try:
         mod = getmodule(cls)
     except: #pragma: no cover

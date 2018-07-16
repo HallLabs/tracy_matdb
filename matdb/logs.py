@@ -1,9 +1,11 @@
 """Implements logging for managing statistics and debugging for `matdb`
 databases, groups, fitters, analyzers, etc.
 """
+from os import path, mkdir
+
 import logging as log
 import logging.handlers, logging.config
-from os import path, mkdir
+
 from matdb.base import debug
 
 _filehandler = log.handlers.RotatingFileHandler
@@ -39,7 +41,7 @@ class Logger(object):
             self.logger.setLevel(debug)
         else:
             self.logger.setLevel(log.INFO)
-            
+
         self.root = path.join(root, "logs")
         if not path.isdir(self.root):
             mkdir(self.root)
@@ -48,14 +50,14 @@ class Logger(object):
             "maxBytes": 10485760,
             "backupCount": 5
         }
-        
+
         self._debuglog = path.join(self.root, "{}.debug.log".format(uuid))
         """str: path to the log file for debug-level messages.
         """
         self.debughandler = _filehandler(self._debuglog, **logdict)
         self.debughandler.setLevel(log.DEBUG)
         self.logger.addHandler(self.debughandler)
-        
+
         self._log = path.join(self.root, "{}.log".format(uuid))
         """str: path to the file for info-level messages.
         """
@@ -69,7 +71,7 @@ class Logger(object):
         self.errorhandler = _filehandler(self._errorlog, **logdict)
         self.errorhandler.setLevel(log.WARNING)
         self.logger.addHandler(self.errorhandler)
-        
+
         formatter = log.Formatter(_tracker_format)
         self.debughandler.setFormatter(formatter)
         self.infohandler.setFormatter(formatter)
@@ -79,7 +81,7 @@ class Logger(object):
         """Logs an exception that occurred at `location`.
         """
         self.logger.debug(location, *args, exc_info=True)
-        
+
     def info(self, message, *args):
         """Logs the specified info message for this tracker.
         Args:

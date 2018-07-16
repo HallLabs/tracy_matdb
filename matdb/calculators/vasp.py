@@ -8,15 +8,17 @@
   instance of the :class:`AsyncVasp` for each :class:`ase.Atoms` object that you
   want to calculate for.
 """
-import ase
-from ase.calculators.vasp import Vasp
-from os import path, stat, mkdir, remove, environ, rename
-import mmap
 from hashlib import sha1
 import re
+from os import path, stat, mkdir, remove, environ, rename
+
+import ase
+from ase.calculators.vasp import Vasp
+import mmap
 
 from matdb.calculators.basic import AsyncCalculator
 from matdb import msg
+from matdb.calculators.basic import AsyncCalculator
 from matdb.kpoints import custom as write_kpoints
 from matdb.utility import chdir, execute, relpath, config_paths
 from matdb.exceptions import VersionError, SpeciesError
@@ -48,7 +50,7 @@ def phonon_defaults(d, dfpt=False):
         usuals["ibrion"] = 8
     else:
         usuals["ibrion"] = -1
-        
+
     for k, v in usuals.items():
         if k not in d:
             d[k] = v
@@ -109,7 +111,7 @@ def extract_force_constants(configs, phonodir):
     xres = execute(sargs, phonodir, venv=True)
 
     return xres
-        
+
 class AsyncVasp(Vasp, AsyncCalculator):
     """Represents a calculator that can compute material properties with VASP,
     but which can do so asynchronously.
@@ -122,12 +124,15 @@ class AsyncVasp(Vasp, AsyncCalculator):
           place.
         contr_dir (str): The absolute path of the controller's root directory.
         ran_seed (int or float): the random seed to be used for this calculator.
-    
+
     Attributes:
         tarball (list): of `str` VASP output file names that should be included
           in an archive that represents the result of the calculation.
         folder (str): path to the directory where the calculation should take
           place.
+        asis (bool): when True, this calculator will return results for
+          calculations, even they were not converged to required accuracy (i.e.,
+          enough NSW steps that ionic DOF are pinned).
     """
     key = "vasp"
     tarball = ["vasprun.xml"]
@@ -151,9 +156,9 @@ class AsyncVasp(Vasp, AsyncCalculator):
         # directory. If it doesn't exist then create it.
         if not path.isdir(path.join(contr_dir,"POTCARS")):
             mkdir(path.join(contr_dir,"POTCARS"))
-            
+
         if "kpoints" in kwargs:
-            self.kpoints = kwargs.pop("kpoints")            
+            self.kpoints = kwargs.pop("kpoints")
 
         # remove the "potcars" section of the kwargs for latter use in
         # creation of the POTCAR file.
@@ -162,9 +167,10 @@ class AsyncVasp(Vasp, AsyncCalculator):
             self.executable = kwargs.pop("exec_path")
         else:
             self.executable = None
-            
+
         self.args = args
         self.kwargs = kwargs
+        self.asis = False
 
         # if 'xc' was set on either the kwargs or the potcars
         # dictionaries but not the other then we need to copy it over.
@@ -183,11 +189,11 @@ class AsyncVasp(Vasp, AsyncCalculator):
             mkdir(self.folder)
 
         self.input_params["setups"] = self.potcars["setups"]
-            
+
         self.atoms = atoms
         pot_args = self.potcars.copy()
         environ["VASP_PP_PATH"] = relpath(path.expanduser(pot_args["directory"]))
-            
+
         self.initialize(atoms)
         # The POTCAR file is either stored in a file who's name is a
         # hashed string of the species and versions or needs to be
@@ -256,23 +262,23 @@ class AsyncVasp(Vasp, AsyncCalculator):
                 else:
                     raise SpeciesError("The species found in the POTCAR {0} is not in "
                                         "the system being studied".format(spec))
-            
+
     def _write_potcar(self):
         """Makes a symbolic link between the main POTCAR file for the database
         and the folder VASP will execute in."""
         from matdb.utility import symlink
-       
+
         POTCAR_DIR = path.join(self.contr_dir,"POTCARS")
         calc_args = self.kwargs.copy()
         calc_args["potcars"] = self.potcars
-        
+
         # First we check to see if the POTCAR file already exists, if
         # it does then all we have to do is create the symbolic link.
         if not path.isfile(path.join(POTCAR_DIR, self.this_potcar)):
             calc = AsyncVasp(self.atoms, POTCAR_DIR, self.contr_dir, self.ran_seed, **calc_args)
             calc.write_potcar(directory=POTCAR_DIR)
             rename(path.join(POTCAR_DIR,"POTCAR"), path.join(POTCAR_DIR, self.this_potcar))
-            
+
         symlink(path.join(self.folder, "POTCAR"), path.join(POTCAR_DIR, self.this_potcar))
 
     def can_execute(self, folder):
@@ -282,11 +288,11 @@ class AsyncVasp(Vasp, AsyncCalculator):
         if not path.isdir(folder):
             return False
 
-        sizeok = lambda x: stat(x).st_size > 25        
+        sizeok = lambda x: stat(x).st_size > 25
         required = ["INCAR", "POSCAR", "POTCAR"]
         if "kspacing" not in self.kwargs and "KSPACING" not in self.kwargs:
             required.append("KPOINTS")
-            
+
         present = {}
         for rfile in required:
             target = path.join(folder, rfile)
@@ -304,7 +310,7 @@ class AsyncVasp(Vasp, AsyncCalculator):
         """
         if not path.isdir(folder):
             return False
-    
+
         #If we can extract a final total energy from the OUTCAR file, we
         #consider the calculation to be finished.
         outcar = path.join(folder, "OUTCAR")
@@ -314,7 +320,7 @@ class AsyncVasp(Vasp, AsyncCalculator):
         line = None
         with open(outcar, 'r') as f:
             # memory-map the file, size 0 means whole file
-            m = mmap.mmap(f.fileno(), 0, prot=mmap.PROT_READ)  
+            m = mmap.mmap(f.fileno(), 0, prot=mmap.PROT_READ)
             # we look for 'free  energy' to verify that VASP wasn't
             # terminated during runtime for memory or time
             # restrictions
@@ -336,7 +342,7 @@ class AsyncVasp(Vasp, AsyncCalculator):
         """
         outcar = path.join(folder, "OUTCAR")
         outcars = path.isfile(outcar)
-        busy = not self.can_extract(folder)            
+        busy = not self.can_extract(folder)
         return outcars and busy
 
     def create(self, rewrite=False):
@@ -353,52 +359,91 @@ class AsyncVasp(Vasp, AsyncCalculator):
         """
         input_dict["nsw"] = 0
         return input_dict
+
+    def read_convergence(self):
+        """Overrides the convergence reader to allow "as-is" result extraction.
+        """
+        if self.asis:
+            return True
+        else:
+            return super(AsyncVasp, self).read_convergence()
         
-    def extract(self, folder, cleanup="default"):
+    def extract(self, folder, cleanup="default", asis=False):
         """Extracts results from completed calculations and sets them on the
         :class:`ase.Atoms` object.
+
         Args:
             folder (str): path to the folder in which the executable was run.
             cleanup (str): the level of cleanup to perfor after extraction.
+            asis (bool): when True, read the results even if the calculation
+              didn't converge to required accuracy.
         """
-        # Read output
-        atoms_sorted = ase.io.read(path.join(folder,'CONTCAR'), format='vasp')
+        self.asis = asis
+        #We need to backup the names of the parameters before we read from INCAR
+        #in case they don't match, so that we can leave the calculator in the
+        #same state. For extraction, the parameters *must* match what we have in
+        #INCAR.
+        paramsets = ["float_params", "exp_params", "string_params", "int_params",
+                     "bool_params", "list_bool_params", "list_int_params", 
+                     "list_float_params", "special_params", "dict_params"]
+        pbackup = {}
+        for pset in paramsets:
+            if hasattr(self, pset):
+                pbackup[pset] = getattr(self, pset)
 
-        if (self.int_params['ibrion'] is not None and
-                self.int_params['nsw'] is not None):
-            if self.int_params['ibrion'] > -1 and self.int_params['nsw'] > 0:
-                # Update atomic positions and unit cell with the ones read
-                # from CONTCAR.
-                self.atoms.positions = atoms_sorted[self.resort].positions
-                self.atoms.cell = atoms_sorted.cell
-
+        with chdir(folder):
+            self.read_incar()
+            self.converged = self.read_convergence()
+            
         # we need to move into the folder being extracted in order to
         # let ase check the convergence
-        with chdir(folder):
-            self.converged = self.read_convergence()
-            #NB: this next method call overwrites the identity of self.atoms! We
-            #don't like that behavior, so we set it right again afterwards.
-            o = self.atoms
+        if not self.converged and not asis:
+            msg.warn("VASP calculation in {} is not".format(folder) +
+                     "converged. Use `asis` to extract it anyway.")
+            okay = False
+        else:
+            # Read output; we want the latest positions of the atoms in case they
+            # were moved.
+            atoms_sorted = ase.io.read(path.join(folder,'CONTCAR'), format='vasp')
 
-            self.set_results(self.atoms)
-            self.atoms._calc = self
-            E = self.get_potential_energy(atoms=self.atoms)
-            F = self.forces
-            S = self.atoms.get_stress(False)
-            self.atoms.add_property(self.force_name, F)
-            self.atoms.add_param(self.virial_name, S*self.atoms.get_volume())
-            self.atoms.add_param(self.energy_name, E)
-
-            o.copy_from(self.atoms)
-            self.atoms = o
-            self.atoms.set_calculator(self)
+            if (self.int_params['ibrion'] is not None and
+                    self.int_params['nsw'] is not None):
+                if self.int_params['ibrion'] > -1 and self.int_params['nsw'] > 0:
+                    # Update atomic positions and unit cell with the ones read
+                    # from CONTCAR.
+                    self.atoms.positions = atoms_sorted[self.resort].positions
+                    self.atoms.cell = atoms_sorted.cell
             
-        self.cleanup(folder,clean_level=cleanup)
+            with chdir(folder):
+                #NB: this next method call overwrites the identity of self.atoms! We
+                #don't like that behavior, so we set it right again afterwards.
+                o = self.atoms
 
+                self.set_results(self.atoms)
+                self.atoms._calc = self
+                E = self.get_potential_energy(atoms=self.atoms)
+                F = self.forces
+                S = self.atoms.get_stress(False)
+                self.atoms.add_property(self.force_name, F)
+                self.atoms.add_param(self.virial_name, S*self.atoms.get_volume())
+                self.atoms.add_param(self.energy_name, E)
+
+                o.copy_from(self.atoms)
+                self.atoms = o
+                self.atoms.set_calculator(self)
+            
+            self.cleanup(folder,clean_level=cleanup)
+            okay = True
+            
+        for pset, value in pbackup.items():
+            setattr(self, pset, value)
+
+        return okay
+            
     def set_atoms(self, atoms):
         #We do *not* do an atoms.copy() like ASE because our atoms objects are hybrids.
         self.atoms = atoms
-        
+
     def cleanup(self, folder, clean_level="default"):
         """Performs cleanup on the folder where the calculation was
         performed. The clean_level determines which files get removed.
@@ -408,7 +453,7 @@ class AsyncVasp(Vasp, AsyncCalculator):
         """
 
         light = ["CHG", "XDATCAR", "DOSCAR", "PCDAT"]
-        default =["CHGCAR", "WAVECAR", "IBZKPT", 
+        default =["CHGCAR", "WAVECAR", "IBZKPT",
                   "EIGENVAL", "DOSCAR", "PCDAT"]
         aggressive = ["vasprun.xml", "OUTCAR", "CONTCAR", "OSZICAR"]
 
@@ -418,7 +463,7 @@ class AsyncVasp(Vasp, AsyncCalculator):
             rm_files = light + default + aggressive
         else:
             rm_files = light + default
-        
+
         for f in rm_files:
             target = path.join(folder,f)
             if path.isfile(target):

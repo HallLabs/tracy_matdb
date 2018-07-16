@@ -1,8 +1,9 @@
 """Class for generating and interacting with a group of
 configurations generated from liquid-temperature molecular dynamics.
 """
-from matdb.database import Group
 from os import path
+
+from matdb.database import Group
 
 class LiquidGroup(Group):
     """Represents a sub-sampled molecular dynamics run created at a
@@ -52,7 +53,7 @@ class LiquidGroup(Group):
 
         Args:
             cleanup (str): the level of cleanup to perform after extraction.
-        
+
         Returns:
            bool: True if the database is ready; this means that any other
            databases that rely on its outputs can be run.
@@ -61,12 +62,12 @@ class LiquidGroup(Group):
         #and run the individual DFT calculations.
         if not self.mdbase.ready():
             return
-        
+
         if not super(LiquidGroup, self).extract(cleanup=cleanup):
             return
-        
+
         return self.xyz(config_type="liq")
-    
+
     def setup(self, rerun=False):
         """Sets up a DFT folder for each of the subsampled configurations in the
         base MD database.
@@ -77,7 +78,7 @@ class LiquidGroup(Group):
         """
         if not self.mdbase.ready():
             return
-    
+
         folders_ok = super(LiquidGroup, self).setup()
         if folders_ok and not rerun:
             return
@@ -97,5 +98,3 @@ class LiquidGroup(Group):
 
         # Last of all, create the job file to execute the job array.
         self.jobfile(rerun)
-
-

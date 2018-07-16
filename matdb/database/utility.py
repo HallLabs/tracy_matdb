@@ -8,13 +8,19 @@ from glob import glob
 from tqdm import tqdm
 from copy import deepcopy
 from itertools import combinations
+import json
+from os import path, rename, remove
+from uuid import uuid4
 
+from glob import glob
+import numpy as np
+from tqdm import tqdm
 from phenum.symmetry import bring_into_cell, _does_mapping_exist, _get_transformations
 from phenum.grouptheory import _find_minmax_indices
 
 from matdb import msg
 from matdb.atoms import AtomsList
-from matdb.utility import dbcat
+from matdb.utility import load_datetime, special_values, dbcat
 
 def split(atlist, splits, targets, dbdir, ran_seed, dbfile=None, recalc=0,
           nonsplit=None):
@@ -25,9 +31,9 @@ def split(atlist, splits, targets, dbdir, ran_seed, dbfile=None, recalc=0,
         atlsit (AtomsList, or list): the list of :class:`matdb.atams.Atoms` objects
           to be split or a list to the files containing the atoms objects.
         splits (dict): the splits to perform.
-        targets (dict): the files to save the splits in, these should 
+        targets (dict): the files to save the splits in, these should
           contain a {} in the name which will be replaced with the split
-          name. The dictionary must have the format {"train": file_name, 
+          name. The dictionary must have the format {"train": file_name,
           "holdout": file_name, "super": file_name}.
         dbdir (str): the root *splits* directory for the database.
         dbfile (str): the _dbfile for a legacy database.
@@ -41,13 +47,15 @@ def split(atlist, splits, targets, dbdir, ran_seed, dbfile=None, recalc=0,
           set "as-is" because they cannot be split (they only have meaning
           together).
     """
+    from matdb.utility import dbcat
+
     assert nonsplit is None or isinstance(nonsplit, AtomsList)
     for name, train_perc in splits.items():
         train_file = targets["train"](name)
         holdout_file = targets["holdout"](name)
         super_file = targets["super"](name)
         idfile = path.join(dbdir, "{0}-ids.pkl".format(name))
-        
+
         if (path.isfile(train_file) and path.isfile(holdout_file)
             and path.isfile(super_file)):
             if recalc <= 0:
@@ -119,7 +127,7 @@ def split(atlist, splits, targets, dbdir, ran_seed, dbfile=None, recalc=0,
                 altrain.extend(nonsplit)
                 Nunsplit = len(nonsplit)
             altrain.write(train_file)
-            
+
             if dbfile is not None:
                 dbcat([dbfile], train_file, docat=False, ids=tids, N=Ntrain+Nunsplit)
             else:
@@ -147,13 +155,13 @@ def dbconfig(dbfile):
     Args:
         dbfile (str): path to the database file to get config information for.
     """
-    from matdb.utility import load_datetime
-    
+    # from matdb.utility import load_datetime
+
     confpath = dbfile + ".json"
     if not path.isfile(confpath):
         return {}
-    
-    import json
+
+    # import json
     with open(confpath) as f:
         config = json.load(f, object_pairs_hook=load_datetime)
 
@@ -164,16 +172,16 @@ def parse_path(root,seeds,ran_seed=None):
     """Finds the full path to the seed files for this system.
     Args:
         root (str): the root directory for the databes.
-        seeds (str or list of str): the seeds for the database that 
+        seeds (str or list of str): the seeds for the database that
             need to be parsed and have the root folder found.
         ran_seed (optional): the seed for the random generator if used.
-    
+
     Returns:
         seed_files (list): a list of the seed files for the database.
     """
-    from matdb.utility import special_values
-    from itertools import product
-    
+    # from matdb.utility import special_values
+    # from itertools import product
+
     seed_files = []
     for seed in seeds:
         # if there is a '/' in the seed then this is a path to the
@@ -195,7 +203,7 @@ def parse_path(root,seeds,ran_seed=None):
                 if len(this_seeds) >= 1:
                     this_seeds.extend([path.join(*i) for i in product(this_seeds,this_level)])
                 else:
-                    this_seeds.extend(this_level)                    
+                    this_seeds.extend(this_level)
 
         else:
             seed_path = path.join(root,"seed")
@@ -251,7 +259,7 @@ def make_primitive(atm, eps=None):
 
     #Armed with the data we can now make the cell primitive.
     num_atoms = len(atom_pos)
-    
+
     latt_to_cart, cart_to_latt = _get_transformations(a_vecs)
 
     #Ensure that all the basis atoms are in the unit cell.
@@ -320,7 +328,7 @@ def make_primitive(atm, eps=None):
 
             #If all lattice points were mapped then we've found a valid new basis and can exit.
             if mapped:
-                break 
+                break
 
         if not mapped: #pragma: no cover
             raise LogicError("Error in make_primitive. Valid basis not found.")
@@ -339,7 +347,7 @@ def make_primitive(atm, eps=None):
                 if (atom_type[j] == this_type) and (np.allclose(pos, atom_pos[j], rtol=eps)):
                     mapped = True
                     removed[i_atom] = i_atom+1
-                    
+
             if not mapped:
                 unique_pos.append(pos)
                 unique_types.append(this_type)
@@ -359,12 +367,12 @@ def make_primitive(atm, eps=None):
 
 def hermite_normal_form(n):
     """Converts an integer matrix to hermite normal form.
-    
+
     Args:
         n (list): a 2D list of integers.
 
     Returns:
-        The integer matrix converted to Hermite Normal Form and 
+        The integer matrix converted to Hermite Normal Form and
         the matrix needed to transform the input matrix to the HNF.
     """
 
@@ -388,7 +396,7 @@ def hermite_normal_form(n):
 
         if not np.allclose(np.matmul(n,b), hnf): #pragma: no cover
             raise LogicError("COLS1: Transformation matrix failed in hermite_normal_form")
-        
+
     if hnf[0,0] == 0:
         hnf, b = swap_column(hnf, b, 0)
     if abs(hnf[0,0] < 0):
@@ -403,7 +411,7 @@ def hermite_normal_form(n):
             temp_col = deepcopy(hnf[:,1])
             hnf[:,1] = hnf[:,2]
             hnf[:,2] = temp_col
-            
+
             temp_col = deepcopy(b[:,1])
             b[:,1] = b[:,2]
             b[:,2] = temp_col
@@ -457,10 +465,10 @@ def hermite_normal_form(n):
                 multiple = 1
             hnf[:,j] = hnf[:,j] - multiple*hnf[:,2]
             b[:,j] = b[:,j] - multiple*b[:,2]
-        
+
     if not np.allclose(np.matmul(n,b),hnf): #pragma: no cover
         raise LogicError("End: Transformation matrix failed in hermite_normal_form")
-        
+
     if not (hnf[0,1]==0 and hnf[0,2]==0 and hnf[1,2]==0): #pragma: no cover
         raise LogicError("END: hermite_normal_form not lower triangular.")
 
@@ -469,7 +477,7 @@ def hermite_normal_form(n):
 
     if (hnf[1,0]>hnf[1,1] or hnf[2,0]>hnf[2,2] or hnf[2,1]>hnf[2,2]): #pragma: no cover
         raise LogicError("END: off diagonals larger than diagonals (hermite_normal_form).")
-    
+
     return hnf, b
 
 def swap_column(hnf, b, row):
@@ -480,9 +488,9 @@ def swap_column(hnf, b, row):
         hnf (numpy.ndarray): an integer matrix.
         b (numpy.ndarray): an integer matrix.
         row (int): the row that the swap will be centered on.
-    
+
     Returns:
-        The hnf and b matrices with their columns swapped so that hnf[row,row] is 
+        The hnf and b matrices with their columns swapped so that hnf[row,row] is
         non-zero.
     """
 
@@ -538,7 +546,7 @@ def decompress(prim, basis, types_int, hnf_int):
 
     if vol_fact*len(basis) != len(new_basis): #pragma: no cover
         raise ValueError("Error occured in decompression.")
-                    
+
     return lat_vecs, new_basis, new_types
 
 def _get_hnf_from_int(hnf_int):
@@ -559,10 +567,9 @@ def _get_hnf_from_int(hnf_int):
         if hnf_str[i] != "0" and hnf_str[i-1] == "0":
             hnf_vals.append(int(hnf_str[cur_index:i-1]))
             cur_index = i
-            
+
     hnf_vals.append(int(hnf_str[cur_index:i]))
 
     hnf = [[hnf_vals[0]-1, 0, 0], [hnf_vals[1]-1, hnf_vals[2]-1, 0],
            [hnf_vals[3]-1, hnf_vals[4]-1, hnf_vals[5]-1]]
     return hnf
-            
