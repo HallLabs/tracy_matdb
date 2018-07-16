@@ -1,11 +1,14 @@
  #!/usr/bin/python
 from os import path
 from matdb import msg
+import argparse
+import sys
+
+from matdb import base
 
 def examples():
     """Prints examples of using the script to the console using colored output.
     """
-    from matdb import msg
     script = "MATDB Watcher for Groups/Trainers and General Contexts"
     explain = ("Depending on the `matdb` context, it is often useful to watch "
                "the output that is being piped to the batch output file. This "
@@ -38,9 +41,6 @@ script_options = {
 def _parser_options():
     """Parses the options and arguments from the command line."""
     #We have two options: get some of the details from the config file,
-    import argparse
-    import sys
-    from matdb import base
     pdescr = "MATDB Context Execution Watcher"
     parser = argparse.ArgumentParser(parents=[base.bparser], description=pdescr)
     for arg, options in script_options.items():
