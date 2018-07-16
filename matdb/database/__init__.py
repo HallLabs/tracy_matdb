@@ -98,7 +98,7 @@ class Group(object):
             #have to expand our root to use that name over here. However, for
             #recursively nested groups, we use the root passed in because it
             #already includes the relevant suffixes, etc.
-            self.root = path.join(root, parent.name)
+            self.root = path.join(root, "{0}.{1}".format(parent.name, self.name))
         else:
             self.root = root
 
@@ -984,12 +984,14 @@ class Group(object):
             for group in self.sequence.values():
                 group.tarball(filename)
 
-    def extract(self, cleanup="default"):
+    def extract(self, cleanup="default", asis=False):
         """Creates a hdf5 file for each atoms object in the group.
         Args:
             cleanup (str): the level of cleanup to perform after
               extraction.
-        """
+            asis (bool): when True, read the results even if the calculation
+              didn't converge to required accuracy.
+        """        
         self._expand_sequence()
         if len(self.sequence) == 0 and self.can_extract():
             for cid, folder in self.configs.items():
@@ -999,8 +1001,10 @@ class Group(object):
                     continue
                 from os import remove
                 atoms = self.config_atoms[cid]
-                atoms.calc.extract(folder, cleanup=cleanup)
-                atoms.write(path.join(folder, "atoms.h5"))
+                #We only write the atoms.h5 if extraction returns successful.
+                if atoms.calc.extract(folder, cleanup=cleanup, asis=asis):
+                    atoms.write(path.join(folder, "atoms.h5"))
+                    
                 # For debugging, we really don't want to remove these yet;
                 # otherwise it is a *big pain* to recreate them.
                 # if path.isfile(path.join(folder, "pre_comp_atoms.h5")):
@@ -1010,7 +1014,7 @@ class Group(object):
             pbar = tqdm(total=len(self.sequence))
             cleaned = []
             for group in self.sequence.values():
-                cleaned.append(group.extract(cleanup=cleanup))
+                cleaned.append(group.extract(cleanup=cleanup, asis=asis))
                 pbar.update(1)
             cleaned = all(cleaned)
             pbar.close()
@@ -1373,15 +1377,18 @@ class Database(object):
                         "super": self.super_file}
         split(subconfs, self.splits, file_targets, self.splitroot,
                         self.ran_seed, recalc=recalc, nonsplit=nonsplit)
-
-    def extract(self, cleanup="default"):
+        
+    def extract(self, cleanup="default", asis=False):
         """Runs the extract methods of each database in the collection, in the
         correct order.
+
         Args:
             cleanup (str): the level of cleanup to perform after extraction.
+            asis (bool): when True, read the results even if the calculation
+              didn't converge to required accuracy.
         """
         for dbname, db in self.isteps:
-            if not db.extract(cleanup=cleanup):
+            if not db.extract(cleanup=cleanup, asis=asis):
                 imsg = "Group {}:{} is not ready yet. Done."
                 msg.info(imsg.format(self.name, dbname), 2)
                 break
@@ -1795,16 +1802,19 @@ class Controller(object):
         for dbname, dbi in self.ifiltered(dfilter):
             dbi.setup(rerun)
 
-    def extract(self, dfilter=None, cleanup="default"):
+    def extract(self, dfilter=None, cleanup="default", asis=False):
         """Runs extract on each of the configuration's databases.
 
         Args:
             dfilter (list): of `str` patterns to match against *database*
               names. This limits which databases are returned.
             cleanup (str): the level of cleanup to perform after extraction.
+            asis (bool): when True, read the results even if the calculation
+              didn't converge to required accuracy.
         """
         for dbname, dbi in self.ifiltered(dfilter):
-            dbi.extract(cleanup=cleanup)
+            msg.std("Extracting calculation output from {}.".format(dbname), 2)
+            dbi.extract(cleanup=cleanup, asis=asis)
 
     def execute(self, recovery=False, dfilter=None, env_vars=None, dryrun=False):
         """Submits job array scripts for each database collection.

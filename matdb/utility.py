@@ -320,6 +320,23 @@ def _get_reporoot():
 
     return reporoot
 
+def contract_absolute(abspath, root=None):
+    """Contracts the specified absolute path to be relative to another path.
+    
+    Args:
+        abspath (str): absolute path on the file system.
+        root (str): path to contract relative to. Repository root is used if not
+          specified. 
+    """
+    #We assume that the path is a sub-directory of the repo root. Then, the
+    #first few characters of the file path are what we want to remove. Just to
+    #be sure, do case-insensitive compare.
+    if root is None:
+        root = reporoot
+    current = path.abspath(abspath)
+    left = current.lower().replace(root.lower(), "")
+    return current[-len(left)+1:].replace("\\", "/")
+
 def relpath(s):
     """Returns the *repository-relative* path for the string `s`.
 

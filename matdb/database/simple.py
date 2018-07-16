@@ -130,7 +130,11 @@ class Manual(Group):
             if not self.extractable and self.is_setup():
                 return True
             else:
-                if len(self.fitting_configs) == len(self._seed):
+                #A zero-length sequence can mean we have a set of seeds that
+                #were specified, *or* that we have a single seed that is itself
+                #an atoms object (instead of a list of atoms objects).
+                if (len(self.fitting_configs) == len(self._seed) or
+                    (len(self.fitting_configs) == 1 and isinstance(self._seed, Atoms))):
                     return True
                 else:
                     return False

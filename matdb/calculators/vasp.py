@@ -128,6 +128,9 @@ class AsyncVasp(Vasp, AsyncCalculator):
           in an archive that represents the result of the calculation.
         folder (str): path to the directory where the calculation should take
           place.
+        asis (bool): when True, this calculator will return results for
+          calculations, even they were not converged to required accuracy (i.e.,
+          enough NSW steps that ionic DOF are pinned).
     """
     key = "vasp"
     tarball = ["vasprun.xml"]
@@ -159,6 +162,7 @@ class AsyncVasp(Vasp, AsyncCalculator):
 
         self.args = args
         self.kwargs = kwargs
+        self.asis = False
 
         # if 'xc' was set on either the kwargs or the potcars
         # dictionaries but not the other then we need to copy it over.
@@ -348,47 +352,86 @@ class AsyncVasp(Vasp, AsyncCalculator):
         input_dict["nsw"] = 0
         return input_dict
 
-    def extract(self, folder, cleanup="default"):
+    def read_convergence(self):
+        """Overrides the convergence reader to allow "as-is" result extraction.
+        """
+        if self.asis:
+            return True
+        else:
+            return super(AsyncVasp, self).read_convergence()
+        
+    def extract(self, folder, cleanup="default", asis=False):
         """Extracts results from completed calculations and sets them on the
         :class:`ase.Atoms` object.
+
         Args:
             folder (str): path to the folder in which the executable was run.
             cleanup (str): the level of cleanup to perfor after extraction.
+            asis (bool): when True, read the results even if the calculation
+              didn't converge to required accuracy.
         """
-        # Read output
-        atoms_sorted = ase.io.read(path.join(folder,'CONTCAR'), format='vasp')
+        self.asis = asis
+        #We need to backup the names of the parameters before we read from INCAR
+        #in case they don't match, so that we can leave the calculator in the
+        #same state. For extraction, the parameters *must* match what we have in
+        #INCAR.
+        paramsets = ["float_params", "exp_params", "string_params", "int_params",
+                     "bool_params", "list_bool_params", "list_int_params", 
+                     "list_float_params", "special_params", "dict_params"]
+        pbackup = {}
+        for pset in paramsets:
+            if hasattr(self, pset):
+                pbackup[pset] = getattr(self, pset)
 
-        if (self.int_params['ibrion'] is not None and
-                self.int_params['nsw'] is not None):
-            if self.int_params['ibrion'] > -1 and self.int_params['nsw'] > 0:
-                # Update atomic positions and unit cell with the ones read
-                # from CONTCAR.
-                self.atoms.positions = atoms_sorted[self.resort].positions
-                self.atoms.cell = atoms_sorted.cell
-
+        with chdir(folder):
+            self.read_incar()
+            self.converged = self.read_convergence()
+            
         # we need to move into the folder being extracted in order to
         # let ase check the convergence
-        with chdir(folder):
-            self.converged = self.read_convergence()
-            #NB: this next method call overwrites the identity of self.atoms! We
-            #don't like that behavior, so we set it right again afterwards.
-            o = self.atoms
+        if not self.converged and not asis:
+            msg.warn("VASP calculation in {} is not".format(folder) +
+                     "converged. Use `asis` to extract it anyway.")
+            okay = False
+        else:
+            # Read output; we want the latest positions of the atoms in case they
+            # were moved.
+            atoms_sorted = ase.io.read(path.join(folder,'CONTCAR'), format='vasp')
 
-            self.set_results(self.atoms)
-            self.atoms._calc = self
-            E = self.get_potential_energy(atoms=self.atoms)
-            F = self.forces
-            S = self.atoms.get_stress(False)
-            self.atoms.add_property(self.force_name, F)
-            self.atoms.add_param(self.virial_name, S*self.atoms.get_volume())
-            self.atoms.add_param(self.energy_name, E)
+            if (self.int_params['ibrion'] is not None and
+                    self.int_params['nsw'] is not None):
+                if self.int_params['ibrion'] > -1 and self.int_params['nsw'] > 0:
+                    # Update atomic positions and unit cell with the ones read
+                    # from CONTCAR.
+                    self.atoms.positions = atoms_sorted[self.resort].positions
+                    self.atoms.cell = atoms_sorted.cell
+            
+            with chdir(folder):
+                #NB: this next method call overwrites the identity of self.atoms! We
+                #don't like that behavior, so we set it right again afterwards.
+                o = self.atoms
 
-            o.copy_from(self.atoms)
-            self.atoms = o
-            self.atoms.set_calculator(self)
+                self.set_results(self.atoms)
+                self.atoms._calc = self
+                E = self.get_potential_energy(atoms=self.atoms)
+                F = self.forces
+                S = self.atoms.get_stress(False)
+                self.atoms.add_property(self.force_name, F)
+                self.atoms.add_param(self.virial_name, S*self.atoms.get_volume())
+                self.atoms.add_param(self.energy_name, E)
 
-        self.cleanup(folder,clean_level=cleanup)
+                o.copy_from(self.atoms)
+                self.atoms = o
+                self.atoms.set_calculator(self)
+            
+            self.cleanup(folder,clean_level=cleanup)
+            okay = True
+            
+        for pset, value in pbackup.items():
+            setattr(self, pset, value)
 
+        return okay
+            
     def set_atoms(self, atoms):
         #We do *not* do an atoms.copy() like ASE because our atoms objects are hybrids.
         self.atoms = atoms

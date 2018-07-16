@@ -48,7 +48,7 @@ class Distortion(Group):
              distribution specified.
     '''
     def __init__(self, rattle=0, ran_seed=None, volume_factor=1.0,
-                 cov_diag=0.001, min_index=0, name="Distortion", **dbargs):
+                 cov_diag=0.001, min_index=0, name="distortion", **dbargs):
         self.name = name
         self.seeded = True
         dbargs['prefix'] = "D"

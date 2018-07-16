@@ -15,6 +15,7 @@ from matdb.calculators import Quip
 from matdb.atoms import AtomsList
 from matdb.database.hessian import Hessian
 from matdb.utility import chdir
+from matdb.conversion import to_xyz
 
 def update_nbody(settings):
     """Adds the usual n-body settings to the specified dictionary. This function
@@ -298,26 +299,7 @@ class GAP(Trainer):
         target = path.join(self.root, "train.xyz")
         if not path.isfile(target):
             al = AtomsList(self._trainfile)
-            ol = quippy.AtomsList()
-            for at in tqdm(al):
-                #Empty dictionaries in info breaks the quippy fortran
-                #implementation. Delete these entries out.
-                if len(at.info["params"]) == 0:
-                    del at.info["params"]
-                if len(at.info["properties"]) == 0:
-                    del at.info["properties"]
-                
-                ai = quippy.Atoms()
-                ai.copy_from(at)
-                if "properties" in at.info:
-                    #We also need to copy the properties in our info onto the
-                    #properties of the quippy.Atoms object.
-                    ai.arrays.update(at.info["properties"])
-                if "params" in ai.params:
-                    del ai.params["params"]
-                    
-                ol.append(ai)
-            ol.write(target)
+            to_xyz(al, target)
 
     def extras(self):
         """Returns the sparse points file as extras for the fit if it exists.
