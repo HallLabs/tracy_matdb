@@ -20,7 +20,7 @@ from matdb.calculators.basic import AsyncCalculator
 from matdb import msg
 from matdb.calculators.basic import AsyncCalculator
 from matdb.kpoints import custom as write_kpoints
-from matdb.utility import chdir, execute, relpath, config_paths
+from matdb.utility import chdir, execute, relpath, config_specs
 from matdb.exceptions import VersionError, SpeciesError
 from matdb.calculators import paths
 
@@ -141,14 +141,14 @@ class AsyncVasp(Vasp, AsyncCalculator):
     def __init__(self, atoms, folder, contr_dir, ran_seed, *args, **kwargs):
         self.init_calc(kwargs)
         if contr_dir == '$control$':
-            with open(path.join(self.contr_dir, "NAME"), "r") as f:
-                name = f.readline().strip()
-                self.contr_dir = config_paths[name]
+            contr_dir = config_specs["cntr_dir"]
         if path.isdir(contr_dir):
             self.contr_dir = contr_dir
         else:
             msg.err("{} is not a valid directory.".format(contr_dir))
-                
+
+        if '$control$' in folder:
+            folder = folder.replace('$control$', self.contr_dir)
         self.folder = path.abspath(path.expanduser(folder))
         self.kpoints = None
 
@@ -162,7 +162,15 @@ class AsyncVasp(Vasp, AsyncCalculator):
 
         # remove the "potcars" section of the kwargs for latter use in
         # creation of the POTCAR file.
-        self.potcars = kwargs.pop("potcars")
+        potdict = kwargs.pop("potcars")
+        name = config_specs["name"]
+        namehash = str(sha1(name.encode("ASCII")).hexdigest())
+        for hid, hpath in paths[namehash].items():
+            if potdict["directory"] == hid:
+                potdict["directory"] = hpath
+                break
+        self.potcars = potdict
+        
         if "exec_path" in kwargs:
             self.executable = kwargs.pop("exec_path")
         else:
@@ -484,8 +492,8 @@ class AsyncVasp(Vasp, AsyncCalculator):
         # version number.
         if hasattr(self,"potcars"):
             potdict = self.potcars.copy()
-            with open(path.join(self.contr_dir, "NAME"), "r") as f:
-                name = f.readline().strip()
+            
+            name = config_specs["name"]
             namehash = str(sha1(name.encode("ASCII")).hexdigest())
             for hid, hpath in paths[namehash].items():
                 if potdict["directory"] == hpath:
