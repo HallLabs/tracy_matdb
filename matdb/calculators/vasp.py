@@ -489,7 +489,7 @@ class AsyncVasp(Vasp, AsyncCalculator):
         Args:
             folder (str): path to the folder in which the executable was run.
         """
-        vasp_dict = {"folder":self.folder.relpace(self.contr,'$control$'),
+        vasp_dict = {"folder":self.folder.relpace(self.contr_dir,'$control$'),
                      "ran_seed":self.ran_seed,
                      "contr_dir":'$control$', "kwargs": self.kwargs,
                      "args": self.args}

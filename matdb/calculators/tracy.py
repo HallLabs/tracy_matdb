@@ -215,7 +215,11 @@ class Tracy_QE(Tracy, Qe):
         self.QE_input = kwargs["calcargs"]
         self.tracy_input = kwargs["tracy"]
         self.ran_seed = ran_seed
+        if contr_dir == '$control$':
+            contr_dir = config_specs["cntr_dir"]
         self.contr_dir = contr_dir
+        if '$control$' in folder:
+            folder = folder.replace('$control$', self.contr_dir)
         self.folder = folder
         self.atoms = atoms
 
@@ -330,6 +334,7 @@ class Tracy_QE(Tracy, Qe):
     def to_dict(self):
         """Converts the arguments of the calculation to a dictionary.
         """
-        results = {"kwargs": self.in_kwargs, "folder": self.folder,
-                   "ran_seed": self.ran_seed, "contr_dir": self.contr_dir}
+        results = {"kwargs": self.in_kwargs,
+                   "folder": self.folder.relpace(self.contr_dir,'$control$'),
+                   "ran_seed": self.ran_seed, "contr_dir": '$control$'}
         return results
