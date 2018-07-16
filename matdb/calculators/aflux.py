@@ -36,14 +36,19 @@ class AsyncAflow(SyncCalculator):
         atoms (quippy.Atoms): atoms object created from the database entry. Is
           `None` until the download is performed.
     """
+    pathattrs = []
     def __init__(self, atoms, folder, contr_dir, ran_seed, entry=None, *args, **kwargs):
         self.kwargs = kwargs
         self.args = []
         self.entry = entry
         self.ran_seed = ran_seed
+        if contr_dir == '$control$':
+            contr_dir = config_specs["cntr_dir"]
         self.contr_dir = contr_dir
         self.version = None
         self.kwargs["entry"] = self.entry
+        if '$control$' in folder:
+            folder = folder.replace('$control$', self.contr_dir)
         self.folder = folder
         self.atoms = atoms
         self.kwargs["entry"] = entry 
@@ -111,8 +116,9 @@ class AsyncAflow(SyncCalculator):
         Args:
             folder (str): path to the folder in which the executable was run.
         """
-        aflux_dict = {"folder":self.folder, "ran_seed":self.ran_seed,
-                     "contr_dir":self.contr_dir, "kwargs": self.kwargs,
+        aflux_dict = {"folder":self.folder.relpace(self.contr_dir,'$control$'),
+                      "ran_seed":self.ran_seed,
+                     "contr_dir":'$control$', "kwargs": self.kwargs,
                       "args": self.args}
 
         # Need to determine how/what to store as aflux version number.

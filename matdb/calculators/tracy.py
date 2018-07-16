@@ -23,6 +23,7 @@ class Tracy(AsyncCalculator):
         role (str): The role of the user, i.e., "Cheif Scientist".
     """
     key = "tracy"
+    pathattrs = []
 
     def __init__(self, folder, role=None, notifications=None,
                  group_preds=None, contract_preds=None, ecommerce=None,

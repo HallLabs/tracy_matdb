@@ -50,6 +50,7 @@ class AsyncQe(Espresso, AsyncCalculator):
         atoms (matdb.Atoms): the configuration for calculations.    
     """
     key = "qe"
+    pathattrs = ["potcars.directory"]
 
     def __init__(self, atoms, folder, contr_dir, ran_seed, *args, **kwargs):
         

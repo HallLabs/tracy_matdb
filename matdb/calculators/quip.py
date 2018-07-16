@@ -21,6 +21,7 @@ class SyncQuip(quippy.Potential, SyncCalculator):
         contr_dir (str): The absolute path of the controller's root directory.
         ran_seed (int or float): the random seed to be used for this calculator.
     """
+    pathattrs = []
     def __init__(self, atoms, folder, contr_dir, ran_seed, *args, **kwargs):
         self.init_calc(kwargs)
         self.args = args
