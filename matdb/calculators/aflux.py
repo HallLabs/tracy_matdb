@@ -13,6 +13,7 @@ from os import path
 import pickle
 
 from .basic import SyncCalculator
+from matdb.utility import config_specs
 
 class AsyncAflow(SyncCalculator):
     """Represents an asynchronous calculator for constructing

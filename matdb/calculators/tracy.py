@@ -13,7 +13,7 @@ from matdb.database.utility import make_primitive
 from matdb.descriptors import soap
 from matdb.calculators.basic import AsyncCalculator
 from matdb.calculators import Qe
-
+from matdb.utility import config_specs
 
 class Tracy(AsyncCalculator):
     """Represents a calculator that will be submitted to the Tracy queue.
