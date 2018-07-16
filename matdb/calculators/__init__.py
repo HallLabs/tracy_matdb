@@ -149,7 +149,7 @@ def set_paths(configyml):
         configyml (dict): contents of the `matdb.yml` file to set paths for.
     """
     global paths
-    name = configyml["title"].strip()
+    name = configyml["title"].strip().replace(' ', '_')
     namehash = str(sha1(name.encode("ASCII")).hexdigest())
     calcpaths = {}
     get_calculator_hashes("matdb", configyml, "", calcpaths)

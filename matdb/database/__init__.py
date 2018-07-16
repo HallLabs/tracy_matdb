@@ -24,7 +24,7 @@ from matdb.atoms import Atoms, AtomsList
 from tqdm import tqdm
 from hashlib import sha1
 from matdb.database.utility import split
-from matdb.utility import chdir, ParameterGrid, convert_dict_to_str, import_fqdn
+from matdb.utility import chdir, ParameterGrid, convert_dict_to_str, import_fqdn, _set_config_path
 from matdb.database.legacy import LegacyDatabase
 
 class Group(object):
@@ -1558,6 +1558,10 @@ class Controller(object):
         self.root = relpath(path.expanduser(self.specs["root"]))
         if tmpdir is not None:
             self.root = tmpdir
+        name = self.specs["name"].strip().replace(' ', '_')
+        with open(path.join(self.root, "NAME"), "w+") as f:
+            f.write(name)        
+        _set_config_paths(name, root)
             
         self.plotdir = path.join(self.root, "plots")
         self.kpathdir = path.join(self.root, "kpaths")

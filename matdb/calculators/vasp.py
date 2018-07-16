@@ -18,7 +18,7 @@ import re
 from matdb.calculators.basic import AsyncCalculator
 from matdb import msg
 from matdb.kpoints import custom as write_kpoints
-from matdb.utility import chdir, execute, relpath
+from matdb.utility import chdir, execute, relpath, config_paths
 from matdb.exceptions import VersionError, SpeciesError
 from matdb.calculators import paths
 
@@ -135,12 +135,17 @@ class AsyncVasp(Vasp, AsyncCalculator):
 
     def __init__(self, atoms, folder, contr_dir, ran_seed, *args, **kwargs):
         self.init_calc(kwargs)
-        self.folder = path.abspath(path.expanduser(folder))
-        self.kpoints = None
+        if contr_dir == '$control$':
+            with open(path.join(self.contr_dir, "NAME"), "r") as f:
+                name = f.readline().strip()
+                self.contr_dir = config_paths[name]
         if path.isdir(contr_dir):
             self.contr_dir = contr_dir
         else:
             msg.err("{} is not a valid directory.".format(contr_dir))
+                
+        self.folder = path.abspath(path.expanduser(folder))
+        self.kpoints = None
 
         # We will store all the unique potcars in a single
         # directory. If it doesn't exist then create it.
@@ -425,15 +430,18 @@ class AsyncVasp(Vasp, AsyncCalculator):
         Args:
             folder (str): path to the folder in which the executable was run.
         """
-        vasp_dict = {"folder":self.folder, "ran_seed":self.ran_seed,
-                     "contr_dir":self.contr_dir, "kwargs": self.kwargs,
+        vasp_dict = {"folder":self.folder.relpace(self.contr,'$control$'),
+                     "ran_seed":self.ran_seed,
+                     "contr_dir":'$control$', "kwargs": self.kwargs,
                      "args": self.args}
 
         # run vasp in the root directory in order to determine the
         # version number.
         if hasattr(self,"potcars"):
             potdict = self.potcars.copy()
-            namehash = str(sha1(path.abspath().encode("ASCII")).hexdigest())
+            with open(path.join(self.contr_dir, "NAME"), "r") as f:
+                name = f.readline().strip()
+            namehash = str(sha1(name.encode("ASCII")).hexdigest())
             for hid, hpath in paths[namehash].items():
                 if potdict["directory"] == hpath:
                     potdict["directory"] = hid

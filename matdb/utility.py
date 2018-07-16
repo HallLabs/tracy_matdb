@@ -1034,3 +1034,15 @@ def recursive_setattr(o, fqn, value):
         o[attrs[-1]] = value
     else:
         setattr(o, attrs[-1], value)
+
+config_paths = {}
+def _set_config_paths(yml_name, yml_path):
+    """Sets the configuration path to the matdb YAML file.
+
+    Args:
+        config (str): the config file.
+    
+    """
+
+    global config_path    
+    config_paths[yml_name] = yml_path
