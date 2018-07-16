@@ -2,6 +2,7 @@
 import json
 from mpld3 import _display
 import numpy as np
+
 class NumpyEncoder(json.JSONEncoder):
     def default(self, obj):
         if isinstance(obj, np.ndarray):

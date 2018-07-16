@@ -1,17 +1,17 @@
 """Group of configurations selected from the prototypes database.
 """
 
+from copy import deepcopy
+from glob import glob
+from hashlib import sha1
 from os import path, getcwd, chdir, remove, listdir, mkdir
 import numpy as np
 from six import string_types
-from glob import glob
-from copy import deepcopy
-from hashlib import sha1
 
 from phenum.element_data import get_lattice_parameter
 
-from matdb.database import Group
 from matdb import msg
+from matdb.database import Group
 from matdb.atoms import Atoms, AtomsList
 from matdb.utility import _get_reporoot, chdir
 
@@ -34,7 +34,7 @@ class Prototypes(Group):
           example to only use A:B  and no B:A permutations the
           dict would be {"binary": [["A","B"]]}, where A and B were
           replaced with the correct atomic species.
-	  
+
     .. note:: Additional attributes are also exposed by the super class
       :class:`Group`.
 
@@ -63,7 +63,7 @@ class Prototypes(Group):
         self.ran_seed = ran_seed
         self.permutations = permutations
         self.species = self.database.parent.species
-        
+
         #Make sure that we override the global calculator default values with
         #those settings that we know are needed for good phonon calculations.
         calcargs = self.database.calculator.copy()
@@ -125,7 +125,7 @@ class Prototypes(Group):
             else: #pragma: no cover
                 msg.err("Couldn't parse {0} structures for {1} case. Must be either "
                         "a list of file names, 'all', or an int.".format(v, k))
-                
+
             if self.permutations is not None and  k.lower() in self.permutations.keys():
                 self.nconfigs += len(self.structures[k.lower()])*len(self.permutations[k.lower()])
             else:
@@ -139,7 +139,7 @@ class Prototypes(Group):
     @property
     def fitting_configs(self):
         """Returns a :class:`matdb.atoms.AtomsList` for all configs in this
-        group. 
+        group.
         """
         configs = AtomsList()
         if len(self.sequence) == 0:
@@ -148,9 +148,9 @@ class Prototypes(Group):
         else:
             for seq in self.sequence.values():
                 configs.extend(seq.fitting_configs)
-                
+
         return configs
-                
+
     def sub_dict(self):
         """Returns a dict needed to initialize the class.
         """
@@ -166,9 +166,9 @@ class Prototypes(Group):
             list: of :class:`matdb.atoms.Atoms`
         """
         if len(self.sequence) == 0:
-            #We are at the bottom of the stack; 
+            #We are at the bottom of the stack;
             return self.fitting_configs
-        else: 
+        else:
             #Check where we are in the stack. If we are just below the database,
             #then we want to return <<your description of the rset here>>
 	    #If we are not, then we must a parameter grid of sequences
@@ -208,9 +208,9 @@ class Prototypes(Group):
         Args:
             rerun (bool): when True, recreate the folders even if they
               already exist.
-        """        
+        """
         super(Prototypes, self).setup(self._setup_configs, rerun)
-            
+
     def _setup_configs(self, rerun):
         """Loops over the choosen prototype structures and possible
         occupations for those structures, i.e., A:B and B:A, to
@@ -219,7 +219,7 @@ class Prototypes(Group):
         Args:
             rerun (bool): when True, recreate the folders even if they
               already exist.
-        """        
+        """
         #We also don't want to setup again if we have the results already.
         if self.ready() and not rerun:
             return
@@ -267,7 +267,7 @@ class Prototypes(Group):
         else: # pragma: no cover
             msg.err("{} is not a valid prototype size.".format(size))
             return None
-            
+
         possible_perms = [list(i) for i in permutations(self.species, r=r)]
         perms_copy = deepcopy(possible_perms)
         if res is not None:
@@ -280,7 +280,7 @@ class Prototypes(Group):
     def _correct_poscar(self, source, target, species):
         """Corrects the POSCAR so that it has the correct lattice parameter
         and title string for the system to be read into ASE.
-        
+
         Args:
             source (str): the path to the prototype POSCAR.
             target (str): the path to the output POSCAR.
@@ -316,7 +316,7 @@ class Prototypes(Group):
         if self.puuids is None:
             self.puuids = self.load_pkl(self.puuid_file)
         return self.puuids
-    
+
     @property
     def puuid_file(self):
         """Returns the full path to the euid file for this group.
