@@ -9,7 +9,6 @@ from random import seed, uniform
 
 import numpy as np
 
-from matdb.database.utility import make_primitive
 from matdb.descriptors import soap
 from matdb.calculators.basic import AsyncCalculator
 from matdb.calculators import Qe
@@ -70,6 +69,8 @@ class Tracy(AsyncCalculator):
             A dictionary of the compressed structure that the
             decompression algorithm can unpack.
         """
+        # Make a local import to fix cyclic imports.
+        from matdb.database.utility import make_primitive
         if np.allclose(0, atoms.cell):
             raise ValueError("The Atoms object must contian cell vectors in order "
                              "to be compressed.")
@@ -295,7 +296,9 @@ class Tracy_QE(Tracy, Qe):
 
 #        self.input_dict["potential"] = self._get_potential_data()
 
-    def _get_potential_data(self):
+    def _get_potential_data(self): # pragma: no cover (out dated and
+                                   # to be relpaced in pending pull
+                                   # request).
         """Uses the QE input to construct the dictionary of potential information.
         """
         results = {"numPotential": len(self.type_map.keys()),
@@ -336,6 +339,6 @@ class Tracy_QE(Tracy, Qe):
         """Converts the arguments of the calculation to a dictionary.
         """
         results = {"kwargs": self.in_kwargs,
-                   "folder": self.folder.relpace(self.contr_dir,'$control$'),
+                   "folder": self.folder.replace(self.contr_dir,'$control$'),
                    "ran_seed": self.ran_seed, "contr_dir": '$control$'}
         return results
