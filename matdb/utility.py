@@ -33,7 +33,6 @@ import h5py
 from contextlib import contextmanager
 
 from matdb import __version__
-from matdb.atoms import AtomsList
 # from matdb.database.utility import dbconfig
 # from matdb.utility import special_functions
 
@@ -181,7 +180,7 @@ def execute(args, folder, wait=True, nlines=100, venv=None,
             if len(error) >= nlines:
                 break
         pexec.stderr.close()
-        if printerr and len(error) > 0:
+        if printerr and len(error) > 0 and all([isinstance(i, string_types) for i in error]):
             msg.err(''.join(error))
 
     return {
@@ -198,6 +197,8 @@ def h5cat(files, target):
         target (str): name/path of the output file that will include all of the
           combined files.
     """
+    # Local import to prevent cyclic imports
+    from matdb.atoms import AtomsList
     result = AtomsList()
     for fname in files:
         ilist = AtomsList(fname)
@@ -451,10 +452,6 @@ def pgrid(options, ignore=None):
 
     grid = list(product(*values))
     return (grid, keys)
-
-import pytz
-from datetime import datetime
-from six import string_types
 
 epoch = datetime(1970,1,1, tzinfo=pytz.utc)
 """datetime.datetime: 1/1/1970 for encoding UNIX timestamps.
@@ -1087,6 +1084,6 @@ def _set_config_paths(name, cntr_dir):
         cntr_dir (str): the path to the control directory.    
     """
 
-    global config_path    
+    global config_specs  
     config_specs["name"] = name
     config_specs["cntr_dir"] = cntr_dir

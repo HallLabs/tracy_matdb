@@ -77,11 +77,11 @@ def get_calculator_hashes(key, value, breadcrumb, result):
         
     if (key == "calculator" and isinstance(value, dict)):
         if "name" in value:
-            calcname = value["name"]
+            calcname = value["name"].lower()
             calccls = matdb.calculators.get_calc_class(calcname)            
         else:
             #Get the global calculator name/class instance.
-            calcname = next(iter(result.keys()))
+            calcname = next(iter(result.keys())).lower()
             calccls = matdb.calculators.get_calc_class(calcname)
             
         for pathattr in calccls.pathattrs:
