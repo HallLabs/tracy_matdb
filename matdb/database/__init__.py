@@ -31,7 +31,7 @@ from matdb.fitting.controller import TController
 from matdb.io import read, save_dict_to_h5
 from matdb.msg import okay, verbosity
 from matdb.utility import (chdir, ParameterGrid, convert_dict_to_str,
-                            import_fqdn, is_uuid4, _set_config_path)
+                            import_fqdn, is_uuid4, _set_config_paths)
 
 class Group(object):
     """Represents a collection of material configurations (varying in
