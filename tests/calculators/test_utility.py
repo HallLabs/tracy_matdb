@@ -33,7 +33,6 @@ def test_set_paths():
     """Tests the setting of the global paths."""
     from matdb.calculators.utility import paths, set_paths
 
-    assert paths == {}
     target = relpath("./tests/AgPd/matdb")
     config = path.expanduser(path.abspath(target))
     if path.isabs(config):
