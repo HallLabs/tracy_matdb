@@ -4,9 +4,11 @@ implement.
 import abc
 import re
 from os import path
+from hashlib import sha1
+
 from matdb.base import abstractstatic
-from matdb.utility import recursive_getattr, recursive_setattr
-from matdb.calculators import paths
+from matdb.utility import recursive_getattr, recursive_setattr, config_specs
+from matdb.calculators.utility import paths
 
 _rxhash = re.compile(r"\b[0-9a-f]{32,40}\b", re.I)
 """Regex object to match SHA1 hashes."""
@@ -28,12 +30,13 @@ class AsyncCalculator(object):
         if "key" in kwargs:
             self.key = kwargs.pop("key")
 
+        namehash = str(sha1(config_specs["name"].encode("ASCII")).hexdigest())
         for pathattr in self.pathattrs:
             attrval = recursive_getattr(kwargs, pathattr)
             #Test to see if this is a hash reference to a globally-stored
             #calculator absolute path.
             if attrval is not None and _rxhash.match(attrval):
-                abspath = paths[self.key][attrval]
+                abspath = paths[namehash][self.key][attrval]
                 #Overwrite the value of the hash with the actual absolute path
                 #to the directory.
                 recursive_setattr(kwargs, pathattr, abspath)
@@ -153,6 +156,7 @@ class SyncCalculator(object):
         if "key" in kwargs:
             self.key = kwargs.pop("key")
 
+        namehash = str(sha1(config_specs["name"].encode("ASCII")).hexdigest())        
         #This duplication with the AsyncCalculator hasn't been sufficient to
         #warrant yet another super class, so we just have it again here.
         for pathattr in self.pathattrs:
@@ -160,7 +164,7 @@ class SyncCalculator(object):
             #Test to see if this is a hash reference to a globally-stored
             #calculator absolute path.
             if attrval is not None and _rxhash.match(attrval):
-                abspath = paths[self.key][attrval]
+                abspath = paths[namehash][self.key][attrval]
                 #Overwrite the value of the hash with the actual absolute path
                 #to the directory.
                 recursive_setattr(kwargs, pathattr, abspath)
