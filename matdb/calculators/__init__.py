@@ -6,7 +6,7 @@ from matdb import msg
 
 try:
     from .quip import SyncQuip as Quip
-except:
+except: #pragma: no cover
     msg.info("Could not import the Quip calculator.")
 
 

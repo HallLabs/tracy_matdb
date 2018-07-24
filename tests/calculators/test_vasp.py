@@ -26,7 +26,6 @@ def globals_setup(new_root):
     configyml["root"] = new_root
 
     set_paths(configyml)
-    
 
 def compare_nested_dicts(dict1,dict2):
     """Compares two dictionaries to see if they are the same.

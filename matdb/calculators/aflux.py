@@ -117,7 +117,7 @@ class AsyncAflow(SyncCalculator):
         Args:
             folder (str): path to the folder in which the executable was run.
         """
-        aflux_dict = {"folder":self.folder.relpace(self.contr_dir,'$control$'),
+        aflux_dict = {"folder":self.folder.replace(self.contr_dir,'$control$'),
                       "ran_seed":self.ran_seed,
                      "contr_dir":'$control$', "kwargs": self.kwargs,
                       "args": self.args}
