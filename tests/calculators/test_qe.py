@@ -10,6 +10,24 @@ from matdb.utility import reporoot, relpath, symlink, touch
 from matdb.calculators import Qe
 from matdb.exceptions import VersionError
 
+def globals_setup(new_root):
+    """Sets up the globals for the calculator instance.
+    """
+    from matdb.io import read
+    from matdb.calculators.utility import paths, set_paths
+
+    target = relpath("./tests/AgPd/matdb_qe")
+    config = path.expanduser(path.abspath(target))
+    if path.isabs(config):
+        root, config = path.split(config)
+    else:
+        root, config = path.dirname(config), config
+        
+    configyml = read(root, config)
+    configyml["root"] = new_root
+
+    set_paths(configyml)
+
 def compare_nested_dicts(dict1,dict2):
     """Compares two dictionaries to see if they are the same.
     """
@@ -221,8 +239,41 @@ def test_extract(tmpdir):
 def test_to_dict(tmpdir):
     """Tests the calculator to_dict method.
     """
+    from matdb.utility import _set_config_paths
 
-    target = str(tmpdir.join("Qe"))     
+    _set_config_paths("AgPd_Enumerated", str(tmpdir))
+    target = str(tmpdir.join("Qe"))        
+    globals_setup(target)
+
+    atm = Atoms("AlPd",positions=[[0, 0, 0],[0.5, 0.5, 0.5]])
+    kwargs = {"potcars": {"directory":"./tests/qe",
+                          "potentials": {"Al": "Al.pbe-n-kjpaw_psl.1.0.0.UPF",
+                                         "Pd": "Pd_ONCV_PBE-1.0.upf"},
+                          "versions": {"Al": ["2.0.1", ".5.1"], "Pd": ["2.0.1", "2.1.1"]}},
+              "kpoints":{"method": "kspacing", "spacing": 0.1, "offset": 1},
+              "input_data": {"control":{"calculation": "relax", "prefix": "test"}}}
+    calc = Qe(atm, '$control$/Qe', '$control$', 0, **kwargs)
+    symlink(path.join(calc.folder,"test.xml"),
+            relpath("tests/qe/complete.xml"))
+    calc.extract(target)
+
+    calc_dict = calc.to_dict()
+
+    kwargs = {"potcars": {"directory":"156def0ed29f1a908d5a7b4eae006c672e7b0ff1",
+                          "potentials": {"Al": "Al.pbe-n-kjpaw_psl.1.0.0.UPF",
+                                         "Pd": "Pd_ONCV_PBE-1.0.upf"},
+                          "versions": {"Al": ["2.0.1", ".5.1"], "Pd": ["2.0.1", "2.1.1"]}},
+              "kpoints":{"method": "kspacing", "spacing": 0.1, "offset": 1},
+              "input_data": {"control":{"calculation": "relax", "prefix": "test"},
+                             'tprnfor': True, 'tstress': True}}
+    out = {"folder":'$control$/Qe', "ran_seed":0, "contr_dir": '$control$',
+           "kwargs": kwargs, "args": (), "version": "6.2 (svn rev. 14038)"}
+    assert compare_nested_dicts(calc_dict,out)
+
+    
+def test_set_static(tmpdir):
+    """Tests the set static method.
+    """
     atm = Atoms("AlPd",positions=[[0, 0, 0],[0.5, 0.5, 0.5]])
     kwargs = {"potcars": {"directory":"~/codes/matdb/tests/qe",
                           "potentials": {"Al": "Al.pbe-n-kjpaw_psl.1.0.0.UPF",
@@ -230,17 +281,26 @@ def test_to_dict(tmpdir):
                           "versions": {"Al": ["2.0.1", ".5.1"], "Pd": ["2.0.1", "2.1.1"]}},
               "kpoints":{"method": "kspacing", "spacing": 0.1, "offset": 1},
               "input_data": {"control":{"calculation": "relax", "prefix": "test"}}}
-    calc = Qe(atm, target, '.', 0, **kwargs)
-    symlink(path.join(calc.folder,"test.xml"),
-            relpath("tests/qe/complete.xml"))
-    calc.extract(target)
+    calc = Qe(atm, '$control$/Qe', '$control$', 0, **kwargs)
+    stat = calc.set_static(kwargs)
+    assert stat["input_data"]["control"]["calculation"] == "scf"
 
-    calc_dict = calc.to_dict()
+    kwargs = {"potcars": {"directory":"~/codes/matdb/tests/qe",
+                          "potentials": {"Al": "Al.pbe-n-kjpaw_psl.1.0.0.UPF",
+                                         "Pd": "Pd_ONCV_PBE-1.0.upf"},
+                          "versions": {"Al": ["2.0.1", ".5.1"], "Pd": ["2.0.1", "2.1.1"]}},
+              "kpoints":{"method": "kspacing", "spacing": 0.1, "offset": 1},
+              "input_data": {}}
+    stat = calc.set_static(kwargs)
+    assert stat["input_data"]["control"]["calculation"] == "scf"
 
-    out = {"folder":target, "ran_seed":0, "contr_dir": '.',
-           "kwargs": kwargs, "args": (), "version": "6.2 (svn rev. 14038)"}
-
-    assert compare_nested_dicts(calc_dict,out)
+    kwargs = {"potcars": {"directory":"~/codes/matdb/tests/qe",
+                          "potentials": {"Al": "Al.pbe-n-kjpaw_psl.1.0.0.UPF",
+                                         "Pd": "Pd_ONCV_PBE-1.0.upf"},
+                          "versions": {"Al": ["2.0.1", ".5.1"], "Pd": ["2.0.1", "2.1.1"]}},
+              "kpoints":{"method": "kspacing", "spacing": 0.1, "offset": 1}}
+    stat = calc.set_static(kwargs)
+    assert stat["input_data"]["control"]["calculation"] == "scf"
 
 def test_read(tmpdir):
     """Tests the read function of the QE calculator.

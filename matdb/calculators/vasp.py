@@ -143,7 +143,7 @@ class AsyncVasp(Vasp, AsyncCalculator):
         if contr_dir == '$control$':
             contr_dir = config_specs["cntr_dir"]
         if path.isdir(contr_dir):
-            self.contr_dir = contr_dir
+            self.contr_dir = path.abspath(path.expanduser(cntr_dir))
         else: #pragma: no cover
             msg.err("{} is not a valid directory.".format(contr_dir))
 

@@ -11,6 +11,7 @@
 from os import path, stat, mkdir, remove, environ, rename, rmdir
 import mmap
 from xml.etree import ElementTree
+from hashlib import sha1
 
 import ase
 from ase.calculators.espresso import Espresso
@@ -21,7 +22,7 @@ from matdb import msg
 from matdb.kpoints import custom as write_kpoints
 from matdb.utility import chdir, execute, relpath, config_specs
 from matdb.exceptions import VersionError
-from matdb.calculators import paths
+from matdb.calculators.utility import paths
         
 class AsyncQe(Espresso, AsyncCalculator):
     """Represents a calculator that can compute material properties with Quantum Espresso,
@@ -57,7 +58,7 @@ class AsyncQe(Espresso, AsyncCalculator):
         if contr_dir == '$control$':
             contr_dir = config_specs["cntr_dir"]
         if path.isdir(contr_dir):
-            self.contr_dir = contr_dir
+            self.contr_dir = path.abspath(path.expanduser(contr_dir))
         else:
             msg.err("{} is not a valid directory.".format(contr_dir))
 
@@ -89,9 +90,6 @@ class AsyncQe(Espresso, AsyncCalculator):
         if "directory" in self.potcars:
             if "." == self.potcars["directory"][0]:
                 pseudo_dir = path.abspath(self.potcars["directory"])
-            elif '$control$' in self.potcars["directory"]:
-                pseudo_dir = self.potcars["directory"].replace('$control$',self.contr_dir)
-                pseudo_dir = path.expanduser(pseudo_dir)
             else:
                 pseudo_dir = path.expanduser(self.potcars["directory"])
             self.potcars["directory"] = pseudo_dir
@@ -359,21 +357,21 @@ class AsyncQe(Espresso, AsyncCalculator):
         Args:
             folder (str): path to the folder in which the executable was run.
         """
-        qe_dict = {"folder":self.folder.relpace(self.contr_dir,'$control$'),
+        qe_dict = {"folder":self.folder.replace(self.contr_dir,'$control$'),
                    "ran_seed":self.ran_seed,
                    "contr_dir":'$control$', "kwargs": self.in_kwargs,
                    "args": self.args, "version": self.version}
-        
+
         if hasattr(self,"potcars"):
             potdict = self.potcars.copy()
             
             name = config_specs["name"]
             namehash = str(sha1(name.encode("ASCII")).hexdigest())
-            for hid, hpath in paths[namehash].items():
+            for hid, hpath in paths[namehash][self.key].items():
                 if potdict["directory"] == hpath:
                     potdict["directory"] = hid
                     break
-            vasp_dict["kwargs"]["potcars"] = potdict
+            qe_dict["kwargs"]["potcars"] = potdict
 
         return qe_dict
 

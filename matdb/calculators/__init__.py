@@ -17,7 +17,7 @@ def get_calc_class(name):
     globs = globals()
     try:
         for k, v in globs.items():
-            if k.lower() == name.lower():
+            if k.lower() == name.lower() and k != name.lower():
                 target = v
                 break
     except KeyError: # pragma: no cover
