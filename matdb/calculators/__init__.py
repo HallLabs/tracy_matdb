@@ -16,8 +16,11 @@ def get_calc_class(name):
     """
     globs = globals()
     try:
-        target = globs[name]
-    except KeyError:
+        for k, v in globs.items():
+            if k.lower() == name.lower():
+                target = v
+                break
+    except KeyError: # pragma: no cover
         msg.err("Cannot import calculator {}. ".format(name) +
                 "Does not exist at package level.")
 
