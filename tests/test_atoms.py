@@ -6,6 +6,25 @@ from os import path, remove, mkdir
 import numpy as np
 import six
 
+def globals_setup(new_root):
+    """Sets up the globals for the calculator instance.
+    """
+    from matdb.io import read
+    from matdb.utility import relpath
+    from matdb.calculators.utility import paths, set_paths
+
+    target = relpath("./tests/AgPd/matdb")
+    config = path.expanduser(path.abspath(target))
+    if path.isabs(config):
+        root, config = path.split(config)
+    else:
+        root, config = path.dirname(config), config
+        
+    configyml = read(root, config)
+    configyml["root"] = new_root
+
+    set_paths(configyml)
+
 def compare_nested_dicts(dict1,dict2):
     """Compares two dictionaries to see if they are the same.
     """
@@ -62,7 +81,11 @@ def test_hdf5(tmpdir):
     """
     from matdb.calculators import Quip
     from matdb.atoms import Atoms
+    from matdb.utility import _set_config_paths
+
+    _set_config_paths("AgPd_Enumerated", str(tmpdir))
     target = str(tmpdir.join("to_hdf5"))
+    globals_setup(target)
     if not path.isdir(target):
         mkdir(target)
 
@@ -83,13 +106,26 @@ def test_hdf5(tmpdir):
     assert atSi.calc.kwargs == atR.calc.kwargs
 
     # check that the other properties got transfered properly.
-    assert atR.sw_energy == atSi.sw_energy
+    assert atR.quip_energy == atSi.quip_energy
     assert isinstance(atR, Atoms)
-    assert np.allclose(atR.sw_force, atSi.sw_force)
-    assert np.allclose(atR.sw_virial, atSi.sw_virial)
+    assert np.allclose(atR.quip_force, atSi.quip_force)
+    assert np.allclose(atR.quip_virial, atSi.quip_virial)
     assert np.allclose(atR.properties["rand"], atSi.properties["rand"])
     assert np.allclose(atR.positions, atSi.positions)
     remove(path.join(target,"temp.h5"))
+
+def test_remote_read(tmpdir):
+    """Tests the reading in of a atoms.h5 file from another directory."""
+    from matdb.atoms import Atoms
+    from matdb.utility import _set_config_paths, reporoot
+    from os import path
+
+    _set_config_paths("AgPd_Enumerated", str(tmpdir))
+    target = str(tmpdir.join("to_hdf5"))
+    globals_setup(target)
+    at = Atoms()
+    at.read(target=path.join(reporoot, "tests", "files", "test.h5"))
+    assert isinstance(at, Atoms)
 
 def test_Atoms_creation(tmpdir):
     """Tests the initialization of the atoms objcet.
@@ -117,7 +153,10 @@ def test_Atoms_creation(tmpdir):
     assert hasattr(atR,'cutoff')
     assert hasattr(atR,'cutoff_break')
     
+    from matdb.utility import _set_config_paths
+    _set_config_paths("AgPd_Enumerated", str(tmpdir))
     target = str(tmpdir.join("make_atoms"))
+    globals_setup(target)
     if not path.isdir(target):
         mkdir(target)
     atSi = Atoms("Si8",positions=[[0,0,0],[0.25,0.25,0.25],[0.5,0.5,0],[0.75,0.75,0.25],
@@ -149,8 +188,12 @@ def test_AtomsList_creation(tmpdir):
     """
     from matdb.calculators import Quip
     from matdb.atoms import Atoms, AtomsList
+    from matdb.utility import _set_config_paths
 
+    _set_config_paths("AgPd_Enumerated", str(tmpdir))
     target = str(tmpdir.join("make_AtomsList"))
+    globals_setup(target)
+
     if not path.isdir(target):
         mkdir(target)
 
@@ -331,7 +374,11 @@ def test_ase_atoms_conversion(tmpdir):
     from matdb.calculators import Quip
     from matdb.atoms import Atoms as matAtoms
     from ase.atoms import Atoms
+    from matdb.utility import _set_config_paths
+
+    _set_config_paths("AgPd_Enumerated", str(tmpdir))
     target = str(tmpdir.join("from_ase"))
+    globals_setup(target)
     if not path.isdir(target):
         mkdir(target)
 
@@ -358,8 +405,12 @@ def test_to_dict(tmpdir):
     
     from matdb.calculators import Vasp
     from matdb.atoms import Atoms as Atoms
+    from matdb.utility import _set_config_paths
 
+    _set_config_paths("AgPd_Enumerated", str(tmpdir))
     target = str(tmpdir.join("atoms_dict"))
+    globals_setup(target)
+
     if not path.isdir(target):
         mkdir(target)
 
@@ -390,8 +441,12 @@ def test_read_atoms(tmpdir):
     
     from matdb.calculators import Vasp
     from matdb.atoms import Atoms as Atoms
+    from matdb.utility import _set_config_paths
 
+    _set_config_paths("AgPd_Enumerated", str(tmpdir))
     target = str(tmpdir.join("read_atoms"))
+    globals_setup(target)
+
     if not path.isdir(target):
         mkdir(target)
 
@@ -426,8 +481,12 @@ def test_reading_multiple_files(tmpdir):
     from matdb.atoms import Atoms as Atoms, AtomsList
     from matdb.io import save_dict_to_h5
     import h5py
+    from matdb.utility import _set_config_paths
 
+    _set_config_paths("AgPd_Enumerated", str(tmpdir))
     target = str(tmpdir.join("read_atoms2"))
+    globals_setup(target)
+
     if not path.isdir(target):
         mkdir(target)
 
