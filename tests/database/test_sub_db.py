@@ -113,7 +113,7 @@ def test_AgCu_setup(AgCu):
         'substitution'].steps['Substitution']
     assert len(sub.index) == 15
     assert len(sub.suids) == 15
-    assert sub.ready()
+    assert not sub.ready()
 
     src = relpath(
         "./tests/data/Pd/complete/OUTCAR__DynMatrix_phonon_Pd_dim-2.00")
@@ -129,8 +129,7 @@ def test_AgCu_setup(AgCu):
         dest = path.join(dbfolder, "S.{}".format(j), "CONTCAR")
         symlink(src, dest)
 
-    assert len(sub.atoms_paths()) == 15
-    assert len(sub.rset()) == 15
+    assert len(sub.atoms_paths()) == 0
 
 
 def test_functions(AgCu):

@@ -1,0 +1,86 @@
+# Accepts any non empty string. Tab completes to current title.
+title: 'Database Title'
+# Accepts a list a elements. Tab comlpetes to list of available elements or current elements specified.
+species:
+  - 'ele1'
+  - 'ele2'
+  - 'ele3'
+# Director path from matdb homedir. Tab completes available directories only.
+root: './mydir'
+# Virtual environmont. Tab completes a list of available envs in .virtualenvs/
+venv: ''
+
+# Global calculator context.
+calculator:
+  # Name of the calculator type, tab completes a list of available calculators.
+  name: 'Calc_Type'
+  arg1: 'something' # From a list of available choices. (CHOICE)
+  arg2: 'num' # Float or Int from a specified range of value. (RANGE)
+  arg2: # multiple arguments (MULT, DICT)
+    sub_arg1: '' (CHOICE)
+    sub_arg2: '' (RANGE)
+  arg3: #multiple arguments list, (MULT, LIST)
+    - '' (CHOICE)
+    - '' (RANGE)
+  arg4: './some_dir/some_file' (PATH TO FILE)
+  arg5: './some_dir/sub_dir' (PATH TO DIRECTORY)
+
+#Global execution parameters.
+execution:
+  arg1: '' (RANGE, CHOICE, PATH_to_Dir, PATH_to_File, MULT_list, MULT_Dict)
+  .
+  .
+  .
+
+plotting:
+  # Plot type from list of available in ./plotting/
+  name: ""
+  arg1: '' (RANGE, CHOICE, PATH_to_Dir, PATH_to_File, MULT_list, MULT_Dict)
+  dbs: * or list
+
+fitting:
+  dbs: * or list
+  execution:
+    arg1: '' (any type)
+    .
+    .
+    .
+
+#global database context
+database:
+  - Name: 'Name1'
+    calculator:
+      .
+      .
+      .
+    execution:
+      .
+      .
+      .
+    Steps:
+      - type: 'group.Group'
+      	calculator:
+          .
+	  .
+	  .
+	execution:
+	  .
+	  .
+	  .
+        arg1:
+	  sub_arg1: '' (RANGE, CHOICE, PATH_to_File, PATH_to_Dir)
+	  sub_arg2: '' "
+	arg2:
+	  - ''
+	  - ''
+	arg3:
+      - type: 'group.Group'
+        .
+	.
+	.
+  - Name: 'Name2'
+      .
+      .
+      .
+
+analysis:

@@ -4,6 +4,7 @@ import pytest
 from matdb.utility import relpath
 from os import mkdir, path, symlink, remove
 
+
 @pytest.fixture()
 def AlTi(tmpdir):
     """Test the functionality of the vacancy group for a small seed
@@ -86,7 +87,7 @@ def test_AlTi_setup(AlTi):
         'vacancy'].steps['Vacancy']
     assert len(vac.index) == 50
     assert len(vac.vuids) == 50
-    assert vac.ready()
+    assert not vac.ready()
 
     # We need to fake some VASP output so that we can cleanup the
     # database and get the rset
@@ -105,5 +106,4 @@ def test_AlTi_setup(AlTi):
         dest = path.join(dbfolder, "V.{}".format(j), "CONTCAR")
         symlink(src, dest)
 
-    assert len(vac.atoms_paths()) == 50
-    assert len(vac.rset()) == 50
+    assert len(vac.atoms_paths()) == 0

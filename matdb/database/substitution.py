@@ -11,6 +11,7 @@ from matdb import msg
 from matdb.atoms import AtomsList, Atoms
 from matdb.database import Group
 
+
 class Substitution(Group):
     """Substitution.py: A Group to create substitutions in the stoichiometry from
     a seed configuration.
@@ -18,7 +19,7 @@ class Substitution(Group):
     Args:
         name(str): Default name Substitution
         stoich (list of lists): each list contains the decimal concentration
-             of each element in the system where followed by decimal fraction
+             of each element in the system followed by the decimal fraction
              of the number of configs which follow this stoichiometry.
              The decimal concentration in each list as well as the decimal
              fraction of nconfigs across all lists must sum to 1.
@@ -94,14 +95,9 @@ class Substitution(Group):
         """Returns a :class:`matdb.atoms.AtomsList` for all configs in this
         group.
         """
-        if len(self.sequence) == 0:
-            return len(self.atoms_paths()) == self.nconfigs
-        else:
-            result = []
-            for g in self.sequence.values():
-                result.extend(g.fitting_configs)
-            return result
+        return self.rset
 
+    @property
     def rset(self):
         """Returns a :class:`matdb.atoms.AtomsList`, one for each config in the
         latest result set.
@@ -111,12 +107,12 @@ class Substitution(Group):
             # bottom of the stack
             result = AtomsList()
             for epath in self.atoms_paths():
-                result.append(Atoms(path.join(epath, 'pre_comp_atoms.h5')))
+                result.append(Atoms(path.join(epath, 'atoms.h5')))
             return result
         else:
-            result = []
+            result = AtomsList()
             for e in self.sequence.values():
-                result.extend(e.rset())
+                result.extend(e.rset)
             return result
 
     def ready(self):
@@ -146,7 +142,7 @@ class Substitution(Group):
         result = []
         for suid in self.suids:
             folder = self.index[suid]
-            target = path.join(folder, "pre_comp_atoms.h5")
+            target = path.join(folder, "atoms.h5")
             if path.isfile(target):
                 result.append(folder)
         return result
