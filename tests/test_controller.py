@@ -187,10 +187,11 @@ def dynPd(Pd):
 #     band_plot(dbs, **args)
 #     assert path.isfile(target)
 
-#@pytest.mark.skip()
+@pytest.mark.skip()
 def test_Pd_setup(Pd, Pd_copy):
     """Makes sure the initial folders were setup according to the spec.
     """
+    raise Exception("RAWR")
     Pd.setup()
     modelroot = path.join(Pd.root, "Manual","phonon","Pd")
     assert Pd["Manual/phonon/Pd/"].root == modelroot
@@ -220,7 +221,7 @@ def test_Pd_setup(Pd, Pd_copy):
     dbfolder = path.join(Pd_copy.root, db)
     compare_tree(dbfolder, folders)
 
-#@pytest.mark.skip()
+@pytest.mark.skip()
 def test_steps(Pd):
     """Tests compilation of all steps in the database.
     """
@@ -231,7 +232,8 @@ def test_steps(Pd):
     
     seqs = sorted(['Pd'])
     assert Pd.sequences() == seqs
-#@pytest.mark.skip()
+
+@pytest.mark.skip()
 def test_find(Pd):
     """Tests the find function and the __getitem__ method with pattern matching.
     """
@@ -296,7 +298,7 @@ def test_find(Pd):
     print group
     assert group == None
 
-#@pytest.mark.skip()
+@pytest.mark.skip()
 def test_execute(Pd, capsys):
     """Tests the execute and extract methods 
     """
@@ -350,7 +352,7 @@ def test_execute(Pd, capsys):
     # Run extract again to make sure the atoms.h5 files are no rewritten
     Pd.extract()
 
-#@pytest.mark.skip()
+@pytest.mark.skip()
 def test_recovery(Pd):
     """Tests the rerun on unfinshed jobs
     """
@@ -384,7 +386,7 @@ def test_recovery(Pd):
     assert not path.isfile(path.join(Pd.root,"Manual","phonon","Pd","recovery.sh"))
     assert not path.isfile(path.join(Pd.root,"Manual","phonon","Pd","failures"))
 
-#@pytest.mark.skip()
+@pytest.mark.skip()
 def test_hash(Pd,Pd_2):
     """Tests the hash_dbs and verify_hash methods
     """
@@ -402,7 +404,7 @@ def test_hash(Pd,Pd_2):
     _mimic_vasp(folder,Pd_2.root,"S1.1")
     assert Pd_2.hash_dbs != db_hash
 
-#@pytest.mark.skip()
+@pytest.mark.skip()
 def test_finalize(Pd):
     """ Test the finalize function in the controller module
     """
@@ -429,6 +431,7 @@ def test_finalize(Pd):
         loaded_final = load_dict_from_h5(hf)
     assert path.isfile(target)
 
+@pytest.mark.skip()
 def test_split(Pd_split):
     """ Test the split function in the controller object
     """
@@ -455,7 +458,7 @@ def test_split(Pd_split):
             assert len(hal) == int(np.ceil((5-len(tal))*p))
             assert len(sal) == 5-len(tal)-len(hal)
     
-@pytest.mark.skip()    
+@pytest.mark.skip()
 def test_Pd_hessian(Pd):
     """Tests the `niterations` functionality and some of the standard
     methods of the class on simple Pd.
