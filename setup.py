@@ -59,7 +59,16 @@ setup(name='matdb',
                'support/matdb_module.py',
                'support/matdb_mlp.py',
                'support/matdb_getkpoints.py'],
-      package_data={'matdb': []},
+      package_dir={
+          'matdb': 'matdb'
+      },
+      package_data={
+          'matdb': [
+              'matdb/templates/*',
+              'matdb/templates/uniqueBinaries/*',
+              'matdb/templates/uniqueTernaries/*',
+              'matdb/templates/uniqueUnaries/*',
+      ]},
       include_package_data=True,
       classifiers=[
           'Development Status :: 4 - Beta',
