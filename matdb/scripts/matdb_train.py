@@ -1,4 +1,4 @@
- #!/usr/bin/python
+#!/usr/bin/python
 def examples():
     """Prints examples of using the script to the console using colored output.
     """

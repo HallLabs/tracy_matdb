@@ -1,4 +1,4 @@
- #!/usr/bin/python
+#!/usr/bin/python
 from os import path, mkdir
 import matplotlib
 def examples():

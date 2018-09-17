@@ -1,4 +1,4 @@
- #!/usr/bin/python
+#!/usr/bin/python
 from os import path, remove
 import h5py
 import numpy as np
