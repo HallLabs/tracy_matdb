@@ -25,13 +25,13 @@ calculator:
   potcars:
     directory: '/home/tracy/pslibrary/pz/PSEUDOPOTENTIALS/'
     potentials:
-      Co: ''
-      W: ''
-      V: ''
+      Co: 'Co.pz-spn-rrkjus_psl.1.0.0.UPF'
+      W: 'W.pz-spn-rrkjus_psl.1.0.0.UPF'
+      V: 'V.pz-spnl-rrkjus_psl.1.0.0.UPF'
     versions:
-      Co: ''
-      W: ''
-      V: ''
+      Co: '1.0.0'
+      W: '1.0.0'
+      V: '1.0.0'
 
      
 # Parameters for the job arrays that will be submitted for each

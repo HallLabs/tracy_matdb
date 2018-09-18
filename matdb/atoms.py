@@ -495,8 +495,8 @@ class Atoms(ase.Atoms):
                 data["calc_version"] = calc_dict["version"] 
             if hasattr(self.calc,"args"):
                 data["calc_args"] = self.calc.args
-            if hasattr(self.calc,"kwargs"):
-                data["calc_kwargs"] = _recursively_convert_units(self.calc.kwargs)
+            if "kwargs" in calc_dict:
+                data["calc_kwargs"] = _recursively_convert_units(calc_dict["kwargs"])
             if hasattr(self.calc,"folder"):
                 data["folder"] = self.calc.folder
             if hasattr(self.calc,"ran_seed"):

@@ -1,6 +1,7 @@
 from .vasp import AsyncVasp as Vasp
 from .aflux import AsyncAflow as Aflow
 from .qe import AsyncQe as Qe
+from .qe import AsyncQe as asyncqe
 from .tracy import Tracy_QE as TracyQE
 from matdb import msg
 from matdb.utility import chdir
