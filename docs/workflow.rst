@@ -14,13 +14,8 @@ The workflow for `matdb` typically follows these steps:
    are setup correctly.
 3. Run `matdb_build.py matdb.yaml -x` to queue the jobs with the job
    scheduler.
-4. Run `matdb_build.py matdb.yaml -c` to cleanup the VASP calculations
-   and extract the relevant parameters for the next round of
-   calculations.
+4. Run `matdb_build.py matdb.yaml -e` to extract the relevant
+   parameters for the next round of calculations.
 
 These steps are repeated until all databases have been calculated and
-cleaned up. For example, after running this the first time, the
-`PhononDFT` calculations will be finished and cleaned up. These are
-needed by `PhononDatabase` to created modulated configurations, so we
-run all four steps again. This can be repeated until the database is
-ready.
+cleaned up. 
