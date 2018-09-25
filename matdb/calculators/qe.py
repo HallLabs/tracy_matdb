@@ -67,7 +67,7 @@ class AsyncQe(Espresso, AsyncCalculator):
         if self.kpoints["method"] == "mueller":
             raise NotImplementedError("The Mueller server does not support QE at this time.")
         elif self.kpoints["method"] == "MP":
-            kpts = self.kpoints["divisions"]
+            kpts = tuple(self.kpoints["divisions"].split(" "))
             kspacing = None
         elif self.kpoints["method"] == "kspacing":
             kpts = None
@@ -265,7 +265,7 @@ class AsyncQe(Espresso, AsyncCalculator):
         """
         self.write_input(self.atoms)
 
-    def extract(self, folder, cleanup="default"):
+    def extract(self, folder, cleanup="default", asis=False):
         """Extracts results from completed calculations and sets them on the
         :class:`ase.Atoms` object.
 
@@ -295,6 +295,8 @@ class AsyncQe(Espresso, AsyncCalculator):
             self.atoms.add_param(self.energy_name, E)
 
         self.cleanup(folder,clean_level=cleanup)
+
+        return True
 
     @staticmethod
     def set_static(input_dict):

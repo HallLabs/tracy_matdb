@@ -89,7 +89,7 @@ class AsyncCalculator(object):
         pass
 
     @abc.abstractmethod
-    def extract(self, folder):
+    def extract(self, folder, cleanup="default", asis=False):
         """Extracts results from completed calculations and sets them on the
         :class:`ase.Atoms` object.
 

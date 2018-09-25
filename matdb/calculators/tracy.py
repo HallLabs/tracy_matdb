@@ -321,7 +321,7 @@ class Tracy_QE(Tracy, Qe):
         sub_ready = path.isfile(path.join(folder,"submission.json"))
         return qe_ready and sub_ready
 
-    def extract(self, folder):
+    def extract(self, folder, cleanup="default", asis=False):
         """Extracts the results from the returned data package.
         """
         # Waiting on Andrew for this part

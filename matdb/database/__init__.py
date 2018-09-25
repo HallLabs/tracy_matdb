@@ -569,7 +569,10 @@ class Group(object):
             # We must have what we need to execute. Compile the command and
             # submit.
             from matdb.utility import execute
-            cargs = ["sbatch", jobfile]
+            command = 'bash'  # use 'bash' by default
+            if 'command' in self.database.execution:
+                command = self.database.execution['command']
+            cargs = [command, jobfile]
             if dryrun:
                 from matdb.msg import okay
                 okay("Executed {} in {}".format(' '.join(cargs), self.root))
