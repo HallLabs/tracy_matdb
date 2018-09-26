@@ -31,8 +31,8 @@ top-level of the YAML file:
    ways for training and validation tests.
 
 The follow examples will assume the use of the VASP calculator,
-examples of how to configure the other calculators are provided in the
-:doc:`calculators` section:
+examples of how to configure the other calculators are provided in
+:doc:`calculator`.
    
 `species` Option
 ----------------
@@ -56,8 +56,8 @@ Default parameters for `ase` calculator can be specified using
 would have in the relavent input file and accept values as
 expected. The exceptions are the kpoints and the potentials sections
 for which individual documentation from each calculator should be
-consulted. Supported calculators are: :doc:`calculators/VASP` and
-:doc:`calculators/QE`. The following is an example using the `VASP`
+consulted. Supported calculators are: :doc:`calculators/vasp` and
+:doc:`calculators/qe`. The following is an example using the `VASP`
 calculator:
 
 .. code-block:: yaml
@@ -92,8 +92,9 @@ calculator:
   used. Additionally the versions of the POTCARS must be supplied to
   ensure consistency in the potential and scientific reproducibility.
   
-.. note:: These parameters can be overridden by any of the database
-   specifications recorded later in the YAML file.
+.. note:: These parameters can be overridden by a `calculator` section
+   in any of the database specifications recorded later in the YAML
+   file.
 
 `execution` Option
 ------------------
@@ -113,17 +114,19 @@ is universal to all the `execution` methods is:
 
 The following example is for `sbatch`:
 
-execution:
-  template: 'run_array_ml.sh'
-  time: 4
-  ntasks: 1
-  nodes: 1
-  mem_per_cpu: 4
-  job_name: 'AgPd DB'
-  partition: 'physics'
-  array_limit: 50
-  modules_load: ['mkl/11.2.0']
-  exec_path: 'vasp'
+.. code-block:: yaml
+
+   execution:
+     template: 'run_array_ml.sh'
+     time: 4
+     ntasks: 1
+     nodes: 1
+     mem_per_cpu: 4
+     job_name: 'AgPd DB'
+     partition: 'physics'
+     array_limit: 50
+     modules_load: ['mkl/11.2.0']
+     exec_path: 'vasp'
 
 ..
    Since database generation involves many calculations, the files are

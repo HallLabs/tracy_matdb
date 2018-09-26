@@ -22,6 +22,7 @@ to loosely as a "Group" and `matdb` supports multiple group types:
    database/enumerated.rst
    database/aflow.rst
    database/active.rst
-   database/distribution.rst
-   database/substitution.rst
-   database/vacancy.rst
+   ..
+      database/distribution.rst
+      database/substitution.rst
+      database/vacancy.rst

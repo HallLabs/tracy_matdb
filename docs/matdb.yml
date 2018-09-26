@@ -48,12 +48,13 @@ databases:
           kpoints:
             method: 'mueller'
             mindistance: 30
-          versions:
-            Ag: '02Apr2005'
-            Pd: '28Jan2005'
-          setups:
-            Ag: '_pv'
-            Pd: '_pv'
+          potcars:
+            versions:
+              Ag: '02Apr2005'
+              Pd: '28Jan2005'
+            setups:
+              Ag: '_pv'
+              Pd: '_pv'
 
 calculator:
   name: Vasp

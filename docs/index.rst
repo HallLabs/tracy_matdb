@@ -14,17 +14,27 @@ following links document the internal API and give some examples.
 
 .. toctree::
    :maxdepth: 1
-   :caption: Sub-packages and Modules:
-
-   workflow.rst
+   :caption: Input files and high-level control:
+	     
    matdbyml.rst
+   workflow.rst
+
+.. toctree::
+   :maxdepth: 1
+   :caption: Control Scripts:
+	     
    scripts.rst
+
+.. toctree::
+   :maxdepth: 1
+   :caption: Sub-packages, Modules, and other details:
+
    databases.rst
    fitting.rst
    kpoints.rst
-   phonons.rst
    io.rst
    utility.rst
+   calculator.rst
 
 
 Indices and tables
