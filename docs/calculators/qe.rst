@@ -11,7 +11,14 @@ fields for this calculator are `input_data`, `kpoints`, and
 written into the QE controll file and needs to be broken up into
 subfields `control`, `system`, `electrons`, `ions`, `cell`
 `atomic_species`, `constraints`, `occupations`, `atomic_forces`. Valid
-entries within these subfields can be found in the QE `manual`_.
+entries within these subfields can be found in the QE `manual`_. The
+QE `input_data` section will also take the `tprnfor` and `tstress`
+fields, these two fields are optional and control wether or not QE
+calculates forces and stresses respectively. By default these values
+are set to `True`, however if you are not constructing a database that
+will be used to train an interatomic potential and do not want the
+forces and stresses calculated you may use these fields to disable
+those calculations.
 
 .. note:: The `cell_parameters`, `k_points`, and `atomic_positions`
           fields mentioned in the QE `manual`_ are not used because
