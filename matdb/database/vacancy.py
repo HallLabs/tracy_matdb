@@ -1,14 +1,15 @@
 '''Group of matdb.atoms.Atoms objects with atomic vacancies
 taken from a seed configuration.
 '''
-from matdb.atoms import Atoms, AtomsList
-from matdb.database import Group  # create the vacancies group
-from matdb import msg
 from os import path, mkdir
-import numpy as np  # for use with arrays and random
-from scipy.special import comb as choose  # find number of unique combinations
 from itertools import islice, combinations, groupby
 
+import numpy as np  # for use with arrays and random
+from scipy.special import comb as choose  # find number of unique combinations
+
+from matdb import msg
+from matdb.atoms import Atoms, AtomsList
+from matdb.database import Group  # create the vacancies group
 
 class Vacancy(Group):
     '''Vacancy.py: Group to create atomic vacancies from a seed configuration.

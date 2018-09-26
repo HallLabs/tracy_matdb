@@ -1,10 +1,12 @@
 """Class for generating MD runs that can be subsampled to generate
 databases of configurations.
 """
-from matdb.database import Group
-from matdb import msg
 from os import path
+
 import numpy as np
+
+from matdb import msg
+from matdb.database import Group
 
 class DynamicsGroup(Group):
     """Represents a molecular dynamics run created at a specific
@@ -47,30 +49,30 @@ class DynamicsGroup(Group):
         self.tstart = tstart
         self.tend = tend
         self.supercell = supercell
-        
+
         if supercell is None:
             self.seed = self.atoms.copy()
         else:
             from quippy.structures import supercell as scell
             self.seed = scell(self.atoms, *supercell)
-            
+
         self._update_incar()
         self._update_kpoints()
-        
+
     def _update_incar(self):
         """Adds the usual settings for the INCAR file when performing
         MD calculations. They are only added if they weren't already
         specified in the config file.
         """
         usuals = {
-            "maxmix": 40, # reuse mixer from one MD step to next          
-            "ncore": 4,   # one orbital on 4 cores                        
+            "maxmix": 40, # reuse mixer from one MD step to next
+            "ncore": 4,   # one orbital on 4 cores
             "nelmin": 4,  # minimum 4 steps per time step, avoid breaking after 2 steps
             "ibrion": 0,
             "nwrite": 0,
             "lcharg": False,
             # canonic (Nose) MD with XDATCAR updated every N steps
-            "nblock": self.samplerate, 
+            "nblock": self.samplerate,
             "smass": 3,
             "potim": 1.,
             "nsw": self.nsteps*self.samplerate
@@ -83,7 +85,7 @@ class DynamicsGroup(Group):
         #particular configuration.
         self.incar["TEBEG"] = self.tstart
         self.incar["TEEND"] = self.tend
-                
+
     def _update_kpoints(self):
         """Adds the custom k-points settings (i.e., gamma point only) needed for
         MD.
@@ -94,7 +96,7 @@ class DynamicsGroup(Group):
         for k, v in usuals.items():
             if k not in self.kpoints:
                 self.kpoints[k] = v
-                
+
     def _xdatcar_ok(self):
         """Determines if the MD run is finished calculating by testing the
         existence of the XDATCAR files with correct number of lines.
@@ -122,7 +124,7 @@ class DynamicsGroup(Group):
         POSCARs.
         """
         return path.join(self.root, "subsamples.dat")
-    
+
     def _parse_md(self, target):
         """Extracts every frame from XDATCAR that is a multiple of `N` and
         constructs a POSCAR for it.
@@ -141,7 +143,7 @@ class DynamicsGroup(Group):
 
         from tqdm import tqdm
         pbar = tqdm(total=self.nsteps)
-        
+
         try:
             with open(path.join(target, "XDATCAR")) as f:
                 for line in f:
@@ -164,7 +166,7 @@ class DynamicsGroup(Group):
                             NL = int(vals[2])
                         else:
                             NL = int(vals[1].split('=')[-1])
-                                     
+
                         #Write the POSCAR for this frame.
                         if current is not None:
                             NC = eval(current[0].split()[-1])
@@ -173,9 +175,9 @@ class DynamicsGroup(Group):
                                 f.write('\n'.join(current))
                             writes.append(outfile + '\n')
                             pbar.update(1)
-                            
+
                             if len(current) != Natoms + 7:
-                                emsg = "ERROR: MD {} has {} lines." 
+                                emsg = "ERROR: MD {} has {} lines."
                                 msg.err(emsg.format(NC, len(current)))
 
                         if NL % self.samplerate == 0:
@@ -184,10 +186,10 @@ class DynamicsGroup(Group):
                             current.append("Direct")
                         else:
                             current = None
-                            
+
                     elif current is not None:
                         current.append(line.strip())
-                
+
             #Handle the last frame in the set.
             if current is not None:
                 NC = eval(current[0].split()[-1])
@@ -197,11 +199,11 @@ class DynamicsGroup(Group):
                 writes.append(outfile + '\n')
                 pbar.update(1)
                 if len(current) != Natoms + 7:
-                    emsg = "ERROR: MD {} has {} lines." 
+                    emsg = "ERROR: MD {} has {} lines."
                     msg.err(emsg.format(NC, len(current)))
         finally:
             pbar.close()
-            
+
         return writes
 
     def ready(self):
@@ -210,7 +212,7 @@ class DynamicsGroup(Group):
         """
         from matdb.utility import linecount
         return linecount(self.subsamples) == self.nsteps * (len(self.strains))
-    
+
     def extract(self, cleanup="default"):
         """Parses the XDATCAR files to create a list of configurations
         that can be run using high-accuracy DFT.
@@ -235,15 +237,15 @@ class DynamicsGroup(Group):
         #Write the list of sub-sample file paths to disk.
         with open(self.subsamples, 'w') as f:
             f.writelines(subsamples)
-            
+
         return len(subsamples) > 0
-    
+
     def setup(self, rerun=False):
         """Sets up the initial MD run.
 
         Args:
             rerun (bool): when True, recreate the folders even if they
-              already exist. 
+              already exist.
         """
         folders_ok = super(DynamicsGroup, self).setup()
         if folders_ok and not rerun:
@@ -258,7 +260,7 @@ class DynamicsGroup(Group):
                 if strain == 0:
                     self.create(self.seed, sort=True)
                     continue
-                    
+
                 #Strain the base cell for the MD run. Make sure we copy the
                 #atoms first so that we don't mess up pointer references.
                 datoms = self.seed.copy()

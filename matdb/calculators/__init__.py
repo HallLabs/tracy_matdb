@@ -4,7 +4,6 @@ from .qe import AsyncQe as Qe
 from .tracy import Tracy_QE as TracyQE
 from matdb import msg
 from matdb.utility import chdir
-
 try:
     from .quip import SyncQuip as Quip
 except:
@@ -37,7 +36,7 @@ def build_calc(name, relpath, *args, **kwargs):
         ran_seed (int): random seed used to initialized the calculator.
 
     Raises:
-    
+
     ValueError: if the `name` is not a folder-independent interatomic potential.
     """
     globs = globals()
@@ -48,6 +47,7 @@ def build_calc(name, relpath, *args, **kwargs):
                 "Does not exist at package level.")
 
     from matdb.atoms import Atoms
+
     atoms = Atoms()
     if relpath is not None:
         with chdir(relpath):
@@ -55,7 +55,7 @@ def build_calc(name, relpath, *args, **kwargs):
     else:
         result = target(atoms, '.', '.', 0, *args, **kwargs)
     return result
-    
+
 def get_calculator_module(calcargs):
     """Returns the module corresponding to the calculator mentioned in
     `calcargs`.
@@ -68,7 +68,7 @@ def get_calculator_module(calcargs):
     from inspect import getmodule
     cls = getattr(calculators, calcargs["name"])
     mod = None
-    
+
     try:
         mod = getmodule(cls)
     except: #pragma: no cover
