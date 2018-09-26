@@ -1,13 +1,16 @@
 """Implements a `matdb` compatible subclass of the
-:class:`ase.calculators.vasp.Vasp` calculator.
-.. note:: Because this calculator is intended to be run asynchronously as part
-  of `matdb` framework, it does *not* include a method to actually execute the
-  calculation. Although the ASE calculator provides an interface to do so,
-  `matdb` uses templates to access HPC resources.
-.. warning:: Because of the underlying implementation in ASE, you must use a separate
-  instance of the :class:`AsyncVasp` for each :class:`ase.Atoms` object that you
-  want to calculate for.
+:class:`ase.calculators.vasp.Vasp` calculator.  
+
+.. note:: Because this calculator is intended to be run asynchronously
+  as part of `matdb` framework, it does *not* include a method to
+  actually execute the calculation. Although the ASE calculator provides
+  an interface to do so, `matdb` uses templates to access HPC resources.
+
+.. warning:: Because of the underlying implementation in ASE, you must
+  use a separate instance of the :class:`AsyncVasp` for each
+  :class:`ase.Atoms` object that you want to calculate for.
 """
+
 import ase
 from ase.calculators.vasp import Vasp
 from os import path, stat, mkdir, remove, environ, rename
@@ -21,15 +24,18 @@ import re
 from matdb.exceptions import VersionError, SpeciesError
 
 def phonon_defaults(d, dfpt=False):
-    """Adds the usual settings for the INCAR file when performing frozen-phonon
-    calculations to `d`. They are only added if they weren't already specified
-    in the config file.
+    """Adds the usual settings for the INCAR file when performing
+    frozen-phonon calculations to `d`. They are only added if they
+    weren't already specified in the config file.      
+
     .. warning:: This method mutates `d`.
+
     Args:
         d (dict): "calculator" dictionary to updated arguments for.
         dfpt (bool): when True, perform a DFT perturbation theory calculation to
           extract the force constants; otherwise, do frozen phonons.
     """
+    
     assert d["name"] == "Vasp"
     usuals = {
         "encut": 500,
@@ -52,16 +58,19 @@ def phonon_defaults(d, dfpt=False):
             d[k] = v
 
 def extract_force_sets(configs, phonodir):
-    """Extracts the force sets from a set of VASP frozen phonon calculations
-    using `phonopy`.
-    .. note:: This method uses `phonopy` to create the `FORCE_SETS` file; it
-      does not actually return the force sets.
+    """Extracts the force sets from a set of VASP frozen phonon
+    calculations using `phonopy`.  
+
+    .. note:: This method uses `phonopy` to create the `FORCE_SETS`
+      file; it does not actually return the force sets.
+
     Args:
         configs (dict): keys are config `id`; values are full paths to the
           folders where the configs were calculated.
         phonodir (str): full path to the `phonopy` directory for the set of
           calculations in `configs`.
     """
+    
     #First, make sure we have `vasprun.xml` files in each of the
     #directories.
     vaspruns = []
@@ -81,16 +90,20 @@ def extract_force_sets(configs, phonodir):
     return xres
 
 def extract_force_constants(configs, phonodir):
-    """Extracts the force constants matrix from a single VASP DFPT calculation
-    with support from `phonopy`.
-    .. note:: This method uses `phonopy` to create the `FORCE_CONSTANTS` file;
-      it does not actually return the force constants matrix.
+    """Extracts the force constants matrix from a single VASP DFPT
+    calculation with support from `phonopy`.  
+
+    .. note:: This method uses `phonopy` to create the
+      `FORCE_CONSTANTS` file; it does not actually return the force
+      constants matrix.
+
     Args:
         configs (dict): keys are config `id`; values are full paths to the
           folders where the configs were calculated.
         phonodir (str): full path to the `phonopy` directory for the set of
           calculations in `configs`.
     """
+    
     #There will only be a single config folder if we are running with
     #DFPT, since the displacements take place internally.
     vaspruns = []
@@ -109,11 +122,14 @@ def extract_force_constants(configs, phonodir):
     return xres
         
 class AsyncVasp(Vasp, AsyncCalculator):
-    """Represents a calculator that can compute material properties with VASP,
-    but which can do so asynchronously.
-    .. note:: The arguments and keywords for this object are identical to the
-      :class:`~ase.calculators.vasp.Vasp` calculator that ships with ASE. We
-      add some extra functions so that it plays nicely with `matdb`.
+    """Represents a calculator that can compute material properties with
+    VASP, but which can do so asynchronously.  
+
+    .. note:: The arguments and keywords for this object are identical
+      to the :class:`~ase.calculators.vasp.Vasp` calculator that ships
+      with ASE. We add some extra functions so that it plays nicely with
+      `matdb`.
+
     Args:
         atoms (matdb.Atoms): configuration to calculate using VASP.
         folder (str): path to the directory where the calculation should take
@@ -127,6 +143,7 @@ class AsyncVasp(Vasp, AsyncCalculator):
         folder (str): path to the directory where the calculation should take
           place.
     """
+    
     key = "vasp"
     tarball = ["vasprun.xml"]
 
@@ -174,7 +191,8 @@ class AsyncVasp(Vasp, AsyncCalculator):
         if not path.isdir(self.folder):
             mkdir(self.folder)
 
-        self.input_params["setups"] = self.potcars["setups"]
+        if "setups" in self.potcars:
+            self.input_params["setups"] = self.potcars["setups"]
             
         self.atoms = atoms
         pot_args = self.potcars.copy()
@@ -333,10 +351,12 @@ class AsyncVasp(Vasp, AsyncCalculator):
 
     def create(self, rewrite=False):
         """Creates all necessary input files for the VASP calculation.
+
         Args:
             rewrite (bool): when True, overwrite any existing files with the
               latest settings.
         """
+        
         self.write_input(self.atoms, self.folder)
 
     @staticmethod
