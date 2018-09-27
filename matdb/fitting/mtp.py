@@ -662,13 +662,14 @@ class MTP(Trainer):
                 self._make_relax_ini()
             if not path.isfile(path.join(self.root,"pot.mtp")):
                 self._make_pot_initial()
-            template = self._train_template
+            template = self._train_template()
             with open(path.join(self.root,"status.txt"),"w+") as f:
                 f.write("relax_setup {0}".format(self.iter_count))
 
         if self.iter_status == "relax_setup":
             # If pot has been trained
-            rename(path.join(self.root,"Trained.mtp_"), path.join(self.root,"pot.mtp"))
+            if path.isfile(path.join(self.root,"Trained.mtp_")):
+                rename(path.join(self.root,"Trained.mtp_"), path.join(self.root,"pot.mtp"))
 
             # Calculate the grad of the training configurations.
             calc_grade = self._calc_grade_template()

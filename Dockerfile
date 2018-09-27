@@ -1,10 +1,13 @@
 
 FROM quip4tracy as quip
+FROM mlip4tracy as mlip
 
 FROM pslibrary4tracy
 
 ENV QUIP_ROOT "/home/tracy/quip"
+ENV MLIP_ROOT "/home/tracy/mlip"
 COPY --from=quip --chown=tracy:tracy ${QUIP_ROOT} ${QUIP_ROOT}
+COPY --from=mlip --chown=tracy:tracy ${MLIP_ROOT} ${MLIP_ROOT}
 
 ENV USER_NAME="root"
 ENV HOME_DIR="/root"

@@ -19,7 +19,7 @@ calculator:
   degauss: 0.1
   input_data:
     control:
-      calculation: 'relax'
+      calculation: 'scf'
       prefix: 'test'
       outdir: 'output'
   kpoints:
