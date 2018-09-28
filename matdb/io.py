@@ -100,9 +100,9 @@ def atoms_to_cfg(atm, target, config_id=None, type_map=None):
             f.write("        {0}\n".format(atm.params["{0}energy".format(calc_name)]))
 
         if "{0}virial".format(calc_name) in atm.params:
-            virial = [atm.params["vasp_virial"][0][0], atm.params["vasp_virial"][1][1],
-                      atm.params["vasp_virial"][2][2], atm.params["vasp_virial"][2][1],
-                      atm.params["vasp_virial"][2][0], atm.params["vasp_virial"][0][1]]
+            virial = [atm.params["{0}virial".format(calc_name)][0][0], atm.params["{0}virial".format(calc_name)][1][1],
+                      atm.params["{0}virial".format(calc_name)][2][2], atm.params["{0}virial".format(calc_name)][2][1],
+                      atm.params["{0}virial".format(calc_name)][2][0], atm.params["{0}virial".format(calc_name)][0][1]]
             f.write(" Stress:   xx          yy          zz          yz          xz          xy\n")
             f.write("            {0}\n".format("    ".join(["{0: .8f}".format(i) for i in virial])))
 

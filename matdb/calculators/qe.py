@@ -376,7 +376,7 @@ class AsyncQe(Espresso, AsyncCalculator):
         results["atoms"] = atom_pos
         results["cell"] = [[float(j) for j in i.text.split()] for i in data.findall(key_phrases[2])]
         results["etot"] = float(data.findall(key_phrases[3])[-1].text)
-        results["forces"] = [float(i) for i in data.findall(key_phrases[4])[-1].text.strip().split()]
+        results["forces"] = [[float(j) for j in i.split()] for i in data.findall(key_phrases[4])[-1].text.strip().split('\n')]
         results["stress"] = np.array([float(i) for i in
                                       data.findall(key_phrases[5])[-1].text.strip().split()]).reshape((3,3))
 
