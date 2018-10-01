@@ -30,13 +30,3 @@ Calculators currently supported are:
    calculators/qe.rst
    calculators/vasp.rst
 
-Adding a Calculator
--------------------
-
-To add a calculator to `matdb` you must create a new module in
-`matdb/calculators/` named after the calculator, i.e., `qe.py` or
-`vasp.py`. Within this module you creat a new calculator class based
-off the following template:
-
-For examples please look at the :doc:`calculators/vasp` and
-:doc:`calculators/qe` modules that already exist in `matdb`.

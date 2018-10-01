@@ -1,13 +1,16 @@
 """Implements a `matdb` compatible subclass of the
-:class:`ase.calculators.espresso.Espresso` calculator.
-.. note:: Because this calculator is intended to be run asynchronously as part
-  of `matdb` framework, it does *not* include a method to actually execute the
-  calculation. Although the ASE calculator provides an interface to do so,
-  `matdb` uses templates to access HPC resources.
-.. warning:: Because of the underlying implementation in ASE, you must use a separate
-  instance of the :class:`AsyncQe` for each :class:`ase.Atoms` object that you
-  want to calculate for.
+:class:`ase.calculators.espresso.Espresso` calculator.  
+
+.. note:: Because this calculator is intended to be run asynchronously
+  as part of `matdb` framework, it does *not* include a method to
+  actually execute the calculation. Although the ASE calculator provides
+  an interface to do so, `matdb` uses templates to access HPC resources.
+
+.. warning:: Because of the underlying implementation in ASE, you must
+  use a separate instance of the :class:`AsyncQe` for each
+  :class:`ase.Atoms` object that you want to calculate for.
 """
+
 from os import path, stat, mkdir, remove, environ, rename, rmdir
 import mmap
 from xml.etree import ElementTree
@@ -23,11 +26,13 @@ from matdb.utility import chdir, execute, relpath
 from matdb.exceptions import VersionError
         
 class AsyncQe(Espresso, AsyncCalculator):
-    """Represents a calculator that can compute material properties with Quantum Espresso,
-    but which can do so asynchronously.
-    .. note:: The arguments and keywords for this object are identical to the
-      :class:`~ase.calculators.qe.Espresso` calculator that ships with ASE. We
-      add some extra functions so that it plays nicely with `matdb`.
+    """Represents a calculator that can compute material properties with
+    Quantum Espresso, but which can do so asynchronously.  
+
+    .. note:: The arguments and keywords for this object are identical
+      to the :class:`~ase.calculators.qe.Espresso` calculator that ships
+      with ASE. We add some extra functions so that it plays nicely with
+      `matdb`.
 
     Args:
         atoms (matdb.Atoms): configuration to calculate using QE.
@@ -46,7 +51,8 @@ class AsyncQe(Espresso, AsyncCalculator):
         out_file (str): the output file that QE will write too.
         out_dir (str): the output directory for QE files.
         version (str): the version of QE used for calculations.
-        atoms (matdb.Atoms): the configuration for calculations.    
+        atoms (matdb.Atoms): the configuration for calculations.
+
     """
     key = "qe"
 
@@ -382,7 +388,3 @@ class AsyncQe(Espresso, AsyncCalculator):
             self.version = data.findall('general_info/creator')[0].attrib["VERSION"]
             
         return results
-        
-            
-        
-        

@@ -1,6 +1,7 @@
 """Implements classes and methods for performing a GAP fit over a
 database defined in the YAML specification file.
 """
+
 from os import path, rename, remove, mkdir
 import numpy as np
 from glob import glob
@@ -160,6 +161,7 @@ def _prot_to_cfg(source, species, relax_file, type_map, root, min_atoms, max_ato
 class MTP(Trainer):
     """Implements a simple wrapper around the MTP training functionality for
     creating MTP potentials.
+
     Args:
         controller (matdb.fitting.controller.Controller): fitting controller
           provides access to previous fitting steps and training/validation data.
@@ -168,6 +170,7 @@ class MTP(Trainer):
           the GAP fit.
         dbs (list): of `str` patterns from the database that should be included
           in the training and validation.
+
     Attributes:
         name (str): name of the folder in which all the fitting for this trainer
           takes place; defaults to `{n}b`.
@@ -175,6 +178,7 @@ class MTP(Trainer):
         params (dict): key-value pairs that are parameters for the model
           fitting.
     """
+    
     def __init__(self, controller=None, dbs=None, execution=None,
                  split=None, root=None, parent=None, dbfilter=None, **mtpargs):
         self.name = "mtp"
@@ -628,9 +632,11 @@ class MTP(Trainer):
     def command(self):
         """Returns the command that is needed to train the GAP
         potentials specified by this object.
+
         .. note:: This method also configures the directory that the command
           will run in so that it has the relevant files.
         """
+        
         self._set_root()
 
         if not path.isfile(path.join(self.root,"status.txt")):
@@ -757,10 +763,12 @@ class MTP(Trainer):
 
     def status(self, printed=True):
         """Returns or prints the current status of the MTP training.
+
         Args:
             printed (bool): when True, print the status to screen; otherwise,
               return a dictionary with the relevant quantities.
         """
+        
         # Our interest is in knowing which MTP model is the latest (if any) and
         # whether the job script has been created for the next one in the
         # sequence.

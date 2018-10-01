@@ -4,7 +4,12 @@ Quantum Espresso
 Quantum Espresso Input
 ----------------------
 
-The Quantum Espresso (QE) calculator can be used by supplying the
+.. note:: For many interatomic potentials static calculations are used
+   to train the potential. To perform a static calculation in `Quantum
+   Espresso` it is sufficient to use `calculation: 'scf'` in `control`
+   portion of the the yml file.
+
+The `Quantum Espresso` (`QE`) calculator can be used by supplying the
 `calculator` `name` field with 'qe' rather than the full name. Input
 fields for this calculator are `input_data`, `kpoints`, and
 `potcars`. The `input_data` field most of the parameters that will be
@@ -34,7 +39,7 @@ used by QE. For QE the field takes `method` and `offset` entries in
 addition to parameters based off of which method is used. Methods
 supported for QE include:
 
-1) `MP` for Monkhorst-Pack k-point grids. This method requires the
+- **MP** for Monkhorst-Pack k-point grids. This method requires the
    additional `divisions` parameter be specified, the divisions takes
    3 integers which indicate how aften to split the reciprocal cell in
    each direction to form the k-point grid.
@@ -45,7 +50,7 @@ supported for QE include:
      method: 'MP'
      divisions: 3 3 3
 
-2) `kspacing` which is used to indicate the space desired between
+- **kspacing** which is used to indicate the space desired between
    k-points. This method takes a single additional entry of `spacing`.
 
 .. code-block:: yml

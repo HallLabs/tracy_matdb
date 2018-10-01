@@ -280,7 +280,8 @@ sampled configurations from each lattice will be stored.
 ******************
 
 Once a database of configurations is available, `matdb` can automate
-the fits for you using these settings.
+the fits for you using these settings. See :doc:`fitting.rst` for more
+details.
 
 .. code-block:: yaml
 		
@@ -293,7 +294,6 @@ the fits for you using these settings.
        nodes: 1
        mem_per_cpu: 500MB
        job_name: 'AgPt-fitting'
-       modules: ['mpi/openmpi-1.8.5_intel-15.0.2','compiler_intel/2017']
      fits:
        - name: "AgPd"
 	 dbs: ["*"]

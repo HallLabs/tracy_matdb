@@ -4,6 +4,10 @@ VASP
 VASP Input
 ----------
 
+.. note:: For many interatomic potentials static calculations are used
+   to train the potential. To perform a static calculation in `VASP`
+   it is sufficient to specify `nsw: 0` in the yml file.
+
 The VASP calculator can take as input anything that could be put into
 a `VASP` `INCAR` file. For full documentation of options please see
 the `VASP` `manual`_.
@@ -19,7 +23,7 @@ used for calculations. This field takes a `method` and any options
 that need to be specified for that method. Currently supported methods
 are:
 
-1) `mueller` this method querries the k-point server [kps_ref]_ setup
+- **mueller** this method querries the k-point server [kps_ref]_ setup
    by Tim Mueller. To use this method you must have the `getKPoints`
    on your system path, the script can be downloaded `here`_. The only
    option accepted by this method is `mindistance` for which we
@@ -32,7 +36,7 @@ are:
      method: 'mueller'
      mindistance: 50
 
-2) `gamma` this method will create a `KPOINTS` file with only a single
+- **gamma** this method will create a `KPOINTS` file with only a single
    k-point in it centered at gamma, i.e., the origin.
 
 .. code-block:: yaml
@@ -40,7 +44,7 @@ are:
    kpoints:
      method: 'gamma'
 
-3) `kspacing` this option doesn't actually get written into the
+- **kspacing** this option doesn't actually get written into the
    `kpoints` keyword block since it is placed into the `VASP` `INCAR`
    file. To use it simly specify the distance between k-points desired.
 
