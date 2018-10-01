@@ -48,3 +48,6 @@ COPY one_off_fix/pip /usr/bin/pip
 # ASE library assumes each attribute of PP_HEADER element in the ps file is in a separated line
 # but pslibrary generates all the attributes in a single line. The below file fixed this issue.
 COPY one_off_fix/espresso.py /usr/local/lib/python2.7/dist-packages/ase/io/espresso.py
+
+RUN echo export PATH=$PATH:${MLIP_ROOT}/make >> ${HOME_DIR}/.bashrc
+WORKDIR "$HOME_DIR"

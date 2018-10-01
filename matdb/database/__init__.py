@@ -569,10 +569,10 @@ class Group(object):
             # We must have what we need to execute. Compile the command and
             # submit.
             from matdb.utility import execute
-            command = 'bash'  # use 'bash' by default
-            if 'command' in self.database.execution:
-                command = self.database.execution['command']
-            cargs = [command, jobfile]
+            shell_command = 'bash'  # use 'bash' by default
+            if 'shell_command' in self.database.execution:
+                shell_command = self.database.execution['shell_command']
+            cargs = [shell_command, jobfile]
             if dryrun:
                 from matdb.msg import okay
                 okay("Executed {} in {}".format(' '.join(cargs), self.root))

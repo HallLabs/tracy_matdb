@@ -498,7 +498,10 @@ class Trainer(object):
             return False
         
         # We must have what we need to execute. Compile the command and submit.
-        cargs = ["sbatch", self._jobfile]
+        shell_command = 'bash'  # use 'bash' by default
+        if 'shell_command' in self.execution:
+            shell_command = self.execution['shell_command']
+        cargs = [shell_command, self._jobfile]
         if dryrun:
             msg.okay("Executed {} in {}".format(' '.join(cargs), self.root))
             return True

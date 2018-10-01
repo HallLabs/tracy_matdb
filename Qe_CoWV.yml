@@ -42,14 +42,15 @@ calculator:
 execution:
   exec_path: '/home/tracy/q-e-qe-6.3/bin/pw.x'
 
-# Blow is for local personal computer using bash command
-  command: 'bash'
-  template: 'run_bash_ml.sh'
+#{{ This section is for local personal computer using bash command
+  shell_command: 'bash'
+  template: 'bash_build_ml.sh'
   input_file: 'espresso.pwi'
   output_file: 'espresso.out'
+#}}
 
-# Blow is for super computer using sbatch command.
-#  command: 'sbatch'
+#{{ This section is for super computer using sbatch command.
+#  shell_command: 'sbatch'
 #  template: 'run_array_ml.sh'
 #  time: 12
 #  ntasks: 1
@@ -57,6 +58,7 @@ execution:
 #  mem_per_cpu: 6GB
 #  job_name: 'CoWV'
 #  array_limit: 50
+#}}
 
 # Next, we include a list of all the databases we want to create. A
 # database following this pattern is created *for each* of the seed
@@ -79,12 +81,21 @@ splits:
 fitting:
   dbs: ['*']
   execution:
-    template: 'run_mtp_ml.sh'
-    time: 6
+    #{{ This section is for local personal computer using bash command
+    shell_command: 'bash'
+    template: 'bash_train_ml.sh'
     ntasks: 1
-    nodes: 1
-    mem_per_cpu: 4GB 
-    job_name: 'FitRlxSelect'
+    #}}
+
+    #{{ This section is for super computer using sbatch command.
+    #shell_command: 'sbatch'
+    #template: 'run_mtp_ml.sh'
+    #time: 6
+    #ntasks: 1
+    #nodes: 1
+    #mem_per_cpu: 4GB 
+    #job_name: 'FitRlxSelect'
+    #}}
   fits:
     - name: "CoWV"
       dbs: ["*"]
@@ -93,6 +104,7 @@ fitting:
           select:
             selection-limit: 200
           largest_relax_cell: 4
+          use_mpi: "false"
           split: "A"
           species:
             - "Co"
