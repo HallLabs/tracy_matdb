@@ -1,6 +1,7 @@
 '''Group of matdb.atoms.Atoms objects with atomic vacancies
 taken from a seed configuration.
 '''
+
 from os import path, mkdir
 from itertools import islice, combinations, groupby
 
@@ -211,6 +212,7 @@ class Vacancy(Group):
 
     def setup(self, rerun=0):
         """Sets up a copy of the atoms object for the current config.
+
         Args:
             rerun (int): when > 0, recreate job files; if > 1, recreate the
                 folders even if they already exist.

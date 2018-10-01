@@ -1,4 +1,4 @@
-"""Group of configurations that is created from an enumerated list of structures.
+"""Group of configurations that is created during an mtp active learning iteration.
 """
 from hashlib import sha1
 from glob import glob

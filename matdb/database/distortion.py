@@ -1,4 +1,4 @@
-    '''Group of quippy.atoms.Atoms objects with displaced atomic positions from
+'''Group of matdb.atoms.Atoms objects with displaced atomic positions from
 a seed configuration.
 '''
 from os import path, mkdir
@@ -13,6 +13,7 @@ class Distortion(Group):
     '''Distortion.py: Group to create from a seed configuration and distorts
     the atom positions or displaces the atoms randomly within a normal
     distribution of some standard deviation, std.
+
     Args:
         name (str): default name Distortion
         rattle (float): the standard deviation of the normal distribution
