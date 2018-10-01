@@ -35,6 +35,7 @@ following links document the internal API and give some examples.
    io.rst
    utility.rst
    calculator.rst
+   execution.rst
 
 
 Indices and tables

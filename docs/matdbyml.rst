@@ -22,8 +22,8 @@ top-level of the YAML file:
    calculator including the k-point selection method and density; this
    can be overridden at the group level.
 6. **execution**: HPC parameters for the jobs that will be created
-   when running each of the groups. By default, only `sbatch` is
-   supported.
+   when running each of the groups. For details on which methods are
+   supported see :doc:`execution`.
 7. **databases**: list of groups to generate for these databases.
 8. **training**: parameters for the methods that will be used to
     generate the interatomic potential.
@@ -104,9 +104,9 @@ execution. It ships with templates that work with the SBATCH system,
 but the templates can be adjusted easily using those as an
 example. This dictionary has fields corresponding to the fields in the
 template, and the values will be inserted directly. The exact fields
-differ for each `execution method, at present these methods include
-:doc:`executors/sbatch` and :doc:`executors/bash`. The only value that
-is universal to all the `execution` methods is:
+differ for each `execution` method, a list of currently supported
+methods see :doc:`execution`. The only value that is universal to all
+the `execution` methods is:
 
 - **template**: name of the file in the `matdb/templates` directory to
   use as the execution template. This field is required for all
@@ -127,36 +127,6 @@ The following example is for `sbatch`:
      array_limit: 50
      modules_load: ['mkl/11.2.0']
      exec_path: 'vasp'
-
-..
-   Since database generation involves many calculations, the files are
-   setup to use job arrays by default.
-
-   - **time**: time in *hours* to run each job in the array for.
-   - **ntasks**: number of CPUs to request.
-   - **nodes**: number of nodes to spread CPUs over.
-   - **mem_per_cpu**: Amount of memory in *GB* for each CPU.
-   - **job_name**: job name for the scheduler.
-   - **partition**: QOS or special partition/queue to run the calculations on.
-   - **array_limit**: what is the maximum number of jobs to run concurrently.
-   - **exec_path**: path to the VASP executable to run in each directory
-     that `matdb` sets up.
-   - **module_unload**: a list of modules to unload using `module unload
-     {}`.
-   - **module_load**: a list of modules to *load* using `module load
-     {}`.
-   - **preamble**: additional lines to insert into the job script
-     *before* the executable.
-
-
-   For the preamble, you can use multi-line strings in YAML like:
-
-   .. code-block:: yaml
-
-      preamble: >
-	first line
-	second line
-	and so on...
 
 `databases` Option
 ------------------
@@ -288,7 +258,7 @@ details.
    fitting: 
      dbs: ['*'] 
      execution:
-       template: 'run_mtp_ml.sh'
+       template: 'run_single_ml.sh'
        time: 10
        ntasks: 1
        nodes: 1

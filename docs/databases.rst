@@ -8,7 +8,7 @@ to loosely as a "Group" and `matdb` supports multiple group types:
 1. Enumerated structures selected from an enumerated list of
    symmetrically distinct configurations.
 2. AFLOW which allows the querying of the `aflowlib.org` database.
-3. Active which contains structures being used by `mtp` active learning.
+3. Active which contains structures being used for `mtp` active learning.
 4. Distortion which distorts the atoms within the seed configurations.
 5. Substitution which changes the stoichiometry of the seed
    configuration.
@@ -22,7 +22,6 @@ to loosely as a "Group" and `matdb` supports multiple group types:
    database/enumerated.rst
    database/aflow.rst
    database/active.rst
-   ..
-      database/distribution.rst
-      database/substitution.rst
-      database/vacancy.rst
+   database/distribution.rst
+   database/substitution.rst
+   database/vacancy.rst

@@ -41,7 +41,7 @@ An example fitting section of the yml file.
   fitting: 
      dbs: ['*'] 
      execution:
-       template: 'run_mtp_ml.sh'
+       template: 'run_single_ml.sh'
        time: 10
        ntasks: 1
        nodes: 1
