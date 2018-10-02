@@ -296,6 +296,8 @@ class AsyncQe(Espresso, AsyncCalculator):
 
         self.cleanup(folder,clean_level=cleanup)
 
+        # At this time, always return True. Might need to determine if there is a change 
+        # to return a False.
         return True
 
     @staticmethod

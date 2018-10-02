@@ -32,6 +32,7 @@ COPY support $HOME_DIR/matdb/support
 COPY setup.py $HOME_DIR/matdb
 COPY setup.cfg $HOME_DIR/matdb
 COPY MANIFEST.in $HOME_DIR/matdb
+COPY examples/Qe_CoWV.yml $HOME_DIR
 
 RUN cd $HOME_DIR/matdb \
     && python -m pip install .
@@ -39,8 +40,6 @@ RUN cd $HOME_DIR/matdb \
 ENV QUIP_ARCH linux_x86_64_gfortran
 RUN cd ${QUIP_ROOT} \
     && make install-quippy > /dev/null 
-
-COPY Qe_CoWV.yml $HOME_DIR
 
 # This is to fix the annoying false error messages when the matdb trying to check for depends.
 COPY one_off_fix/pip /usr/bin/pip

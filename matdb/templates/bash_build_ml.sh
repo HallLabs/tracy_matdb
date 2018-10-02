@@ -7,5 +7,5 @@ workdir=${workdir::-2}
 for dir in E.*
 do
   cd "${workdir}${dir}" 
-  {{ exec_path }} -i {{ input_file }} > {{ output_file }}
+  {{ exec_path }} -i espresso.pwi > espresso.out
 done

@@ -45,8 +45,6 @@ execution:
 #{{ This section is for local personal computer using bash command
   shell_command: 'bash'
   template: 'bash_build_ml.sh'
-  input_file: 'espresso.pwi'
-  output_file: 'espresso.out'
 #}}
 
 #{{ This section is for super computer using sbatch command.
