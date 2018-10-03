@@ -44,6 +44,7 @@ def run(args):
     """
     
     import numpy as np
+    import json
     from matdb import msg
     from os import path
     from matdb.fitting.mtp import create_to_relax

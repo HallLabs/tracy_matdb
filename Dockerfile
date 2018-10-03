@@ -1,13 +1,13 @@
 
 FROM quip4tracy as quip
-FROM mlip4tracy as mlip
+FROM mtp4tracy as mtp  
 
 FROM pslibrary4tracy
 
 ENV QUIP_ROOT "/home/tracy/quip"
-ENV MLIP_ROOT "/home/tracy/mlip"
+ENV MTP_ROOT "/home/tracy/mtp"
 COPY --from=quip --chown=tracy:tracy ${QUIP_ROOT} ${QUIP_ROOT}
-COPY --from=mlip --chown=tracy:tracy ${MLIP_ROOT} ${MLIP_ROOT}
+COPY --from=mtp --chown=tracy:tracy ${MTP_ROOT} ${MTP_ROOT}
 
 ENV USER_NAME="root"
 ENV HOME_DIR="/root"
@@ -48,5 +48,5 @@ COPY one_off_fix/pip /usr/bin/pip
 # but pslibrary generates all the attributes in a single line. The below file fixed this issue.
 COPY one_off_fix/espresso.py /usr/local/lib/python2.7/dist-packages/ase/io/espresso.py
 
-RUN echo export PATH=$PATH:${MLIP_ROOT}/make >> ${HOME_DIR}/.bashrc
+RUN echo export PATH=$PATH:${MTP_ROOT}/bin:$HOME_DIR/matdb/matdb/scripts/ >> ${HOME_DIR}/.bashrc
 WORKDIR "$HOME_DIR"
