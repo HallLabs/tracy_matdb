@@ -48,5 +48,5 @@ COPY one_off_fix/pip /usr/bin/pip
 # but pslibrary generates all the attributes in a single line. The below file fixed this issue.
 COPY one_off_fix/espresso.py /usr/local/lib/python2.7/dist-packages/ase/io/espresso.py
 
-RUN echo export PATH=$PATH:${MTP_ROOT}/bin:$HOME_DIR/matdb/matdb/scripts/ >> ${HOME_DIR}/.bashrc
+RUN echo export PATH=$PATH:${MTP_ROOT}/bin >> ${HOME_DIR}/.bashrc
 WORKDIR "$HOME_DIR"

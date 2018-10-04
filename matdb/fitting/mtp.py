@@ -84,7 +84,11 @@ def create_to_relax(setup_args):
             # enumeration over the options the user specifies.
             infile = path.join(_get_reporoot(),"matdb","templates",
                                "struct_enum.out_{0}_{1}".format(len(species),crystal))
-            if min_atoms != 1 or max_atoms is not None:
+            expected_min_atoms = 1
+            if crystal == "hcp":
+                min_atoms = 2
+                expected_min_atoms = 2
+            if min_atoms != expected_min_atoms or max_atoms is not None:
                 with open(infile, "r") as f:
                     min_num = None
                     max_num = None

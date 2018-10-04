@@ -58,7 +58,7 @@ def run(args):
         msg.err("Could not find 'to_relax.json' file needed for computation.")
         return
         
-    if args["status"]:
+    if "status" in args:
         cdb.trainers.status()
         
 if __name__ == '__main__': # pragma: no cover
