@@ -502,7 +502,7 @@ class Trainer(object):
             shell_command = self.execution['shell_command']
         # We suport 'bash' and 'sbatch' shell commands, if it's neighter one 
         # of them, default to 'bash'
-        if 'shell_command' not in ['bash', 'sbatch']:
+        if shell_command not in ['bash', 'sbatch']:
             shell_command = 'bash'
         cargs = [shell_command, self._jobfile]
 
