@@ -166,7 +166,8 @@ def execute(args, folder, wait=True, nlines=100, venv=None,
         for line in pexec.stdout:
             #Filter non fatal exceptions such as future warnings. A full list can be found here
             # https://docs.python.org/3/library/exepctions.html#exception-hierarchy
-            if not ("FutureWarning" in line or "import" in line or "\x1b[0m" in line):
+            #Special case: "lazy-import" has "import" in the name but it's a valid module name
+            if not ("FutureWarning" in line or ("import" in line and "-import" not in line) or "\x1b[0m" in line):
                 output.append(line)
                 if len(output) >= nlines:
                     break
