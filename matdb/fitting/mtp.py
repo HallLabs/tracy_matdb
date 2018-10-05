@@ -597,7 +597,7 @@ class MTP(Trainer):
             else:                         
                 template = template + " --{0}={1}".format(k,v)
 
-        return template
+        return template + " > training.txt"
 
     def _select_template(self):
         """Creates the select command template.
