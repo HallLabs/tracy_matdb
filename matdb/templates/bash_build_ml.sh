@@ -1,11 +1,11 @@
 #!/bin/bash
 
-workdir="{{execution_path}}"
-workdir=${workdir::-2}
+# Iterator and run the jobs under all sub-directories
+workdir=$(echo {{execution_path}} | awk -F'/[^/]*$' '{print $1}' )
 
-# Iterator and run the jobs under E.* directories 
-for dir in E.*
-do
-  cd "${workdir}${dir}" 
-  {{ exec_path }} -i espresso.pwi > espresso.out
+for f in *; do
+    if [ -d ${f} ]; then
+        cd ${workdir}/${f}
+        {{ exec_path }} -i espresso.pwi > espresso.out
+    fi
 done
