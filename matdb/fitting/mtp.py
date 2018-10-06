@@ -545,7 +545,7 @@ class MTP(Trainer):
                 continue
             template = template + " --{0}={1}".format(k,v)
 
-        return template
+        return template + " > training_calc_grade.txt"
     
     def _relax_template(self):
         """Creates the template for the relax command.
@@ -597,7 +597,7 @@ class MTP(Trainer):
             else:                         
                 template = template + " --{0}={1}".format(k,v)
 
-        return template + " > training.txt"
+        return template + " > training_relax.txt"
 
     def _select_template(self):
         """Creates the select command template.
@@ -627,7 +627,7 @@ class MTP(Trainer):
                 continue
             template = template + " --{0}={1}".format(k,v)
 
-        return template
+        return template + " > training_select.txt"
     
     def command(self):
         """Returns the command that is needed to train the GAP
