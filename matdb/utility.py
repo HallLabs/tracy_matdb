@@ -186,8 +186,8 @@ def execute(args, folder, wait=True, nlines=100, venv=None,
 
     return {
         "process": pexec,
-        "output": output,
-        "error": error
+        "output": [i.decode("ascii") if not isinstance(i, str) else i for i in output],
+        "error": [i.decode("ascii") if not isinstance(i, str) else i for i in error]
     }
 
 def h5cat(files, target):
@@ -1025,7 +1025,7 @@ def required_packages():
     return ["ase", "beautifulsoup4", "certifi",
             "chardet", "cycler", "h5py", "html5lib", "idna", "matplotlib", "mpld3",
             "numpy", "phenum", "phonopy", "pyparsing", "python-dateutil", "pytz",
-            "PyYAML", "requests", "six", "subprocess32", "termcolor",
+            "PyYAML", "requests", "subprocess32", "termcolor",
             "tqdm", "urllib3", "webencodings", "seekpath"]
 
 def recursive_getattr(o, fqn):
