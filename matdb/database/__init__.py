@@ -31,7 +31,7 @@ from matdb.fitting.controller import TController
 from matdb.io import read, save_dict_to_h5
 from matdb.msg import okay, verbosity
 from matdb.utility import (chdir, ParameterGrid, convert_dict_to_str,
-                            import_fqdn, is_uuid4)
+                            import_fqdn, is_uuid4, _set_config_paths)
 
 class Group(object):
     """Represents a collection of material configurations (varying in
@@ -1575,7 +1575,11 @@ class Controller(object):
         self.root = relpath(path.expanduser(self.specs["root"]))
         if tmpdir is not None:
             self.root = tmpdir
-
+        name = self.specs["name"].strip().replace(' ', '_')
+        with open(path.join(self.root, "NAME"), "w+") as f:
+            f.write(name)        
+        _set_config_paths(name, root)
+            
         self.plotdir = path.join(self.root, "plots")
         self.kpathdir = path.join(self.root, "kpaths")
         self.title = self.specs["title"]

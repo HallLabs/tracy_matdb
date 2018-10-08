@@ -19,11 +19,13 @@ import ase
 from ase.calculators.vasp import Vasp
 import mmap
 
+from matdb.calculators.basic import AsyncCalculator
 from matdb import msg
 from matdb.calculators.basic import AsyncCalculator
 from matdb.kpoints import custom as write_kpoints
-from matdb.utility import chdir, execute, relpath
+from matdb.utility import chdir, execute, relpath, config_specs
 from matdb.exceptions import VersionError, SpeciesError
+from matdb.calculators.utility import paths
 
 def phonon_defaults(d, dfpt=False):
     """Adds the usual settings for the INCAR file when performing
@@ -151,15 +153,21 @@ class AsyncVasp(Vasp, AsyncCalculator):
     
     key = "vasp"
     tarball = ["vasprun.xml"]
+    pathattrs = ["potcars.directory"]
 
     def __init__(self, atoms, folder, contr_dir, ran_seed, *args, **kwargs):
         self.init_calc(kwargs)
+        if contr_dir == '$control$':
+            contr_dir = config_specs["cntr_dir"]
+        if path.isdir(contr_dir):
+            self.contr_dir = path.abspath(path.expanduser(cntr_dir))
+        else: #pragma: no cover
+            msg.err("{} is not a valid directory.".format(contr_dir))
+
+        if '$control$' in folder:
+            folder = folder.replace('$control$', self.contr_dir)
         self.folder = path.abspath(path.expanduser(folder))
         self.kpoints = None
-        if path.isdir(contr_dir):
-            self.contr_dir = contr_dir
-        else:
-            msg.err("{} is not a valid directory.".format(contr_dir))
 
         # We will store all the unique potcars in a single
         # directory. If it doesn't exist then create it.
@@ -171,7 +179,9 @@ class AsyncVasp(Vasp, AsyncCalculator):
 
         # remove the "potcars" section of the kwargs for latter use in
         # creation of the POTCAR file.
-        self.potcars = kwargs.pop("potcars")
+        potdict = kwargs.pop("potcars")
+        self.potcars = potdict
+        
         if "exec_path" in kwargs:
             self.executable = kwargs.pop("exec_path")
         else:
@@ -199,7 +209,7 @@ class AsyncVasp(Vasp, AsyncCalculator):
 
         if "setups" in self.potcars:
             self.input_params["setups"] = self.potcars["setups"]
-            
+
         self.atoms = atoms
         pot_args = self.potcars.copy()
         environ["VASP_PP_PATH"] = relpath(path.expanduser(pot_args["directory"]))
@@ -209,10 +219,23 @@ class AsyncVasp(Vasp, AsyncCalculator):
         # hashed string of the species and versions or needs to be
         # created at that location.
         this_potcar = ""
+        if "versions" in self.potcars:
+            versions = self.potcars["versions"]
+        elif len(self.atoms.get_atomic_numbers()) == 0:
+            versions = {}
+        else:
+            raise VersionError("POTCAR versions must be specified for each species in the "
+                         "yml file.")
+        
         for pot in self.ppp_list:
+            has_ver = False
             for spec, ver in self.potcars["versions"].items():
                 if spec in pot:
                     this_potcar += "{0}{1}".format(spec, ver)
+                    has_ver = True
+            if not has_ver:
+                raise VersionError("The species {0} does not have a version".format(pot))
+            
         self.this_potcar = str(sha1(this_potcar).hexdigest())
         self._check_potcar()
 
@@ -239,13 +262,12 @@ class AsyncVasp(Vasp, AsyncCalculator):
         if "versions" in self.potcars:
             versions = self.potcars["versions"]
         else:
-            raise VersionError("POTCAR versions must be specified for each species in the "
-                         "yml file.")
+            versions = {}
 
         if path.isfile(path.join(self.contr_dir, "POTCARS", self.this_potcar)):
             with open(path.join(self.contr_dir, "POTCARS", self.this_potcar), "r") as potfile:
                 for line in potfile:
-                    if self.potcars["xc"] in line and "=" not in line:
+                    if self.potcars["xc"].lower() in line.lower() and "=" not in line:
                         ver_line = line.strip().split()
                         spec = ver_line[1].split("_")[0]
                         ver = ver_line[2]
@@ -269,7 +291,8 @@ class AsyncVasp(Vasp, AsyncCalculator):
                         raise VersionError("The version {0} of the POTCAR for {1} "
                                            "does not match the requested version "
                                            "{2}".format(versions[spec], spec, ver))
-                else:
+                else: # pragma: no cover (this should only trigger if
+                      # ASE's potcar builder breaks.
                     raise SpeciesError("The species found in the POTCAR {0} is not in "
                                         "the system being studied".format(spec))
 
@@ -487,18 +510,29 @@ class AsyncVasp(Vasp, AsyncCalculator):
         Args:
             folder (str): path to the folder in which the executable was run.
         """
-        vasp_dict = {"folder":self.folder, "ran_seed":self.ran_seed,
-                     "contr_dir":self.contr_dir, "kwargs": self.kwargs,
+        vasp_dict = {"folder":self.folder.replace(self.contr_dir,'$control$'),
+                     "ran_seed":self.ran_seed,
+                     "contr_dir":'$control$', "kwargs": self.kwargs,
                      "args": self.args}
 
         # run vasp in the root directory in order to determine the
         # version number.
         if hasattr(self,"potcars"):
-            vasp_dict["kwargs"]["potcars"] = self.potcars
+            potdict = self.potcars.copy()
+            
+            name = config_specs["name"]
+            namehash = str(sha1(name.encode("ASCII")).hexdigest())
+            for hid, hpath in paths[namehash][self.key].items():
+                if path.abspath(potdict["directory"]) == hpath:
+                    potdict["directory"] = hid
+                    break
+            vasp_dict["kwargs"]["potcars"] = potdict
         if hasattr(self,"kpoints"):
             vasp_dict["kwargs"]["kpoints"] = self.kpoints
         if self.version is None:
-            if self.executable is not None:
+            if self.executable is not None: # pragma: no cover (vasp
+                                            # would have to be
+                                            # intalled to test this).
                 data = execute([self.executable],self.contr_dir,venv=True)
                 try:
                     vasp_dict["version"] = data["output"][0].strip().split()[0]
@@ -517,7 +551,8 @@ class AsyncVasp(Vasp, AsyncCalculator):
         files = ["CHG", "CHGCAR", "WAVECAR", "XDATCAR", "vasprun.xml", "OUTCAR",
                  "IBZKPT", "OSZICAR", "CONTCAR", "EIGENVAL", "DOSCAR", "PCDAT"]
 
-        for f in files:
+        for f in files:# pragma: no cover (vasp would have to be
+                                            # intalled to test this).
             if path.isfile(path.join(self.contr_dir,f)):
                 remove(path.join(self.contr_dir,f))
 

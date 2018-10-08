@@ -11,13 +11,11 @@ from itertools import product
 import h5py
 from ase import io
 from six import string_types
-import lazy_import
 from os import path
 from uuid import uuid4
 from matdb import msg
 from matdb.transforms import conform_supercell
-
-calculators = lazy_import.lazy_module("matdb.calculators")
+import matdb.calculators as calculators
 
 def _recursively_convert_units(in_dict, split = False):
     """Recursively goes through a dictionary and converts it's units to be

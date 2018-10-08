@@ -10,11 +10,10 @@ from random import seed, uniform
 import numpy as np
 import binascii
 
-from matdb.database.utility import make_primitive
 from matdb.descriptors import soap
 from matdb.calculators.basic import AsyncCalculator
 from matdb.calculators import Qe
-from matdb.utility import _get_reporoot
+from matdb.utility import _get_reporoot, config_specs
 
 def _get_struct_info(struct, local_label):
     """Gets the structure info for the atomic species.
@@ -74,6 +73,7 @@ class Tracy(AsyncCalculator):
         role (str): The role of the user, i.e., "Cheif Scientist".
     """
     key = "tracy"
+    pathattrs = []
 
     def __init__(self, folder, role=None, notifications=None,
                  group_preds=None, contract_preds=None, ecommerce=None,
@@ -120,6 +120,8 @@ class Tracy(AsyncCalculator):
             A dictionary of the compressed structure that the
             decompression algorithm can unpack.
         """
+        # Make a local import to fix cyclic imports.
+        from matdb.database.utility import make_primitive
         if np.allclose(0, atoms.cell):
             raise ValueError("The Atoms object must contian cell vectors in order "
                              "to be compressed.")
@@ -268,7 +270,11 @@ class Tracy_QE(Tracy, Qe):
         self.QE_input = kwargs["calcargs"]
         self.tracy_input = kwargs["tracy"]
         self.ran_seed = ran_seed
+        if contr_dir == '$control$':
+            contr_dir = config_specs["cntr_dir"]
         self.contr_dir = contr_dir
+        if '$control$' in folder:
+            folder = folder.replace('$control$', self.contr_dir)
         self.folder = folder
         self.atoms = atoms
 
@@ -386,6 +392,7 @@ class Tracy_QE(Tracy, Qe):
     def to_dict(self):
         """Converts the arguments of the calculation to a dictionary.
         """
-        results = {"kwargs": self.in_kwargs, "folder": self.folder,
-                   "ran_seed": self.ran_seed, "contr_dir": self.contr_dir}
+        results = {"kwargs": self.in_kwargs,
+                   "folder": self.folder.replace(self.contr_dir,'$control$'),
+                   "ran_seed": self.ran_seed, "contr_dir": '$control$'}
         return results
