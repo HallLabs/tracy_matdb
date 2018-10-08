@@ -16,7 +16,7 @@ from .basic import SyncCalculator
 
 class AsyncAflow(SyncCalculator):
     """Represents an asynchronous calculator for constructing
-    :class:`quippy.Atoms` objects from :class:`aflow.entries.Entry` objects.
+    :class:`matdb.Atoms` objects from :class:`aflow.entries.Entry` objects.
 
     .. note:: Because asynchronous is only supported properly in python 3 and
       this project has to be compatible with both major versions, we don't
@@ -33,7 +33,7 @@ class AsyncAflow(SyncCalculator):
         ran_seed (int or float): the random seed to be used for this calculator.
 
     Attributes:
-        atoms (quippy.Atoms): atoms object created from the database entry. Is
+        atoms (matdb.Atoms): atoms object created from the database entry. Is
           `None` until the download is performed.
     """
     def __init__(self, atoms, folder, contr_dir, ran_seed, entry=None, *args, **kwargs):
