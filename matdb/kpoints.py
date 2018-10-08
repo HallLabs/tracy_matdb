@@ -132,7 +132,7 @@ def custom(target, key, atoms=None):
           in.
         key (str): one of ['gamma'], specifies which custom KPOINTS
           file to generate (see note above).
-        atoms (quippy.Atoms): atoms object to generate KPOINTS for.
+        atoms (matdb.Atoms): atoms object to generate KPOINTS for.
     """
     select = {
         "gamma": _gamma_only,
