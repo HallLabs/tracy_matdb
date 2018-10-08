@@ -60,7 +60,7 @@ def test_execution():
     sargs = ["pwd"]
     target = path.join(reporoot, "matdb")
     xres = execute(sargs, target, nlines=1, env_vars={"VASP_PP_PATH":"~/."})
-    assert xres["output"][0].decode("UTF-8").strip() == target
+    assert xres["output"][0].strip() == target
 
     sargs = ["cat dummy-file"]
     target = path.join(reporoot, "matdb")
@@ -510,7 +510,7 @@ def test_execute():
     temp=execute(('python','enum.x'),'.',nlines=0)
     
     temp=execute(('which','python'),'.',env_vars={"POTENTIALS_DIR":'1'})
-    assert temp['output'] ==['/usr/local/bin/python\n']
+    assert "bin/python\n" in temp['output'][0]
     assert temp['error'] == []
 
 def test_load_datetime():
@@ -655,11 +655,12 @@ def test_check_deps():
 
     from matdb.utility import required_packages, check_deps
 
-    assert ["argparse", "ase", "backports.functools-lru-cache", "beautifulsoup4", "certifi", 
-            "chardet", "cycler", "h5py", "html5lib", "idna", "matplotlib", "mpld3", 
-            "numpy", "phenum", "phonopy", "pyparsing", "python-dateutil", "pytz", 
-            "PyYAML", "requests", "setuptools", "six", "subprocess32", "termcolor", 
-            "tqdm", "urllib3", "webencodings", "lazy_import", "seekpath"] == required_packages()
+    print(required_packages())
+    
+    assert ["ase", "beautifulsoup4", "certifi", "chardet", "cycler", "h5py", "html5lib",
+            "idna", "matplotlib", "mpld3", "numpy", "phenum", "phonopy", "pyparsing",
+            "python-dateutil", "pytz", "PyYAML", "requests", "subprocess32", "termcolor", 
+            "tqdm", "urllib3", "webencodings", "seekpath"] == required_packages()
 
     res = check_deps()
 
