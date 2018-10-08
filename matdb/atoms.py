@@ -1,5 +1,4 @@
-"""Implementation of Atoms object and AtomsList. Borrows from quippy
-code for some of the implementation.
+"""Implementation of Atoms object and AtomsList. 
 """
 
 import ase
@@ -381,86 +380,6 @@ class Atoms(ase.Atoms):
 
         else:
             self.__init__(io.read(target,**kwargs))
-
-    def to_quippy(self):
-        """Converts this :class:`matdb.atoms.Atoms` object to a
-        :class:`quippy.atoms.Atoms` object.
-
-        Args:
-            atoms (matdb.atoms.Atoms): the atoms object to perform calculations
-            on.
-        """
-        import quippy
-        props = self.properties.copy()
-        params = self.params.copy()
-        for k, v in props.items():
-            if k == "momenta":
-                continue
-            if k == "species" and len(v.shape) == 2:
-                #Weird string handling inside of quippy means we have to treat
-                #this specially...
-                props[k] = list(map(lambda r: ''.join(r), v.T))
-            elif len(v.shape) == 2 and v.shape[0] != 3:
-                props[k] = v.transpose()
-                
-        #Unfortunately, the momenta gets set to zeros by default anytime it is
-        #requested from the ASE atoms object. Because of the quippy transpose
-        #problem, we don't always transpose. Also, we can't pass it in as a
-        #property in the props dict, that raises weird shaping errors in quippy.
-        momenta = None
-        if "momenta" in props:
-            momenta = props["momenta"]
-            if momenta.shape[0] != self.n:
-                momenta = momenta.transpose()
-            del props["momenta"]
-
-        info = self.info.copy()
-        if isinstance(self, Atoms):
-            del info["params"]
-            del info["properties"]
-
-        kwargs = {"properties":props, "params":params, "positions": self.positions,
-                  "numbers": self.get_atomic_numbers(), "momenta": momenta,
-                  "cell": self.get_cell(), "pbc": self.get_pbc(),
-                  "constraint": self.constraints, "info":info,
-                  "n": len(self.positions)}
-
-        return quippy.Atoms(**kwargs)
-            
-    def S(self, cutoff=5., nmax=8, lmax=8, sigma=0.5, trans_width=0.5,
-          average=True, normalize=True):
-        """Returns the SOAP vectors for each environment in the specified atoms object.
-        """
-        from quippy.descriptors import Descriptor as D
-        #Convert to quippy atoms so that we can get the SOAP vectors.
-        atoms = self.to_quippy()
-        descstr = ("soap cutoff={0:.1f} n_max={1:d} l_max={2:d} "
-                   "atom_sigma={3:.2f} n_species={6} species_Z={{{4}}} n_Z={6} Z={{{9}}} "
-                   "trans_width={5:.2f} normalise={7} average={8}")
-
-        
-        Z = np.unique(atoms.get_atomic_numbers())
-        savg = 'T' if average else 'F'
-        soaps = []
-
-        for Z1, Z2 in product(Z, repeat=2):
-            soapstr = descstr.format(cutoff, nmax, lmax, sigma, str(Z1),
-                                     trans_width, 1, 'F', savg, str(Z2))
-            soapy = D(soapstr)
-            msg.info(soapstr, 2)
-            atoms.set_cutoff(soapy.cutoff())
-            atoms.calc_connect()
-            PZ = soapy.calc(atoms)
-            if average:
-                soaps.append(PZ["descriptor"].flatten())
-            else:
-                soaps.append(PZ["descriptor"])
-
-        P = np.hstack(soaps)
-        if normalize:
-            return P/np.linalg.norm(P)
-        else:
-            return P
             
     def to_dict(self):
         """Converts the contents of a :class:`matdb.atoms.Atoms` object to a
