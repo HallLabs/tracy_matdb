@@ -40,6 +40,7 @@ class DynamicsGroup(Group):
                  samplerate=100, strains=None, tstart=None, tend=None,
                  supercell=None, name="md"):
         self.name = name
+        msg.warn("The DM group is only configured for VASP at this time.")
         super(DynamicsGroup, self).__init__(atoms, incar, kpoints, execution,
                                                path.join(root, self.name),
                                                parent, "D", nconfigs=None)
@@ -53,9 +54,12 @@ class DynamicsGroup(Group):
         if supercell is None:
             self.seed = self.atoms.copy()
         else:
-            from quippy.structures import supercell as scell
-            self.seed = scell(self.atoms, *supercell)
-
+            msg.warn("Not Implemnted: At this time specifying a supercell is not "
+                    "yet implemented in `matdb` but will be available in "
+                    "latter versions. Using seed configuration instead.")
+            self.seed = self.atoms.copy()
+            
+            
         self._update_incar()
         self._update_kpoints()
 
@@ -64,6 +68,7 @@ class DynamicsGroup(Group):
         MD calculations. They are only added if they weren't already
         specified in the config file.
         """
+
         usuals = {
             "maxmix": 40, # reuse mixer from one MD step to next
             "ncore": 4,   # one orbital on 4 cores
