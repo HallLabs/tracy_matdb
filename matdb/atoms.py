@@ -162,7 +162,8 @@ class Atoms(ase.Atoms):
                     self.add_param(k,v)
                 
         if self.info is not None:
-            for k, v in self.info.items():
+            info_set = {k: v for k, v in self.info.items()}
+            for k, v in info_set.items():
                 if k not in ["params","properties"]:
                     self.add_param(k,v)
                     del self.info[k]
@@ -351,8 +352,8 @@ class Atoms(ase.Atoms):
             from matdb.io import load_dict_from_h5
             with h5py.File(target,"r") as hf:
                 data = load_dict_from_h5(hf)
-            if "atom" in data.keys()[0]:
-                data = data[data.keys()[0]]
+            if "atom" in list(data.keys())[0]:
+                data = data[list(data.keys())[0]]
             self.__init__(**data)
             if "calc" in data:
                 calc = getattr(calculators, _calc_name_converter(data["calc"]))
@@ -580,14 +581,14 @@ class AtomsList(list):
             #list.
             if len(data) == 0:
                 atoms = []
-            elif "atom" in data.keys()[0]:
-                if isinstance(data.values()[0],dict):
+            elif "atom" in list(data.keys())[0]:
+                if isinstance(list(data.values())[0],dict):
                     atoms = [Atoms(**d) for d in data.values()]
-                elif isinstance(data.values()[0],string_types):
+                elif isinstance(list(data.values())[0],string_types):
                     atoms = [Atoms(d) for d in data.values()]
                 else: #pragma: no cover
                     msg.err("The data format {} isn't supported for reading AtomLists "
-                            "from hdf5 files.".format(type(data.values()[0])))
+                            "from hdf5 files.".format(type((data.values())[0])))
             else:
                 atoms = [Atoms(target,**kwargs)]
             if len(self) >0:
