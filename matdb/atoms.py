@@ -336,7 +336,7 @@ class Atoms(ase.Atoms):
             raise TypeError('can only copy from instances of matdb.Atoms or ase.Atoms')
         
         # copy any normal attributes we've missed
-        for k, v in other.__dict__.iteritems(): #pragma: no cover
+        for k, v in other.__dict__.items(): #pragma: no cover
             if not k.startswith('_') and k not in self.__dict__:
                 self.__dict__[k] = v
 
