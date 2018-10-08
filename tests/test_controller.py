@@ -293,7 +293,6 @@ def test_find(Pd):
     assert group.root == modelroot
 
     group = Pd["enumeration/phonon"]
-    print group
     assert group == None
 
 #@pytest.mark.skip()

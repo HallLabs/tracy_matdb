@@ -42,7 +42,7 @@ def stubs(request, tmpdir_factory):
     symlink(stubpath+"/sbatch.sh",stubpath+"/sbatch")
     xres = execute(["./sbatch", stubpath+"/sbatch.sh"], stubpath)
     temp = xres["output"][-1].strip().split()[0:3]
-    assert ' '.join(temp) == "Submitted batch job"
+    assert ' '.join(i.decode('ascii') for i in temp) == "Submitted batch job"
     # assert xres["error"] == []
 
     touch(path.join(stubpath, "PRECALC"))

@@ -6,7 +6,8 @@ from matdb.calculators import Aflow
 import six
 import numpy as np
 from os import path
-from types import NoneType
+
+NoneType = type(None)
 
 def compare_nested_dicts(dict1,dict2):
     """Compares two dictionaries to see if they are the same.

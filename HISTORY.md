@@ -1,5 +1,9 @@
 # Revision History for `matdb`
 
+## Revision 1.3.1
+- Making `matdb` python3 compliant, dropping python2 support.
+- Fixed binary to string problems.
+
 ## Revision 1.3.0
 - Removed `QUIP` from `matdb`.
 

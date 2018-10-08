@@ -245,13 +245,13 @@ def test_atoms_to_cfg(tmpdir):
     
     energy = 10.0
     forces = [[1,1,1],[2,2,2],[3,3,3],[4,4,4],[5,5,5],[6,6,6],[7,7,7],[8,8,8]]
-    stress = [0,1,2,3,4,5]
+    virial = [[0,1,2],[3,4,5],[6,7,8]]
 
     atSi.calc = SinglePointCalculator(atSi, energy=energy, forces=np.array(forces),
                                           stress=stress)
 
     atSi.add_property("energy", energy)
-    atSi.add_property("stress", stress)
+    atSi.add_property("virial", virial)
     atSi.add_param("force", forces)
     atoms_to_cfg(atSi, target)
 
