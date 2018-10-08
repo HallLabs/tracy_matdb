@@ -160,7 +160,7 @@ class AsyncVasp(Vasp, AsyncCalculator):
         if contr_dir == '$control$':
             contr_dir = config_specs["cntr_dir"]
         if path.isdir(contr_dir):
-            self.contr_dir = path.abspath(path.expanduser(cntr_dir))
+            self.contr_dir = path.abspath(path.expanduser(contr_dir))
         else: #pragma: no cover
             msg.err("{} is not a valid directory.".format(contr_dir))
 
@@ -235,8 +235,7 @@ class AsyncVasp(Vasp, AsyncCalculator):
                     has_ver = True
             if not has_ver:
                 raise VersionError("The species {0} does not have a version".format(pot))
-            
-        self.this_potcar = str(sha1(this_potcar).hexdigest())
+        self.this_potcar = str(sha1(this_potcar.encode()).hexdigest())
         self._check_potcar()
 
     def write_input(self, atoms, directory='./'):
@@ -357,13 +356,14 @@ class AsyncVasp(Vasp, AsyncCalculator):
             # we look for 'free  energy' to verify that VASP wasn't
             # terminated during runtime for memory or time
             # restrictions
-            i = m.rfind('free  energy')
+            i = m.rfind('free  energy'.encode())
             if i > 0:
                 # seek to the location and get the rest of the line.
                 m.seek(i)
                 line = m.readline()
 
         if line is not None:
+            line = line.decode("ascii")
             return "TOTEN" in line or "Error" in line
         else:
             return False
