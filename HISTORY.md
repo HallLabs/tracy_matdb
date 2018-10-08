@@ -2,7 +2,11 @@
 
 ## Revision 1.3.1
 - Making `matdb` python3 compliant, dropping python2 support.
-- Fixed binary to string problems.
+- Fixed binary to string problems in utility.py and
+  calculators/vasp.py.
+- Removed some no longer required packages from the "required
+  packages" list.
+- Fixed dictoinary iterations in atoms.py.
 
 ## Revision 1.3.0
 - Removed `QUIP` from `matdb`.

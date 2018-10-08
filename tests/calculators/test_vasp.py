@@ -121,7 +121,7 @@ def test_write_potcar(tmpdir):
     calc = Vasp(atm, target, str(tmpdir), 0, **kwargs)
 
     calc._write_potcar()
-    this_potcar = str(sha1("{0}{1}".format("Si", "05Jan2001")).hexdigest())
+    this_potcar = str(sha1("{0}{1}".format("Si", "05Jan2001").encode()).hexdigest())
     assert path.isfile(path.join(calc.contr_dir, "POTCARS", this_potcar))
     assert path.isfile(path.join(calc.folder,"POTCAR"))
     remove(path.join(calc.contr_dir, "POTCARS", this_potcar))
