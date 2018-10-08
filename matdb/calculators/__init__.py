@@ -4,12 +4,6 @@ from .qe import AsyncQe as Qe
 from .tracy import Tracy_QE as TracyQE
 from matdb import msg
 
-try:
-    from .quip import SyncQuip as Quip
-except: #pragma: no cover
-    msg.info("Could not import the Quip calculator.")
-
-
 def get_calc_class(name):
     """Gets the class definition objects for the calculator that has the
     specified name.
