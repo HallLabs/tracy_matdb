@@ -163,9 +163,10 @@ def execute(args, folder, wait=True, nlines=100, venv=None,
     if kwargs["stdout"] is PIPE:
         output = []
         for line in pexec.stdout:
+            l = line.decode('ascii')
             #Filter non fatal exceptions such as future warnings. A full list can be found here
             # https://docs.python.org/3/library/exepctions.html#exception-hierarchy
-            if not ("FutureWarning" in line or "import" in line or "\x1b[0m" in line):
+            if not ("FutureWarning" in l or "import" in l or "\x1b[0m" in l):
                 output.append(line)
                 if len(output) >= nlines:
                     break
@@ -1025,7 +1026,7 @@ def required_packages():
             "chardet", "cycler", "h5py", "html5lib", "idna", "matplotlib", "mpld3",
             "numpy", "phenum", "phonopy", "pyparsing", "python-dateutil", "pytz",
             "PyYAML", "requests", "six", "subprocess32", "termcolor",
-            "tqdm", "urllib3", "webencodings", "lazy-import", "seekpath"]
+            "tqdm", "urllib3", "webencodings", "seekpath"]
 
 def recursive_getattr(o, fqn):
     """Recursively gets a '.'-separated path of attributes from an object.

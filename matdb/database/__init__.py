@@ -16,9 +16,7 @@ from hashlib import sha1
 import h5py
 import json
 import numpy as np
-import lazy_import
 from importlib import import_module
-calculators = lazy_import.lazy_module("matdb.calculators")
 import re
 import six
 from tqdm import tqdm
