@@ -9,8 +9,7 @@ from collections import OrderedDict
 from os import path
 import six
 from matdb import msg
-# from matdb.utility import obj_update, pgrid, dict_update
-
+from matdb.atoms import AtomsList
 
 class TrainingSequence(object):
     """Represents a sequence of training steps (each sub-classing
@@ -262,7 +261,7 @@ class TController(object):
               configuration.
         """
         if datafile is not None:
-            configs = quippy.AtomsList(datafile)
+            configs = AtomsList(datafile)
         else:
             configs = None
 
