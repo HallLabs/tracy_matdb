@@ -1,5 +1,8 @@
 # Revision History for `matdb`
 
+## Revision 1.3.0
+- Removed `QUIP` from `matdb`.
+
 ## Revision 1.2.0
 - Added Tracy calculator for QE/DFT to the code.
 - Implemented new methods in the `Group` class to ensure that the
