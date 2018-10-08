@@ -371,7 +371,6 @@ def test_ase_atoms_conversion(tmpdir):
     """Tests the conversion of an ase atoms objcet to a 'matdb.atoms.Atoms' object. 
     """
 
-    from matdb.calculators import Quip
     from matdb.atoms import Atoms as matAtoms
     from ase.atoms import Atoms
     from matdb.utility import _set_config_paths
@@ -385,14 +384,6 @@ def test_ase_atoms_conversion(tmpdir):
     atSi = Atoms("Si8",positions=[[0,0,0],[0.25,0.25,0.25],[0.5,0.5,0],[0.75,0.75,0.25],
                                   [0.5,0,0.5],[0.75,0.25,0.75],[0,0.5,0.5],[0.25,0.75,0.75]],
                  cell=[5.43,5.43,5.43])
-
-    aR = matAtoms(atSi)
-
-    assert np.allclose(aR.positions, atSi.positions)
-    assert aR.calc == atSi.calc 
-    
-    potSW = Quip(atSi, target, '.', 0, "IP SW")
-    atSi.set_calculator(potSW)
 
     aR = matAtoms(atSi)
 
