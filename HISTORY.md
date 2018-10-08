@@ -1,5 +1,12 @@
 # Revision History for `matdb`
 
+## Revision 1.2.1
+- Changed all the paths in the calculators to be relative paths.
+- Added global directory hashing for potcar directories.
+- Added global controller directory and name for a single matdb.
+- Fixed some minor bugs in the VASP calculator.
+- Addde a `matdb/calculators/utility.py` module to help avoid cyclic imports.
+
 ## Revision 1.2.0
 - Added Tracy calculator for QE/DFT to the code.
 - Implemented new methods in the `Group` class to ensure that the

@@ -41,55 +41,22 @@ databases:
         nconfigs: 10
         sizes: [1,4]
         ran_seed: 10
-        calculator:
-          nsw: 1
-          pp: 'pbe'
-          kpoints:
-            method: 'mueller'
-            mindistance: 30
-          potcars:
-            directory: './tests/vasp'
-            xc: 'PBE'
-            versions:
-              Ag: '02Apr2005'
-              Pd: '28Jan2005'
-            setups:
-              Ag: '_pv'
-              Pd: '_pv'
 
 calculator:
-  name: Vasp
-  nsw: 1
-  pp: 'pbe'
+  name: 'Qe'
   kpoints:
-    method: 'mueller'
-    mindistance: 30
+    method: 'kspacing'
+    spacing: 0.1
+    offset: 1
   potcars:
-    directory: './tests/vasp'
-    xc: 'PBE'
+    directory: './tests/qe'
+    potentials:
+      Al: 'Al.pbe-n-kjpaw_psl.1.0.0.UPF'
+      Pd: 'Pd_ONCV_PBE-1.0.upf'
     versions:
-      Ag: '02Apr2005'
-      Pd: '04Jan2005'
-      Si: '05Jan2001'
-
-fitting: 
-  dbs: ['*'] 
-  execution:
-    template: 'run_mtp_ml.sh'
-    time: 10
-    ntasks: 1
-    nodes: 1
-    mem_per_cpu: 500MB
-    job_name: 'AgPt-fitting'
-    modules: ['mpi/openmpi-1.8.5_intel-15.0.2','compiler_intel/2017']
-  fits:
-    - name: "AgPd"
-      dbs: ["*"]
-      steps:
-        - type: "mtp.MTP"
-          select: 
-            selection-limit: 200
-          species:
-            - "Ag"
-            - "Pd"
-
+      Ag:
+        - "2.0.1"
+        - ".5.1"
+      Pd:
+        - "2.0.1"
+        - "2.1.1"

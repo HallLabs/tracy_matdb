@@ -8,7 +8,7 @@ import quippy
 from quippy.atoms import Atoms
 
 from matdb.calculators.basic import SyncCalculator
-from matdb.atoms import Atoms as matdbAtoms
+from matdb.utility import config_specs
 
 class SyncQuip(quippy.Potential, SyncCalculator):
     """Implements a synchronous `matdb` calculator for QUIP potentials.
@@ -20,15 +20,21 @@ class SyncQuip(quippy.Potential, SyncCalculator):
         contr_dir (str): The absolute path of the controller's root directory.
         ran_seed (int or float): the random seed to be used for this calculator.
     """
+    key = 'quip'
+    pathattrs = []
     def __init__(self, atoms, folder, contr_dir, ran_seed, *args, **kwargs):
         self.init_calc(kwargs)
         self.args = args
         self.kwargs = kwargs
         self.ran_seed = ran_seed
+        if contr_dir == '$control$':
+            contr_dir = config_specs["cntr_dir"]
         self.contr_dir = contr_dir
         self.version = None
         super(SyncQuip, self).__init__(*self.args, **self.kwargs)
         self.atoms = atoms
+        if '$control$' in folder:
+            folder = folder.replace('$control$', self.contr_dir)
         self.folder = folder
         self.name = "Quip"
 
@@ -95,6 +101,8 @@ class SyncQuip(quippy.Potential, SyncCalculator):
             rename (bool): when True, include the calculator key as part of the
               quantity names for results.
         """
+        #Local import of the matdb atoms object needed to prevent cylcical imports.
+        from matdb.atoms import Atoms as matdbAtoms
         #Unfortunately, quippy uses fortran arrays that are
         #transposes. Depending on who calls this function, the atoms object can
         #be ASE, quippy, or `matdb`. We have to perform checks for all relevant
@@ -179,8 +187,9 @@ class SyncQuip(quippy.Potential, SyncCalculator):
         Args:
             folder (str): path to the folder in which the executable was run.
         """
-        quip_dict = {"folder":self.folder, "ran_seed":self.ran_seed,
-                     "contr_dir":self.contr_dir, "kwargs": self.kwargs,
+        quip_dict = {"folder":self.folder.replace(self.contr_dir,'$control$'),
+                     "ran_seed":self.ran_seed,
+                     "contr_dir":'$control$', "kwargs": self.kwargs,
                      "args": self.args}
 
         # Need to determine how to find the quip version number.

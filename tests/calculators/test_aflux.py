@@ -51,6 +51,10 @@ def test_init(paper):
 def test_to_dict():
     """Tests the to dict method.
     """
+    from matdb.utility import _set_config_paths
+
+    _set_config_paths("AgPd_Enumerated", '.')
+    
     atSi = Atoms("Si8",positions=[[0,0,0],[0.25,0.25,0.25],[0.5,0.5,0],[0.75,0.75,0.25],
                                   [0.5,0,0.5],[0.75,0.25,0.75],[0,0.5,0.5],[0.25,0.75,0.75]],
                  cell=[5.43,5.43,5.43])
@@ -58,8 +62,9 @@ def test_to_dict():
     kwargs  = {}
     args = []
 
-    calc = Aflow(atSi, '.', '.', 0, *args, **kwargs)
-    out = {"folder":'.', "ran_seed":0, "contr_dir":'.', "kwargs":{"entry":None}, "args":[]}
+    calc = Aflow(atSi, '$control$', '$control$', 0, *args, **kwargs)
+    out = {"folder":'$control$', "ran_seed":0, "contr_dir":'$control$',
+           "kwargs":{"entry":None}, "args":[]}
     assert compare_nested_dicts(calc.to_dict(),out)
 
 def test_calc(paper,tmpdir):

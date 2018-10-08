@@ -10,6 +10,24 @@ from matdb.utility import reporoot, relpath, symlink, touch
 from matdb.calculators import TracyQE
 from matdb.exceptions import VersionError
 
+def globals_setup(new_root):
+    """Sets up the globals for the calculator instance.
+    """
+    from matdb.io import read
+    from matdb.calculators.utility import paths, set_paths
+
+    target = relpath("./tests/AgPd/matdb")
+    config = path.expanduser(path.abspath(target))
+    if path.isabs(config):
+        root, config = path.split(config)
+    else:
+        root, config = path.dirname(config), config
+        
+    configyml = read(root, config)
+    configyml["root"] = new_root
+
+    set_paths(configyml)
+    
 def compare_nested_dicts(dict1,dict2):
     """Compares two dictionaries to see if they are the same.
     """
@@ -49,6 +67,11 @@ def test_get_calc_mod():
 def test_tracy_qe_setup(tmpdir):
     """Tests TracyQE calculator initialization.
     """
+    from matdb.utility import _set_config_paths
+
+    _set_config_paths("AgPd_Enumerated", str(tmpdir))
+    target = str(tmpdir.join("TracyQE"))        
+    globals_setup(target)
 
     target = str(tmpdir.join("TracyQE"))
     mkdir(target)
@@ -77,6 +100,8 @@ def test_tracy_qe_setup(tmpdir):
     assert calc.sys_specs["max_time"] == 10
     assert calc.contract_id == "12345"
     assert calc.after_print == "abcde"
+    
+    calc = TracyQE(atm, '$control$/TracyQE', '$control$', 0, **kwargs)
 
 def test_Tracy(tmpdir):
     """Tests the writing of the input files for the TracyQE calculator.
