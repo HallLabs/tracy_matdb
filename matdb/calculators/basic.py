@@ -158,7 +158,7 @@ class SyncCalculator(object):
         specified atoms object.
 
         Args:
-            atoms (quippy.Atoms): config to test executability for.
+            atoms (matdb.Atoms): config to test executability for.
         """
         pass
 
@@ -168,7 +168,7 @@ class SyncCalculator(object):
         results are available for use.
 
         Args:
-            atoms (quippy.Atoms): config to check execution completion for.
+            atoms (matdb.Atoms): config to check execution completion for.
         """
         pass
 
@@ -177,7 +177,7 @@ class SyncCalculator(object):
         """Returns True if the specified config is in process of executing.
 
         Args:
-            atoms (quippy.Atoms): config to check execution for.
+            atoms (matdb.Atoms): config to check execution for.
         """
         pass
 
