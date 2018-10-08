@@ -655,8 +655,6 @@ def test_check_deps():
 
     from matdb.utility import required_packages, check_deps
 
-    print(required_packages())
-    
     assert ["ase", "beautifulsoup4", "certifi", "chardet", "cycler", "h5py", "html5lib",
             "idna", "matplotlib", "mpld3", "numpy", "phenum", "phonopy", "pyparsing",
             "python-dateutil", "pytz", "PyYAML", "requests", "subprocess32", "termcolor", 
@@ -664,4 +662,5 @@ def test_check_deps():
 
     res = check_deps()
 
-    assert res["six"] is not None
+    print(res)
+    assert res["numpy"] is not None
