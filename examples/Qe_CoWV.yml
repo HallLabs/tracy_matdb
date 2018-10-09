@@ -99,8 +99,6 @@ fitting:
       dbs: ["*"]
       steps:
         - type: "mtp.MTP"
-          select:
-            selection-limit: 200
           largest_relax_cell: 4
           use_mpi: "false"
           split: "A"

@@ -16,7 +16,7 @@ USER ${USER_NAME}
 
 RUN apt-get update \
     && apt-get -yq upgrade \
-    && apt-get install -yq python-tk 
+    && apt-get install -yq python-tk gdb
 
 RUN python -m pip install pytest \
     && python -m pip install tqdm \
