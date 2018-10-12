@@ -286,7 +286,7 @@ class AsyncQe(Espresso, AsyncCalculator):
         # let ase check the convergence
         with chdir(folder):
             self.converged = output["convergence"]
-            E = output["etot"]
+            E = output["etot"] * 13.6056980659  # convert from Rydbergs to ev
             F = output["forces"]
             S = output["stress"]
             self.atoms.add_property(self.force_name, F)
