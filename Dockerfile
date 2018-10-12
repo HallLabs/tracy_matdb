@@ -32,7 +32,7 @@ COPY support $HOME_DIR/matdb/support
 COPY setup.py $HOME_DIR/matdb
 COPY setup.cfg $HOME_DIR/matdb
 COPY MANIFEST.in $HOME_DIR/matdb
-COPY examples/Qe_CoWV.yml $HOME_DIR
+COPY examples $HOME_DIR
 
 RUN cd $HOME_DIR/matdb \
     && python -m pip install .
@@ -50,3 +50,5 @@ COPY one_off_fix/espresso.py /usr/local/lib/python2.7/dist-packages/ase/io/espre
 
 RUN echo export PATH=$PATH:${MTP_ROOT}/bin >> ${HOME_DIR}/.bashrc
 WORKDIR "$HOME_DIR"
+RUN mkdir -p /root/compute/MTP/CoWV
+RUN chmod +x /root/*.sh
