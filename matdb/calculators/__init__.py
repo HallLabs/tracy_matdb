@@ -1,7 +1,6 @@
 from .vasp import AsyncVasp as Vasp
 from .aflux import AsyncAflow as Aflow
 from .qe import AsyncQe as Qe
-from .tracy import Tracy_QE as TracyQE
 from matdb import msg
 
 def get_calc_class(name):
