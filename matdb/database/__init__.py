@@ -30,6 +30,7 @@ from matdb.io import read, save_dict_to_h5
 from matdb.msg import okay, verbosity
 from matdb.utility import (chdir, ParameterGrid, convert_dict_to_str,
                             import_fqdn, is_uuid4, _set_config_paths)
+from matdb import calculators
 
 class Group(object):
     """Represents a collection of material configurations (varying in
@@ -458,7 +459,7 @@ class Group(object):
 
         result = None
         if path.isfile(f_path):
-            with open(f_path,"r") as f:
+            with open(f_path,"rb") as f:
                 result = pickle.load(f)
 
         return result
@@ -475,7 +476,7 @@ class Group(object):
         f_path = path.join(self.root, rel_path, file_name) \
                  if rel_path is not None else path.join(self.root,file_name)
 
-        with open(f_path,"w+") as f:
+        with open(f_path,"wb+") as f:
             pickle.dump(obj,f)
 
     def save_index(self):
@@ -873,7 +874,7 @@ class Group(object):
                 if ok and rerun == 0:
                     return
                 db_setup(rerun)
-                with open(path.join(self.root,"compute.pkl"),"w+") as f:
+                with open(path.join(self.root,"compute.pkl"),"wb+") as f:
                     pickle.dump({"date": datetime.now(),"uuid":self.uuid},f)
             else:
                 pbar = tqdm(total=len(self.sequence))
@@ -1557,9 +1558,8 @@ class Controller(object):
           potentials after fitting.
     """
     def __init__(self, config, tmpdir=None):
-        from matdb.utility import relpath
-        from matdb.utility import check_deps
-        # from matdb.io import read
+        from matdb.utility import relpath, check_deps
+        from matdb.calculators.utility import set_paths
 
         self.versions = check_deps()
         self.config = path.expanduser(path.abspath(config))
@@ -1577,6 +1577,7 @@ class Controller(object):
         with open(path.join(self.root, "NAME"), "w+") as f:
             f.write(name)        
         _set_config_paths(name, root)
+        set_paths(self.specs)
             
         self.plotdir = path.join(self.root, "plots")
         self.kpathdir = path.join(self.root, "kpaths")
