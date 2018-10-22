@@ -83,7 +83,7 @@ class Active(Group):
         else:
             for i in range(len(self.config_atoms)-len(self.last_iteration),
                            len(self.config_atoms)):
-                last_atoms[last_count] = self.config_atoms[self.config_atoms.keys()[i]]
+                last_atoms[last_count] = self.config_atoms[list(self.config_atoms.keys())[i]]
                 last_count += 1
 
         return last_atoms

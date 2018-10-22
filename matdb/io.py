@@ -394,7 +394,7 @@ def save_dict_to_h5(h5file, dic, path='/'):
             saved to. Default is '/'.
     """
     for key, item in dic.items():
-        if isinstance(item, (np.ndarray, np.int64, np.float64, str, bytes, tuple, float, int)):
+        if isinstance(item, (np.int64, np.float64, str, bytes, tuple, float, int)):
             h5file[path + key] = item
         elif isinstance(item, np.ndarray):
             if item.ndim==1 and isinstance(item[0], np.ndarray): #pragma: no cover
