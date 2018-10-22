@@ -10,7 +10,7 @@ checking for execution readiness, etc.
   calculator can produce.
 """
 from os import path
-import pickle
+import pickle 
 
 from .basic import SyncCalculator
 from matdb.utility import config_specs
@@ -97,7 +97,7 @@ class AsyncAflow(SyncCalculator):
             folder (str): path to the folder in which to create input files.
         """
         if not path.isfile(self.entry_file):
-            with open(self.entry_file, "w+") as f:
+            with open(self.entry_file, "wb+") as f:
                 pickle.dump(self.entry, f)
 
     def extract(self, cleanup="default"):

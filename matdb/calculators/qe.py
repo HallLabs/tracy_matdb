@@ -244,7 +244,7 @@ class AsyncQe(Espresso, AsyncCalculator):
         with open(outxml, 'r') as f:
             # memory-map the file, size 0 means whole file
             m = mmap.mmap(f.fileno(), 0, prot=mmap.PROT_READ)  
-            i = m.rfind('</closed>')
+            i = m.rfind(b'</closed>')
             # we look for this second line to verify that VASP wasn't
             # terminated during runtime for memory or time
             # restrictions
@@ -300,9 +300,10 @@ class AsyncQe(Espresso, AsyncCalculator):
         # let ase check the convergence
         with chdir(folder):
             self.converged = output["convergence"]
-            E = output["etot"]
-            F = output["forces"]
-            S = output["stress"]
+            # convert units from Rydbergs and Borh to eV and Angstroms
+            E = np.array(output["etot"])*13.6056980659
+            F = np.array(output["forces"])*25.71104309541616
+            S = np.array(output["stress"])*91.815802648
             self.atoms.add_property(self.force_name, F)
             self.atoms.add_param(self.stress_name, S)
             self.atoms.add_param(self.virial_name, S*self.atoms.get_volume())
@@ -400,7 +401,7 @@ class AsyncQe(Espresso, AsyncCalculator):
         results["atoms"] = atom_pos
         results["cell"] = [[float(j) for j in i.text.split()] for i in data.findall(key_phrases[2])]
         results["etot"] = float(data.findall(key_phrases[3])[-1].text)
-        results["forces"] = [float(i) for i in data.findall(key_phrases[4])[-1].text.strip().split()]
+        results["forces"] = np.array([[float(j) for j in i.split()] for i in data.findall(key_phrases[4])[-1].text.strip().split('\n')])
         results["stress"] = np.array([float(i) for i in
                                       data.findall(key_phrases[5])[-1].text.strip().split()]).reshape((3,3))
 
