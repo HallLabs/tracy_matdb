@@ -9,6 +9,7 @@ species:
 # Directory in which the database folder system will be created.
 root: '~/temp/AgPd'
 venv: 'matdb-dev'
+name: "AgPd_test"
 # Parameters for the job arrays that will be submitted for each
 # database. These can be overridden in each database below as well.
 execution:
