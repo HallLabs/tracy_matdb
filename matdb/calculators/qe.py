@@ -286,9 +286,10 @@ class AsyncQe(Espresso, AsyncCalculator):
         # let ase check the convergence
         with chdir(folder):
             self.converged = output["convergence"]
-            E = output["etot"] * 13.6056980659  # convert from Rydbergs to ev
-            F = output["forces"]
-            S = output["stress"]
+            # convert units from Rydbergs and Borh to eV and Angstroms
+            E = np.array(output["etot"])*13.6056980659
+            F = np.array(output["forces"])*25.71104309541616
+            S = np.array(output["stress"])*91.815802648
             self.atoms.add_property(self.force_name, F)
             self.atoms.add_param(self.stress_name, S)
             self.atoms.add_param(self.virial_name, S*self.atoms.get_volume())

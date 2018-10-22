@@ -505,7 +505,7 @@ class MTP(Trainer):
         #     --skip-preinit: skip the 75 iterations done when params are not given
 
         if self.use_mpi:
-            template = ("mpirun -n {} mlp train pot.mtp "
+            template = ("mpirun --allow-run-as-root -n {} mlp train pot.mtp "
                         "train.cfg".format(self.ncores))
         else:
             template = "mlp train pot.mtp train.cfg"
@@ -572,7 +572,7 @@ class MTP(Trainer):
         # --log=<str>: Write relaxation log to <str>
 
         if self.use_mpi:
-            template = ("mpirun -n {0} mlp relax relax.ini "
+            template = ("mpirun --allow-run-as-root -n {0} mlp relax relax.ini "
                         "--cfg-filename=to-relax.cfg "
                         "--save-relaxed={1} --log=relax_{2} "
                         "--save-unrelaxed={3}".format(self.ncores,
