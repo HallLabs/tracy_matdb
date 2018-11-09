@@ -31,7 +31,7 @@ calculator:
     xc: 'PBE'
     versions:
       Al: '04Jan2001'
-      Ti: '08Apr2002'
+      Ti: '07Sep2000'
     setups:
       Ti: '_pv'
 # Parameters for the job arrays that will be submitted for each
