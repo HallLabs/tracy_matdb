@@ -222,6 +222,27 @@ def test_vasp_xyz(tmpdir):
     remove(relpath("tests/files/io_convert/vasp.xyz"))
     remove(relpath("tests/files/io_convert/vasp.xyz.idx"))   
 
+
+def globals_setup(new_root):
+    """Sets up the globals for the calculator instance.
+    """
+    from matdb.io import read
+    from matdb.utility import relpath
+    from matdb.calculators.utility import paths, set_paths
+
+    target = relpath("./tests/AgPd/matdb")
+    config = path.expanduser(path.abspath(target))
+    if path.isabs(config):
+        root, config = path.split(config)
+    else:
+        root, config = path.dirname(config), config
+        
+    configyml = read(root, config)
+    configyml["root"] = new_root
+
+    set_paths(configyml)
+
+    
 def test_atoms_to_cfg(tmpdir):
     """Tests the writing of an atoms object to cfg format. 
     """
@@ -230,6 +251,7 @@ def test_atoms_to_cfg(tmpdir):
     from os import path, remove
     from ase.calculators.singlepoint import SinglePointCalculator
     from matdb.calculators import Vasp
+    from matdb.utility import _set_config_paths
 
     atSi = Atoms("Si8",positions=[[0,0,0],[0.25,0.25,0.25],[0.5,0.5,0],[0.75,0.75,0.25],
                                   [0.5,0,0.5],[0.75,0.25,0.75],[0,0.5,0.5],[0.25,0.75,0.75]],
@@ -248,7 +270,7 @@ def test_atoms_to_cfg(tmpdir):
     virial = [[0,1,2],[3,4,5],[6,7,8]]
 
     atSi.calc = SinglePointCalculator(atSi, energy=energy, forces=np.array(forces),
-                                          stress=stress)
+                                          stress=virial)
 
     atSi.add_property("energy", energy)
     atSi.add_property("virial", virial)
@@ -267,6 +289,7 @@ def test_atoms_to_cfg(tmpdir):
     
     kwargs = {"kpoints":{"rmin":50}, "potcars": {"directory":"./tests/vasp",
                                                  "versions": {"Si":"05Jan2001"}}, "xc":"pbe"}
+    _set_config_paths("test", tmpdir)
     atSi.calc = Vasp(atSi, str(tmpdir.join("Vasp")) , str(tmpdir), 0, **kwargs)
 
     atoms_to_cfg(atSi, target, type_map=type_map, config_id="test")
