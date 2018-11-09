@@ -45,7 +45,7 @@ def test_AgCu_setup(AgCu):
 
     AgCu.setup()
 
-    dbs = "Substitution/substitution/Ag1Cu5"
+    dbs = "Substitution/substitution.Substitution/Ag1Cu5"
 
     folders = {
         "__files__": ["compute.pkl", "suids.pkl", "jobfile.sh", "index.json"],
@@ -105,9 +105,9 @@ def test_AgCu_setup(AgCu):
 
     # test the suid and index creation for the entire database.
     assert path.isfile(path.join(AgCu.root,
-                                 "Substitution/substitution/suids.pkl"))
+                                 "Substitution/substitution.Substitution/suids.pkl"))
     assert path.isfile(path.join(AgCu.root,
-                                 "Substitution/substitution/index.json"))
+                                 "Substitution/substitution.Substitution/index.json"))
 
     sub = AgCu.collections[
         'substitution'].steps['Substitution']

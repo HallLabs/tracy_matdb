@@ -233,7 +233,7 @@ class Prototypes(Group):
                 perms = self._get_perms(k)
                 for fpath, perm in product(v,perms):
                     hash_str = "{0}-{1}".format(fpath.split("/")[-1],"".join(perm))
-                    hash_str = str(sha1(hash_str).hexdigest())
+                    hash_str = str(sha1(hash_str.encode()).hexdigest())
                     if hash_str not in self.puuids:
                         self.puuids.append(hash_str)
                         self._correct_poscar(fpath, path.join(self.root, "POSCAR"), perm)

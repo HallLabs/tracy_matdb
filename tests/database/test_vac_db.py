@@ -42,7 +42,7 @@ def test_AlTi_setup(AlTi):
 
     AlTi.setup()
 
-    dbs = "Vacancy/vacancy/Al14Ti6"
+    dbs = "Vacancy/vacancy.Vacancy/Al14Ti6"
 
     folders = {
         "__files__": ["compute.pkl", "vuids.pkl", "jobfile.sh", "index.json"],
@@ -78,9 +78,9 @@ def test_AlTi_setup(AlTi):
 
     # test the vuid and index creation for the entire database.
     assert path.isfile(path.join(AlTi.root,
-                                 "Vacancy/vacancy/vuids.pkl"))
+                                 "Vacancy/vacancy.Vacancy/vuids.pkl"))
     assert path.isfile(path.join(AlTi.root,
-                                 "Vacancy/vacancy/index.json"))
+                                 "Vacancy/vacancy.Vacancy/index.json"))
 
     vac = AlTi.collections[
         'vacancy'].steps['Vacancy']

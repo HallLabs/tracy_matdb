@@ -11,26 +11,20 @@ def compare_nested_dicts(dict1,dict2):
     """Compares two dictionaries to see if they are the same.
     """
 
-    print(dict1)
-    print(dict2)
     if sorted(dict1.keys()) != sorted(dict2.keys()):
-        print("H1", dict1.keys(), dict2.keys())
         return False
 
     for key in dict1:
         if isinstance(dict1[key],dict):
             res = compare_nested_dicts(dict1[key],dict2[key])
             if not res:
-                print("H2", key, dict1[key], dict2[key])
                 return False
             else:
                 continue
-        print("H3",dict1[key], dict2[key], key)
         if isinstance(dict1[key], list) and not dict1[key] == dict2[key]:
             return False
             return False
         elif isinstance(dict1[key],six.string_types) and not dict1[key] == dict2[key]:
-            print("H4", key, dict1[key], dict2[key])
             return False
 
     return True
@@ -52,15 +46,15 @@ def test_setup(CoNiTi):
     """Tetsts the setup of the enumerated database.
     """
 
-    assert not CoNiTi.collections['prototype']['prototype'].steps['prototype'].is_setup()
+    assert not CoNiTi.collections['prototype'].steps['prototype'].is_setup()
 
     CoNiTi.setup()
 
-    db = "Prototypes/prototype/ord-1"
+    db = "Prototypes/prototype.prototype/per-1"
 
     folders = {
         "__files__": ["compute.pkl", "jobfile.sh", "prototype_P_uuid.txt", "puuids.pkl"]}
-    for i in range(1,170):
+    for i in range(1,251):
         folders["P.{0}".format(i)] = {"__files__": ["INCAR", "PRECALC", "uuid.txt",
                                                     "POSCAR", "pre_comp_atoms.h5"]}
 
@@ -68,23 +62,23 @@ def test_setup(CoNiTi):
     from matdb.utility import compare_tree
     compare_tree(dbfolder,folders)
 
-    assert CoNiTi.collections['prototype']['prototype'].steps['prototype'].is_setup()
+    assert CoNiTi.collections['prototype'].steps['prototype'].is_setup()
 
-    prot = CoNiTi.collections['prototype']['prototype'].steps['prototype']
-    assert len(prot.sequence['ord-1'].puuids) == 169
+    prot = CoNiTi.collections['prototype'].steps['prototype']
+    assert len(prot.sequence['per-1'].puuids) == 250
 
     assert not prot.ready()
 
     # We need to create fake atoms.h5 objects so that the system will
     # think that VASP has run and the caculations have been extracted.
     dbfolder = path.join(CoNiTi.root,db)
-    for j in range(1,170):
+    for j in range(1,251):
         src = path.join(dbfolder,"P.{}".format(j),"pre_comp_atoms.h5")
         dest = path.join(dbfolder,"P.{}".format(j),"atoms.h5")
         symlink(src,dest)
 
-    assert len(prot.rset) == 169
-    assert len(prot.fitting_configs) == 169
+    assert len(prot.rset) == 250
+    assert len(prot.fitting_configs) == 250
 
     # We run the setup one more time to ensure quick returns
     assert prot.ready()
@@ -95,14 +89,16 @@ def test_to_dict(CoNiTi):
     """
     from matdb import __version__
     
-    prot = CoNiTi.collections['prototype']['prototype'].steps['prototype']
+    prot = CoNiTi.collections['prototype'].steps['prototype']
 
     out = prot.to_dict()
-    print(out)
     model = {'name': 'prototype', 'trainable': False, 'prefix': 'P',
              'calculator': {'kpoints': {'method': 'mueller', 'mindistance': 40},
                             'pp': 'pbe', 'nsw': 1, 'name': 'Vasp',
-                            'potcars': {'directory': './tests/vasp', 'xc': 'PBE'}},
+                            'potcars': {'directory': './tests/vasp', 'xc': 'PBE',
+                                        'versions': {'Co': '02Aug2007',
+                                                     'Ni': '02Aug2007',
+                                                     'Ti': '08Apr2002'}}},
              'permutations': {'ternary': [['Co', 'Ni', 'Ti']]}, 'ran_seed': 10,
              'config_type': None,
              'version': __version__, 'override': {}, 'execution': None, 'root': prot.root,

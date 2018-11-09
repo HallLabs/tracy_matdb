@@ -46,10 +46,11 @@ def test_setup(AgPd):
     """
 
     assert not AgPd.collections['enumerated'].steps['enum'].is_setup()
-    
+    assert AgPd.collections['enumerated'].steps['enum'].fitting_configs == []
+
     AgPd.setup()
 
-    dbs = ["Enum/enumerated/lat-{}".format(i) for i in (1,2)]
+    dbs = ["Enum/enumerated.enum/lat-{}".format(i) for i in (1,2)]
 
     folders = {
         "__files__": ["compute.pkl","euids.pkl","jobfile.sh","enum.out",
@@ -94,8 +95,8 @@ def test_setup(AgPd):
     assert AgPd.collections['enumerated'].steps['enum'].is_setup()
 
     # test the euid and index creation for the entire database.
-    assert path.isfile(path.join(AgPd.root,"Enum/enumerated/euids.pkl"))
-    assert path.isfile(path.join(AgPd.root,"Enum/enumerated/index.json"))
+    assert path.isfile(path.join(AgPd.root,"Enum/enumerated.enum/euids.pkl"))
+    assert path.isfile(path.join(AgPd.root,"Enum/enumerated.enum/index.json"))
 
     enum = AgPd.collections['enumerated'].steps['enum']
     assert len(enum.index) == 20
@@ -217,11 +218,15 @@ def test_to_dict(AgPd):
     from matdb import __version__
     
     enum = AgPd.collections['enumerated'].steps['enum']
-
     out = enum.to_dict()
+    cal = {'nsw': 1, 'pp': 'pbe', 'kpoints': {'method': 'mueller',
+                                              'mindistance': 30},
+           'potcars': {'directory': './tests/vasp', 'xc': 'PBE',
+                       'versions': {'Ag': '09Dec2005', 'Pd': '28Jan2005'},
+                       'setups': {'Ag': '_pv', 'Pd': '_pv'}}}
     model = {'rattle': 0.0, 'prefix': 'E', 'basis': [[0, 0, 0]],
              'lattice': None, 'displace': 0.0, 'execution': {}, "override": {},
-             'keep_supers': False, 'name': 'enum', 'calculator': None, 'trainable': False,
+             'keep_supers': False, 'name': 'enum', 'calculator': cal, 'trainable': False,
              'sizes': [1, 4], 'arrows': None, 'eps': 0.001, 'concs': None, 'nconfigs': 10,
              'root': enum.root, 'config_type': None, 'version': __version__,
              'ran_seed': 10}

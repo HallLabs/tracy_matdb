@@ -789,7 +789,7 @@ class Group(object):
             trans_atoms.uuid = uid
             trans_atoms.time_stamp = time_stamp
             trans_atoms.group_uuid = self.uuid
-            if "Tracy" in self.calcargs["name"]:
+            if "Tracy" in self.calcargs["name"]: #pragma: no cover
                 lcargs = self._tracy_setup(calcargs)
             else:
                 lcargs = self.calcargs.copy()
@@ -1573,7 +1573,7 @@ class Controller(object):
         self.root = relpath(path.expanduser(self.specs["root"]))
         if tmpdir is not None:
             self.root = tmpdir
-        name = self.specs["name"].strip().replace(' ', '_')
+        name = self.specs["title"].strip().replace(' ', '_')
         with open(path.join(self.root, "NAME"), "w+") as f:
             f.write(name)        
         _set_config_paths(name, root)
@@ -1810,12 +1810,13 @@ class Controller(object):
             # Save the paths to the setup atoms objects for the Tracy
             # extract method.
             uuid_paths = {}
-            for matdb_id, matdb_obj in self.uuids.values():
+            for matdb_id, matdb_obj in self.uuids.items():
+                print(matdb_obj)
                 if isinstance(matdb_obj, Atoms):
                     uuid_paths[matdb_id] = matdb_obj.calc.folder
             with open(path.join(self.root,"atoms_paths.json"),"w+") as f:
                 json.dump(uuid_paths, f)
-            if path.isfile(path.join(self.root, "user_cred.json")):
+            if path.isfile(path.join(self.root, "user_cred.json")): #pragma: no cover
                 remove(path.join(self.root, "user_cred.json"))
 
     def extract(self, dfilter=None, cleanup="default", asis=False):

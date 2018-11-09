@@ -243,7 +243,7 @@ class Vacancy(Group):
         if(not self.is_setup() or rerun > 1):
             for vac in vacs:
                 self.create(vac)
-                vuid = sha1(str(indices[len(self.vuids)])).hexdigest()
+                vuid = sha1(str(indices[len(self.vuids)]).encode()).hexdigest()
                 self.vuids.append(vuid)
                 self.index[vuid] = self.configs[len(self.configs)]
         self.jobfile(rerun)

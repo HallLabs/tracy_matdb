@@ -90,7 +90,7 @@ def test_make_primitive():
     """Tests the make_primitive routine.
     """
 
-    from matdb.Atoms import Atoms
+    from matdb.atoms import Atoms
     from matdb.database.utility import make_primitive
     from phenum.grouptheory import _is_equiv_lattice
 
@@ -160,7 +160,7 @@ def test_decompress():
     """Tests that the decompression algorithm works.
     """
 
-    from matdb.Atoms import Atoms
+    from matdb.atoms import Atoms
     from matdb.database.utility import make_primitive, decompress
     from phenum.grouptheory import _is_equiv_lattice
 

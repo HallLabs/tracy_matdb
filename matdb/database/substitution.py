@@ -255,7 +255,7 @@ class Substitution(Group):
             for sub in subs:
                 self.create(sub)
                 chem_form = sub.get_chemical_formula(mode='reduce')
-                suid = sha1(chem_form).hexdigest()
+                suid = sha1(chem_form.encode()).hexdigest()
                 self.suids.append(suid)
                 self.index[suid] = self.configs[len(self.configs)]
         self.jobfile(rerun)
