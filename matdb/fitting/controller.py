@@ -10,6 +10,7 @@ from os import path
 import six
 from matdb import msg
 from matdb.atoms import AtomsList
+from copy import copy
 
 class TrainingSequence(object):
     """Represents a sequence of training steps (each sub-classing
