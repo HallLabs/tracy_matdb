@@ -1,6 +1,6 @@
 """Functions for interacting with various output formats.
 """
-from os import path
+from os import path, stat
 
 import ase
 from ase.calculators.singlepoint import SinglePointCalculator
@@ -221,7 +221,7 @@ def cfg_to_xyz(cfgfile, outfile="output.xyz", config_type=None, species=None):
                         cfgd["features"][feature] = values
                         del cfgd[label]
                 else:
-                    parsed = map(eval, line.strip().split())
+                    parsed = list(map(eval, line.strip().split()))
                     cfgd[label]["vals"].append(parsed)
             elif "END_CFG" in line:
                 if cfgd is not None:
@@ -253,7 +253,6 @@ def vasp_to_xyz(folder, outfile="output.xyz", recalc=0,
     """
 
     from matdb.atoms import Atoms
-    # from os import path, stat
 
     if not path.isabs(outfile):
         #Convert to absolute path if one wasn't given.
@@ -429,7 +428,25 @@ def load_dict_from_h5(h5file, path='/'):
     ans = {}
     for key, item in h5file[path].items():
         if isinstance(item, h5py._hl.dataset.Dataset):
-            ans[key] = item.value
+            if isinstance(item.value, bytes):
+                ans[key] = item.value.decode("ascii")
+            elif isinstance(item.value, (np.ndarray, list)):
+                ans[key] = np.array(_hdf5_lists(item.value))
+            else:
+                ans[key] = item.value
         elif isinstance(item, h5py._hl.group.Group):
             ans[key] = load_dict_from_h5(h5file, path + key + '/')
     return ans
+
+def _hdf5_lists(in_list):
+    """Converts strings contained in the lists from binary to ascii.
+    """
+    out_list = []
+    for item in in_list:
+        if isinstance(item, bytes):
+            out_list.append(item.decode("ascii"))
+        elif isinstance(item, (list, np.ndarray)):
+            out_list.append(_hdf5_lists(item))
+        else:
+            out_list.append(item)
+    return out_list

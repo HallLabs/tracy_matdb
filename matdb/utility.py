@@ -176,8 +176,8 @@ def execute(args, folder, wait=True, nlines=100, venv=None,
     if kwargs["stderr"] is PIPE:
         error = []
         for line in pexec.stderr:
-            if errignore is None or errignore not in line:
-                error.append(line)
+            if errignore is None or errignore not in str(line):
+                error.append(str(line))
             if len(error) >= nlines:
                 break
         pexec.stderr.close()

@@ -26,8 +26,8 @@ def _recursively_convert_units(in_dict, split = False):
         a copy of the dict with the entries converted to numpy ints,
         floats, and arrays.
     """
-    dict_copy = in_dict.copy()
-    for key, item in dict_copy.items():
+    dict_copy = {}
+    for key, item in in_dict.items():
         if isinstance(item,int):
             dict_copy[key] = np.int64(item)
         elif isinstance(item,float):
@@ -42,9 +42,9 @@ def _recursively_convert_units(in_dict, split = False):
                 dict_copy[key] = _recursively_convert_units(atoms_dict)
             else:
                 dict_copy[key] = np.array(item)
-        elif item is None: #pragma: no cover I'm not sure this ever
-                           #will happen but better safe than sorry.
-            del dict_copy[key]
+        else:
+            dict_copy[key] = item
+                
     return dict_copy
 
 def _calc_name_converter(name):
@@ -174,6 +174,11 @@ class Atoms(ase.Atoms):
         self.uuid = uuid if uuid is not None else str(uuid4())
                 
         self._initialised = True
+
+    def __lt__(self, other):
+        """Determins which object should be placed first in a list.
+        """
+        return len(self.positions) < len(other.positions)
 
     def make_supercell(self, supercell):
         """Returns a new :class:`matdb.Atoms` object that is a supercell of the
@@ -533,7 +538,7 @@ class AtomsList(list):
     def random_access(self):
         return True
 
-    def sort(self, cmp=None, key=None, reverse=False, attr=None):
+    def sort(self, key=None, reverse=False, attr=None):
         """
         Sort the AtomsList in place. This is the same as the standard
         :meth:`list.sort` method, except for the additional `attr`
@@ -546,10 +551,13 @@ class AtomsList(list):
         """
         import operator
         if attr is None:
-            list.sort(self, cmp, key, reverse)
+            if key is not None:
+                list.sort(self, key, reverse)
+            else:
+                list.sort(self, reverse=reverse)
         else:
-            if cmp is not None or key is not None:
-                raise ValueError('If attr is present, cmp and key must not be present')
+            if key is not None:
+                raise ValueError('If attr is present, key must not be present')
             list.sort(self, key=operator.attrgetter(attr), reverse=reverse)
 
 
