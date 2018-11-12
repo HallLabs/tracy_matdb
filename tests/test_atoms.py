@@ -252,8 +252,8 @@ def test_AtomsList_attributes():
                                   [0.5,0,0.5],[0.75,0.25,0.75]],
                  cell=[6.43,5.43,4.43],info={"rand":10})
 
-    at3 = Atoms("CNi",positions=[[0,0,0],[0.5,0.5,0.5]])
-    at4 = Atoms()
+    at3 = Atoms("CNi",positions=[[0,0,0],[0.5,0.5,0.5]], info={"rand":8})
+    at4 = Atoms(info={"rand":7})
     at4.copy_from(at3)
     
     al1 = AtomsList([at1,at2,at3,at4])
@@ -302,12 +302,11 @@ def test_AtomsList_attributes():
     assert np.allclose(alpos[2],at3.positions)
     assert np.allclose(alpos[3],at4.positions)
 
-
     al1.sort(reverse=True)
-    al1.sort(attr='calc')
+    al1.sort(attr='rand')
 
     with pytest.raises(ValueError):
-        al1.sort(attr='positions',cmp=2)
+        al1.sort(attr='positions',key=2)
 
 def test_AtomsList_io(tmpdir):
     """Tests the AtomsList writing and reading from file.

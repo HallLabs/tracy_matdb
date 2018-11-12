@@ -199,7 +199,7 @@ def test_hdf5_in_out():
     hf = h5py.File("temp.h5","w")
 
     with pytest.raises(ValueError):
-        save_dict_to_h5(hf,{"a":2},"/")
+        save_dict_to_h5(hf,{"a":remove},"/")
     hf.close()
     remove("temp.h5")
 
@@ -209,7 +209,7 @@ def test_vasp_xyz(tmpdir):
     from matdb.io import vasp_to_xyz
     from os import remove
 
-    target = "vasp.xyz"
+    target = "atoms.xyz"
     model = vasp_to_xyz(relpath("tests/files/io_convert/"), target,
                         properties=["species", "pos", "z"],
                         parameters=["energy", "virial"], config_type="temp")
@@ -218,10 +218,6 @@ def test_vasp_xyz(tmpdir):
 
     model = vasp_to_xyz(relpath("tests/files/io_convert/"), target, config_type="temp")
     assert model
-
-    remove(relpath("tests/files/io_convert/vasp.xyz"))
-    remove(relpath("tests/files/io_convert/vasp.xyz.idx"))   
-
 
 def globals_setup(new_root):
     """Sets up the globals for the calculator instance.
