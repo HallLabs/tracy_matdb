@@ -99,7 +99,7 @@ fitting:
       dbs: ["*"]
       steps:
         - type: "mtp.MTP"
-          largest_relax_cell: 4
+          largest_relax_cell: 6
           use_mpi: "false"
           split: "A"
           species:
