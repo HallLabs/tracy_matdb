@@ -1,22 +1,31 @@
 
-FROM quip4tracy as quip
 FROM mtp4tracy as mtp  
+FROM pslibrary4tracy as ps
+FROM dft_qe4tracy as qe
 
-FROM pslibrary4tracy
+FROM quip4tracy
 
-ENV QUIP_ROOT "/home/tracy/quip"
+ENV PS_ROOT "/home/tracy/pslibrary/pz/PSEUDOPOTENTIALS"
 ENV MTP_ROOT "/home/tracy/mtp"
-COPY --from=quip --chown=tracy:tracy ${QUIP_ROOT} ${QUIP_ROOT}
+ENV QE_ROOT  "/home/tracy/q-e-qe-6.3"
+ENV QUIP_ROOT "/home/tracy/quip"
+COPY --from=ps --chown=tracy:tracy ${PS_ROOT}/Co.* ${PS_ROOT}/
+COPY --from=ps --chown=tracy:tracy ${PS_ROOT}/W.* ${PS_ROOT}/
+COPY --from=ps --chown=tracy:tracy ${PS_ROOT}/V.* ${PS_ROOT}/
 COPY --from=mtp --chown=tracy:tracy ${MTP_ROOT} ${MTP_ROOT}
+COPY --from=qe --chown=tracy:tracy ${QE_ROOT}/PW/src/pw.x ${QE_ROOT}/bin/
+
+# Remove unwanted files
+# For non-dev mode, remove source code
+ARG DEV_MODE
+RUN if [ "${DEV_MODE}" != "YES" ] ; then \
+        rm -rf "${QUIP_ROOT}" > /dev/null 2>&1 ; \
+    fi
 
 ENV USER_NAME="root"
 ENV HOME_DIR="/root"
 
 USER ${USER_NAME}
-
-RUN apt-get update \
-    && apt-get -yq upgrade \
-    && apt-get install -yq python-tk gdb
 
 RUN python -m pip install pytest \
     && python -m pip install tqdm \
@@ -36,10 +45,6 @@ COPY examples $HOME_DIR
 
 RUN cd $HOME_DIR/matdb \
     && python -m pip install .
-
-ENV QUIP_ARCH linux_x86_64_gfortran
-RUN cd ${QUIP_ROOT} \
-    && make install-quippy > /dev/null 
 
 # This is to fix the annoying false error messages when the matdb trying to check for depends.
 COPY one_off_fix/pip /usr/bin/pip
