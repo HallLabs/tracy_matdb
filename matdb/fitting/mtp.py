@@ -678,7 +678,8 @@ class MTP(Trainer):
             # Calculate the grad of the training configurations.
             calc_grade = self._calc_grade_template()
             execute(calc_grade.split(), self.root)
-            remove(path.join(self.root, "temp1.cfg"))
+            if path.isfile(path.join(self.root, "temp1.cfg")):
+                remove(path.join(self.root, "temp1.cfg"))
             if not path.isfile(path.join(self.root, "state.mvs")): #pragma: no cover
                 raise MlpError("mlp failed to produce the 'state.mvs` file with command "
                                "'mlp calc-grade pot.mtp train.cfg train.cfg temp1.cfg'")
@@ -691,7 +692,7 @@ class MTP(Trainer):
                 self.iter_status = "relax"
             elif not path.isfile(path.join(self.root,"to-relax.cfg")):
                 self._setup_to_relax_cfg()
-                template = "matdb_mtp_to_relax.py"
+                template = "matdb_mtp_to_relax.py > create-to-relax.txt"
                 with open(path.join(self.root,"status.txt"),"w+") as f:
                     f.write("relax {0}".format(self.iter_count))
             else:
@@ -724,7 +725,8 @@ class MTP(Trainer):
                 # input filename sould always be entered before output filename
                 execute(["mlp", "convert-cfg", "new_training.cfg", "POSCAR",
                          "--output-format=vasp-poscar"], self.root)
-                rename("new_training.cfg", "new_training.cfg_iter_{}".format(self.iter_count))
+                if path.isfile("new_training.cfg"):
+                    rename("new_training.cfg", "new_training.cfg_iter_{}".format(self.iter_count))
                 if path.isfile("relaxed.cfg"):
                     rename("relaxed.cfg", "relaxed.cfg_iter_{}".format(self.iter_count))
 
