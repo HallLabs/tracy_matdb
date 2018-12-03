@@ -106,7 +106,7 @@ def test_setup(AgPd):
     # We need to fake some VASP output so that we can cleanup the
     # database and get the rset
 
-    src = relpath("./tests/data/Pd/complete/OUTCAR__DynMatrix_phonon_Pd_dim-2.00")
+    src = relpath("./tests/files/outcars/4_atom")
     for db in dbs:
         dbfolder = path.join(AgPd.root,db)
         for j in range(1,11):
