@@ -180,6 +180,14 @@ class Atoms(ase.Atoms):
         """
         return len(self.positions) < len(other.positions)
 
+    def get_energy(self):
+        """Returns the energy if it has been added to the params.
+        """
+
+        for p in self.params.keys():
+            if "energy" in p:
+                return self.params[p]
+
     def make_supercell(self, supercell):
         """Returns a new :class:`matdb.Atoms` object that is a supercell of the
         current one.
