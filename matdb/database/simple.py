@@ -95,7 +95,7 @@ class Manual(Group):
             result = []
             for g in self.sequence.values():
                 result.extend(g.rset)
-	    return AtomsList(result)
+            return AtomsList(result)
 
     def setup(self, rerun=False):
         """Creates a folder for each seed configuration.
