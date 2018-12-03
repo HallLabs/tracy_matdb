@@ -147,7 +147,7 @@ def _cfgd_to_atoms(cfgd, species=None):
             force.append(vals[flabel])
         forces.append(force)
 
-    aseatoms = ase.Atoms(numbers=types, positions=np.array(positions),
+    aseatoms = ase.Atoms(symbols=types, positions=np.array(positions),
                          cell=lattice)
     aseatoms.calc = SinglePointCalculator(
                                     aseatoms, energy=energy,
@@ -175,17 +175,20 @@ def _cfgd_to_atoms(cfgd, species=None):
 
     return result
 
-def cfg_to_xyz(cfgfile, outfile="output.xyz", config_type=None, species=None):
-    """Converts MTP's CFG forrmat to XYZ.
-    .. note:: Multiple frames in the CFG file will be converted to multiple
-      frames in the XYZ file.
+def cfg_to_atomslist(cfgfile, config_type=None, species=None):
+    """Converts the CFG format file to an internal AtomsList object.
+
     Args:
         cfgfile (str): path to the file to convert.
         config_type (str): name of the config_type to assign to each
           configuration.
-        species (list): of element names corresponding to the integer species in
-          the CFG dictionary.
+        species (list): of element names corresponding to the integer
+          species in the CFG dictionary.
+
+    Returns
+        An AtomsList object containing the all the cells in the CFG file.
     """
+
 
     from matdb.atoms import AtomsList
 
@@ -233,6 +236,24 @@ def cfg_to_xyz(cfgfile, outfile="output.xyz", config_type=None, species=None):
         atoms = _cfgd_to_atoms(cfg, species)
         result.append(atoms)
 
+    return result
+    
+def cfg_to_xyz(cfgfile, outfile="output.xyz", config_type=None, species=None):
+    """Converts MTP's CFG forrmat to XYZ.
+    .. note:: Multiple frames in the CFG file will be converted to multiple
+      frames in the XYZ file.
+    Args:
+        cfgfile (str): path to the file to convert.
+        config_type (str): name of the config_type to assign to each
+          configuration.
+        species (list): of element names corresponding to the integer species in
+          the CFG dictionary.
+    """
+
+    from matdb.atoms import AtomsList
+
+    result = cfg_to_atomslist(cfgfile, config_type=config_type, species=species)
+    
     dirname = path.dirname(cfgfile)
     result.write(path.join(dirname, outfile))
     return result
