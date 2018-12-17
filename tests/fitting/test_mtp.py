@@ -26,6 +26,7 @@ def test_prot_to_cfg():
     from matdb.fitting.mtp import _prot_to_cfg
     from matdb.utility import _get_reporoot, touch, chdir
     from os import path, remove
+    import tarfile
 
     template_root = path.join(_get_reporoot(), "matdb", "templates")
     if not path.isdir(path.join(template_root, "uniqueUnaries")):
@@ -320,7 +321,7 @@ def test_train_setup(mtpdb):
     
     mtpfit = mtpdb.trainers.fits['CoWV_mtp'].sequences['CoWV_mtp'].steps['mtp']
     cntrl_root = mtpdb.root
-    db_root = path.join(cntrl_root, "Manual", "test")
+    db_root = path.join(cntrl_root, "Manual", "test.manual")
     mtpdb.setup()
 
     
@@ -340,7 +341,7 @@ def test_train_setup(mtpdb):
 
     mtpfit.active.add_configs(new_configs, 2)
     mtpfit.active.setup()
-    act_root = path.join(mtpdb.root, "Active", "active")
+    act_root = path.join(mtpdb.root, "Active", "active.active")
     files = ["OUTCAR{}", "CONTCAR{}"]
     for i in range(1,11):
         target = path.join(act_root, "Ac.{0}".format(i))
@@ -379,27 +380,38 @@ def test_templates(mtpdb):
 
     mtpfit.grade_args = {"force-weight":10, "mvs-filename":"name1"}
 
-    template = "mlp calc-grade pot.mtp train.cfg train.cfg temp1.cfg --force-weight=10"
-    assert mtpfit._calc_grade_template() == template
+    template_parts = ["mlp calc-grade pot.mtp train.cfg train.cfg temp1.cfg",
+                      "--force-weight=10"]
+    mtp_out = mtpfit._calc_grade_template()
+    for part in template_parts:
+        assert part in mtp_out
 
     mtpfit.use_mpi = True
     #relax template
-    template = ("mpirun -n 72 mlp relax relax.ini --cfg-filename=to-relax.cfg "
-                "--save-relaxed=relaxed.cfg --log=relax_log.txt --save-unrelaxed=unrelaxed.cfg")
-    assert mtpfit._relax_template() == template
+    template_parts = ["mpirun", "-n 72", "mlp relax relax.ini",
+                      "--cfg-filename=to-relax.cfg", "--save-relaxed=relaxed.cfg",
+                      "--log=relax_log.txt", "--save-unrelaxed=unrelaxed.cfg"]
+    mtp_out = mtpfit._relax_template()
+    for part in template_parts:
+        assert part in mtp_out
 
     mtpfit.use_mpi = False
     mtpfit.relax_args = {"log": "name1", "bfgs-wolfe_c1": True, "max-step": 10}
-    template = ("mlp relax relax.ini --cfg-filename=to-relax.cfg --save-relaxed=relaxed.cfg "
-                "--log=relax_log.txt --save-unrelaxed=unrelaxed.cfg --max-step=10 "
-                "--bfgs-wolfe_c1")
-    assert mtpfit._relax_template() == template
+    template_parts = ["mlp relax relax.ini", "--cfg-filename=to-relax.cfg",
+                      "--save-relaxed=relaxed.cfg", "--log=relax_log.txt",
+                      "--save-unrelaxed=unrelaxed.cfg", "--max-step=10",
+                      "--bfgs-wolfe_c1"]
+    mtp_out = mtpfit._relax_template()
+    for part in template_parts:
+        assert part in mtp_out
 
     #select step
-    template = ("mlp select-add pot.mtp train.cfg candidate.cfg new_training.cfg "
-                "--force-weight=10")
+    template_parts = ["mlp select-add pot.mtp train.cfg candidate.cfg new_training.cfg",
+                      "--force-weight=10"]
     mtpfit.select_args = {"mvs-filename":"name1", "force-weight":10}
-    assert mtpfit._select_template() == template
+    mtp_out = mtpfit._select_template()
+    for part in template_parts:
+        assert part in mtp_out
 
 def test_update_split(mtpdb):
     """Tests the updating of the split params.
@@ -442,10 +454,9 @@ def test_command_functions(mtpdb):
     
     mtpfit = mtpdb.trainers.fits['CoWV_mtp'].sequences['CoWV_mtp'].steps['mtp']
     cntrl_root = mtpdb.root
-    db_root = path.join(cntrl_root, "Manual", "test")
+    db_root = path.join(cntrl_root, "Manual", "test.manual")
     mtpdb.setup()
 
-    
     files = ["OUTCAR{}", "CONTCAR{}"]
     for i in range(1,11):
         target = path.join(db_root, "vasp.{0}".format(i), "S1.1")
@@ -535,7 +546,7 @@ def test_command_functions2(mtpdb):
     assert path.isfile(path.join(mtpfit.root, "new_training.cfg_iter_1"))
     
     templates = path.join(_get_reporoot(), "tests", "mtp", "training")
-    act_root = path.join(mtpdb.root, "Active", "active")
+    act_root = path.join(mtpdb.root, "Active", "active.active")
     files = ["OUTCAR{}", "CONTCAR{}"]
     for i in range(1,11):
         target = path.join(act_root, "Ac.{0}".format(i))
