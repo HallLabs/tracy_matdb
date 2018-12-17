@@ -26,33 +26,16 @@ databases:
 fitting:
   dbs: ['phonon', 'liquid']
   execution:
-    template: 'run_teachsparse_ml.sh'
-    time: 10
+    template: 'run_array_ml.sh'
+    time: 4
     ntasks: 8
     nodes: 1
     mem_per_cpu: 5
-    job_name: 'AgPd GAP'
-  e0:
-    Pd: -1.45835775
+    job_name: 'AgPd'
   fits:
-    - name: "2b"
+    - name: "AgPd"
       steps:
-        - type: "gap.GAP"
-          nb: 2
-          cutoff: 6.0
-          cutoff_transition_width: 1.0
-          n_sparse: 20
-          split: ""
-          sigmas:
-            __: [.001, 0.01, 0.1, 1.0]
-            liq: [.005, 0.03, 0.2, 1.0]
-          delta: 0.5
-      execution:
-        time: 1
-        ntasks: 1
-      niterations:
-        - split: "A"
-          suffix: "A"
-          delta*: [0.5, 0.4]
-          sigmas.liq*:
-            - [.01, 0.1, 0.2, 1.0]
+        - type: "mtp.MTP"
+          species:
+            - "Ag"
+            - "Pd"
