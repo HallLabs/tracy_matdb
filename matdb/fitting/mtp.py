@@ -369,13 +369,21 @@ class MTP(Trainer):
             iteration (int): the number of iterations of MTP has been 
                 through.
         """
+        from matdb.database.legacy import LegacyDatabase
         if iteration == 1:
             for db in self.dbs:
-                for step in db.steps.values():
-                    pbar = tqdm(total=len(step.rset))
-                    for atm in step.rset:
+                if not isinstance(db, LegacyDatabase):
+                    for step in db.steps.values():
+                        pbar = tqdm(total=len(step.rset))
+                        for atm in step.rset:
+                            self._create_train_cfg(atm, path.join(self.root, "train.cfg"))
+                            pbar.update(1)
+                else:
+                    pbar = tqdm(total=len(db.rset))
+                    for atm in db.rset:
                         self._create_train_cfg(atm, path.join(self.root, "train.cfg"))
                         pbar.update(1)
+                            
         else:
             if self.active.last_iteration is None or len(self.active.last_iteration) < 1:
                 if path.isfile(self.active.iter_file):

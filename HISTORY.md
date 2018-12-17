@@ -1,5 +1,19 @@
 # Revision History for `matdb`
 
+## Revision 1.3.2
+- Fixed unit tests for the main (database) controller.
+- Removed unit conversions from `qe` calculator (they were breaking
+  the fitter).
+- Removed `quip` calculator from repo because we can't test it due to
+  licensing.
+- Removed `tracy` calculator from repo because it won't be used.
+- Allowed the user not te specify a calculator in the `yml` file
+  (needed for legacy databases).
+- Added functionality to the `mtp` fitter to allow for training on
+  legacy databases.
+- Changed default legacy paramater and property names.
+- Added `rset` to the legacy database.
+
 ## Revision 1.3.1
 - Making `matdb` python3 compliant, dropping python2 support.
 - Fixed binary to string problems in utility.py and

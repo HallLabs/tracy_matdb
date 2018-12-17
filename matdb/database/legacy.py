@@ -85,8 +85,8 @@ class LegacyDatabase(object):
           database.
     """
     def __init__(self, name=None, root=None, controller=None, splits=None,
-                 folder=None, pattern=None, config_type=None, energy="ref_energy",
-                 force="ref_force", virial="ref_virial", limit=None):
+                 folder=None, pattern=None, config_type=None, energy="dft_energy",
+                 force="dft_force", virial="dft_virial", limit=None):
         self.name = name
         self.root = path.join(root, self.name)
         if not path.isdir(self.root):
@@ -140,6 +140,13 @@ class LegacyDatabase(object):
         #representative. Just take the first config in the combined database.
         self.atoms = Atoms(self._dbfile)
 
+    @property
+    def rset(self):
+        """Returns a :class:`matdb.atoms.AtomsList`, one for each config in the
+        latest result set.
+        """
+        return AtomsList(self._dbfile)
+        
     def _create_dbfull(self, folder, pattern, energy, force, virial, config_type):
         """Creates the full combined database.
         """

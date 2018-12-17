@@ -138,7 +138,8 @@ class Group(object):
         self.calcargs = self.database.calculator.copy()
         if calculator is not None:
             self.calcargs.update(calculator)
-        self.calc = getattr(calculators, self.calcargs["name"])
+        if "name" in self.calcargs:
+            self.calc = getattr(calculators, self.calcargs["name"])
 
         self.prefix = prefix
         self.nconfigs = nconfigs
