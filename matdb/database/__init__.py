@@ -157,20 +157,21 @@ class Group(object):
         self.config_atoms = {}
         self._rx_folder = re.compile(r"{}\.\d+".format(prefix))
 
+        from os import getcwd
         with chdir(self.root):
             for folder in glob("{}.*".format(prefix)):
                 #We aren't interested in files, or folders that just happen to match
                 #the naming convention.
-                if not path.isdir(path.join(self.root, folder)):
+                if not path.isdir(folder):
                     continue
                 if not self._rx_folder.match(folder):
                     continue
 
                 cid = int(folder.split('.')[1])
                 self.configs[cid] = path.join(self.root, folder)
-                if path.isfile(path.join(self.configs[cid],"atoms.h5")):
+                if path.isfile(path.join(folder,"atoms.h5")):
                     self.config_atoms[cid] = Atoms(path.join(self.configs[cid],"atoms.h5"))
-                elif path.isfile(path.join(self.configs[cid],"pre_comp_atoms.h5")):
+                elif path.isfile(path.join(folder,"pre_comp_atoms.h5")):
                     self.config_atoms[cid] = Atoms(path.join(self.configs[cid],"pre_comp_atoms.h5"))
                 else:
                     msg.warn("No config atoms available for {}.".format(self.configs[cid]))
@@ -444,7 +445,7 @@ class Group(object):
             temp_atom = Atoms(atom)
             hash_str += convert_dict_to_str(temp_atom.to_dict())
 
-        return str(sha1(hash_str).hexdigest())
+        return str(sha1(hash_str.encode()).hexdigest())
 
     def load_pkl(self, file_name, rel_path=None):
         """Loads a pickled obj from the specified location on the path.
@@ -920,7 +921,7 @@ class Group(object):
             N += summary["stats"]["N"]
             is_busy = is_busy and summary["busy"]
 
-        rdata, ddata = cnz(ready.values()), cnz(done.values())
+        rdata, ddata = cnz(list(ready.values())), cnz(list(done.values()))
         rmsg = "ready to execute {}/{};".format(rdata, N)
         dmsg = "finished executing {}/{};".format(ddata, N)
         busy = " busy executing..." if is_busy else ""
@@ -1246,7 +1247,7 @@ class Database(object):
             hashes += ' '
             hashes += step.hash_group()
 
-        return str(sha1(hashes).hexdigest())
+        return str(sha1(hashes.encode()).hexdigest())
 
     @property
     def iconfigs(self):
@@ -1291,7 +1292,8 @@ class Database(object):
         from matdb.msg import verbosity
         for dbname, db in self.isteps:
             if not busy:
-                imsg = "{}:{} => {}".format(self.name, dbname, db.status(verbosity<2))
+                busy2 = verbosity < 2 if verbosity is not None else True
+                imsg = "{}:{} => {}".format(self.name, dbname, db.status(busy2))
                 msg.info(imsg)
             else:
                 detail = db.status(False)
@@ -1435,7 +1437,7 @@ class Database(object):
 
             for name, train_perc in self.splits.items():
                 for f in glob(path.join(self.root,"splits",self.name,"{0}*-ids.pkl".format(name))):
-                    id_file = open(f,'r')
+                    id_file = open(f,'rb')
                     final_dict[f.split(".pkl")[0]] = _recursively_convert_units(pickle.load(id_file), split=True)
         else:
             final_dict["hash"] = self.hash_bin()
@@ -1493,7 +1495,7 @@ class RecycleBin(Database):
             temp_atom = Atoms(atom)
             hash_str += convert_dict_to_str(temp_atom.to_dict())
 
-        return str(sha1(hash_str).hexdigest())
+        return str(sha1(hash_str.encode()).hexdigest())
 
     def setup(self):
         pass
@@ -1811,7 +1813,6 @@ class Controller(object):
             # extract method.
             uuid_paths = {}
             for matdb_id, matdb_obj in self.uuids.items():
-                print(matdb_obj)
                 if isinstance(matdb_obj, Atoms):
                     uuid_paths[matdb_id] = matdb_obj.calc.folder
             with open(path.join(self.root,"atoms_paths.json"),"w+") as f:
@@ -1904,7 +1905,7 @@ class Controller(object):
         hash_all += ' '
         hash_all += seq.rec_bin.hash_bin()
 
-        hash_all = str(sha1(hash_all).hexdigest())
+        hash_all = str(sha1(hash_all.encode()).hexdigest())
         with open(path.join(self.root,"hash.txt"),"w+") as f:
             f.write("{0} \n {1}".format(hash_all,str(datetime.now())))
 

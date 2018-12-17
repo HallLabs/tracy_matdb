@@ -426,11 +426,17 @@ def save_dict_to_h5(h5file, dic, path='/'):
         elif isinstance(item, dict):
             save_dict_to_h5(h5file, item, path + key + '/')
         elif isinstance(item, list):
-            for i in range(len(item)):
-                try:
-                    save_dict_to_h5(h5file, item[i], path + key + '/')
-                except AttributeError:
-                    h5file[path + key + '/' + str(i)] = item
+            if isinstance(item[0], dict):
+                for i in range(len(item)):
+                    try:
+                        save_dict_to_h5(h5file, item[i], path + key + '/')
+                    except AttributeError:
+                        h5file[path + key + '/' + str(i)] = item[i]
+            elif isinstance(item[0], str):
+                temp = [i.encode() for i in item]
+                h5file[path + key] = temp
+            else:
+                h5file[path + key] = item                
         elif item is None:
             continue
 
