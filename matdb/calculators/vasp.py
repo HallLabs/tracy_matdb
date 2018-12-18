@@ -512,7 +512,7 @@ class AsyncVasp(Vasp, AsyncCalculator):
         """
         vasp_dict = {"folder":self.folder.replace(self.contr_dir,'$control$'),
                      "ran_seed":self.ran_seed,
-                     "contr_dir":'$control$', "kwargs": self.kwargs,
+                     "contr_dir":'$control$', "kwargs": self.kwargs.copy(),
                      "args": self.args}
 
         # run vasp in the root directory in order to determine the
