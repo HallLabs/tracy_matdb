@@ -79,7 +79,7 @@ def test_hdf5(tmpdir):
     """Tests whether an atoms object with calculated parameters can be saved to
     JSON and then restored.
     """
-    from matdb.calculators import Quip
+    from matdb.calculators import Vasp
     from matdb.atoms import Atoms
     from matdb.utility import _set_config_paths
 
@@ -92,9 +92,22 @@ def test_hdf5(tmpdir):
     atSi = Atoms("Si8",positions=[[0,0,0],[0.25,0.25,0.25],[0.5,0.5,0],[0.75,0.75,0.25],
                                   [0.5,0,0.5],[0.75,0.25,0.75],[0,0.5,0.5],[0.25,0.75,0.75]],
                  cell=[5.43,5.43,5.43])
-    potSW = Quip(atSi, target, '.', 0, "IP SW")
+    kwargs = {"kpoints":{"rmin":50}, "potcars": {"directory":"./tests/vasp",
+                                                 "versions":{"Si": '05Jan2001'}}, "xc":"pbe"}    
+    potSW = Vasp(atSi, target, str(tmpdir), 0, **kwargs)
     atSi.set_calculator(potSW)
-    potSW.calc(atSi, rename=True, energy=True, force=True, virial=True)
+    atSi.add_property("vasp_force", [[-18057.59589857, -18057.59589857, -18057.59589857],
+         [ -2997.55626529,  -2997.55626529,  -2997.55626529],
+         [  3044.17916471,   3044.17916471, -34130.71583118],
+         [ 18969.1757571 ,  18969.1757571 ,  11159.15815145],
+         [  3044.17916471, -34130.71583118,   3044.17916471],
+         [ 18969.1757571 ,  11159.15815145,  18969.1757571 ],
+         [-34130.71583118,   3044.17916471,   3044.17916471],
+         [ 11159.15815145,  18969.1757571 ,  18969.1757571 ]])
+    atSi.add_param("vasp_energy", 25360.504084423999)
+    atSi.add_param("vasp_virial", [[ 33538.34327189,  11045.88697112,  11045.88697112],
+         [ 11045.88697112,  33538.34327189,  11045.88697112],
+         [ 11045.88697112,  11045.88697112,  33538.34327189]])
     atSi.properties["rand"] = np.random.randint(0, 100, 8)
     atSi.write(target=path.join(target,"temp.h5"))
     atR = Atoms()
@@ -106,10 +119,10 @@ def test_hdf5(tmpdir):
     assert atSi.calc.kwargs == atR.calc.kwargs
 
     # check that the other properties got transfered properly.
-    assert atR.quip_energy == atSi.quip_energy
+    assert atR.vasp_energy == atSi.vasp_energy
     assert isinstance(atR, Atoms)
-    assert np.allclose(atR.quip_force, atSi.quip_force)
-    assert np.allclose(atR.quip_virial, atSi.quip_virial)
+    assert np.allclose(atR.vasp_force, atSi.vasp_force)
+    assert np.allclose(atR.vasp_virial, atSi.vasp_virial)
     assert np.allclose(atR.properties["rand"], atSi.properties["rand"])
     assert np.allclose(atR.positions, atSi.positions)
     remove(path.join(target,"temp.h5"))
@@ -130,7 +143,6 @@ def test_remote_read(tmpdir):
 def test_Atoms_creation(tmpdir):
     """Tests the initialization of the atoms objcet.
     """
-    from matdb.calculators import Quip
     from matdb.atoms import Atoms
     from ase.atoms import Atoms as aseAtoms
     atSi = Atoms("Si8",positions=[[0,0,0],[0.25,0.25,0.25],[0.5,0.5,0],[0.75,0.75,0.25],
@@ -169,24 +181,10 @@ def test_Atoms_creation(tmpdir):
     assert np.allclose(atR.cell,atSi.cell)
     remove(path.join(target,"temp.xyz"))
 
-    potSW = Quip(atSi, target, '.', 0, "IP SW")
-    potSW.results["energy"] = 1234
-    potSW.results["force"] = np.random.randint(0, 100, (8,3))
-    atSi = Atoms("Si8",positions=[[0,0,0],[0.25,0.25,0.25],[0.5,0.5,0],[0.75,0.75,0.25],
-                                  [0.5,0,0.5],[0.75,0.25,0.75],[0,0.5,0.5],[0.25,0.75,0.75]],
-                 cell=[5.43,5.43,5.43],info={"rand":10},calculator=potSW)
-
-    assert "rand" in atSi.params
-    assert atSi.params['energy'] == potSW.results['energy']
-    assert np.allclose(atSi.properties['force'], potSW.results['force'])
-
-    atSi.add_property('force',np.random.randint(0, 100, (8,3)))
-    assert not np.allclose(atSi.properties['force'], potSW.results['force'])
-
 def test_AtomsList_creation(tmpdir):
     """Tests the creation of the AtomsList object. 
     """
-    from matdb.calculators import Quip
+    from matdb.calculators import Vasp
     from matdb.atoms import Atoms, AtomsList
     from matdb.utility import _set_config_paths
 
@@ -196,13 +194,24 @@ def test_AtomsList_creation(tmpdir):
 
     if not path.isdir(target):
         mkdir(target)
+    kwargs = {"kpoints":{"rmin":50}, "potcars": {"directory":"./tests/vasp",
+                                                 "versions":{"Si": '05Jan2001'}}, "xc":"pbe"}    
 
+        
     at1 = Atoms("Si8",positions=[[0,0,0],[0.25,0.25,0.25],[0.5,0.5,0],[0.75,0.75,0.25],
                                   [0.5,0,0.5],[0.75,0.25,0.75],[0,0.5,0.5],[0.25,0.75,0.75]],
                  cell=[5.43,5.43,5.43],info={"rand":10})
-    potSW = Quip(at1, target, '.', 0, "IP SW")
-    potSW.results["energy"] = 1234
-    potSW.results["force"] = np.random.randint(0, 100, (8,3))
+    potSW = Vasp(at1, target, str(tmpdir), 0, **kwargs)
+    at1.set_calculator(potSW)
+    at1.add_property("vasp_force", [[-18057.59589857, -18057.59589857, -18057.59589857],
+         [ -2997.55626529,  -2997.55626529,  -2997.55626529],
+         [  3044.17916471,   3044.17916471, -34130.71583118],
+         [ 18969.1757571 ,  18969.1757571 ,  11159.15815145],
+         [  3044.17916471, -34130.71583118,   3044.17916471],
+         [ 18969.1757571 ,  11159.15815145,  18969.1757571 ],
+         [-34130.71583118,   3044.17916471,   3044.17916471],
+         [ 11159.15815145,  18969.1757571 ,  18969.1757571 ]])
+    at1.add_param("vasp_energy", 1234)
     at1 = Atoms("Si8",positions=[[0,0,0],[0.25,0.25,0.25],[0.5,0.5,0],[0.75,0.75,0.25],
                                   [0.5,0,0.5],[0.75,0.25,0.75],[0,0.5,0.5],[0.25,0.75,0.75]],
                  cell=[5.43,5.43,5.43],info={"rand":10},calculator=potSW)
@@ -210,9 +219,12 @@ def test_AtomsList_creation(tmpdir):
     at2 = Atoms("S6",positions=[[0,0,0],[0.25,0.25,0.25],[0.5,0.5,0],[0.75,0.75,0.25],
                                   [0.5,0,0.5],[0.75,0.25,0.75]],
                  cell=[6.43,5.43,4.43],info={"rand":10},calculator=potSW)
-    potSW = Quip(at2, target, '.', 0, "IP SW")
-    potSW.results["energy"] = 4321
-    potSW.results["force"] = np.random.randint(0, 100, (6,3))
+    kwargs = {"kpoints":{"rmin":50}, "potcars": {"directory":"./tests/vasp",
+                                                 "versions":{"S": '06Sep2000'}}, "xc":"pbe"}    
+    potSW = Vasp(at2, target, str(tmpdir), 0, **kwargs)
+    at2.set_calculator(potSW)
+    at2.add_property("vasp_force", np.random.randint(0, 100, (6,3)))
+    at2.add_param("vasp_energy", 4321)
     at2 = Atoms("S6",positions=[[0,0,0],[0.25,0.25,0.25],[0.5,0.5,0],[0.75,0.75,0.25],
                                   [0.5,0,0.5],[0.75,0.25,0.75]],
                  cell=[6.43,5.43,4.43],info={"rand":10},calculator=potSW)
