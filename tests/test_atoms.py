@@ -212,9 +212,6 @@ def test_AtomsList_creation(tmpdir):
          [-34130.71583118,   3044.17916471,   3044.17916471],
          [ 11159.15815145,  18969.1757571 ,  18969.1757571 ]])
     at1.add_param("vasp_energy", 1234)
-    at1 = Atoms("Si8",positions=[[0,0,0],[0.25,0.25,0.25],[0.5,0.5,0],[0.75,0.75,0.25],
-                                  [0.5,0,0.5],[0.75,0.25,0.75],[0,0.5,0.5],[0.25,0.75,0.75]],
-                 cell=[5.43,5.43,5.43],info={"rand":10},calculator=potSW)
     
     at2 = Atoms("S6",positions=[[0,0,0],[0.25,0.25,0.25],[0.5,0.5,0],[0.75,0.75,0.25],
                                   [0.5,0,0.5],[0.75,0.25,0.75]],
@@ -225,9 +222,6 @@ def test_AtomsList_creation(tmpdir):
     at2.set_calculator(potSW)
     at2.add_property("vasp_force", np.random.randint(0, 100, (6,3)))
     at2.add_param("vasp_energy", 4321)
-    at2 = Atoms("S6",positions=[[0,0,0],[0.25,0.25,0.25],[0.5,0.5,0],[0.75,0.75,0.25],
-                                  [0.5,0,0.5],[0.75,0.25,0.75]],
-                 cell=[6.43,5.43,4.43],info={"rand":10},calculator=potSW)
     
     al1 = AtomsList([at1,at2])
     
@@ -249,7 +243,7 @@ def test_AtomsList_creation(tmpdir):
     al4 = AtomsList(path.join(target,"temp1.h5"))
     assert len(al4) == 1
     assert isinstance(al4[0],Atoms)
-    assert al4[0].energy == at1.energy
+    assert al4[0].vasp_energy == at1.vasp_energy
 
 def test_AtomsList_attributes():
     """Tests the atoms lists attributes.
