@@ -15,7 +15,6 @@ from xml.etree import ElementTree
 import ase
 from ase.calculators.espresso import Espresso
 import numpy as np
-from ase.units import Ry, Bohr, GPa
 
 from matdb.calculators.basic import AsyncCalculator
 from matdb import msg
@@ -287,10 +286,9 @@ class AsyncQe(Espresso, AsyncCalculator):
         # let ase check the convergence
         with chdir(folder):
             self.converged = output["convergence"]
-            # convert units from Rydbergs and Borh to eV and Angstroms
-            E = np.array(output["etot"])*Ry
-            F = np.array(output["forces"])*(Ry/Bohr)
-            S = np.array(output["stress"])*(GPa*.1)
+            E = np.array(output["etot"])
+            F = np.array(output["forces"])
+            S = np.array(output["stress"])
             self.atoms.add_property(self.force_name, F)
             self.atoms.add_param(self.stress_name, S)
             self.atoms.add_param(self.virial_name, S*self.atoms.get_volume())

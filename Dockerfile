@@ -1,5 +1,5 @@
 
-FROM mtp4tracy as mtp  
+FROM mlip4tracy_stable as mtp  
 FROM pslibrary4tracy as ps
 FROM dft_qe4tracy as qe
 

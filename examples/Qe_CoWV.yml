@@ -17,6 +17,8 @@ calculator:
   occupations: 'smearing'
   smearing: 'gaussian'
   degauss: 0.1
+  system:
+    ecutwfc: 50
   input_data:
     control:
       calculation: 'scf'
