@@ -8,13 +8,15 @@ warnings.filterwarnings("ignore")
 
 @pytest.fixture()
 def mtpdb(tmpdir):
-    from matdb.utility import relpath, reporoot
+    from matdb.utility import relpath, reporoot, copyonce
     from matdb.database import Controller
     from os import mkdir, path
 
-    target = relpath("./tests/mtp/CoWV")
+    target = relpath("./tests/mtp/CoWV.yml")
     dbdir = str(tmpdir.join("mlp_tests"))
     mkdir(dbdir)
+    copyonce(target, path.join(dbdir, "matdb.yml"))
+    target = path.join(dbdir,"matdb")
 
     cntrl = Controller(target, tmpdir=dbdir)
 

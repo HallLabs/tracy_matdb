@@ -2,7 +2,7 @@
 """
 import pytest
 from matdb.database.substitution import _round_to_even
-from matdb.utility import relpath
+from matdb.utility import relpath, copyonce
 from os import mkdir, path, symlink, remove
 import numpy as np
 
@@ -21,9 +21,11 @@ def AgCu(tmpdir):
     from matdb.database import Controller
     from shutil import copy
 
-    target = relpath("./tests/AgCu/matdb")
+    target = relpath("./tests/AgCu/matdb.yml")
     dbdir = str(tmpdir.join("agcu_db"))
     mkdir(dbdir)
+    copyonce(target, path.join(dbdir, "matdb.yml"))
+    target = path.join(dbdir,"matdb")
 
     # We need to copy the POSCAR from the testing directory to tempdir.
     POSCAR = relpath("./tests/AgCu/Ag1Cu5")

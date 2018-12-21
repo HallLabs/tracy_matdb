@@ -2,7 +2,7 @@
 """
 import pytest
 from os import mkdir, path, symlink, remove
-from matdb.utility import relpath
+from matdb.utility import relpath, copyonce
 
 
 @pytest.fixture()
@@ -19,9 +19,11 @@ def AlMg(tmpdir):
     from matdb.database import Controller
     from shutil import copy
 
-    target = relpath("./tests/AlMg/matdb")
+    target = relpath("./tests/AlMg/matdb.yml")
     dbdir = str(tmpdir.join("almg_db"))
     mkdir(dbdir)
+    copyonce(target, path.join(dbdir, "matdb.yml"))
+    target = path.join(dbdir,"matdb")
 
     # We need to copy the POSCAR from the testing directory to tempdir.
     POSCAR = relpath("./tests/AlMg/Al6Mg4")
