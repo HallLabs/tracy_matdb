@@ -142,7 +142,8 @@ class Atoms(ase.Atoms):
 
         if hasattr(self,"calc"):
             if hasattr(self.calc,"results"):
-                for k, v in self.calc.results.items():
+                for k, v in self.calc.results.items(): # pragma: no cover (DFT codes don't
+                                                       # use this).
                     if k != 'force':
                         self.add_param(k,v)
                     else:
