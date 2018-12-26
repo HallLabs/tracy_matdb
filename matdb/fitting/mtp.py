@@ -184,13 +184,13 @@ class MTP(Trainer):
         self.name = "mtp"
         super(MTP, self).__init__(controller, dbs, execution, split, root,
                                   parent, dbfilter)
-        self.ncores = execution["ntasks"]
         self._root = root
         self._set_root()
         
         self._set_local_attributes(mtpargs)
-
+        self._set_resources()
         self.species = controller.db.species
+
 
         self.mtp_file = "pot.mtp"
         if path.isfile(path.join(self.root,"status.txt")):
@@ -203,6 +203,9 @@ class MTP(Trainer):
             self.iter_status = None
             self.iter_count = None
 
+        # sets the resource usage for this run from the maximum
+        # supplied in the yml file.
+        self._set_resources()
         # we need access to the active learning set
         db_root = self.controller.db.root
         steps = [{"type":"active.Active"}]
@@ -218,7 +221,39 @@ class MTP(Trainer):
             self.active.calcargs = fix_static(self.active.calcargs)
         self._trainfile = path.join(self.root, "train.cfg")
 
+    def _set_resources(self):
+        """determines the resource usage depending on which `mtp` step we're
+        on.
+        """
+        if self.iter_status in ("select", "relax_setup", "add"):
+            self.ncores = 1
+            self.execution["ntasks"] = 1
+            self.execution["mem_per_cpu"] = self.execution["total_mem"]
+            
+        elif self.iter_status in (None, "train", "relax"):
+            self.ncores = self.execution["ntasks"]
+            self.execution["mem_per_cpu"] = self._convert_mem()
+
+    def _convert_mem(self):
+        """Converts memory to the correct values including units."""
+
+        init_mem, final_unit = self.execution["total_mem"]split()
+        final_mem = float(init_mem)/self.execution["ntasks"]
+        while final_mem < 1:
+            final_mem = final_mem*1000
+            if final_unit.lower() == "gb":
+                final_unit = "MB"
+            elif final_uint.lower() == "mb":
+                final_unit = "KB"
+            else:
+                msg.error("Unrecognized memory size {}".format(final_unit))
+
+        final_mem = int(np.round(final_unit))
+
+        return "{0} {1}".format(final_mem, final_unit)
+        
     def _set_root(self):
+
         """Sets the root directory.
         """
         if "mtp" != self._root.split('/')[-1]:
