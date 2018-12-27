@@ -6,6 +6,17 @@
   tasks per node and the maximum memory to use on that node and the
   module will determine the exact allocation to request for each `mtp`
   step.
+- Changed the `mpt` fitter to be able to take a list for
+  `largest_relax_cell` that will be iterated over so that the user
+  doesn't have to keep updating the YML file.
+- Added `next_cell_threshold` to the `mtp` args so that the user can
+  specify when to move to the next cell size in the
+  `largest_relax_cell` list based off the number of configurations
+  added during the last selection step.
+- Added the `iter_threshold` option to the `mtp` args so the user can
+  specify the maximum number of iterations that should occure for the
+  `mtp` process. If that number is exceeded then the process is
+  terminated.
 
 ## Revision 1.3.2
 - Fixed unit tests for the main (database) controller.
