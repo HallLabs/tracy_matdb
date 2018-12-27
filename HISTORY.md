@@ -1,5 +1,12 @@
 # Revision History for `matdb`
 
+## Revision 1.4.0
+- Changed how the `mtp` fitter interacts with the execution
+  dictionarry so that the user need only specify the maximum number of
+  tasks per node and the maximum memory to use on that node and the
+  module will determine the exact allocation to request for each `mtp`
+  step.
+
 ## Revision 1.3.2
 - Fixed unit tests for the main (database) controller.
 - Removed unit conversions from `qe` calculator (they were breaking

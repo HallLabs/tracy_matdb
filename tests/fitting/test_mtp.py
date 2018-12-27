@@ -246,7 +246,7 @@ def test_init(mtpdb):
 
     mtpfit = mtpdb.trainers.fits['CoWV_mtp'].sequences['CoWV_mtp'].steps['mtp']
     with open(path.join(mtpfit.root, "status.txt"), "w+") as f:
-        f.write("done 1")
+        f.write("done 1 0")
 
     assert mtpfit.iter_status is None
         
@@ -481,7 +481,7 @@ def test_command_functions(mtpdb):
     with open(target, "r") as f:
         line = f.read()
 
-    assert line.strip() == "relax_setup 1"
+    assert line.strip() == "relax_setup 1 0"
     assert path.isfile(path.join(mtpfit.root, "relax.ini"))
     assert path.isfile(path.join(mtpfit.root, "pot.mtp"))
     assert cmd_template == mtpfit._train_template
@@ -493,7 +493,7 @@ def test_command_functions(mtpdb):
     assert cmd_template == "matdb_mtp_to_relax.py"
     with open(target, "r") as f:
         line = f.read()
-    assert line.strip() == "relax 1"
+    assert line.strip() == "relax 1 0"
 
     rename(bc, target)
     copyonce(target,bc)
@@ -505,7 +505,7 @@ def test_command_functions(mtpdb):
     assert cmd_template == mtpfit._relax_template()
     with open(target, "r") as f:
         line = f.read()
-    assert line.strip() == "select 1"
+    assert line.strip() == "select 1 0"
 
     mtpfit.use_unrelaxed = False
     rename(bc, target)
@@ -515,7 +515,7 @@ def test_command_functions(mtpdb):
     assert cmd_template == mtpfit._relax_template()
     with open(target, "r") as f:
         line = f.read()
-    assert line.strip() == "select 1"    
+    assert line.strip() == "select 1 0"    
 
     # Now we can test the select step
     for i in range(72):
@@ -525,7 +525,7 @@ def test_command_functions(mtpdb):
     assert path.isfile(path.join(mtpfit.root, "candidate.cfg"))
     with open(target, "r") as f:
         line = f.read()
-    assert line.strip() == "add 1"    
+    assert line.strip() == "add 1 0"    
 
 #This test doesn't work because something is wrong with the jinja template import
 def test_command_functions2(mtpdb):
@@ -537,7 +537,7 @@ def test_command_functions2(mtpdb):
     mtpfit = mtpdb.trainers.fits['CoWV_mtp'].sequences['CoWV_mtp'].steps['mtp']
     target = path.join(mtpfit.root, "status.txt")
     with open(target, "w+") as f:
-        f.write("add 1")
+        f.write("add 1 0")
     touch(path.join(mtpfit.root, "relaxed.cfg"))
     touch(path.join(mtpfit.root, "new_training.cfg"))
     cmd_template = mtpfit.command()
@@ -558,6 +558,6 @@ def test_command_functions2(mtpdb):
     target = path.join(mtpfit.root, "status.txt")
     with open(target, "r") as f:
         line = f.read()
-    assert line.strip() == "done 1"    
+    assert line.strip() == "done 1 0 10"    
     cmd_template = mtpfit.command()
     assert cmd_template == mtpfit._train_template
