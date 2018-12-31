@@ -17,6 +17,7 @@
   specify the maximum number of iterations that should occure for the
   `mtp` process. If that number is exceeded then the process is
   terminated.
+- Made the `shell_command` for the YML file global for the entire session.
 
 ## Revision 1.3.2
 - Fixed unit tests for the main (database) controller.
