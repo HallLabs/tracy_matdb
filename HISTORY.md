@@ -1,5 +1,56 @@
 # Revision History for `matdb`
 
+## Revision 1.4.0
+- Changed how the `mtp` fitter interacts with the execution
+  dictionarry so that the user need only specify the maximum number of
+  tasks per node and the maximum memory to use on that node and the
+  module will determine the exact allocation to request for each `mtp`
+  step.
+- Changed the `mpt` fitter to be able to take a list for
+  `largest_relax_cell` that will be iterated over so that the user
+  doesn't have to keep updating the YML file.
+- Added `next_cell_threshold` to the `mtp` args so that the user can
+  specify when to move to the next cell size in the
+  `largest_relax_cell` list based off the number of configurations
+  added during the last selection step.
+- Added the `iter_threshold` option to the `mtp` args so the user can
+  specify the maximum number of iterations that should occure for the
+  `mtp` process. If that number is exceeded then the process is
+  terminated.
+- Made the `shell_command` for the YML file global for the entire session.
+
+## Revision 1.3.2
+- Fixed unit tests for the main (database) controller.
+- Removed unit conversions from `qe` calculator (they were breaking
+  the fitter).
+- Removed `quip` calculator from repo because we can't test it due to
+  licensing.
+- Removed `tracy` calculator from repo because it won't be used.
+- Allowed the user not te specify a calculator in the `yml` file
+  (needed for legacy databases).
+- Added functionality to the `mtp` fitter to allow for training on
+  legacy databases.
+- Changed default legacy paramater and property names.
+- Added `rset` to the legacy database.
+
+## Revision 1.3.1
+- Making `matdb` python3 compliant, dropping python2 support.
+- Fixed binary to string problems in utility.py and
+  calculators/vasp.py.
+- Removed some no longer required packages from the "required
+  packages" list.
+- Fixed dictoinary iterations in atoms.py.
+
+## Revision 1.3.0
+- Removed `QUIP` from `matdb`.
+
+## Revision 1.2.1
+- Changed all the paths in the calculators to be relative paths.
+- Added global directory hashing for potcar directories.
+- Added global controller directory and name for a single matdb.
+- Fixed some minor bugs in the VASP calculator.
+- Addde a `matdb/calculators/utility.py` module to help avoid cyclic imports.
+
 ## Revision 1.2.0
 - Added Tracy calculator for QE/DFT to the code.
 - Implemented new methods in the `Group` class to ensure that the

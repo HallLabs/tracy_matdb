@@ -1,5 +1,4 @@
-"""Implementation of Atoms object and AtomsList. Borrows from quippy
-code for some of the implementation.
+"""Implementation of Atoms object and AtomsList. 
 """
 
 import ase
@@ -12,13 +11,11 @@ from itertools import product
 import h5py
 from ase import io
 from six import string_types
-import lazy_import
 from os import path
 from uuid import uuid4
 from matdb import msg
 from matdb.transforms import conform_supercell
-
-calculators = lazy_import.lazy_module("matdb.calculators")
+import matdb.calculators as calculators
 
 def _recursively_convert_units(in_dict, split = False):
     """Recursively goes through a dictionary and converts it's units to be
@@ -29,8 +26,8 @@ def _recursively_convert_units(in_dict, split = False):
         a copy of the dict with the entries converted to numpy ints,
         floats, and arrays.
     """
-    dict_copy = in_dict.copy()
-    for key, item in dict_copy.items():
+    dict_copy = {}
+    for key, item in in_dict.items():
         if isinstance(item,int):
             dict_copy[key] = np.int64(item)
         elif isinstance(item,float):
@@ -45,9 +42,9 @@ def _recursively_convert_units(in_dict, split = False):
                 dict_copy[key] = _recursively_convert_units(atoms_dict)
             else:
                 dict_copy[key] = np.array(item)
-        elif item is None: #pragma: no cover I'm not sure this ever
-                           #will happen but better safe than sorry.
-            del dict_copy[key]
+        else:
+            dict_copy[key] = item
+                
     return dict_copy
 
 def _calc_name_converter(name):
@@ -145,7 +142,8 @@ class Atoms(ase.Atoms):
 
         if hasattr(self,"calc"):
             if hasattr(self.calc,"results"):
-                for k, v in self.calc.results.items():
+                for k, v in self.calc.results.items(): # pragma: no cover (DFT codes don't
+                                                       # use this).
                     if k != 'force':
                         self.add_param(k,v)
                     else:
@@ -165,7 +163,8 @@ class Atoms(ase.Atoms):
                     self.add_param(k,v)
                 
         if self.info is not None:
-            for k, v in self.info.items():
+            info_set = {k: v for k, v in self.info.items()}
+            for k, v in info_set.items():
                 if k not in ["params","properties"]:
                     self.add_param(k,v)
                     del self.info[k]
@@ -176,6 +175,19 @@ class Atoms(ase.Atoms):
         self.uuid = uuid if uuid is not None else str(uuid4())
                 
         self._initialised = True
+
+    def __lt__(self, other):
+        """Determins which object should be placed first in a list.
+        """
+        return len(self.positions) < len(other.positions)
+
+    def get_energy(self):
+        """Returns the energy if it has been added to the params.
+        """
+
+        for p in self.params.keys():
+            if "energy" in p:
+                return self.params[p]
 
     def make_supercell(self, supercell):
         """Returns a new :class:`matdb.Atoms` object that is a supercell of the
@@ -339,7 +351,7 @@ class Atoms(ase.Atoms):
             raise TypeError('can only copy from instances of matdb.Atoms or ase.Atoms')
         
         # copy any normal attributes we've missed
-        for k, v in other.__dict__.iteritems(): #pragma: no cover
+        for k, v in other.__dict__.items(): #pragma: no cover
             if not k.startswith('_') and k not in self.__dict__:
                 self.__dict__[k] = v
 
@@ -354,8 +366,8 @@ class Atoms(ase.Atoms):
             from matdb.io import load_dict_from_h5
             with h5py.File(target,"r") as hf:
                 data = load_dict_from_h5(hf)
-            if "atom" in data.keys()[0]:
-                data = data[data.keys()[0]]
+            if "atom" in list(data.keys())[0]:
+                data = data[list(data.keys())[0]]
             self.__init__(**data)
             if "calc" in data:
                 calc = getattr(calculators, _calc_name_converter(data["calc"]))
@@ -381,86 +393,6 @@ class Atoms(ase.Atoms):
 
         else:
             self.__init__(io.read(target,**kwargs))
-
-    def to_quippy(self):
-        """Converts this :class:`matdb.atoms.Atoms` object to a
-        :class:`quippy.atoms.Atoms` object.
-
-        Args:
-            atoms (matdb.atoms.Atoms): the atoms object to perform calculations
-            on.
-        """
-        import quippy
-        props = self.properties.copy()
-        params = self.params.copy()
-        for k, v in props.items():
-            if k == "momenta":
-                continue
-            if k == "species" and len(v.shape) == 2:
-                #Weird string handling inside of quippy means we have to treat
-                #this specially...
-                props[k] = list(map(lambda r: ''.join(r), v.T))
-            elif len(v.shape) == 2 and v.shape[0] != 3:
-                props[k] = v.transpose()
-                
-        #Unfortunately, the momenta gets set to zeros by default anytime it is
-        #requested from the ASE atoms object. Because of the quippy transpose
-        #problem, we don't always transpose. Also, we can't pass it in as a
-        #property in the props dict, that raises weird shaping errors in quippy.
-        momenta = None
-        if "momenta" in props:
-            momenta = props["momenta"]
-            if momenta.shape[0] != self.n:
-                momenta = momenta.transpose()
-            del props["momenta"]
-
-        info = self.info.copy()
-        if isinstance(self, Atoms):
-            del info["params"]
-            del info["properties"]
-
-        kwargs = {"properties":props, "params":params, "positions": self.positions,
-                  "numbers": self.get_atomic_numbers(), "momenta": momenta,
-                  "cell": self.get_cell(), "pbc": self.get_pbc(),
-                  "constraint": self.constraints, "info":info,
-                  "n": len(self.positions)}
-
-        return quippy.Atoms(**kwargs)
-            
-    def S(self, cutoff=5., nmax=8, lmax=8, sigma=0.5, trans_width=0.5,
-          average=True, normalize=True):
-        """Returns the SOAP vectors for each environment in the specified atoms object.
-        """
-        from quippy.descriptors import Descriptor as D
-        #Convert to quippy atoms so that we can get the SOAP vectors.
-        atoms = self.to_quippy()
-        descstr = ("soap cutoff={0:.1f} n_max={1:d} l_max={2:d} "
-                   "atom_sigma={3:.2f} n_species={6} species_Z={{{4}}} n_Z={6} Z={{{9}}} "
-                   "trans_width={5:.2f} normalise={7} average={8}")
-
-        
-        Z = np.unique(atoms.get_atomic_numbers())
-        savg = 'T' if average else 'F'
-        soaps = []
-
-        for Z1, Z2 in product(Z, repeat=2):
-            soapstr = descstr.format(cutoff, nmax, lmax, sigma, str(Z1),
-                                     trans_width, 1, 'F', savg, str(Z2))
-            soapy = D(soapstr)
-            msg.info(soapstr, 2)
-            atoms.set_cutoff(soapy.cutoff())
-            atoms.calc_connect()
-            PZ = soapy.calc(atoms)
-            if average:
-                soaps.append(PZ["descriptor"].flatten())
-            else:
-                soaps.append(PZ["descriptor"])
-
-        P = np.hstack(soaps)
-        if normalize:
-            return P/np.linalg.norm(P)
-        else:
-            return P
             
     def to_dict(self):
         """Converts the contents of a :class:`matdb.atoms.Atoms` object to a
@@ -498,7 +430,7 @@ class Atoms(ase.Atoms):
             if "kwargs" in calc_dict:
                 data["calc_kwargs"] = _recursively_convert_units(calc_dict["kwargs"])
             if hasattr(self.calc,"folder"):
-                data["folder"] = self.calc.folder
+                data["folder"] = self.calc.folder.replace(self.calc.contr_dir, '$control$')
             if hasattr(self.calc,"ran_seed"):
                 data["calc_ran_seed"] = np.float64(self.calc.ran_seed)
             if hasattr(self.calc, "kpoints") and self.calc.kpoints is not None:
@@ -615,7 +547,7 @@ class AtomsList(list):
     def random_access(self):
         return True
 
-    def sort(self, cmp=None, key=None, reverse=False, attr=None):
+    def sort(self, key=None, reverse=False, attr=None):
         """
         Sort the AtomsList in place. This is the same as the standard
         :meth:`list.sort` method, except for the additional `attr`
@@ -628,10 +560,13 @@ class AtomsList(list):
         """
         import operator
         if attr is None:
-            list.sort(self, cmp, key, reverse)
+            if key is not None:
+                list.sort(self, key, reverse)
+            else:
+                list.sort(self, reverse=reverse)
         else:
-            if cmp is not None or key is not None:
-                raise ValueError('If attr is present, cmp and key must not be present')
+            if key is not None:
+                raise ValueError('If attr is present, key must not be present')
             list.sort(self, key=operator.attrgetter(attr), reverse=reverse)
 
 
@@ -663,14 +598,14 @@ class AtomsList(list):
             #list.
             if len(data) == 0:
                 atoms = []
-            elif "atom" in data.keys()[0]:
-                if isinstance(data.values()[0],dict):
+            elif "atom" in list(data.keys())[0]:
+                if isinstance(list(data.values())[0],dict):
                     atoms = [Atoms(**d) for d in data.values()]
-                elif isinstance(data.values()[0],string_types):
+                elif isinstance(list(data.values())[0],string_types):
                     atoms = [Atoms(d) for d in data.values()]
                 else: #pragma: no cover
                     msg.err("The data format {} isn't supported for reading AtomLists "
-                            "from hdf5 files.".format(type(data.values()[0])))
+                            "from hdf5 files.".format(type((data.values())[0])))
             else:
                 atoms = [Atoms(target,**kwargs)]
             if len(self) >0:

@@ -498,6 +498,7 @@ class Trainer(object):
             return False
         
         # We must have what we need to execute. Compile the command and submit.
+
         if 'shell_command' in self.execution:
             shell_command = self.execution['shell_command']
         # We suport 'bash' and 'sbatch' shell commands, if it's neighter one 
@@ -505,6 +506,10 @@ class Trainer(object):
         if shell_command not in ['bash', 'sbatch']:
             shell_command = 'bash'
         cargs = [shell_command, self._jobfile]
+
+        # { new from Wiley's
+        # cargs = [self.controller.db.shell_command, self._jobfile]
+        # }
 
         if dryrun:
             msg.okay("Executed {} in {}".format(' '.join(cargs), self.root))

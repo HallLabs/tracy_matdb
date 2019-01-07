@@ -6,7 +6,7 @@ import numpy as np
 import six
 
 from matdb.database.active import Active
-from matdb.utility import relpath, compare_tree
+from matdb.utility import relpath, compare_tree, copyonce
 from matdb.fitting.controller import TController
 from matdb.database import Database, Controller
 from matdb.atoms import Atoms
@@ -14,9 +14,11 @@ from matdb.atoms import Atoms
 @pytest.fixture()
 def Act(tmpdir):
 
-    target = relpath("./tests/AgPd/matdb")
+    target = relpath("./tests/AgPd/matdb.yml")
     dbdir = str(tmpdir.join("active_db"))
     mkdir(dbdir)
+    copyonce(target, path.join(dbdir, "matdb.yml"))
+    target = path.join(dbdir,"matdb")
 
     cntrl = Controller(target, dbdir)
     db = Database("active", dbdir, cntrl, [{"type":"active.Active"}], {}, 0)

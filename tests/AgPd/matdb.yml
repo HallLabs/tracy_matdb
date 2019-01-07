@@ -9,6 +9,7 @@ species:
 # Directory in which the database folder system will be created.
 root: '~/temp/AgPd'
 venv: 'matdb-dev'
+name: "AgPd_test"
 # Parameters for the job arrays that will be submitted for each
 # database. These can be overridden in each database below as well.
 execution:
@@ -42,18 +43,20 @@ databases:
         sizes: [1,4]
         ran_seed: 10
         calculator:
-          name: Vasp
           nsw: 1
           pp: 'pbe'
           kpoints:
             method: 'mueller'
             mindistance: 30
-          versions:
-            Ag: '02Apr2005'
-            Pd: '28Jan2005'
-          setups:
-            Ag: '_pv'
-            Pd: '_pv'
+          potcars:
+            directory: './tests/vasp'
+            xc: 'PBE'
+            versions:
+              Ag: '09Dec2005'
+              Pd: '28Jan2005'
+            setups:
+              Ag: '_pv'
+              Pd: '_pv'
 
 calculator:
   name: Vasp

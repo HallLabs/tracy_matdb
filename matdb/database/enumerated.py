@@ -359,7 +359,7 @@ class Enumerated(Group):
         current = getcwd()
         with chdir(self.root):
             recurse = 0
-            while dind<self.nconfigs and recurse<5:
+            while dind<self.nconfigs and recurse<10:
                 dind = self._enumerate(dind,recurse,current)
                 recurse += 1
 
@@ -380,7 +380,7 @@ class Enumerated(Group):
         """
         _enum_out({"input":"enum.in","outfile":"enum.out",
                    "seed":self.ran_seed if self.ran_seed is None else self.ran_seed+dind+recurse,
-                   "lattice":"lattice.in","distribution":["all",str(self.nconfigs-dind)],
+                   "lattice":"lattice.in","distribution":["all",str(self.nconfigs)],
                    "super":self.keep_supers,"sizes":None,"savedist":None,"filter":None,
                    "acceptrate":None})
 
@@ -397,7 +397,9 @@ class Enumerated(Group):
             self.euids = []
 
         for count, dposcar in enumerate(glob("vasp.*")):
-            if euids[count] not in self.euids:
+            if dind == self.nconfigs:
+                break
+            elif euids[count].hexdigest() not in self.euids:
                 dind += 1
                 datoms = Atoms(dposcar,format="vasp")
                 with chdir(home):

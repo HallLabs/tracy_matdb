@@ -10,13 +10,14 @@ checking for execution readiness, etc.
   calculator can produce.
 """
 from os import path
-import pickle
+import pickle 
 
 from .basic import SyncCalculator
+from matdb.utility import config_specs
 
 class AsyncAflow(SyncCalculator):
     """Represents an asynchronous calculator for constructing
-    :class:`quippy.Atoms` objects from :class:`aflow.entries.Entry` objects.
+    :class:`matdb.Atoms` objects from :class:`aflow.entries.Entry` objects.
 
     .. note:: Because asynchronous is only supported properly in python 3 and
       this project has to be compatible with both major versions, we don't
@@ -33,17 +34,22 @@ class AsyncAflow(SyncCalculator):
         ran_seed (int or float): the random seed to be used for this calculator.
 
     Attributes:
-        atoms (quippy.Atoms): atoms object created from the database entry. Is
+        atoms (matdb.Atoms): atoms object created from the database entry. Is
           `None` until the download is performed.
     """
+    pathattrs = []
     def __init__(self, atoms, folder, contr_dir, ran_seed, entry=None, *args, **kwargs):
         self.kwargs = kwargs
         self.args = []
         self.entry = entry
         self.ran_seed = ran_seed
+        if contr_dir == '$control$':
+            contr_dir = config_specs["cntr_dir"]
         self.contr_dir = contr_dir
         self.version = None
         self.kwargs["entry"] = self.entry
+        if '$control$' in folder:
+            folder = folder.replace('$control$', self.contr_dir)
         self.folder = folder
         self.atoms = atoms
         self.kwargs["entry"] = entry 
@@ -91,7 +97,7 @@ class AsyncAflow(SyncCalculator):
             folder (str): path to the folder in which to create input files.
         """
         if not path.isfile(self.entry_file):
-            with open(self.entry_file, "w+") as f:
+            with open(self.entry_file, "wb+") as f:
                 pickle.dump(self.entry, f)
 
     def extract(self, cleanup="default"):
@@ -111,8 +117,9 @@ class AsyncAflow(SyncCalculator):
         Args:
             folder (str): path to the folder in which the executable was run.
         """
-        aflux_dict = {"folder":self.folder, "ran_seed":self.ran_seed,
-                     "contr_dir":self.contr_dir, "kwargs": self.kwargs,
+        aflux_dict = {"folder":self.folder.replace(self.contr_dir,'$control$'),
+                      "ran_seed":self.ran_seed,
+                     "contr_dir":'$control$', "kwargs": self.kwargs,
                       "args": self.args}
 
         # Need to determine how/what to store as aflux version number.

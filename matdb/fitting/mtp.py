@@ -1,6 +1,7 @@
 """Implements classes and methods for performing a GAP fit over a
 database defined in the YAML specification file.
 """
+
 from os import path, rename, remove, mkdir
 import numpy as np
 from glob import glob
@@ -170,6 +171,7 @@ def _prot_to_cfg(source, species, relax_file, type_map, root, min_atoms, max_ato
 class MTP(Trainer):
     """Implements a simple wrapper around the MTP training functionality for
     creating MTP potentials.
+
     Args:
         controller (matdb.fitting.controller.Controller): fitting controller
           provides access to previous fitting steps and training/validation data.
@@ -178,6 +180,7 @@ class MTP(Trainer):
           the GAP fit.
         dbs (list): of `str` patterns from the database that should be included
           in the training and validation.
+
     Attributes:
         name (str): name of the folder in which all the fitting for this trainer
           takes place; defaults to `{n}b`.
@@ -185,30 +188,36 @@ class MTP(Trainer):
         params (dict): key-value pairs that are parameters for the model
           fitting.
     """
+    
     def __init__(self, controller=None, dbs=None, execution=None,
                  split=None, root=None, parent=None, dbfilter=None, **mtpargs):
         self.name = "mtp"
         super(MTP, self).__init__(controller, dbs, execution, split, root,
                                   parent, dbfilter)
-        self.ncores = execution["ntasks"]
         self._root = root
         self._set_root()
         
-        self._set_local_attributes(mtpargs)
-
-        self.species = controller.db.species
-
-        self.mtp_file = "pot.mtp"
         if path.isfile(path.join(self.root,"status.txt")):
             with open(path.join(self.root,"status.txt"),"r") as f:
                 for line in f:
                     old_status = line.strip().split()
                 self.iter_status = old_status[0]
                 self.iter_count = int(old_status[1])
+                self.cell_iter = int(old_status[2])
         else:
             self.iter_status = None
             self.iter_count = None
+            self.cell_iter = 0
+            
+        self._set_local_attributes(mtpargs)
+        self.species = controller.db.species
 
+
+        self.mtp_file = "pot.mtp"
+
+        # sets the resource usage for this run from the maximum
+        # supplied in the yml file.
+        self._set_resources()
         # we need access to the active learning set
         db_root = self.controller.db.root
         steps = [{"type":"active.Active"}]
@@ -224,7 +233,39 @@ class MTP(Trainer):
             self.active.calcargs = fix_static(self.active.calcargs)
         self._trainfile = path.join(self.root, "train.cfg")
 
+    def _set_resources(self):
+        """determines the resource usage depending on which `mtp` step we're
+        on.
+        """
+        if self.iter_status in ("select", "relax_setup", "add"):
+            self.ncores = 1
+            self.execution["ntasks"] = 1
+            self.execution["mem_per_cpu"] = self.execution["total_mem"]
+            
+        elif self.iter_status in (None, "train", "relax"):
+            self.ncores = self.execution["ntasks"]
+            self.execution["mem_per_cpu"] = self._convert_mem()
+
+    def _convert_mem(self):
+        """Converts memory to the correct values including units."""
+
+        init_mem, final_unit = self.execution["total_mem"][:-2], self.execution["total_mem"][-2:]
+        final_mem = float(init_mem)/self.execution["ntasks"]
+        while final_mem < 1:
+            final_mem = final_mem*1000
+            if final_unit.lower() == "gb":
+                final_unit = "MB"
+            elif final_uint.lower() == "mb":
+                final_unit = "KB"
+            else:
+                msg.error("Unrecognized memory size {}".format(final_unit))
+
+        final_mem = int(np.round(final_mem))
+
+        return "{0}{1}".format(final_mem, final_unit)
+        
     def _set_root(self):
+
         """Sets the root directory.
         """
         if "mtp" != self._root.split('/')[-1]:
@@ -243,6 +284,16 @@ class MTP(Trainer):
             mtpargs (dict): the input dictionary of arguments.
         """
 
+        if "iteration_threshold" in mtpargs and mtpargs["iteration_threshold"] is not None:
+            self.iter_threshold = mtpargs["iteration_threshold"]
+        else:
+            self.iter_threshold = 50
+
+        if "next_cell_threshold" in mtpargs and mtpargs["next_cell_threshold"] is not None:
+            self.next_cell_threshold = mtpargs["next_cell_threshold"]
+        else:
+            self.next_cell_threshold = 0
+            
         if "relax_ini" in mtpargs and mtpargs["relax_ini"] is not None:
             self._set_relax_ini(mtpargs["relax_ini"])
         else:
@@ -266,9 +317,19 @@ class MTP(Trainer):
             self.relax_min_atoms = 1
 
         if "largest_relax_cell" in mtpargs:
-            self.relax_max_atoms = mtpargs["largest_relax_cell"]
+            if isinstance(mtpargs["largest_relax_cell"],list):
+                self.cell_sizes = mtpargs["largest_relax_cell"]
+                if len(self.cell_sizes) > self.cell_iter:
+                    self.relax_max_atoms = self.cell_sizes[self.cell_iter]
+                else:
+                    msg.err("The MTP process has finished for the cell sizes {0}"
+                            "specified in the YML file.".format(self.cell_sizes))
+            else:
+                self.cell_sizes = [mtpargs["largest_relax_cell"]]
+                self.relax_max_atoms = mtpargs["largest_relax_cell"]
         else:
             self.relax_max_atoms = None
+            self.cell_sizes = None
 
         if (self.relax_max_atoms is not None and
             (self.relax_max_atoms < self.relax_min_atoms or
@@ -375,13 +436,21 @@ class MTP(Trainer):
             iteration (int): the number of iterations of MTP has been 
                 through.
         """
+        from matdb.database.legacy import LegacyDatabase
         if iteration == 1:
             for db in self.dbs:
-                for step in db.steps.values():
-                    pbar = tqdm(total=len(step.rset))
-                    for atm in step.rset:
+                if not isinstance(db, LegacyDatabase):
+                    for step in db.steps.values():
+                        pbar = tqdm(total=len(step.rset))
+                        for atm in step.rset:
+                            self._create_train_cfg(atm, path.join(self.root, "train.cfg"))
+                            pbar.update(1)
+                else:
+                    pbar = tqdm(total=len(db.rset))
+                    for atm in db.rset:
                         self._create_train_cfg(atm, path.join(self.root, "train.cfg"))
                         pbar.update(1)
+                            
         else:
             if self.active.last_iteration is None or len(self.active.last_iteration) < 1:
                 if path.isfile(self.active.iter_file):
@@ -638,14 +707,17 @@ class MTP(Trainer):
     def command(self):
         """Returns the command that is needed to train the GAP
         potentials specified by this object.
+
         .. note:: This method also configures the directory that the command
           will run in so that it has the relevant files.
         """
+        
         self._set_root()
 
         if not path.isfile(path.join(self.root,"status.txt")):
             self.iter_status = "train"
             self.iter_count = 1
+            self.cell_iter = 0
         else:
             with open(path.join(self.root,"status.txt"),"r") as f:
                 for line in f:
@@ -654,9 +726,31 @@ class MTP(Trainer):
             if old_status[0] == "done":
                 self.iter_status = "train"
                 self.iter_count = int(old_status[1]) + 1
+                    
+                if int(old_status[3]) <= self.next_cell_threshold:
+                    self.iter_count = 1
+                    self.cell_iter = int(old_status[2]) + 1
+                    if len(self.cell_sizes) < self.cell_iter:
+                        self.relax_max_atoms = self.cell_sizes[self.cell_iter]
+                    else:
+                        msg.err("The MTP process has finished for the cell sizes "
+                                "specified in the YML file.")
+                    target1 = path.join(self.root,"unrelaxed.cfg")
+                    target2 = path.join(self.root,"to-relax.cfg")
+                    if path.isfile(target1):
+                        remove(target1)
+                    if path.isfile(target2):
+                        remove(target2)                        
+
+                if self.iter_count >= self.iter_threshold:
+                    msg.err("The number of iterations for this size has exceeded "
+                            "the allowed number of {0}. To increase this limit "
+                            "use the iteration_threshold aption in the YML "
+                            "file.".format(self.iter_threshold))
             else:
                 self.iter_status = old_status[0]
                 self.iter_count = int(old_status[1])
+                self.cell_iter = int(old_status[2])
                 
         #if we're at the start of a training iteration use the command to train the potential
         if self.iter_status == "train":
@@ -674,7 +768,7 @@ class MTP(Trainer):
                 self._make_pot_initial()
             template = self._train_template()
             with open(path.join(self.root,"status.txt"),"w+") as f:
-                f.write("relax_setup {0}".format(self.iter_count))
+                f.write("relax_setup {0} {1}".format(self.iter_count, self.cell_iter))
 
         if self.iter_status == "relax_setup":
             # If pot has been trained
@@ -700,7 +794,7 @@ class MTP(Trainer):
                 self._setup_to_relax_cfg()
                 template = "matdb_mtp_to_relax.py > create-to-relax.txt"
                 with open(path.join(self.root,"status.txt"),"w+") as f:
-                    f.write("relax {0}".format(self.iter_count))
+                    f.write("relax {0} {1}".format(self.iter_count, self.cell_iter))
             else:
                 self.iter_status = "relax"
 
@@ -711,7 +805,7 @@ class MTP(Trainer):
 
             template = self._relax_template()
             with open(path.join(self.root,"status.txt"),"w+") as f:
-                f.write("select {0}".format(self.iter_count))
+                f.write("select {0} {1}".format(self.iter_count, self.cell_iter))
 
         # if relaxation is done
         if self.iter_status == "select":
@@ -723,7 +817,7 @@ class MTP(Trainer):
             # command to select next training set.
             template = self._select_template()
             with open(path.join(self.root,"status.txt"),"w+") as f:
-                f.write("add {0}".format(self.iter_count))
+                f.write("add {0} {1}".format(self.iter_count, self.cell_iter))
 
         if self.iter_status == "add":
             with chdir(self.root):
@@ -763,17 +857,20 @@ class MTP(Trainer):
             self.active.execute()
             
             with open(path.join(self.root,"status.txt"),"w+") as f:
-                f.write("done {0}".format(self.iter_count))
+                f.write("done {0} {1} {2}".format(self.iter_count, self.cell_iter,
+                                                  len(new_configs)))
             template = ''
 
         return template
 
     def status(self, printed=True):
         """Returns or prints the current status of the MTP training.
+
         Args:
             printed (bool): when True, print the status to screen; otherwise,
               return a dictionary with the relevant quantities.
         """
+        
         # Our interest is in knowing which MTP model is the latest (if any) and
         # whether the job script has been created for the next one in the
         # sequence.

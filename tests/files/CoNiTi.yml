@@ -52,6 +52,10 @@ databases:
             mindistance: 40
           potcars:
             directory: './tests/vasp'
+            versions:
+              Co: '02Aug2007'
+              Ni: '02Aug2007'
+              Ti: '08Apr2002'
             xc: 'PBE'
                 
 calculator:
@@ -63,4 +67,8 @@ calculator:
     mindistance: 30
   potcars:
     directory: './tests/vasp'
+    versions:
+      Co: '02Aug2007'
+      Ni: '02Aug2007'
+      Ti: '08Apr2002'
     xc: 'PBE'

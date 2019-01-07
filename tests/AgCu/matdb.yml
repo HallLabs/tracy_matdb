@@ -30,8 +30,8 @@ calculator:
     directory: './tests/vasp'
     xc: 'PBE'
     versions:
-      Ag: '02Apr2005'
-      Cu: '22Jun2005'
+      Ag: '09Dec2005'
+      Cu: '06Sep2000'
     setups:
       Ag: '_pv'
       Cu: '_pv'

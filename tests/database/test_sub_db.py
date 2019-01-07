@@ -2,7 +2,7 @@
 """
 import pytest
 from matdb.database.substitution import _round_to_even
-from matdb.utility import relpath
+from matdb.utility import relpath, copyonce
 from os import mkdir, path, symlink, remove
 import numpy as np
 
@@ -21,9 +21,11 @@ def AgCu(tmpdir):
     from matdb.database import Controller
     from shutil import copy
 
-    target = relpath("./tests/AgCu/matdb")
+    target = relpath("./tests/AgCu/matdb.yml")
     dbdir = str(tmpdir.join("agcu_db"))
     mkdir(dbdir)
+    copyonce(target, path.join(dbdir, "matdb.yml"))
+    target = path.join(dbdir,"matdb")
 
     # We need to copy the POSCAR from the testing directory to tempdir.
     POSCAR = relpath("./tests/AgCu/Ag1Cu5")
@@ -45,7 +47,7 @@ def test_AgCu_setup(AgCu):
 
     AgCu.setup()
 
-    dbs = "Substitution/substitution/Ag1Cu5"
+    dbs = "Substitution/substitution.Substitution/Ag1Cu5"
 
     folders = {
         "__files__": ["compute.pkl", "suids.pkl", "jobfile.sh", "index.json"],
@@ -105,9 +107,9 @@ def test_AgCu_setup(AgCu):
 
     # test the suid and index creation for the entire database.
     assert path.isfile(path.join(AgCu.root,
-                                 "Substitution/substitution/suids.pkl"))
+                                 "Substitution/substitution.Substitution/suids.pkl"))
     assert path.isfile(path.join(AgCu.root,
-                                 "Substitution/substitution/index.json"))
+                                 "Substitution/substitution.Substitution/index.json"))
 
     sub = AgCu.collections[
         'substitution'].steps['Substitution']

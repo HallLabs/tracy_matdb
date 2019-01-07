@@ -97,10 +97,10 @@ def _gamma_only(target, atoms):
     kpoints = path.join(target, "KPOINTS")
     with open(kpoints, 'w') as f:
         f.write("""Gamma-point only
-1 ! one k-point
-rec ! in units of the reciprocal lattice vector
-0 0 0 1 ! 3 coordinates and weight
-""")
+        1 ! one k-point
+        rec ! in units of the reciprocal lattice vector
+        0 0 0 1 ! 3 coordinates and weight
+        """)
 
 def _mueller(target,atoms,mindistance=None):
     """Gets the Mueller style k-points from Mueller's server.
@@ -132,7 +132,7 @@ def custom(target, key, atoms=None):
           in.
         key (str): one of ['gamma'], specifies which custom KPOINTS
           file to generate (see note above).
-        atoms (quippy.Atoms): atoms object to generate KPOINTS for.
+        atoms (matdb.Atoms): atoms object to generate KPOINTS for.
     """
     select = {
         "gamma": _gamma_only,

@@ -4,7 +4,6 @@ positions from a seed configuration.
 from os import path, mkdir
 import random
 
-
 import numpy as np
 
 from matdb import msg
@@ -223,6 +222,7 @@ class Substitution(Group):
 
     def setup(self, rerun=0):
         """Sets up a copy of the atoms object for the current config.
+
         Args:
             rerun (int): when > 0, recreate job files; if > 1, recreate the
                 folders even if they already exist.
@@ -255,7 +255,7 @@ class Substitution(Group):
             for sub in subs:
                 self.create(sub)
                 chem_form = sub.get_chemical_formula(mode='reduce')
-                suid = sha1(chem_form).hexdigest()
+                suid = sha1(chem_form.encode()).hexdigest()
                 self.suids.append(suid)
                 self.index[suid] = self.configs[len(self.configs)]
         self.jobfile(rerun)

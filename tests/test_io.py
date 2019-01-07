@@ -199,7 +199,7 @@ def test_hdf5_in_out():
     hf = h5py.File("temp.h5","w")
 
     with pytest.raises(ValueError):
-        save_dict_to_h5(hf,{"a":2},"/")
+        save_dict_to_h5(hf,{"a":remove},"/")
     hf.close()
     remove("temp.h5")
 
@@ -209,7 +209,7 @@ def test_vasp_xyz(tmpdir):
     from matdb.io import vasp_to_xyz
     from os import remove
 
-    target = "vasp.xyz"
+    target = "atoms.xyz"
     model = vasp_to_xyz(relpath("tests/files/io_convert/"), target,
                         properties=["species", "pos", "z"],
                         parameters=["energy", "virial"], config_type="temp")
@@ -219,9 +219,26 @@ def test_vasp_xyz(tmpdir):
     model = vasp_to_xyz(relpath("tests/files/io_convert/"), target, config_type="temp")
     assert model
 
-    remove(relpath("tests/files/io_convert/vasp.xyz"))
-    remove(relpath("tests/files/io_convert/vasp.xyz.idx"))   
+def globals_setup(new_root):
+    """Sets up the globals for the calculator instance.
+    """
+    from matdb.io import read
+    from matdb.utility import relpath
+    from matdb.calculators.utility import paths, set_paths
 
+    target = relpath("./tests/AgPd/matdb")
+    config = path.expanduser(path.abspath(target))
+    if path.isabs(config):
+        root, config = path.split(config)
+    else:
+        root, config = path.dirname(config), config
+        
+    configyml = read(root, config)
+    configyml["root"] = new_root
+
+    set_paths(configyml)
+
+    
 def test_atoms_to_cfg(tmpdir):
     """Tests the writing of an atoms object to cfg format. 
     """
@@ -230,6 +247,7 @@ def test_atoms_to_cfg(tmpdir):
     from os import path, remove
     from ase.calculators.singlepoint import SinglePointCalculator
     from matdb.calculators import Vasp
+    from matdb.utility import _set_config_paths
 
     atSi = Atoms("Si8",positions=[[0,0,0],[0.25,0.25,0.25],[0.5,0.5,0],[0.75,0.75,0.25],
                                   [0.5,0,0.5],[0.75,0.25,0.75],[0,0.5,0.5],[0.25,0.75,0.75]],
@@ -245,13 +263,13 @@ def test_atoms_to_cfg(tmpdir):
     
     energy = 10.0
     forces = [[1,1,1],[2,2,2],[3,3,3],[4,4,4],[5,5,5],[6,6,6],[7,7,7],[8,8,8]]
-    stress = [0,1,2,3,4,5]
+    virial = [[0,1,2],[3,4,5],[6,7,8]]
 
     atSi.calc = SinglePointCalculator(atSi, energy=energy, forces=np.array(forces),
-                                          stress=stress)
+                                          stress=virial)
 
     atSi.add_property("energy", energy)
-    atSi.add_property("stress", stress)
+    atSi.add_property("virial", virial)
     atSi.add_param("force", forces)
     atoms_to_cfg(atSi, target)
 
@@ -267,6 +285,7 @@ def test_atoms_to_cfg(tmpdir):
     
     kwargs = {"kpoints":{"rmin":50}, "potcars": {"directory":"./tests/vasp",
                                                  "versions": {"Si":"05Jan2001"}}, "xc":"pbe"}
+    _set_config_paths("test", tmpdir)
     atSi.calc = Vasp(atSi, str(tmpdir.join("Vasp")) , str(tmpdir), 0, **kwargs)
 
     atoms_to_cfg(atSi, target, type_map=type_map, config_id="test")

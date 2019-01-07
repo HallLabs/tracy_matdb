@@ -35,7 +35,6 @@ def rendb(tmpdir):
     if not path.isdir(root):
         mkdir(root)
     folder = relpath("./tests/data/legacy")
-
     return LegacyDatabase("R-50", root, None, splits, folder, "r-50-*.xyz",
                           "re", energy="energy", force="force", virial="virial",
                           limit=80)
@@ -139,8 +138,8 @@ def test_ran_seed(tmpdir):
     if not path.isdir(root):
         mkdir(root)
     folder = relpath("./tests/data/legacy")
-    
+
     result = LegacyDatabase("AgPd-50", root, cntrl, splits, folder, "p-50-*.xyz",
-                            "ph")
+                            "ph", energy="dft_energy", force="dft_force", virial="dft_virial")
 
     assert result.ran_seed == 100

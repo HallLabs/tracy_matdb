@@ -2,11 +2,30 @@
 """
 import pytest
 from matdb.atoms import Atoms
-from matdb.utility import reporoot, relpath
+from matdb.utility import reporoot, relpath, symlink
 from matdb.calculators import Vasp
+from matdb.exceptions import VersionError, SpeciesError
 from os import path, mkdir, remove
 import six
 import numpy as np
+
+def globals_setup(new_root):
+    """Sets up the globals for the calculator instance.
+    """
+    from matdb.io import read
+    from matdb.calculators.utility import paths, set_paths
+
+    target = relpath("./tests/AgPd/matdb")
+    config = path.expanduser(path.abspath(target))
+    if path.isabs(config):
+        root, config = path.split(config)
+    else:
+        root, config = path.dirname(config), config
+        
+    configyml = read(root, config)
+    configyml["root"] = new_root
+
+    set_paths(configyml)
 
 def compare_nested_dicts(dict1,dict2):
     """Compares two dictionaries to see if they are the same.
@@ -42,53 +61,112 @@ def test_get_calc_mod():
 def test_vasp_setup(tmpdir):
     """Tests Vasp calculator initialization.
     """
+    from matdb.utility import _set_config_paths
 
+    _set_config_paths("AgPd_Enumerated", str(tmpdir))
     target = str(tmpdir.join("Vasp"))        
+    globals_setup(target)
+
     atm = Atoms("Si",positions=[[0,0,0]])
-
-    with pytest.raises(ValueError):
-        kwargs = {"kpoints":{"rmin":50}, "potcars": {"directory":"./tests/vasp"}}
-        calc = Vasp(atm, '.', 'def', 0, **kwargs)
-
-    kwargs = {"kpoints":{"rmin":50}, "potcars": {"directory":"./tests/vasp"}, "xc":"pbe"}
+    kwargs = {"kpoints":{"rmin":50}, "potcars": {"directory":"./tests/vasp",
+                                                 "versions":{"Si": '05Jan2001'}}, "xc":"pbe"}
     calc = Vasp(atm, target, str(tmpdir), 0, **kwargs)
 
     assert calc.potcars["xc"] == "pbe"
     
-    kwargs = {"kpoints":{"rmin":50}, "potcars": {"directory":"./tests/vasp", "xc":"pbe"}}
+    kwargs = {"kpoints":{"rmin":50}, "potcars": {"directory":"./tests/vasp", "xc":"pbe",
+                                                 "versions":{"Si": '05Jan2001'}}}
     calc = Vasp(atm, target, str(tmpdir), 0, **kwargs)
 
-    assert calc.kwargs["xc"] == "pbe"    
+    assert calc.kwargs["xc"] == "pbe"
 
+    stat = calc.set_static(kwargs)
+    assert "nsw" in stat and stat["nsw"] == 0
+
+    calc.asis = True
+    assert calc.read_convergence()
+
+    with pytest.raises(VersionError):
+        kwargs = {"kpoints":{"rmin":50}, "potcars": {"directory":"./tests/vasp", "xc":"pbe"}}
+        calc = Vasp(atm, '.', str(tmpdir), 0, **kwargs)
+
+    with pytest.raises(VersionError):
+        kwargs = {"kpoints":{"rmin":50}, "potcars": {"directory":"./tests/vasp", "xc":"pbe",
+                                                     "versions":{"Si": '04Jan2001'}}}
+        calc = Vasp(atm, '.', str(tmpdir), 0, **kwargs)
+        
+    with pytest.raises(VersionError):
+        kwargs = {"kpoints":{"rmin":50}, "potcars": {"directory":"./tests/vasp", "xc":"pbe",
+                                                     "versions":{"Si": '04Jan2001'}}}
+        atm = Atoms("Al",positions=[[0,0,0]])
+        calc = Vasp(atm, '.', str(tmpdir), 0, **kwargs)
+        
+    with pytest.raises(ValueError):
+        kwargs = {"kpoints":{"rmin":50}, "potcars": {"directory":"./tests/vasp"}}
+        calc = Vasp(atm, '.', str(tmpdir), 0, **kwargs)
 
 def test_write_potcar(tmpdir):
     """Tests the writing of the POTCAR file. 
     """
+    from matdb.utility import _set_config_paths
+    from hashlib import sha1
+
+    _set_config_paths("AgPd_Enumerated", str(tmpdir))
     target = str(tmpdir.join("Vasp"))        
-    atm = Atoms("Si",positions=[[0,0,0]])
-    kwargs = {"kpoints":{"rmin":50}, "potcars": {"directory":"./tests/vasp", "xc":"pbe"}}
+    globals_setup(target)
+
+    atm = Atoms("Si",positions=[[0,0,0]], cell=[[1,0,0],[0,1,0],[0,0,1]])
+    kwargs = {"kpoints":{"rmin":50}, "potcars": {"directory":"./tests/vasp", "xc":"pbe",
+                                                 "versions":{"Si": '05Jan2001'}}}
     calc = Vasp(atm, target, str(tmpdir), 0, **kwargs)
 
     calc._write_potcar()
-    assert path.isfile(path.join(calc.contr_dir,"POTCAR"))
+    this_potcar = str(sha1("{0}{1}".format("Si", "05Jan2001").encode()).hexdigest())
+    assert path.isfile(path.join(calc.contr_dir, "POTCARS", this_potcar))
     assert path.isfile(path.join(calc.folder,"POTCAR"))
-    remove(path.join(calc.contr_dir,"POTCAR"))
+    remove(path.join(calc.contr_dir, "POTCARS", this_potcar))
     
-    kwargs = {"kpoints":{"rmin":50}, "potcars": {"directory":"./tests/vasp",
-                                                 "xc":"pbe", "version":"28June2018"}}
+    kwargs = {"kpoints":{"method":"mueller","mindistance":50},
+              "potcars": {"directory":"./tests/vasp", "xc":"pbe",
+                          "versions":{"Si": '05Jan2001'}}}
     calc = Vasp(atm, target, str(tmpdir), 0, **kwargs)
     calc._write_potcar()
-    assert path.isfile(path.join(calc.contr_dir,"POTCAR"))
+    assert path.isfile(path.join(calc.contr_dir,"POTCARS",this_potcar))
     calc._write_potcar()
     assert path.isfile(path.join(calc.folder,"POTCAR"))
+
+    # check POTCAR reuse
+    calc = Vasp(atm, target, str(tmpdir), 0, **kwargs)
+
+    with pytest.raises(SpeciesError):
+        kwargs = {"kpoints":{"rmin":50}, "potcars": {"directory":"./tests/vasp", "xc":"pbe",
+                                                     "versions":{"Si": '05Jan2001'}}}
+        symlink(path.join(calc.contr_dir,"POTCARS",calc.this_potcar),
+                path.join(reporoot, "tests", "vasp", "potpaw_PBE","Ag", "POTCAR"))
+        calc = Vasp(atm, '.', str(tmpdir), 0, **kwargs)
+
+    with pytest.raises(VersionError):
+        kwargs = {"kpoints":{"rmin":50}, "potcars": {"directory":"./tests/vasp", "xc":"pbe",
+                                                     "versions":{"Si": '05Jan2001'}}}
+        symlink(path.join(calc.contr_dir,"POTCARS",calc.this_potcar),
+                path.join(reporoot, "tests", "vasp", "potpaw_PBE","Si_sv_GW", "POTCAR"))
+        atm = Atoms("Si",positions=[[0,0,0]], cell=[[1,0,0],[0,1,0],[0,0,1]])
+        calc = Vasp(atm, '.', str(tmpdir), 0, **kwargs)
+
 
 def test_write_input(tmpdir):
     """Tests the writing of the input files. 
     """
+    from matdb.utility import _set_config_paths
+
+    _set_config_paths("AgPd_Enumerated", str(tmpdir))
     target = str(tmpdir.join("Vasp"))        
-    atm = Atoms("Si",positions=[[0,0,0]])
+    globals_setup(target)
+
+    atm = Atoms("Si",positions=[[0,0,0]], cell=[[1,0,0],[0,1,0],[0,0,1]])
     kwargs = {"kpoints":{"method":"mueller","mindistance":50},
-              "potcars": {"directory":"./tests/vasp", "xc":"pbe"}}
+              "potcars": {"directory":"./tests/vasp", "xc":"pbe",
+                          "versions":{"Si": '05Jan2001'}}}
     calc = Vasp(atm, target, str(tmpdir), 0, **kwargs)
 
     calc.write_input(atm,directory=target)
@@ -97,7 +175,7 @@ def test_write_input(tmpdir):
     assert path.isfile(path.join(calc.folder,"POSCAR"))
     assert path.isfile(path.join(calc.folder,"KPOINTS"))
     
-    kwargs = {"potcars": {"directory":"./tests/vasp", "xc":"pbe"}}
+    kwargs = {"potcars": {"directory":"./tests/vasp", "xc":"pbe", "versions":{"Si": '05Jan2001'}}}
     calc = Vasp(atm, target, str(tmpdir), 0, **kwargs)
 
     calc.write_input(atm,directory=target)
@@ -115,11 +193,16 @@ def test_write_input(tmpdir):
 def test_can_execute(tmpdir):
     """Tests the can_execute method.
     """
+    from matdb.utility import _set_config_paths
 
+    _set_config_paths("AgPd_Enumerated", str(tmpdir))
     target = str(tmpdir.join("Vasp"))        
-    atm = Atoms("Si",positions=[[0,0,0]])
+    globals_setup(target)
+
+    atm = Atoms("Si",positions=[[0,0,0]], cell=[[1,0,0],[0,1,0],[0,0,1]])
     kwargs = {"kpoints":{"method":"mueller","mindistance":50},
-              "potcars": {"directory":"./tests/vasp", "xc":"pbe"}}
+              "potcars": {"directory":"./tests/vasp", "xc":"pbe",
+                          "versions":{"Si": '05Jan2001'}}}
     calc = Vasp(atm, target, str(tmpdir), 0, **kwargs)
 
     assert not calc.can_execute(target)
@@ -134,11 +217,17 @@ def test_can_extract(tmpdir):
     """
 
     from matdb.utility import symlink, relpath
+    from matdb.utility import _set_config_paths
 
+    _set_config_paths("AgPd_Enumerated", str(tmpdir))
     target = str(tmpdir.join("Vasp"))        
+    globals_setup(target)
+
     atm = Atoms("Si",positions=[[0,0,0]])
     kwargs = {"kpoints":{"method":"mueller","mindistance":50},
-              "potcars": {"directory":"./tests/vasp", "xc":"pbe"}}
+              "potcars": {"directory":"./tests/vasp", "xc":"pbe",
+                          "versions":{"Si": '05Jan2001'}}}
+
     calc = Vasp(atm, target, str(tmpdir), 0, **kwargs)
 
     assert not calc.can_extract("def")
@@ -156,11 +245,16 @@ def test_extract(tmpdir):
     """Tests the extract method and cleanup method.
     """
     from matdb.utility import symlink, relpath, touch
+    from matdb.utility import _set_config_paths
 
+    _set_config_paths("AgPd_Enumerated", str(tmpdir))
     target = str(tmpdir.join("Vasp"))        
+    globals_setup(target)
+
     atm = Atoms("Si",positions=[[0,0,0]],cell=[1,1,1])
     kwargs = {"ibrion":5, "nsw": 1, "kpoints":{"method":"mueller","mindistance":50},
-              "potcars": {"directory":"./tests/vasp", "xc":"pbe"}}
+              "potcars": {"directory":"./tests/vasp", "xc":"pbe",
+              "versions":{"Si": '05Jan2001'}}}
     calc = Vasp(atm, target, str(tmpdir), 0, **kwargs)
     
     calc.write_input(atm, target)    
@@ -170,11 +264,11 @@ def test_extract(tmpdir):
             path.join(calc.folder,"POSCAR"))
     calc.extract(target)
 
-    assert hasattr(calc.atoms,"vasp_force")
-    assert hasattr(calc.atoms,"vasp_stress")
-    assert hasattr(calc.atoms,"vasp_energy")
+    assert hasattr(calc.atoms,calc.force_name)
+    assert hasattr(calc.atoms,calc.virial_name)
+    assert hasattr(calc.atoms,calc.energy_name)
     assert calc.atoms.vasp_energy is not None
-    assert calc.atoms.vasp_stress is not None
+    assert calc.atoms.vasp_virial is not None
     assert calc.atoms.vasp_force is not None
 
     touch(path.join(calc.folder,"CHG"))
@@ -188,24 +282,43 @@ def test_extract(tmpdir):
     assert not path.isfile(path.join(calc.folder,"OUTCAR"))
     assert not path.isfile(path.join(calc.folder,"vasprun.xml"))
 
+    symlink(path.join(calc.folder,"CONTCAR"),
+            path.join(calc.folder,"POSCAR"))
+    symlink(path.join(calc.folder,"OUTCAR"),
+            relpath("tests/files/VASP/OUTCAR_incomplete"))
+    assert not calc.extract(target)
+    
 def test_to_dict(tmpdir):
     """Tests the calculator to_dict method.
     """
+    from matdb.utility import _set_config_paths
 
+    _set_config_paths("AgPd_Enumerated", str(tmpdir))
     target = str(tmpdir.join("Vasp"))        
-    atm = Atoms("Si",positions=[[0,0,0]],cell=[1,1,1])
-    kwargs = {"ibrion":5, "xc":"pbe", "nsw": 1, "kpoints":{"method":"mueller","mindistance":50},
-              "potcars": {"directory":"./tests/vasp", "xc":"pbe"}}
-    calc = Vasp(atm, target, str(tmpdir), 0, **kwargs)
+    globals_setup(target)
+
+    atm = Atoms("AgPd",positions=[[0,0,0],[0.25,0.25,0.25]],cell=[1,1,1])
+    kwargs = {"ibrion":5, "xc":"pbe", "nsw": 1, "kpoints":{"method":"mueller","mindistance":30},
+              "potcars": {"directory":'156def0ed29f1a908d5a7b4eae006c672e7b0ff1', "xc":"pbe",
+                          "versions":{"Ag": '09Dec2005', "Pd":'04Jan2005'},
+                          "setups":{"Ag": "_pv"}},
+              "exec_path":None}
+    calc = Vasp(atm, '$control$/Vasp', '$control$', 0, **kwargs)
 
     calc_dict = calc.to_dict()
 
-    out = {"folder":target, "ran_seed":0, "contr_dir":str(tmpdir),
-           "kwargs": kwargs, "args": (), "version": "vasp.4.6.35"}
+    kwargs = {"ibrion":5, "xc":"pbe", "nsw": 1, "kpoints":{"method":"mueller","mindistance":30},
+              "potcars": {"directory":'156def0ed29f1a908d5a7b4eae006c672e7b0ff1', "xc":"pbe",
+                          "versions":{"Ag": '09Dec2005', "Pd":'04Jan2005'},
+                          "setups":{"Ag": "_pv"}}}
+    out = {"folder":'$control$/Vasp', "ran_seed":0, "contr_dir":'$control$',
+           "kwargs": kwargs, "args": ()}#, "version": "vasp.4.6.35"}
 
     assert compare_nested_dicts(calc_dict,out)
 
     calc_dict = calc.to_dict()
+    out = {"folder":'$control$/Vasp', "ran_seed":0, "contr_dir":'$control$',
+           "kwargs": kwargs, "args": (), "version": ""}
     assert compare_nested_dicts(calc_dict,out)
 
 def test_phonon_defaults():

@@ -2,7 +2,16 @@
 implement. 
 """
 import abc
+import re
+from os import path
+from hashlib import sha1
+
 from matdb.base import abstractstatic
+from matdb.utility import recursive_getattr, recursive_setattr, config_specs
+from matdb.calculators.utility import paths
+
+_rxhash = re.compile(r"\b[0-9a-f]{32,40}\b", re.I)
+"""Regex object to match SHA1 hashes."""
 
 class AsyncCalculator(object):
     """Represents a calculator such as :class:`ase.Calculator` that can be run
@@ -12,12 +21,25 @@ class AsyncCalculator(object):
     Attributes:
         key (str): short, lower-case name to identify the calculator type.
     """
-    key = None    
+    key = None
+    pathattrs = []
     __metaclass__ = abc.ABCMeta
 
     def init_calc(self, kwargs):
+
         if "key" in kwargs:
             self.key = kwargs.pop("key")
+
+        namehash = str(sha1(config_specs["name"].encode("ASCII")).hexdigest())
+        for pathattr in self.pathattrs:
+            attrval = recursive_getattr(kwargs, pathattr)
+            #Test to see if this is a hash reference to a globally-stored
+            #calculator absolute path.
+            if attrval is not None and _rxhash.match(attrval):
+                abspath = paths[namehash][self.key][attrval]
+                #Overwrite the value of the hash with the actual absolute path
+                #to the directory.
+                recursive_setattr(kwargs, pathattr, abspath)
 
     @property
     def energy_name(self):
@@ -128,11 +150,25 @@ class SyncCalculator(object):
         key (str): short, lower-case name to identify the calculator type.
     """
     key = None
-
+    pathattrs = []
+    
     def init_calc(self, kwargs):
         if "key" in kwargs:
             self.key = kwargs.pop("key")
 
+        namehash = str(sha1(config_specs["name"].encode("ASCII")).hexdigest())        
+        #This duplication with the AsyncCalculator hasn't been sufficient to
+        #warrant yet another super class, so we just have it again here.
+        for pathattr in self.pathattrs:
+            attrval = recursive_getattr(kwargs, pathattr)
+            #Test to see if this is a hash reference to a globally-stored
+            #calculator absolute path.
+            if attrval is not None and _rxhash.match(attrval):
+                abspath = paths[namehash][self.key][attrval]
+                #Overwrite the value of the hash with the actual absolute path
+                #to the directory.
+                recursive_setattr(kwargs, pathattr, abspath)
+            
     @property
     def energy_name(self):
         """Returns the name of the energy property that this trainer writes onto
@@ -158,7 +194,7 @@ class SyncCalculator(object):
         specified atoms object.
 
         Args:
-            atoms (quippy.Atoms): config to test executability for.
+            atoms (matdb.Atoms): config to test executability for.
         """
         pass
 
@@ -168,7 +204,7 @@ class SyncCalculator(object):
         results are available for use.
 
         Args:
-            atoms (quippy.Atoms): config to check execution completion for.
+            atoms (matdb.Atoms): config to check execution completion for.
         """
         pass
 
@@ -177,7 +213,7 @@ class SyncCalculator(object):
         """Returns True if the specified config is in process of executing.
 
         Args:
-            atoms (quippy.Atoms): config to check execution for.
+            atoms (matdb.Atoms): config to check execution for.
         """
         pass
 

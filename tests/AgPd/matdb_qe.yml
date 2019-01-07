@@ -1,0 +1,62 @@
+title: 'AgPd Enumerated'
+# Ordered list of species; this is the same order as should be in the
+# POTCAR file for VASP calculations.
+species:
+  - 'Pd'
+  - 'Ag'
+# If the POTCAR names are non-standard, include the *suffix* after the
+# element name here.
+# Directory in which the database folder system will be created.
+root: '~/temp/AgPd'
+venv: 'matdb-dev'
+# Parameters for the job arrays that will be submitted for each
+# database. These can be overridden in each database below as well.
+execution:
+  template: 'run_array_ml.sh'
+  time: 4
+  ntasks: 1
+  nodes: 1
+  mem_per_cpu: 4
+  job_name: 'AgPd DB'
+  partition: 'physics'
+  array_limit: 50
+  modules_load: ['mkl/11.2.0']
+  exec_path: 'vasp'
+#Different split parameters to apply globally to all database types.
+splits:
+  A: 0.4
+  B: 0.2
+# Next, we include a list of all the databases we want to create. A
+# database following this pattern is created *for each* of the seed
+# configurations listed above.
+databases:
+  #The PhononBase class generates the dynamical matrix that is needed
+  #by PhononDatabase.
+  - name: 'enumerated'
+    steps:
+      - type: "enumerated.Enumerated"
+        lattice*:
+          - "bcc"
+          - "fcc"
+        nconfigs: 10
+        sizes: [1,4]
+        ran_seed: 10
+
+calculator:
+  name: 'Qe'
+  kpoints:
+    method: 'kspacing'
+    spacing: 0.1
+    offset: 1
+  potcars:
+    directory: './tests/qe'
+    potentials:
+      Al: 'Al.pbe-n-kjpaw_psl.1.0.0.UPF'
+      Pd: 'Pd_ONCV_PBE-1.0.upf'
+    versions:
+      Ag:
+        - "2.0.1"
+        - ".5.1"
+      Pd:
+        - "2.0.1"
+        - "2.1.1"

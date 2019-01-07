@@ -33,7 +33,6 @@ import h5py
 from contextlib import contextmanager
 
 from matdb import __version__
-from matdb.atoms import AtomsList
 # from matdb.database.utility import dbconfig
 # from matdb.utility import special_functions
 
@@ -164,10 +163,13 @@ def execute(args, folder, wait=True, nlines=100, venv=None,
     if kwargs["stdout"] is PIPE:
         output = []
         for line in pexec.stdout:
+            l = line.decode('ascii')
             #Filter non fatal exceptions such as future warnings. A full list can be found here
             # https://docs.python.org/3/library/exepctions.html#exception-hierarchy
+
             #Special case: "lazy-import" has "import" in the name but it's a valid module name
-            if not ("FutureWarning" in line or ("import" in line and "-import" not in line) or "\x1b[0m" in line):
+            #if not ("FutureWarning" in line or ("import" in line and "-import" not in line) or "\x1b[0m" in line):
+            if not ("FutureWarning" in l or "import" in l or "\x1b[0m" in l):
                 output.append(line)
                 if len(output) >= nlines:
                     break
@@ -177,18 +179,18 @@ def execute(args, folder, wait=True, nlines=100, venv=None,
     if kwargs["stderr"] is PIPE:
         error = []
         for line in pexec.stderr:
-            if errignore is None or errignore not in line:
-                error.append(line)
+            if errignore is None or errignore not in str(line):
+                error.append(str(line))
             if len(error) >= nlines:
                 break
         pexec.stderr.close()
-        if printerr and len(error) > 0:
+        if printerr and len(error) > 0 and all([isinstance(i, string_types) for i in error]):
             msg.err(''.join(error))
 
     return {
         "process": pexec,
-        "output": output,
-        "error": error
+        "output": [i.decode("ascii") if not isinstance(i, str) else i for i in output],
+        "error": [i.decode("ascii") if not isinstance(i, str) else i for i in error]
     }
 
 def h5cat(files, target):
@@ -199,6 +201,8 @@ def h5cat(files, target):
         target (str): name/path of the output file that will include all of the
           combined files.
     """
+    # Local import to prevent cyclic imports
+    from matdb.atoms import AtomsList
     result = AtomsList()
     for fname in files:
         ilist = AtomsList(fname)
@@ -452,10 +456,6 @@ def pgrid(options, ignore=None):
 
     grid = list(product(*values))
     return (grid, keys)
-
-import pytz
-from datetime import datetime
-from six import string_types
 
 epoch = datetime(1970,1,1, tzinfo=pytz.utc)
 """datetime.datetime: 1/1/1970 for encoding UNIX timestamps.
@@ -995,7 +995,7 @@ def check_deps():
 
     req_pckgs = required_packages()
     versions = {}
-    instld_pckgs = [l.strip() for l in execute(["pip freeze"], ".", venv=True)["output"]]
+    instld_pckgs = [l.strip() for l in execute(["pip3 freeze"], ".", venv=True)["output"]]
 
     for pkg in instld_pckgs:
         if "==" in pkg:
@@ -1028,5 +1028,66 @@ def required_packages():
     return ["ase", "beautifulsoup4", "certifi",
             "chardet", "cycler", "h5py", "html5lib", "idna", "matplotlib", "mpld3",
             "numpy", "phenum", "phonopy", "pyparsing", "python-dateutil", "pytz",
-            "PyYAML", "requests", "six", "subprocess32", "termcolor",
-            "tqdm", "urllib3", "webencodings", "lazy-import", "seekpath"]
+            "PyYAML", "requests", "subprocess32", "termcolor",
+            "tqdm", "urllib3", "webencodings", "seekpath"]
+
+def recursive_getattr(o, fqn):
+    """Recursively gets a '.'-separated path of attributes from an object.
+    
+    Args:
+        fqn (str): '.'-separated attribute path.
+    """
+    if '.' in fqn:
+        attrs = fqn.split('.')
+        for cattr in attrs[0:-1]:
+            if isinstance(o, dict) and cattr in o:
+                o = o[cattr]
+            elif hasattr(o, cattr):
+                o = getattr(o, cattr)
+            else:
+                return None
+    else:
+        attrs = [fqn]
+    
+    if isinstance(o, dict) and attrs[-1] in o:
+        return o[attrs[-1]]
+    elif hasattr(o, attrs[-1]):
+        return getattr(o, attrs[-1])        
+    else:
+        return None
+
+def recursive_setattr(o, fqn, value):
+    """Recursively sets a '.'-separated path of attributes from an object.
+    
+    Args:
+        fqn (str): '.'-separated attribute path.
+    """
+    if '.' in fqn:
+        attrs = fqn.split('.')
+        for cattr in attrs[0:-1]:
+            if isinstance(o, dict) and cattr in o:
+                o = o[cattr]
+            elif hasattr(o, cattr):
+                o = getattr(o, cattr)
+            else:
+                return None
+    else:
+        attrs = [fqn]
+    
+    if isinstance(o, dict):
+        o[attrs[-1]] = value
+    else:
+        setattr(o, attrs[-1], value)
+
+config_specs = {}
+def _set_config_paths(name, cntr_dir):
+    """Creates a dictionary of the matdb contrallor name and controll directory.
+
+    Args:
+        name (str): 'title' from the YML file.
+        cntr_dir (str): the path to the control directory.    
+    """
+
+    global config_specs  
+    config_specs["name"] = name
+    config_specs["cntr_dir"] = cntr_dir

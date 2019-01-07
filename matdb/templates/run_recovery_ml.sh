@@ -34,4 +34,3 @@ module load {{ modname }}
 {%- endif %}
 # Get the path to the executable; should be on user's path after the modules have been loaded.
 {{ exec_path }}
-

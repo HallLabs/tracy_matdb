@@ -1,16 +1,20 @@
 """Implements a `matdb` compatible subclass of the
-:class:`ase.calculators.espresso.Espresso` calculator.
-.. note:: Because this calculator is intended to be run asynchronously as part
-  of `matdb` framework, it does *not* include a method to actually execute the
-  calculation. Although the ASE calculator provides an interface to do so,
-  `matdb` uses templates to access HPC resources.
-.. warning:: Because of the underlying implementation in ASE, you must use a separate
-  instance of the :class:`AsyncQe` for each :class:`ase.Atoms` object that you
-  want to calculate for.
+:class:`ase.calculators.espresso.Espresso` calculator.  
+
+.. note:: Because this calculator is intended to be run asynchronously
+  as part of `matdb` framework, it does *not* include a method to
+  actually execute the calculation. Although the ASE calculator provides
+  an interface to do so, `matdb` uses templates to access HPC resources.
+
+.. warning:: Because of the underlying implementation in ASE, you must
+  use a separate instance of the :class:`AsyncQe` for each
+  :class:`ase.Atoms` object that you want to calculate for.
 """
+
 from os import path, stat, mkdir, remove, environ, rename, rmdir
 import mmap
 from xml.etree import ElementTree
+from hashlib import sha1
 
 import ase
 from ase.calculators.espresso import Espresso
@@ -19,15 +23,18 @@ import numpy as np
 from matdb.calculators.basic import AsyncCalculator
 from matdb import msg
 from matdb.kpoints import custom as write_kpoints
-from matdb.utility import chdir, execute, relpath
+from matdb.utility import chdir, execute, relpath, config_specs
 from matdb.exceptions import VersionError
+from matdb.calculators.utility import paths
         
 class AsyncQe(Espresso, AsyncCalculator):
-    """Represents a calculator that can compute material properties with Quantum Espresso,
-    but which can do so asynchronously.
-    .. note:: The arguments and keywords for this object are identical to the
-      :class:`~ase.calculators.qe.Espresso` calculator that ships with ASE. We
-      add some extra functions so that it plays nicely with `matdb`.
+    """Represents a calculator that can compute material properties with
+    Quantum Espresso, but which can do so asynchronously.  
+
+    .. note:: The arguments and keywords for this object are identical
+      to the :class:`~ase.calculators.qe.Espresso` calculator that ships
+      with ASE. We add some extra functions so that it plays nicely with
+      `matdb`.
 
     Args:
         atoms (matdb.Atoms): configuration to calculate using QE.
@@ -46,18 +53,25 @@ class AsyncQe(Espresso, AsyncCalculator):
         out_file (str): the output file that QE will write too.
         out_dir (str): the output directory for QE files.
         version (str): the version of QE used for calculations.
-        atoms (matdb.Atoms): the configuration for calculations.    
+        atoms (matdb.Atoms): the configuration for calculations.
+
     """
     key = "qe"
+    pathattrs = ["potcars.directory"]
 
     def __init__(self, atoms, folder, contr_dir, ran_seed, *args, **kwargs):
         
-        self.folder = path.abspath(path.expanduser(folder))
-        self.kpoints = None
+        if contr_dir == '$control$':
+            contr_dir = config_specs["cntr_dir"]
         if path.isdir(contr_dir):
-            self.contr_dir = contr_dir
+            self.contr_dir = path.abspath(path.expanduser(contr_dir))
         else:
             msg.err("{} is not a valid directory.".format(contr_dir))
+
+        if '$control$' in folder:
+            folder = folder.replace('$control$', self.contr_dir)
+        self.folder = path.abspath(path.expanduser(folder))
+        self.kpoints = None
 
         self.in_kwargs = kwargs.copy()
         self.args = args
@@ -230,7 +244,7 @@ class AsyncQe(Espresso, AsyncCalculator):
         with open(outxml, 'r') as f:
             # memory-map the file, size 0 means whole file
             m = mmap.mmap(f.fileno(), 0, prot=mmap.PROT_READ)  
-            i = m.rfind('</closed>')
+            i = m.rfind(b'</closed>')
             # we look for this second line to verify that VASP wasn't
             # terminated during runtime for memory or time
             # restrictions
@@ -353,9 +367,21 @@ class AsyncQe(Espresso, AsyncCalculator):
         Args:
             folder (str): path to the folder in which the executable was run.
         """
-        qe_dict = {"folder":self.folder, "ran_seed":self.ran_seed,
-                   "contr_dir":self.contr_dir, "kwargs": self.in_kwargs,
+        qe_dict = {"folder":self.folder.replace(self.contr_dir,'$control$'),
+                   "ran_seed":self.ran_seed,
+                   "contr_dir":'$control$', "kwargs": self.in_kwargs,
                    "args": self.args, "version": self.version}
+
+        if hasattr(self,"potcars"):
+            potdict = self.potcars.copy()
+            
+            name = config_specs["name"]
+            namehash = str(sha1(name.encode("ASCII")).hexdigest())
+            for hid, hpath in paths[namehash][self.key].items():
+                if potdict["directory"] == hpath:
+                    potdict["directory"] = hid
+                    break
+            qe_dict["kwargs"]["potcars"] = potdict
 
         return qe_dict
 
@@ -378,7 +404,7 @@ class AsyncQe(Espresso, AsyncCalculator):
         results["atoms"] = atom_pos
         results["cell"] = [[float(j) for j in i.text.split()] for i in data.findall(key_phrases[2])]
         results["etot"] = float(data.findall(key_phrases[3])[-1].text)
-        results["forces"] = [[float(j) for j in i.split()] for i in data.findall(key_phrases[4])[-1].text.strip().split('\n')]
+        results["forces"] = np.array([[float(j) for j in i.split()] for i in data.findall(key_phrases[4])[-1].text.strip().split('\n')])
         results["stress"] = np.array([float(i) for i in
                                       data.findall(key_phrases[5])[-1].text.strip().split()]).reshape((3,3))
 
@@ -386,7 +412,3 @@ class AsyncQe(Espresso, AsyncCalculator):
             self.version = data.findall('general_info/creator')[0].attrib["VERSION"]
             
         return results
-        
-            
-        
-        

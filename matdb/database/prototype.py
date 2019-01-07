@@ -171,9 +171,9 @@ class Prototypes(Group):
         else:
             #Check where we are in the stack. If we are just below the database,
             #then we want to return <<your description of the rset here>>
-	    #If we are not, then we must a parameter grid of sequences
+            #If we are not, then we must a parameter grid of sequences
             #to select from.
-	    return [res for p in self.sequence.values() for res in p.rset]
+            return [res for p in self.sequence.values() for res in p.rset]
 
     def ready(self):
         """Returns True if all the calculations have been completed.
@@ -233,7 +233,7 @@ class Prototypes(Group):
                 perms = self._get_perms(k)
                 for fpath, perm in product(v,perms):
                     hash_str = "{0}-{1}".format(fpath.split("/")[-1],"".join(perm))
-                    hash_str = str(sha1(hash_str).hexdigest())
+                    hash_str = str(sha1(hash_str.encode()).hexdigest())
                     if hash_str not in self.puuids:
                         self.puuids.append(hash_str)
                         self._correct_poscar(fpath, path.join(self.root, "POSCAR"), perm)

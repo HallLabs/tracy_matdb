@@ -22,5 +22,5 @@ def test_jobfile(legDB):
     legdbs = legDB.trainers.find("2b-A.*")
     for tb in legdbs:
         assert path.isfile(path.join(tb.root, "jobfile.sh"))
-        assert path.isfile(path.join(tb.root, "train.xyz"))
+        assert path.isfile(path.join(tb.root, "pot.mtp"))
 

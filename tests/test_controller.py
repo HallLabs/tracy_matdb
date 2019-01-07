@@ -39,13 +39,15 @@ def _mimic_vasp(folder, xroot, prefix="W.1"):
 
 @pytest.fixture()
 def Pd(tmpdir):
-    from matdb.utility import relpath
+    from matdb.utility import relpath, copyonce
     from matdb.database import Controller
     from os import mkdir, symlink, remove, path
 
-    target = relpath("./tests/Pd/matdb")
+    target = relpath("./tests/Pd/matdb.yml")
     dbdir = str(tmpdir.join("pd_db"))
     mkdir(dbdir)
+    copyonce(target, path.join(dbdir, "matdb.yml"))
+    target = path.join(dbdir,"matdb")
     
     #We need to copy the POSCAR over from the testing directory to the temporary
     #one.
@@ -64,12 +66,14 @@ def Pd(tmpdir):
 
 @pytest.fixture()
 def Pd_copy(tmpdir):
-    from matdb.utility import relpath
+    from matdb.utility import relpath, copyonce
     from matdb.database import Controller
     from os import path, remove, mkdir
 
-    target = relpath("./tests/Pd/matdb_copy")
+    target = relpath("./tests/Pd/matdb_copy.yml")
     dbdir = str(tmpdir.join("pd_db_copy"))
+    copyonce(target, path.join(dbdir, "matdb.yml"))
+    target = path.join(dbdir,"matdb")
 
     from shutil import copy
     POSCAR = relpath("./tests/Pd/POSCAR")
@@ -86,13 +90,15 @@ def Pd_copy(tmpdir):
 
 @pytest.fixture()
 def Pd_split(tmpdir):
-    from matdb.utility import relpath
+    from matdb.utility import relpath, copyonce
     from matdb.database import Controller
     from os import mkdir, path
 
-    target = relpath("./tests/Pd/matdb_split")
+    target = relpath("./tests/Pd/matdb_split.yml")
     dbdir = str(tmpdir.join("pd_db_splits"))
     mkdir(dbdir)
+    copyonce(target, path.join(dbdir, "matdb.yml"))
+    target = path.join(dbdir,"matdb")
 
     from shutil import copy
     POSCAR = relpath("./tests/Pd/POSCAR")
@@ -106,17 +112,18 @@ def Pd_split(tmpdir):
     result = Controller(target, dbdir)
     return result
     
-    
 @pytest.fixture()
 def Pd_2(tmpdir):
-    from matdb.utility import relpath
+    from matdb.utility import relpath, copyonce
     from matdb.database import Controller
     from os import mkdir, symlink, remove, path
 
-    target = relpath("./tests/Pd/matdb")
+    target = relpath("./tests/Pd/matdb.yml")
     dbdir = str(tmpdir.join("pd_2_db"))
     if not path.isdir(dbdir):
         mkdir(dbdir)
+    copyonce(target, path.join(dbdir, "matdb.yml"))
+    target = path.join(dbdir,"matdb")
 
     from shutil import copy
     POSCAR = relpath("./tests/Pd/POSCAR")
@@ -134,13 +141,15 @@ def Pd_2(tmpdir):
 
 @pytest.fixture()
 def AgPd(tmpdir):
-    from matdb.utility import relpath
+    from matdb.utility import relpath, copyonce
     from matdb.database import Controller
     from os import mkdir, symlink, remove, path
 
-    target = relpath("./tests/AgPd/matdb_manual")
+    target = relpath("./tests/AgPd/matdb_manual.yml")
     dbdir = str(tmpdir.join("agpd_db"))
     mkdir(dbdir)
+    copyonce(target, path.join(dbdir, "matdb.yml"))
+    target = path.join(dbdir,"matdb")
 
     from shutil import copy
     POSCAR = relpath("./tests/Pd/POSCAR")
@@ -173,19 +182,19 @@ def dynPd(Pd):
 
     return Pd
 
-# # @pytest.mark.skip()
-# def test_Pd_phonplot(dynPd, tmpdir):
-#     """Tests the plotting of phonon bands for supercell convergence test in Pd.
-#     """
-#     from matdb.plotting.comparative import band_plot
-#     dbs = dynPd.find("Pd.phonon-*.hessian")
-#     target = str(tmpdir.join("Pd.phonon-convergence.pdf"))
-#     args = {
-#         "dim": 3,
-#         "save": target
-#     }
-#     band_plot(dbs, **args)
-#     assert path.isfile(target)
+@pytest.mark.skip()
+def test_Pd_phonplot(dynPd, tmpdir):
+    """Tests the plotting of phonon bands for supercell convergence test in Pd.
+    """
+    from matdb.plotting.comparative import band_plot
+    dbs = dynPd.find("Pd.phonon-*.hessian")
+    target = str(tmpdir.join("Pd.phonon-convergence.pdf"))
+    args = {
+        "dim": 3,
+        "save": target
+    }
+    band_plot(dbs, **args)
+    assert path.isfile(target)
 
 @pytest.mark.skip()
 def test_Pd_setup(Pd, Pd_copy):
@@ -233,7 +242,7 @@ def test_steps(Pd):
     seqs = sorted(['Pd'])
     assert Pd.sequences() == seqs
 
-@pytest.mark.skip()
+#@pytest.mark.skip()
 def test_find(Pd):
     """Tests the find function and the __getitem__ method with pattern matching.
     """
@@ -241,19 +250,19 @@ def test_find(Pd):
     steps = Pd.find("manual/phonon")
     model = ['phonon']
     assert model == [s.parent.name for s in steps]
-    model = [path.join(Pd.root,'Manual/phonon')]
+    model = [path.join(Pd.root,'Manual/phonon.manual')]
     assert sorted(model) == sorted([s.root for s in steps])
    
     steps = Pd.find("*/phonon")
     model = ['phonon']
     assert model == [s.parent.name for s in steps]
-    model = [path.join(Pd.root,'Manual/phonon')]
+    model = [path.join(Pd.root,'Manual/phonon.manual')]
     assert model == [s.root for s in steps]
 
     steps = Pd.find("manual/phonon/Pd")
     model = ['manual']
     assert model == [s.parent.name for s in steps]
-    model = [path.join(Pd.root,'Manual/phonon/Pd')]
+    model = [path.join(Pd.root,'Manual/phonon.manual/Pd')]
     assert model == [s.root for s in steps]
 
     steps = Pd.find("phonon")
@@ -271,7 +280,7 @@ def test_find(Pd):
     steps = Pd.find("manual/phonon/Pd/S1.1")
     model = [('phonon','manual')]
     assert model == [(s.parent.parent.name,s.name) for s in steps]
-    model = [path.join(Pd.root,'Manual/phonon/Pd')]
+    model = [path.join(Pd.root,'Manual/phonon.manual/Pd')]
     assert model == [s.root for s in steps]
                              
     # test uuid finding.
@@ -279,13 +288,13 @@ def test_find(Pd):
 
     # test the __getitem__ method
     model = 'phonon'
-    modelroot = path.join(Pd.root,'Manual/phonon')
+    modelroot = path.join(Pd.root,'Manual/phonon.manual')
     group = Pd["manual/phonon"]
     assert group.parent.name == model
     assert group.root == modelroot
 
     model = 'manual'
-    modelroot = path.join(Pd.root,'Manual/phonon/Pd')
+    modelroot = path.join(Pd.root,'Manual/phonon.manual/Pd')
     group = Pd["manual/phonon/Pd"]
     assert group.parent.name == model
     assert group.root == modelroot
@@ -295,7 +304,6 @@ def test_find(Pd):
     assert group.root == modelroot
 
     group = Pd["enumeration/phonon"]
-    print group
     assert group == None
 
 @pytest.mark.skip()
@@ -304,6 +312,9 @@ def test_execute(Pd, capsys):
     """
     from os import path
     from matdb.utility import relpath, chdir
+    from matdb.msg import verbosity
+
+    verbosity = 2
 
     Pd.status()
     output = capsys.readouterr()
@@ -329,7 +340,7 @@ def test_execute(Pd, capsys):
     _mimic_vasp(folder, Pd.root,"S1.1")
 
     Pd.status(True)
-    busy_status = "Pd./Manual/phonon/Pd/S1.1"
+    busy_status = "Pd./Manual/phonon.manual/Pd/S1.1"
     output = capsys.readouterr()
     assert busy_status in output.out
 
@@ -377,17 +388,17 @@ def test_recovery(Pd):
     Pd.extract()
     
     Pd.recover(True)
-    assert path.isfile(path.join(Pd.root,"Manual","phonon","Pd","recovery.sh"))
-    assert path.isfile(path.join(Pd.root,"Manual","phonon","Pd","failures"))
+    assert path.isfile(path.join(Pd.root,"Manual","phonon.manual","Pd","recovery.sh"))
+    assert path.isfile(path.join(Pd.root,"Manual","phonon.manual","Pd","failures"))
 
     folder = path.join(reporoot, "tests", "data", "Pd", "manual")
     _mimic_vasp(folder,Pd.root,"S1.1")
     Pd.recover(True)
-    assert not path.isfile(path.join(Pd.root,"Manual","phonon","Pd","recovery.sh"))
-    assert not path.isfile(path.join(Pd.root,"Manual","phonon","Pd","failures"))
+    assert not path.isfile(path.join(Pd.root,"Manual","phonon.manual","Pd","recovery.sh"))
+    assert not path.isfile(path.join(Pd.root,"Manual","phonon.manual","Pd","failures"))
 
-@pytest.mark.skip()
-def test_hash(Pd,Pd_2):
+#@pytest.mark.skip()
+def test_hash(Pd):
     """Tests the hash_dbs and verify_hash methods
     """
     from os import path, chdir
@@ -398,11 +409,11 @@ def test_hash(Pd,Pd_2):
     db_hash = Pd.hash_dbs()
     assert Pd.verify_hash(db_hash)
     
-    # test to make sure a change in the databas produces a different hash
-    Pd_2.setup()
-    Pd_2.execute(env_vars={"SLURM_ARRAY_TASK_ID":"1"})
-    _mimic_vasp(folder,Pd_2.root,"S1.1")
-    assert Pd_2.hash_dbs != db_hash
+    # # test to make sure a change in the databas produces a different hash
+    # Pd_2.setup()
+    # Pd_2.execute(env_vars={"SLURM_ARRAY_TASK_ID":"1"})
+    # _mimic_vasp(folder,Pd_2.root,"S1.1")
+    # assert Pd_2.hash_dbs != db_hash
 
 @pytest.mark.skip()
 def test_finalize(Pd):

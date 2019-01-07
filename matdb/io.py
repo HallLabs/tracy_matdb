@@ -1,6 +1,6 @@
 """Functions for interacting with various output formats.
 """
-from os import path
+from os import path, stat
 
 import ase
 from ase.calculators.singlepoint import SinglePointCalculator
@@ -100,9 +100,10 @@ def atoms_to_cfg(atm, target, config_id=None, type_map=None):
             f.write("        {0}\n".format(atm.params["{0}energy".format(calc_name)]))
 
         if "{0}virial".format(calc_name) in atm.params:
-            virial = [atm.params["{0}virial".format(calc_name)][0][0], atm.params["{0}virial".format(calc_name)][1][1],
-                      atm.params["{0}virial".format(calc_name)][2][2], atm.params["{0}virial".format(calc_name)][2][1],
-                      atm.params["{0}virial".format(calc_name)][2][0], atm.params["{0}virial".format(calc_name)][0][1]]
+            virial_name = "{0}virial".format(calc_name)
+            virial = [atm.params[virial_name][0][0], atm.params[virial_name][1][1],
+                      atm.params[virial_name][2][2], atm.params[virial_name][2][1],
+                      atm.params[virial_name][2][0], atm.params[virial_name][0][1]]
             f.write(" Stress:   xx          yy          zz          yz          xz          xy\n")
             f.write("            {0}\n".format("    ".join(["{0: .8f}".format(i) for i in virial])))
 
@@ -146,7 +147,7 @@ def _cfgd_to_atoms(cfgd, species=None):
             force.append(vals[flabel])
         forces.append(force)
 
-    aseatoms = ase.Atoms(numbers=types, positions=np.array(positions),
+    aseatoms = ase.Atoms(symbols=types, positions=np.array(positions),
                          cell=lattice)
     aseatoms.calc = SinglePointCalculator(
                                     aseatoms, energy=energy,
@@ -174,17 +175,20 @@ def _cfgd_to_atoms(cfgd, species=None):
 
     return result
 
-def cfg_to_xyz(cfgfile, outfile="output.xyz", config_type=None, species=None):
-    """Converts MTP's CFG forrmat to XYZ.
-    .. note:: Multiple frames in the CFG file will be converted to multiple
-      frames in the XYZ file.
+def cfg_to_atomslist(cfgfile, config_type=None, species=None):
+    """Converts the CFG format file to an internal AtomsList object.
+
     Args:
         cfgfile (str): path to the file to convert.
         config_type (str): name of the config_type to assign to each
           configuration.
-        species (list): of element names corresponding to the integer species in
-          the CFG dictionary.
+        species (list): of element names corresponding to the integer
+          species in the CFG dictionary.
+
+    Returns
+        An AtomsList object containing the all the cells in the CFG file.
     """
+
 
     from matdb.atoms import AtomsList
 
@@ -220,7 +224,7 @@ def cfg_to_xyz(cfgfile, outfile="output.xyz", config_type=None, species=None):
                         cfgd["features"][feature] = values
                         del cfgd[label]
                 else:
-                    parsed = map(eval, line.strip().split())
+                    parsed = list(map(eval, line.strip().split()))
                     cfgd[label]["vals"].append(parsed)
             elif "END_CFG" in line:
                 if cfgd is not None:
@@ -232,6 +236,24 @@ def cfg_to_xyz(cfgfile, outfile="output.xyz", config_type=None, species=None):
         atoms = _cfgd_to_atoms(cfg, species)
         result.append(atoms)
 
+    return result
+    
+def cfg_to_xyz(cfgfile, outfile="output.xyz", config_type=None, species=None):
+    """Converts MTP's CFG forrmat to XYZ.
+    .. note:: Multiple frames in the CFG file will be converted to multiple
+      frames in the XYZ file.
+    Args:
+        cfgfile (str): path to the file to convert.
+        config_type (str): name of the config_type to assign to each
+          configuration.
+        species (list): of element names corresponding to the integer species in
+          the CFG dictionary.
+    """
+
+    from matdb.atoms import AtomsList
+
+    result = cfg_to_atomslist(cfgfile, config_type=config_type, species=species)
+    
     dirname = path.dirname(cfgfile)
     result.write(path.join(dirname, outfile))
     return result
@@ -252,7 +274,6 @@ def vasp_to_xyz(folder, outfile="output.xyz", recalc=0,
     """
 
     from matdb.atoms import Atoms
-    # from os import path, stat
 
     if not path.isabs(outfile):
         #Convert to absolute path if one wasn't given.
@@ -393,7 +414,7 @@ def save_dict_to_h5(h5file, dic, path='/'):
             saved to. Default is '/'.
     """
     for key, item in dic.items():
-        if isinstance(item, (np.ndarray, np.int64, np.float64, str, bytes, tuple, float, int)):
+        if isinstance(item, (np.int64, np.float64, str, bytes, tuple, float, int)):
             h5file[path + key] = item
         elif isinstance(item, np.ndarray):
             if item.ndim==1 and isinstance(item[0], np.ndarray): #pragma: no cover
@@ -405,11 +426,17 @@ def save_dict_to_h5(h5file, dic, path='/'):
         elif isinstance(item, dict):
             save_dict_to_h5(h5file, item, path + key + '/')
         elif isinstance(item, list):
-            for i in range(len(item)):
-                try:
-                    save_dict_to_h5(h5file, item[i], path + key + '/')
-                except AttributeError:
-                    h5file[path + key + '/' + str(i)] = item
+            if isinstance(item[0], dict):
+                for i in range(len(item)):
+                    try:
+                        save_dict_to_h5(h5file, item[i], path + key + '/')
+                    except AttributeError:
+                        h5file[path + key + '/' + str(i)] = item[i]
+            elif isinstance(item[0], str):
+                temp = [i.encode() for i in item]
+                h5file[path + key] = temp
+            else:
+                h5file[path + key] = item                
         elif item is None:
             continue
 
@@ -428,7 +455,25 @@ def load_dict_from_h5(h5file, path='/'):
     ans = {}
     for key, item in h5file[path].items():
         if isinstance(item, h5py._hl.dataset.Dataset):
-            ans[key] = item.value
+            if isinstance(item.value, bytes):
+                ans[key] = item.value.decode("ascii")
+            elif isinstance(item.value, (np.ndarray, list)):
+                ans[key] = np.array(_hdf5_lists(item.value))
+            else:
+                ans[key] = item.value
         elif isinstance(item, h5py._hl.group.Group):
             ans[key] = load_dict_from_h5(h5file, path + key + '/')
     return ans
+
+def _hdf5_lists(in_list):
+    """Converts strings contained in the lists from binary to ascii.
+    """
+    out_list = []
+    for item in in_list:
+        if isinstance(item, bytes):
+            out_list.append(item.decode("ascii"))
+        elif isinstance(item, (list, np.ndarray)):
+            out_list.append(_hdf5_lists(item))
+        else:
+            out_list.append(item)
+    return out_list
