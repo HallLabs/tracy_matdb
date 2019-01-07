@@ -498,7 +498,7 @@ class Trainer(object):
             return False
         
         # We must have what we need to execute. Compile the command and submit.
-        cargs = ["sbatch", self._jobfile]
+        cargs = [self.controller.db.shell_command, self._jobfile]
         if dryrun:
             msg.okay("Executed {} in {}".format(' '.join(cargs), self.root))
             return True

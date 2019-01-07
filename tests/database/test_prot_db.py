@@ -31,13 +31,15 @@ def compare_nested_dicts(dict1,dict2):
 
 @pytest.fixture()
 def CoNiTi(tmpdir):
-    from matdb.utility import relpath
+    from matdb.utility import relpath, copyonce
     from matdb.database import Controller
     from os import mkdir, symlink, remove
 
-    target = relpath("./tests/files/CoNiTi")
+    target = relpath("./tests/files/CoNiTi.yml")
     dbdir = str(tmpdir.join("coniti_db"))
     mkdir(dbdir)
+    copyonce(target, path.join(dbdir, "matdb.yml"))
+    target = path.join(dbdir,"matdb")
     
     result = Controller(target, dbdir)
     return result

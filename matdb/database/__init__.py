@@ -56,9 +56,9 @@ class Group(object):
         seeds (list, str, matdb.atoms.Atoms): The location of the files that will be
           read into to make the atoms object or an atoms object.
         cls (subclass): the subclass of :class:`Group`.
-        override (dict): a dictionary of with uuids or paths as the
-          keys and a dictionary containing parameter: value pairs for
-          parameters that need to be adjusted.
+        # override (dict): a dictionary of with uuids or paths as the
+        #   keys and a dictionary containing parameter: value pairs for
+        #   parameters that need to be adjusted.
         transforms (dict): a dictionary of transformations to apply to the
           seeds of the database before calculations are performed. Format is
           {"name": {"args": dict of keyword args}}, where the "name" keyword
@@ -90,7 +90,7 @@ class Group(object):
 
     def __init__(self, cls=None, root=None, parent=None, prefix='S', pgrid=None,
                  nconfigs=None, calculator=None, seeds=None,
-                 config_type=None, execution=None, trainable=False, override=None,
+                 config_type=None, execution=None, trainable=False, #override=None,
                  rec_bin=None, transforms = None):
         if isinstance(parent, Database):
             #Because we allow the user to override the name of the group, we
@@ -194,77 +194,82 @@ class Group(object):
         self.uuid = uid
         self.database.parent.uuids[str(self.uuid)] = self
 
-        self.override = override.copy() if override is not None else {}
-        if bool(override):
-            for k,v in override:
-                obj_ins = self.database.controller.find(k)
-                if isinstance(obj_ins,Atoms):
-                    if "calc" in v:
-                        if self.rec_bin is not None:
-                            #construct the path for the object in the recycling bin
-                            new_path = path.join(self.rec_bin.root,
-                                                 "{}-atoms.h5".format(obj_ins.uuid))
-                            obj_ins.write(new_path)
-                            self.database.parent.uuids[obj_ins.uuid] = new_path
-                            if path.isfile(path.join(obj_ins.calc.folder,"atoms.h5")):
-                                # from os import remove
-                                remove(path.join(obj_ins.calc.folder,"atoms.h5"))
-                            # Make a new uuid for the new atoms object
-                            # and overwrite the uuid file.
-                            obj_ins.uuid = str(uuid4())
-                            obj_ins.time_stamp = str(datetime.now())
-                            with open(path.join(
-                                    obj_ins.root,
-                                    "{}_{}_uuid.txt".format(obj_ins._db_name,
-                                                            obj_ins.prefix)),"w+") as f:
-                                f.write("{0} \n {1}".format(obj_ins.uuid,obj_ins.time_stamp))
-                            self.database.parent.uuids[obj_ins.uuid] = obj_ins
+        # TODO: This entire code chunk needs to be moved to a class
+        # method. It doesn't run properly as part of the class setup
+        # because not all of the objects it searches for have been
+        # loaded yet.
+        
+        # self.override = override.copy() if override is not None else {}
+        # if bool(override):
+        #     for k,v in override:
+        #         obj_ins = self.database.controller.find(k)
+        #         if isinstance(obj_ins,Atoms):
+        #             if "calc" in v:
+        #                 if self.rec_bin is not None:
+        #                     #construct the path for the object in the recycling bin
+        #                     new_path = path.join(self.rec_bin.root,
+        #                                          "{}-atoms.h5".format(obj_ins.uuid))
+        #                     obj_ins.write(new_path)
+        #                     self.database.parent.uuids[obj_ins.uuid] = new_path
+        #                     if path.isfile(path.join(obj_ins.calc.folder,"atoms.h5")):
+        #                         # from os import remove
+        #                         remove(path.join(obj_ins.calc.folder,"atoms.h5"))
+        #                     # Make a new uuid for the new atoms object
+        #                     # and overwrite the uuid file.
+        #                     obj_ins.uuid = str(uuid4())
+        #                     obj_ins.time_stamp = str(datetime.now())
+        #                     with open(path.join(
+        #                             obj_ins.root,
+        #                             "{}_{}_uuid.txt".format(obj_ins._db_name,
+        #                                                     obj_ins.prefix)),"w+") as f:
+        #                         f.write("{0} \n {1}".format(obj_ins.uuid,obj_ins.time_stamp))
+        #                     self.database.parent.uuids[obj_ins.uuid] = obj_ins
 
-                        lcargs = None
-                        if "name" in v["calc"]:
-                            new_calc = getattr(calculators, v["calc"]["name"])
-                            if "Tracy" in v["calc"]["name"]:
-                                lcargs = self._tracy_setup(calcargs = v["calc"]["calcargs"])
-                        else:
-                            new_calc = obj_ins.calc
+        #                 lcargs = None
+        #                 if "name" in v["calc"]:
+        #                     new_calc = getattr(calculators, v["calc"]["name"])
+        #                     if "Tracy" in v["calc"]["name"]:
+        #                         lcargs = self._tracy_setup(calcargs = v["calc"]["calcargs"])
+        #                 else:
+        #                     new_calc = obj_ins.calc
 
-                        if lcargs is None:
-                            lcargs = self.calcargs.copy()
-                            lcargs.update(v["calc"]["calcargs"])
-                            del lcargs["name"]
+        #                 if lcargs is None:
+        #                     lcargs = self.calcargs.copy()
+        #                     lcargs.update(v["calc"]["calcargs"])
+        #                     del lcargs["name"]
 
-                        calc = new_calc(atoms, obj_ins.calc.folder, obj_ins.calc.contr_dir,
-                                        obj_ins.calc.ran_seed, **lcargs)
-                        obj_ins.set_calculator(calc)
-                elif path.isfile(obj_ins):
-                    #If the object is a file path then it's pointing
-                    #to an old instance of a class objcet that has
-                    #been saved to file.
-                    msg.warn("Can't update object, it has already been overwritten.")
-                else:
-                    args = obj_ins.to_dict()
-                    if self.rec_bin is not None:
-                        for atm in self.fitting_configs():
-                            # from os import rename
-                            atms = Atoms(atm)
-                            new_atm = path.join(selg.rec_bin.root,
-                                                "{}-atoms.h5".format(atms.uuid))
-                            self.database.parent.uuids[atms.uuid] = new_atm
-                            rename(atm,new_atm)
-                    obj_ins.save_pkl(obj_ins.to_dict(),"{}.pkl".format(self.uuid))
-                    self.database.parent.uuids[obj_ins.uuid] = path.join(obj_ins.root,
-                                                                         "{}.pkl".format(
-                                                                             self.uuid))
-                    args.update(v)
-                    obj_ins.__init__(**args)
-                    obj_ins.uuid = str(uuid4())
-                    obj_ins.time_stamp = str(datetime.now())
-                    with open(path.join(obj_ins.root,
-                                        "{}_{}_uuid.txt".format(obj_ins._db_name,
-                                                                obj_ins.prefix)),"w+") as f:
-                        f.write("{0} \n {1}".format(obj_ins.uuid,obj_ins.time_stamp))
-                    self.database.parent.uuids[obj_ins.uuid] = obj_ins
-                    obj_ins.setup(rerun=1)
+        #                 calc = new_calc(atoms, obj_ins.calc.folder, obj_ins.calc.contr_dir,
+        #                                 obj_ins.calc.ran_seed, **lcargs)
+        #                 obj_ins.set_calculator(calc)
+        #         elif path.isfile(obj_ins):
+        #             #If the object is a file path then it's pointing
+        #             #to an old instance of a class objcet that has
+        #             #been saved to file.
+        #             msg.warn("Can't update object, it has already been overwritten.")
+        #         else:
+        #             args = obj_ins.to_dict()
+        #             if self.rec_bin is not None:
+        #                 for atm in self.fitting_configs():
+        #                     # from os import rename
+        #                     atms = Atoms(atm)
+        #                     new_atm = path.join(selg.rec_bin.root,
+        #                                         "{}-atoms.h5".format(atms.uuid))
+        #                     self.database.parent.uuids[atms.uuid] = new_atm
+        #                     rename(atm,new_atm)
+        #             obj_ins.save_pkl(obj_ins.to_dict(),"{}.pkl".format(self.uuid))
+        #             self.database.parent.uuids[obj_ins.uuid] = path.join(obj_ins.root,
+        #                                                                  "{}.pkl".format(
+        #                                                                      self.uuid))
+        #             args.update(v)
+        #             obj_ins.__init__(**args)
+        #             obj_ins.uuid = str(uuid4())
+        #             obj_ins.time_stamp = str(datetime.now())
+        #             with open(path.join(obj_ins.root,
+        #                                 "{}_{}_uuid.txt".format(obj_ins._db_name,
+        #                                                         obj_ins.prefix)),"w+") as f:
+        #                 f.write("{0} \n {1}".format(obj_ins.uuid,obj_ins.time_stamp))
+        #             self.database.parent.uuids[obj_ins.uuid] = obj_ins
+        #             obj_ins.setup(rerun=1)
 
     @property
     def key(self):
@@ -570,7 +575,7 @@ class Group(object):
             # We must have what we need to execute. Compile the command and
             # submit.
             from matdb.utility import execute
-            cargs = ["sbatch", jobfile]
+            cargs = [self.database.parent.shell_command, jobfile]
             if dryrun:
                 from matdb.msg import okay
                 okay("Executed {} in {}".format(' '.join(cargs), self.root))
@@ -688,49 +693,49 @@ class Group(object):
             for group in self.sequence.values():
                 group.jobfile(rerun=rerun, recovery=recovery)
 
-    def _tracy_setup(self, calcargs=None):
-        """Extracts the needed information from the group that needs to be
-        passed to the Tracy calculator.
+    # def _tracy_setup(self, calcargs=None):
+    #     """Extracts the needed information from the group that needs to be
+    #     passed to the Tracy calculator.
 
-        Args:
-            calcargs (dict): the updates to the global calculation arguments.
-        """
-        calcinput = self.calcargs.copy()
-        if calcargs is not None:
-            calcinput.update(calcargs)
-        del calcinput["name"]
+    #     Args:
+    #         calcargs (dict): the updates to the global calculation arguments.
+    #     """
+    #     calcinput = self.calcargs.copy()
+    #     if calcargs is not None:
+    #         calcinput.update(calcargs)
+    #     del calcinput["name"]
 
-        tracy = {}
-        exec_settings = self.Database.execution.copy()
-        if self.prev is not None and self.seeded:
-            tracy["group_preds"] = self.prev.uuid
+    #     tracy = {}
+    #     exec_settings = self.Database.execution.copy()
+    #     if self.prev is not None and self.seeded:
+    #         tracy["group_preds"] = self.prev.uuid
 
-        if "eCommerce" in exec_settings:
-            tracy["ecommerce"] = exec_settings["eCommerce"]
+    #     if "eCommerce" in exec_settings:
+    #         tracy["ecommerce"] = exec_settings["eCommerce"]
 
-        if "contract_predecessors" in exec_settings:
-            tracy["contract_preds"] = exec_settings["contract_predecessors"]
+    #     if "contract_predecessors" in exec_settings:
+    #         tracy["contract_preds"] = exec_settings["contract_predecessors"]
 
-        if "priority" in exec_settings:
-            tracy["contract_priority"] = exec_settings["priority"]
+    #     if "priority" in exec_settings:
+    #         tracy["contract_priority"] = exec_settings["priority"]
 
-        keys = ["time", "flops", "minimum_ram", "minimum_mem", "ncores", "network_latency",
-                "role"]
-        for key in keys:
-            if key not in exec_settings.keys():
-                raise ValueError("{0} must be set by the user.")
+    #     keys = ["time", "flops", "minimum_ram", "minimum_mem", "ncores", "network_latency",
+    #             "role"]
+    #     for key in keys:
+    #         if key not in exec_settings.keys():
+    #             raise ValueError("{0} must be set by the user.")
 
-        tracy["max_time"] = int(exec_settings["time"])*360
-        tracy["min_flops"] = int(exec_settings["flops"])
-        tracy["min_ram"] = int(exec_settings["minimum_ram"])
-        tracy["min_mem"] = int(exec_settings["minimum_mem"])
-        tracy["ncores"] = int(exec_settings["ncores"])
-        tracy["max_net_lat"] = int(exec_settings["network_latency"])
-        tracy["role"] = exec_settings["role"]
-        if "notifications" in exec_settings:
-            tracy["notifications"] = exec_settings["notifications"]
+    #     tracy["max_time"] = int(exec_settings["time"])*360
+    #     tracy["min_flops"] = int(exec_settings["flops"])
+    #     tracy["min_ram"] = int(exec_settings["minimum_ram"])
+    #     tracy["min_mem"] = int(exec_settings["minimum_mem"])
+    #     tracy["ncores"] = int(exec_settings["ncores"])
+    #     tracy["max_net_lat"] = int(exec_settings["network_latency"])
+    #     tracy["role"] = exec_settings["role"]
+    #     if "notifications" in exec_settings:
+    #         tracy["notifications"] = exec_settings["notifications"]
 
-        return {"calcargs": calcinput, "tracy": tracy}
+    #     return {"calcargs": calcinput, "tracy": tracy}
 
     def create(self, atoms, cid=None, rewrite=False, sort=None, calcargs=None,
                extractable=True):
@@ -1581,7 +1586,8 @@ class Controller(object):
             f.write(name)        
         _set_config_paths(name, root)
         set_paths(self.specs)
-            
+
+        self.shell_command = "sbatch"
         self.plotdir = path.join(self.root, "plots")
         self.kpathdir = path.join(self.root, "kpaths")
         self.title = self.specs["title"]
@@ -1589,6 +1595,8 @@ class Controller(object):
         self.collections = {}
         self.uuids = {}
         self.species = sorted([s for s in self.specs["species"]])
+        if "shell_command" in self.specs:
+            self.shell_command = self.specs["shell_command"]
 
         import random
         self.ran_seed = self.specs.get("random_seed", 0)

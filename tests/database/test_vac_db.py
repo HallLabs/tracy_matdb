@@ -1,7 +1,7 @@
 """Tests the vacancy group interface.
 """
 import pytest
-from matdb.utility import relpath
+from matdb.utility import relpath, copyonce
 from os import mkdir, path, symlink, remove
 
 @pytest.fixture()
@@ -18,9 +18,11 @@ def AlTi(tmpdir):
     from matdb.database import Controller
     from shutil import copy
 
-    target = relpath("./tests/AlTi/matdb")
+    target = relpath("./tests/AlTi/matdb.yml")
     dbdir = str(tmpdir.join("alti_db"))
     mkdir(dbdir)
+    copyonce(target, path.join(dbdir, "matdb.yml"))
+    target = path.join(dbdir,"matdb")
 
     # We need to copy the POSCAR from the testing directory to tempdir.
     POSCAR = relpath("./tests/AlTi/Al14Ti6")

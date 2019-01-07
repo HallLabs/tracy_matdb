@@ -39,13 +39,15 @@ def _mimic_vasp(folder, xroot, prefix="W.1"):
 
 @pytest.fixture()
 def Pd(tmpdir):
-    from matdb.utility import relpath
+    from matdb.utility import relpath, copyonce
     from matdb.database import Controller
     from os import mkdir, symlink, remove, path
 
-    target = relpath("./tests/Pd/matdb")
+    target = relpath("./tests/Pd/matdb.yml")
     dbdir = str(tmpdir.join("pd_db"))
     mkdir(dbdir)
+    copyonce(target, path.join(dbdir, "matdb.yml"))
+    target = path.join(dbdir,"matdb")
     
     #We need to copy the POSCAR over from the testing directory to the temporary
     #one.
@@ -64,12 +66,14 @@ def Pd(tmpdir):
 
 @pytest.fixture()
 def Pd_copy(tmpdir):
-    from matdb.utility import relpath
+    from matdb.utility import relpath, copyonce
     from matdb.database import Controller
     from os import path, remove, mkdir
 
-    target = relpath("./tests/Pd/matdb_copy")
+    target = relpath("./tests/Pd/matdb_copy.yml")
     dbdir = str(tmpdir.join("pd_db_copy"))
+    copyonce(target, path.join(dbdir, "matdb.yml"))
+    target = path.join(dbdir,"matdb")
 
     from shutil import copy
     POSCAR = relpath("./tests/Pd/POSCAR")
@@ -86,13 +90,15 @@ def Pd_copy(tmpdir):
 
 @pytest.fixture()
 def Pd_split(tmpdir):
-    from matdb.utility import relpath
+    from matdb.utility import relpath, copyonce
     from matdb.database import Controller
     from os import mkdir, path
 
-    target = relpath("./tests/Pd/matdb_split")
+    target = relpath("./tests/Pd/matdb_split.yml")
     dbdir = str(tmpdir.join("pd_db_splits"))
     mkdir(dbdir)
+    copyonce(target, path.join(dbdir, "matdb.yml"))
+    target = path.join(dbdir,"matdb")
 
     from shutil import copy
     POSCAR = relpath("./tests/Pd/POSCAR")
@@ -106,17 +112,18 @@ def Pd_split(tmpdir):
     result = Controller(target, dbdir)
     return result
     
-    
 @pytest.fixture()
 def Pd_2(tmpdir):
-    from matdb.utility import relpath
+    from matdb.utility import relpath, copyonce
     from matdb.database import Controller
     from os import mkdir, symlink, remove, path
 
-    target = relpath("./tests/Pd/matdb")
+    target = relpath("./tests/Pd/matdb.yml")
     dbdir = str(tmpdir.join("pd_2_db"))
     if not path.isdir(dbdir):
         mkdir(dbdir)
+    copyonce(target, path.join(dbdir, "matdb.yml"))
+    target = path.join(dbdir,"matdb")
 
     from shutil import copy
     POSCAR = relpath("./tests/Pd/POSCAR")
@@ -134,13 +141,15 @@ def Pd_2(tmpdir):
 
 @pytest.fixture()
 def AgPd(tmpdir):
-    from matdb.utility import relpath
+    from matdb.utility import relpath, copyonce
     from matdb.database import Controller
     from os import mkdir, symlink, remove, path
 
-    target = relpath("./tests/AgPd/matdb_manual")
+    target = relpath("./tests/AgPd/matdb_manual.yml")
     dbdir = str(tmpdir.join("agpd_db"))
     mkdir(dbdir)
+    copyonce(target, path.join(dbdir, "matdb.yml"))
+    target = path.join(dbdir,"matdb")
 
     from shutil import copy
     POSCAR = relpath("./tests/Pd/POSCAR")
@@ -388,7 +397,7 @@ def test_recovery(Pd):
     assert not path.isfile(path.join(Pd.root,"Manual","phonon.manual","Pd","failures"))
 
 #@pytest.mark.skip()
-def test_hash(Pd,Pd_2):
+def test_hash(Pd):
     """Tests the hash_dbs and verify_hash methods
     """
     from os import path, chdir
@@ -399,11 +408,11 @@ def test_hash(Pd,Pd_2):
     db_hash = Pd.hash_dbs()
     assert Pd.verify_hash(db_hash)
     
-    # test to make sure a change in the databas produces a different hash
-    Pd_2.setup()
-    Pd_2.execute(env_vars={"SLURM_ARRAY_TASK_ID":"1"})
-    _mimic_vasp(folder,Pd_2.root,"S1.1")
-    assert Pd_2.hash_dbs != db_hash
+    # # test to make sure a change in the databas produces a different hash
+    # Pd_2.setup()
+    # Pd_2.execute(env_vars={"SLURM_ARRAY_TASK_ID":"1"})
+    # _mimic_vasp(folder,Pd_2.root,"S1.1")
+    # assert Pd_2.hash_dbs != db_hash
 
 #@pytest.mark.skip()
 def test_finalize(Pd):

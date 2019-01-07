@@ -142,7 +142,8 @@ class Atoms(ase.Atoms):
 
         if hasattr(self,"calc"):
             if hasattr(self.calc,"results"):
-                for k, v in self.calc.results.items():
+                for k, v in self.calc.results.items(): # pragma: no cover (DFT codes don't
+                                                       # use this).
                     if k != 'force':
                         self.add_param(k,v)
                     else:
@@ -429,7 +430,7 @@ class Atoms(ase.Atoms):
             if hasattr(self.calc,"kwargs"):
                 data["calc_kwargs"] = _recursively_convert_units(self.calc.kwargs)
             if hasattr(self.calc,"folder"):
-                data["folder"] = self.calc.folder
+                data["folder"] = self.calc.folder.replace(self.calc.contr_dir, '$control$')
             if hasattr(self.calc,"ran_seed"):
                 data["calc_ran_seed"] = np.float64(self.calc.ran_seed)
             if hasattr(self.calc, "kpoints") and self.calc.kpoints is not None:

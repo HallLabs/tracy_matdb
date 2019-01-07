@@ -181,6 +181,57 @@ def test_Atoms_creation(tmpdir):
     assert np.allclose(atR.cell,atSi.cell)
     remove(path.join(target,"temp.xyz"))
 
+def test_Atoms_attributes(tmpdir):
+    """Tests the some of the attributes of an atoms object.
+    """
+    from matdb.calculators import Vasp
+    from matdb.atoms import Atoms
+    from matdb.utility import _set_config_paths, reporoot
+    from os import path
+
+    _set_config_paths("AgPd_Enumerated", str(tmpdir))
+    target = str(tmpdir.join("atom_attributes"))
+    globals_setup(target)
+    if not path.isdir(target):
+        mkdir(target)
+
+    at1 = Atoms("Si8",positions=[[0,0,0],[0.25,0.25,0.25],[0.5,0.5,0],[0.75,0.75,0.25],
+                                  [0.5,0,0.5],[0.75,0.25,0.75],[0,0.5,0.5],[0.25,0.75,0.75]],
+                 cell=[5.43,5.43,5.43])
+    kwargs = {"kpoints":{"rmin":50}, "potcars": {"directory":"./tests/vasp",
+                                                 "versions":{"Si": '05Jan2001'}}, "xc":"pbe"}    
+    potSW = Vasp(at1, target, str(tmpdir), 0, **kwargs)
+    at1.set_calculator(potSW)
+    at1.add_property("vasp_force", [[-18057.59589857, -18057.59589857, -18057.59589857],
+         [ -2997.55626529,  -2997.55626529,  -2997.55626529],
+         [  3044.17916471,   3044.17916471, -34130.71583118],
+         [ 18969.1757571 ,  18969.1757571 ,  11159.15815145],
+         [  3044.17916471, -34130.71583118,   3044.17916471],
+         [ 18969.1757571 ,  11159.15815145,  18969.1757571 ],
+         [-34130.71583118,   3044.17916471,   3044.17916471],
+         [ 11159.15815145,  18969.1757571 ,  18969.1757571 ]])
+    at1.add_param("vasp_energy", 1234)
+
+    assert at1.get_energy() == 1234
+
+    at1.rm_param("vasp_energy")
+    assert not "vasp_energy" in at1.info["params"]
+    at1.rm_property("vasp_force")
+    assert not "vasp_force" in at1.info["properties"]
+
+    at1.params = {"vasp_energy": 1234}
+    assert at1.vasp_energy == 1234
+
+    at1.properties["vasp_force"] = [[-18057.59589857, -18057.59589857, -18057.59589857],
+         [ -2997.55626529,  -2997.55626529,  -2997.55626529],
+         [  3044.17916471,   3044.17916471, -34130.71583118],
+         [ 18969.1757571 ,  18969.1757571 ,  11159.15815145],
+         [  3044.17916471, -34130.71583118,   3044.17916471],
+         [ 18969.1757571 ,  11159.15815145,  18969.1757571 ],
+         [-34130.71583118,   3044.17916471,   3044.17916471],
+         [ 11159.15815145,  18969.1757571 ,  18969.1757571 ]]
+    assert "vasp_force" in at1.info["properties"]
+    
 def test_AtomsList_creation(tmpdir):
     """Tests the creation of the AtomsList object. 
     """
@@ -212,9 +263,6 @@ def test_AtomsList_creation(tmpdir):
          [-34130.71583118,   3044.17916471,   3044.17916471],
          [ 11159.15815145,  18969.1757571 ,  18969.1757571 ]])
     at1.add_param("vasp_energy", 1234)
-    at1 = Atoms("Si8",positions=[[0,0,0],[0.25,0.25,0.25],[0.5,0.5,0],[0.75,0.75,0.25],
-                                  [0.5,0,0.5],[0.75,0.25,0.75],[0,0.5,0.5],[0.25,0.75,0.75]],
-                 cell=[5.43,5.43,5.43],info={"rand":10},calculator=potSW)
     
     at2 = Atoms("S6",positions=[[0,0,0],[0.25,0.25,0.25],[0.5,0.5,0],[0.75,0.75,0.25],
                                   [0.5,0,0.5],[0.75,0.25,0.75]],
@@ -225,9 +273,6 @@ def test_AtomsList_creation(tmpdir):
     at2.set_calculator(potSW)
     at2.add_property("vasp_force", np.random.randint(0, 100, (6,3)))
     at2.add_param("vasp_energy", 4321)
-    at2 = Atoms("S6",positions=[[0,0,0],[0.25,0.25,0.25],[0.5,0.5,0],[0.75,0.75,0.25],
-                                  [0.5,0,0.5],[0.75,0.25,0.75]],
-                 cell=[6.43,5.43,4.43],info={"rand":10},calculator=potSW)
     
     al1 = AtomsList([at1,at2])
     
@@ -249,7 +294,7 @@ def test_AtomsList_creation(tmpdir):
     al4 = AtomsList(path.join(target,"temp1.h5"))
     assert len(al4) == 1
     assert isinstance(al4[0],Atoms)
-    assert al4[0].energy == at1.energy
+    assert al4[0].vasp_energy == at1.vasp_energy
 
 def test_AtomsList_attributes():
     """Tests the atoms lists attributes.
@@ -458,13 +503,26 @@ def test_read_atoms(tmpdir):
 
     kwargs = {"encut":400, "kpoints": {"rmin": 50},
               "potcars":{"xc": "pbe", "directory": "./tests/vasp", "versions": {"Si": "05Jan2001"}}}
-    
+
     calc = Vasp(atSi, target, '.', 0, **kwargs)
+    atSi.set_calculator(calc)
 
     atSi.set_calculator(calc)
+    atSi.add_property("vasp_force", [[-18057.59589857, -18057.59589857, -18057.59589857],
+         [ -2997.55626529,  -2997.55626529,  -2997.55626529],
+         [  3044.17916471,   3044.17916471, -34130.71583118],
+         [ 18969.1757571 ,  18969.1757571 ,  11159.15815145],
+         [  3044.17916471, -34130.71583118,   3044.17916471],
+         [ 18969.1757571 ,  11159.15815145,  18969.1757571 ],
+         [-34130.71583118,   3044.17916471,   3044.17916471],
+         [ 11159.15815145,  18969.1757571 ,  18969.1757571 ]])
+    atSi.add_param("vasp_energy", 25360.504084423999)
+    atSi.add_param("vasp_virial", [[ 33538.34327189,  11045.88697112,  11045.88697112],
+         [ 11045.88697112,  33538.34327189,  11045.88697112],
+         [ 11045.88697112,  11045.88697112,  33538.34327189]])
     atSi.group_uuid = "123456"
 
-    temp = target=path.join(target,"temp.h5")
+    temp = path.join(target,"temp.h5")
     atSi.write(temp)
 
     atR = Atoms(temp)
