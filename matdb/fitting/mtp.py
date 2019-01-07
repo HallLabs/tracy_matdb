@@ -92,6 +92,7 @@ def create_to_relax(setup_args):
                 with open(infile, "r") as f:
                     min_num = None
                     max_num = None
+                    last_num = 1
                     past_start = False
                     for line in f:
                         if line.split()[0] == "start":
@@ -100,11 +101,16 @@ def create_to_relax(setup_args):
                         if past_start:
                             data = line.strip().split()
                             lab = data[-2]
+                            last_num = int(data[0])
                             if len(lab) == min_atoms and min_num is None:
                                 min_num = int(data[0])
                             if len(lab) > max_atoms and max_num is None:
                                 max_num = int(data[0])
                                 break
+                # In case in the input file, there is no configuration that has the number of atoms
+                # bigger than max_atoms, the max_num will be set to the number in the last line.  
+                if max_num is None:
+                    max_num = last_num
                 args["structures"] = range(min_num, max_num)
 
             args["input"] = infile
