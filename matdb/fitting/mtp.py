@@ -46,7 +46,7 @@ def create_to_relax(setup_args):
     """
 
     args = setup_args["phenum_args"]
-    species = setup_args["species"]
+    species = np.unique(setup_args["species"])
     crystals = setup_args["crystals"]
     min_atoms = setup_args["min_atoms"]
     max_atoms = setup_args["max_atoms"]
@@ -161,7 +161,7 @@ def _prot_to_cfg(source, species, relax_file, type_map, root, min_atoms, max_ato
 
     atm = Atoms(target, format="vasp")
         
-    atoms_to_cfg(atm, path.join(root, "prot.cfg"))
+    atoms_to_cfg(atm, path.join(root, "prot.cfg"),type_map=type_map)
     cat([relax_file, path.join(root, "prot.cfg")], path.join(root, "temp.cfg"))
     rename(path.join(root, "temp.cfg"), relax_file)
     config_id = "{0}_{1}".format("".join(species), source.split("/")[-1])
@@ -474,7 +474,12 @@ class MTP(Trainer):
             target (str): the path to the desierd "train.cfg" file.            
         """
         temp_cfg = path.join(self.root, "temp.cfg")
-        atoms_to_cfg(atm, temp_cfg)
+        type_map = {}
+        symbols = list(np.unique(atm.get_chemical_symbols()))
+        for i, s in enumerate(np.unique(self.species)):
+            if s in symbols:
+                type_map[symbols.index(s)] = i
+        atoms_to_cfg(atm, temp_cfg, type_map=type_map)
 
         if not path.isfile(temp_cfg): #pragma: no cover
             raise IOError("Failed to create cfg file for atoms object stored "

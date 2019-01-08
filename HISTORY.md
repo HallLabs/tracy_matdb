@@ -1,5 +1,10 @@
 # Revision History for `matdb`
 
+## Revision 1.4.1
+- Fixed a bug in the `mtp` modules calls to 'atoms_to_cfg` that was
+  making the atomic species in the `train.cfg` file have the wrong
+  integer associations.
+
 ## Revision 1.4.0
 - Changed how the `mtp` fitter interacts with the execution
   dictionarry so that the user need only specify the maximum number of
