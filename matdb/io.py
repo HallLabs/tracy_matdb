@@ -36,7 +36,6 @@ def symmetrize(xx=None, yy=None, zz=None, yz=None, xz=None, xy=None):
     from numpy import array
     return array([[xx, xy, xz], [xy, yy, yz], [xz, yz, zz]])
 
-
 def atoms_to_cfg(atm, target, config_id=None, type_map=None):
     """Converts an :class:`matdb.atoms.Atoms` object to a cfg file.
 
