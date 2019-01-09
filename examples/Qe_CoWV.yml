@@ -41,11 +41,11 @@ calculator:
      
 # Parameters for the job arrays that will be submitted for each
 # database. These can be overridden in each database below as well.
+shell_command: 'bash'
 execution:
   exec_path: '/home/tracy/q-e-qe-6.3/bin/pw.x'
 
 #{{ This section is for local personal computer using bash command
-  shell_command: 'bash'
   template: 'bash_build_ml.sh'
 #}}
 
@@ -78,17 +78,17 @@ databases:
 
 splits:
   A: 1.0
+shell_command: 'bash'
 fitting:
   dbs: ['*']
   execution:
     #{{ This section is for local personal computer using bash command
-    shell_command: 'bash'
     template: 'bash_train_ml.sh'
-    ntasks: 1
+    ntasks: 4
+    total_mem: 32GB
     #}}
 
     #{{ This section is for super computer using sbatch command.
-    #shell_command: 'sbatch'
     #template: 'run_mtp_ml.sh'
     #time: 6
     #ntasks: 1
@@ -101,8 +101,7 @@ fitting:
       dbs: ["*"]
       steps:
         - type: "mtp.MTP"
-          largest_relax_cell: 6
-          use_mpi: "false"
+          largest_relax_cell: [4,6,8,10]
           split: "A"
           species:
             - "Co"

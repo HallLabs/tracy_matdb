@@ -576,17 +576,12 @@ class Group(object):
             # submit.
             from matdb.utility import execute
 
-            if 'shell_command' in self.database.execution:
-                shell_command = self.database.execution['shell_command']
+            shell_command = self.database.parent.shell_command
             # We suport 'bash' and 'sbatch' shell commands, if it's neighter one 
             # of them, default to 'bash' 
             if shell_command not in ['bash', 'sbatch']:
                 shell_command = 'bash' 
             cargs = [shell_command, jobfile]
-
-            # { new from Wiley's
-            # cargs = [self.database.parent.shell_command, jobfile]
-            # }
 
             if dryrun:
                 from matdb.msg import okay
