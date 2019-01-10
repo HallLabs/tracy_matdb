@@ -60,6 +60,9 @@ class AsyncQe(Espresso, AsyncCalculator):
     pathattrs = ["potcars.directory"]
 
     def __init__(self, atoms, folder, contr_dir, ran_seed, *args, **kwargs):
+
+        # the "name" attribute must be the same as the local name for the module imported in __init__.py
+        self.name = "Qe"  
         
         if contr_dir == '$control$':
             contr_dir = config_specs["cntr_dir"]
@@ -375,9 +378,9 @@ class AsyncQe(Espresso, AsyncCalculator):
         if hasattr(self,"potcars"):
             potdict = self.potcars.copy()
             
-            name = config_specs["name"]
-            namehash = str(sha1(name.encode("ASCII")).hexdigest())
-            for hid, hpath in paths[namehash][self.key].items():
+            title = config_specs["title"]
+            titlehash = str(sha1(title.encode("ASCII")).hexdigest())
+            for hid, hpath in paths[titlehash][self.key].items():
                 if potdict["directory"] == hpath:
                     potdict["directory"] = hid
                     break
