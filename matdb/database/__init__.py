@@ -1591,7 +1591,7 @@ class Controller(object):
         name = self.specs["title"].strip().replace(' ', '_')
         with open(path.join(self.root, "NAME"), "w+") as f:
             f.write(name)        
-        _set_config_paths(name, root)
+        _set_config_paths(name, self.root)
         set_paths(self.specs)
 
         self.shell_command = "sbatch"
