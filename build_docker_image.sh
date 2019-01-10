@@ -28,7 +28,7 @@ else
   fi
 fi
 
-docker run -d --name=matdb_temp matdb_stable
+docker run -d --name=matdb_temp matdb_stable /bin/bash
 if [ $? -ne 0 ]; then
   echo "ERROR on running matdb"
   exit 1
@@ -53,4 +53,4 @@ if [ $? -ne 0 ]; then
 fi
 
 # run the docker image as a service, enabled gdb from docker 
-docker run --cap-add=SYS_PTRACE --security-opt seccomp=unconfined -it --rm -d matdb_stable /bin/bash
+#docker run --cap-add=SYS_PTRACE --security-opt seccomp=unconfined -it --rm -d matdb_stable /bin/bash
