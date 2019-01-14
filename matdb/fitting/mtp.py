@@ -237,14 +237,16 @@ class MTP(Trainer):
         """determines the resource usage depending on which `mtp` step we're
         on.
         """
-        if self.iter_status in ("select", "relax_setup", "add"):
+        # status 'done' --> next step will run 'mlp train' command
+        # status 'relax_setup' --> next step will run 'mlp relax' command
+        # these two commands can be run as multi-process
+        if self.iter_status in ("done", "relax_setup"):
+            self.ncores = self.execution["ntasks"]
+            self.execution["mem_per_cpu"] = self._convert_mem()
+        else:
             self.ncores = 1
             self.execution["ntasks"] = 1
             self.execution["mem_per_cpu"] = self.execution["total_mem"]
-            
-        elif self.iter_status in (None, "train", "relax"):
-            self.ncores = self.execution["ntasks"]
-            self.execution["mem_per_cpu"] = self._convert_mem()
 
     def _convert_mem(self):
         """Converts memory to the correct values including units."""
