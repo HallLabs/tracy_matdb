@@ -198,3 +198,66 @@ class Active(Group):
                     break
 
         return is_executing
+    
+    def execute(self, dryrun=False, recovery=False, env_vars=None):
+        """Submits the job script for each of the folders in this
+        database if they are ready to run.
+        Args:
+            dryrun (bool): when True, simulate the submission without
+              actually submitting.
+            recovery (bool): when True, submit the script for running recovery
+              jobs.
+            env_vars (dict): of environment variables to set before calling the
+              execution. The variables will be set back after execution.
+        Returns:
+            bool: True if the submission generated a job id
+            (considered successful).
+        """
+
+        self._expand_sequence()
+        if len(self.sequence) == 0:
+            jobfile = "recovery.sh" if recovery else "jobfile.sh"
+            if not path.isfile(path.join(self.root, jobfile)):
+                return False
+
+            if not recovery:
+                if not all(a.calc.can_execute(self.configs[i])
+                           for i, a in self.config_atoms.items()):
+                    return False
+
+                #We also need to check that we haven't already submitted this
+                #job. Check to see if it is executing.
+                if any(a.calc.is_executing(self.configs[i])
+                       for i, a in self.config_atoms.items()):
+                    return False
+
+                #Make sure that the calculation isn't complete.
+                if any(a.calc.can_extract(self.last_iteration[i])
+                       for i, a in self.last_config_atoms.items()):
+                    return False
+
+            # We must have what we need to execute. Compile the command and
+            # submit.
+            from matdb.utility import execute
+            cargs = [self.database.parent.shell_command, jobfile]
+            if dryrun:
+                from matdb.msg import okay
+                okay("Executed {} in {}".format(' '.join(cargs), self.root))
+                return True
+            else:
+                xres = execute(cargs, self.root, env_vars=env_vars)
+
+            if len(xres["output"]) > 0 and "Submitted" in xres["output"][0]:
+                from matdb.msg import okay
+                okay("{}: {}".format(self.root, xres["output"][0].strip()))
+                return True
+            else:
+                return False
+
+        else:
+            already_executed = []
+            for group in self.sequence.values():
+                already_executed.append(group.execute(dryrun=dryrun,
+                                                      recovery=recovery,
+                                                      env_vars=env_vars))
+            return all(already_executed)
