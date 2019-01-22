@@ -1,26 +1,26 @@
 #!/bin/bash
 
-echo "first iteration step 1"
-matdb_train.py Qe_CoWV -t 
+COUNTER=1
+STEP=1
+echo "Step $STEP starting at: `date --iso-8601=seconds`"
+matdb_train.py Qe_CoWV -t
 if [ $? -ne 0 ]; then
-  echo "mtp_train_first_iteration step 1 Errored"
+  echo "mtp_train_first_iteration step $STEP Errored"
   exit 1
 fi
 
-COUNTER=1
-STEP=1
 while [ $COUNTER -lt 5 ]; do
   let STEP+=1
-  echo "first iteration step $STEP"
-  matdb_train.py Qe_CoWV -x 
+  echo "Step $STEP starting at: `date --iso-8601=seconds`"
+  matdb_train.py Qe_CoWV -x
   if [ $? -ne 0 ]; then
     echo "mtp_train_first_iteration step $STEP Errored"
     exit 1
   fi
 
   let STEP+=1
-  echo "first iteration step $STEP" 
-  matdb_train.py Qe_CoWV -t 
+  echo "Step $STEP starting at: `date --iso-8601=seconds`"
+  matdb_train.py Qe_CoWV -t
   if [ $? -ne 0 ]; then
     echo "mtp_train_first_iteration step $STEP Errored"
     exit 1
