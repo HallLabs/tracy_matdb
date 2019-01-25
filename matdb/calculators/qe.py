@@ -60,6 +60,9 @@ class AsyncQe(Espresso, AsyncCalculator):
     pathattrs = ["potcars.directory"]
 
     def __init__(self, atoms, folder, contr_dir, ran_seed, *args, **kwargs):
+
+        # the "name" attribute must be the same as the local name for the module imported in __init__.py
+        self.name = "Qe"  
         
         if contr_dir == '$control$':
             contr_dir = config_specs["cntr_dir"]
@@ -81,7 +84,7 @@ class AsyncQe(Espresso, AsyncCalculator):
         if self.kpoints["method"] == "mueller":
             raise NotImplementedError("The Mueller server does not support QE at this time.")
         elif self.kpoints["method"] == "MP":
-            kpts = self.kpoints["divisions"]
+            kpts = tuple(self.kpoints["divisions"].split(" "))
             kspacing = None
         elif self.kpoints["method"] == "kspacing":
             kpts = None
@@ -279,7 +282,7 @@ class AsyncQe(Espresso, AsyncCalculator):
         """
         self.write_input(self.atoms)
 
-    def extract(self, folder, cleanup="default"):
+    def extract(self, folder, cleanup="default", asis=False):
         """Extracts results from completed calculations and sets them on the
         :class:`ase.Atoms` object.
 
@@ -309,6 +312,10 @@ class AsyncQe(Espresso, AsyncCalculator):
             self.atoms.add_param(self.energy_name, E)
 
         self.cleanup(folder,clean_level=cleanup)
+
+        # At this time, always return True. Might need to determine if there is a change 
+        # to return a False.
+        return True
 
     @staticmethod
     def set_static(input_dict):
@@ -371,9 +378,9 @@ class AsyncQe(Espresso, AsyncCalculator):
         if hasattr(self,"potcars"):
             potdict = self.potcars.copy()
             
-            name = config_specs["name"]
-            namehash = str(sha1(name.encode("ASCII")).hexdigest())
-            for hid, hpath in paths[namehash][self.key].items():
+            title = config_specs["title"]
+            titlehash = str(sha1(title.encode("ASCII")).hexdigest())
+            for hid, hpath in paths[titlehash][self.key].items():
                 if potdict["directory"] == hpath:
                     potdict["directory"] = hid
                     break

@@ -39,6 +39,10 @@ class AsyncAflow(SyncCalculator):
     """
     pathattrs = []
     def __init__(self, atoms, folder, contr_dir, ran_seed, entry=None, *args, **kwargs):
+
+        # the "name" attribute must be the same as the local name for the module imported in __init__.py
+        self.name = "Aflow"
+
         self.kwargs = kwargs
         self.args = []
         self.entry = entry

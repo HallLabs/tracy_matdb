@@ -1,4 +1,4 @@
- #!/usr/bin/python
+#!/usr/bin/python
 from os import path
 from matdb import msg
 import argparse

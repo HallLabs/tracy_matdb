@@ -156,6 +156,10 @@ class AsyncVasp(Vasp, AsyncCalculator):
     pathattrs = ["potcars.directory"]
 
     def __init__(self, atoms, folder, contr_dir, ran_seed, *args, **kwargs):
+
+        # the "name" attribute must be the same as the local name for the module imported in __init__.py
+        self.name = "Vasp"
+
         self.init_calc(kwargs)
         if contr_dir == '$control$':
             contr_dir = config_specs["cntr_dir"]
@@ -520,9 +524,9 @@ class AsyncVasp(Vasp, AsyncCalculator):
         if hasattr(self,"potcars"):
             potdict = self.potcars.copy()
             
-            name = config_specs["name"]
-            namehash = str(sha1(name.encode("ASCII")).hexdigest())
-            for hid, hpath in paths[namehash][self.key].items():
+            title = config_specs["title"]
+            titlehash = str(sha1(title.encode("ASCII")).hexdigest())
+            for hid, hpath in paths[titlehash][self.key].items():
                 if path.abspath(potdict["directory"]) == hpath:
                     potdict["directory"] = hid
                     break

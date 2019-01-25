@@ -1,4 +1,4 @@
- #!/usr/bin/python
+#!/usr/bin/python
 from os import path, remove, listdir
 import yaml
 from shutil import move

@@ -1,4 +1,4 @@
- #!/usr/bin/python
+#!/usr/bin/python
 from os import path
 from glob import glob
 from tqdm import tqdm

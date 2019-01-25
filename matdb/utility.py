@@ -166,6 +166,9 @@ def execute(args, folder, wait=True, nlines=100, venv=None,
             l = line.decode('ascii')
             #Filter non fatal exceptions such as future warnings. A full list can be found here
             # https://docs.python.org/3/library/exepctions.html#exception-hierarchy
+
+            #Special case: "lazy-import" has "import" in the name but it's a valid module name
+            #if not ("FutureWarning" in line or ("import" in line and "-import" not in line) or "\x1b[0m" in line):
             if not ("FutureWarning" in l or "import" in l or "\x1b[0m" in l):
                 output.append(line)
                 if len(output) >= nlines:
@@ -1025,7 +1028,7 @@ def required_packages():
     return ["ase", "beautifulsoup4", "certifi",
             "chardet", "cycler", "h5py", "html5lib", "idna", "matplotlib", "mpld3",
             "numpy", "phenum", "phonopy", "pyparsing", "python-dateutil", "pytz",
-            "PyYAML", "requests", "subprocess32", "termcolor",
+            "PyYAML", "requests", "termcolor",
             "tqdm", "urllib3", "webencodings", "seekpath"]
 
 def recursive_getattr(o, fqn):
@@ -1077,14 +1080,14 @@ def recursive_setattr(o, fqn, value):
         setattr(o, attrs[-1], value)
 
 config_specs = {}
-def _set_config_paths(name, cntr_dir):
-    """Creates a dictionary of the matdb contrallor name and controll directory.
+def _set_config_paths(title, cntr_dir):
+    """Creates a dictionary of the matdb contrallor title and controll directory.
 
     Args:
-        name (str): 'title' from the YML file.
+        title (str): 'title' from the YML file.
         cntr_dir (str): the path to the control directory.    
     """
 
     global config_specs  
-    config_specs["name"] = name
+    config_specs["title"] = title 
     config_specs["cntr_dir"] = cntr_dir

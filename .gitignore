@@ -5,6 +5,9 @@ matdb/templates/unique*
 .DS_Store
 .pytest_cache
 
+# Spyder Stuff
+.spyproject/
+
 # Emacs
 *#*
 

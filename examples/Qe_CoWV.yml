@@ -1,0 +1,109 @@
+title: 'TEST QE'
+# Ordered list of species; this is the same order as should be in the
+# POTCAR file for VASP calculations.
+species:
+  - 'Co'
+  - 'W'
+  - 'V'
+# If the POTCAR names are non-standard, include the *suffix* after the
+# element name here.
+# Directory in which the database folder system will be created.
+root: '~/compute/MTP/CoWV'
+venv: 'matdb'
+# Define the calculator to use for this Database
+calculator:
+  name: 'Qe'
+  exec_path: '/home/tracy/q-e-qe-6.3/bin/pw.x'
+  occupations: 'smearing'
+  smearing: 'gaussian'
+  degauss: 0.1
+  system:
+    ecutwfc: 50
+  input_data:
+    control:
+      calculation: 'scf'
+      prefix: 'test'
+      outdir: 'output'
+  kpoints:
+    method: 'MP'
+    divisions: 3 3 3
+  potcars:
+    directory: '/home/tracy/pslibrary/pz/PSEUDOPOTENTIALS/'
+    potentials:
+      Co: 'Co.pz-spn-rrkjus_psl.1.0.0.UPF'
+      W: 'W.pz-spn-rrkjus_psl.1.0.0.UPF'
+      V: 'V.pz-spnl-rrkjus_psl.1.0.0.UPF'
+    versions:
+      Co: '1.0.0'
+      W: '1.0.0'
+      V: '1.0.0'
+
+     
+# Parameters for the job arrays that will be submitted for each
+# database. These can be overridden in each database below as well.
+shell_command: 'bash'
+execution:
+  exec_path: '/home/tracy/q-e-qe-6.3/bin/pw.x'
+
+#{{ This section is for local personal computer using bash command
+  template: 'bash_build_ml.sh'
+#}}
+
+#{{ This section is for super computer using sbatch command.
+#  shell_command: 'sbatch'
+#  template: 'run_array_ml.sh'
+#  time: 12
+#  ntasks: 1
+#  nodes: 1
+#  mem_per_cpu: 6GB
+#  job_name: 'CoWV'
+#  array_limit: 50
+#}}
+
+# Next, we include a list of all the databases we want to create. A
+# database following this pattern is created *for each* of the seed
+# configurations listed above.
+databases:
+  #The PhononBase class generates the dynamical matrix that is needed
+  #by PhononDatabase.
+  - name: 'test'
+    steps:
+      - type: "enumerated.Enumerated"
+        lattice*: 
+          - "fcc"
+          - "bcc"
+        nconfigs: 10
+        ran_seed: 10
+        sizes: [1,4]
+
+splits:
+  A: 1.0
+shell_command: 'bash'
+fitting:
+  dbs: ['*']
+  execution:
+    #{{ This section is for local personal computer using bash command
+    template: 'bash_train_ml.sh'
+    ntasks: 4
+    total_mem: 32GB
+    #}}
+
+    #{{ This section is for super computer using sbatch command.
+    #template: 'run_mtp_ml.sh'
+    #time: 6
+    #ntasks: 1
+    #nodes: 1
+    #mem_per_cpu: 4GB 
+    #job_name: 'FitRlxSelect'
+    #}}
+  fits:
+    - name: "CoWV"
+      dbs: ["*"]
+      steps:
+        - type: "mtp.MTP"
+          largest_relax_cell: [4,6,8,10]
+          split: "A"
+          species:
+            - "Co"
+            - "W"
+            - "V"

@@ -575,7 +575,14 @@ class Group(object):
             # We must have what we need to execute. Compile the command and
             # submit.
             from matdb.utility import execute
-            cargs = [self.database.parent.shell_command, jobfile]
+
+            shell_command = self.database.parent.shell_command
+            # We suport 'bash' and 'sbatch' shell commands, if it's neighter one 
+            # of them, default to 'bash' 
+            if shell_command not in ['bash', 'sbatch']:
+                shell_command = 'bash' 
+            cargs = [shell_command, jobfile]
+
             if dryrun:
                 from matdb.msg import okay
                 okay("Executed {} in {}".format(' '.join(cargs), self.root))
@@ -1584,7 +1591,7 @@ class Controller(object):
         name = self.specs["title"].strip().replace(' ', '_')
         with open(path.join(self.root, "NAME"), "w+") as f:
             f.write(name)        
-        _set_config_paths(name, root)
+        _set_config_paths(name, self.root)
         set_paths(self.specs)
 
         self.shell_command = "sbatch"

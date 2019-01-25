@@ -85,10 +85,15 @@ def create_to_relax(setup_args):
             # enumeration over the options the user specifies.
             infile = path.join(_get_reporoot(),"matdb","templates",
                                "struct_enum.out_{0}_{1}".format(len(species),crystal))
-            if min_atoms != 1 or max_atoms is not None:
+            expected_min_atoms = 1
+            if crystal == "hcp":
+                min_atoms = 2
+                expected_min_atoms = 2
+            if min_atoms != expected_min_atoms or max_atoms is not None:
                 with open(infile, "r") as f:
                     min_num = None
                     max_num = None
+                    last_num = 1
                     past_start = False
                     for line in f:
                         if line.split()[0] == "start":
@@ -97,11 +102,16 @@ def create_to_relax(setup_args):
                         if past_start:
                             data = line.strip().split()
                             lab = data[-2]
+                            last_num = int(data[0])
                             if len(lab) == min_atoms and min_num is None:
                                 min_num = int(data[0])
                             if len(lab) > max_atoms and max_num is None:
                                 max_num = int(data[0])
                                 break
+                # In case in the input file, there is no configuration that has the number of atoms
+                # bigger than max_atoms, the max_num will be set to the number in the last line.  
+                if max_num is None:
+                    max_num = last_num
                 args["structures"] = range(min_num, max_num)
 
             args["input"] = infile
@@ -227,14 +237,16 @@ class MTP(Trainer):
         """determines the resource usage depending on which `mtp` step we're
         on.
         """
-        if self.iter_status in ("select", "relax_setup", "add"):
+        # status 'done' --> next step will run 'mlp train' command
+        # status 'relax_setup' --> next step will run 'mlp relax' command
+        # these two commands can be run as multi-process
+        if self.iter_status in ("done", "relax_setup"):
+            self.ncores = self.execution["ntasks"]
+            self.execution["mem_per_cpu"] = self._convert_mem()
+        else:
             self.ncores = 1
             self.execution["ntasks"] = 1
             self.execution["mem_per_cpu"] = self.execution["total_mem"]
-            
-        elif self.iter_status in (None, "train", "relax"):
-            self.ncores = self.execution["ntasks"]
-            self.execution["mem_per_cpu"] = self._convert_mem()
 
     def _convert_mem(self):
         """Converts memory to the correct values including units."""
@@ -575,7 +587,7 @@ class MTP(Trainer):
         #     --skip-preinit: skip the 75 iterations done when params are not given
 
         if self.use_mpi:
-            template = ("mpirun -n {} mlp train pot.mtp "
+            template = ("mpirun --allow-run-as-root -n {} mlp train pot.mtp "
                         "train.cfg".format(self.ncores))
         else:
             template = "mlp train pot.mtp train.cfg"
@@ -615,7 +627,7 @@ class MTP(Trainer):
                 continue
             template = template + " --{0}={1}".format(k,v)
 
-        return template
+        return template + " > training_calc_grade.txt"
     
     def _relax_template(self):
         """Creates the template for the relax command.
@@ -642,7 +654,7 @@ class MTP(Trainer):
         # --log=<str>: Write relaxation log to <str>
 
         if self.use_mpi:
-            template = ("mpirun -n {0} mlp relax relax.ini "
+            template = ("mpirun --allow-run-as-root -n {0} mlp relax relax.ini "
                         "--cfg-filename=to-relax.cfg "
                         "--save-relaxed={1} --log=relax_{2} "
                         "--save-unrelaxed={3}".format(self.ncores,
@@ -667,7 +679,7 @@ class MTP(Trainer):
             else:                         
                 template = template + " --{0}={1}".format(k,v)
 
-        return template
+        return template + " > training_relax.txt"
 
     def _select_template(self):
         """Creates the select command template.
@@ -697,7 +709,7 @@ class MTP(Trainer):
                 continue
             template = template + " --{0}={1}".format(k,v)
 
-        return template
+        return template + " > training_select.txt"
     
     def command(self):
         """Returns the command that is needed to train the GAP
@@ -761,18 +773,20 @@ class MTP(Trainer):
                 self._make_relax_ini()
             if not path.isfile(path.join(self.root,"pot.mtp")):
                 self._make_pot_initial()
-            template = self._train_template
+            template = self._train_template()
             with open(path.join(self.root,"status.txt"),"w+") as f:
                 f.write("relax_setup {0} {1}".format(self.iter_count, self.cell_iter))
 
         if self.iter_status == "relax_setup":
             # If pot has been trained
-            rename(path.join(self.root,"Trained.mtp_"), path.join(self.root,"pot.mtp"))
+            if path.isfile(path.join(self.root,"Trained.mtp_")):
+                rename(path.join(self.root,"Trained.mtp_"), path.join(self.root,"pot.mtp"))
 
             # Calculate the grad of the training configurations.
             calc_grade = self._calc_grade_template()
             execute(calc_grade.split(), self.root)
-            remove(path.join(self.root, "temp1.cfg"))
+            if path.isfile(path.join(self.root, "temp1.cfg")):
+                remove(path.join(self.root, "temp1.cfg"))
             if not path.isfile(path.join(self.root, "state.mvs")): #pragma: no cover
                 raise MlpError("mlp failed to produce the 'state.mvs` file with command "
                                "'mlp calc-grade pot.mtp train.cfg train.cfg temp1.cfg'")
@@ -785,7 +799,7 @@ class MTP(Trainer):
                 self.iter_status = "relax"
             elif not path.isfile(path.join(self.root,"to-relax.cfg")):
                 self._setup_to_relax_cfg()
-                template = "matdb_mtp_to_relax.py"
+                template = "matdb_mtp_to_relax.py > create-to-relax.txt"
                 with open(path.join(self.root,"status.txt"),"w+") as f:
                     f.write("relax {0} {1}".format(self.iter_count, self.cell_iter))
             else:
@@ -818,7 +832,8 @@ class MTP(Trainer):
                 # input filename sould always be entered before output filename
                 execute(["mlp", "convert-cfg", "new_training.cfg", "POSCAR",
                          "--output-format=vasp-poscar"], self.root)
-                rename("new_training.cfg", "new_training.cfg_iter_{}".format(self.iter_count))
+                if path.isfile("new_training.cfg"):
+                    rename("new_training.cfg", "new_training.cfg_iter_{}".format(self.iter_count))
                 if path.isfile("relaxed.cfg"):
                     rename("relaxed.cfg", "relaxed.cfg_iter_{}".format(self.iter_count))
 

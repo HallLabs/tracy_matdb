@@ -42,7 +42,6 @@ setup(name='matdb',
           "mpld3",
           "phenum",
           "h5py",
-          "lazy_import",
           "seekpath"
       ],
       packages=['matdb', 'matdb.database', 'matdb.fitting','matdb.calculators'],
@@ -54,12 +53,22 @@ setup(name='matdb',
                'matdb/scripts/matdb_move.py',
                'matdb/scripts/matdb_supercell.py',
                'matdb/scripts/matdb_convert.py',
+               'matdb/scripts/matdb_mtp_to_relax.py',
                'support/matdb_vasp.py',
                'support/matdb_sbatch.py',
                'support/matdb_module.py',
                'support/matdb_mlp.py',
                'support/matdb_getkpoints.py'],
-      package_data={'matdb': []},
+      package_dir={
+          'matdb': 'matdb'
+      },
+      package_data={
+          'matdb': [
+              'matdb/templates/*',
+              'matdb/templates/uniqueBinaries/*',
+              'matdb/templates/uniqueTernaries/*',
+              'matdb/templates/uniqueUnaries/*',
+      ]},
       include_package_data=True,
       classifiers=[
           'Development Status :: 4 - Beta',
