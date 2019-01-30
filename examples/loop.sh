@@ -24,6 +24,8 @@ do
   echo "Iteration $ITER ended at: `date --iso-8601=seconds`"
 
   cp ~/compute/MTP/CoWV/CoWV/CoWV/mtp/train.cfg ~/compute/MTP/CoWV/CoWV/CoWV/mtp/train.cfg_iter_$ITER
+  cp ~/compute/MTP/CoWV/CoWV/CoWV/mtp/pot.mtp ~/compute/MTP/CoWV/CoWV/CoWV/mtp/pot.mtp_iter_$ITER
+  cp ~/compute/MTP/CoWV/CoWV/CoWV/mtp/training.txt ~/compute/MTP/CoWV/CoWV/CoWV/mtp/training.txt_iter_$ITER
   echo "pause for 5 minutes. we can safely kill the process during this time."
   sleep 5m
 done
