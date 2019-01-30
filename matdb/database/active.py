@@ -51,6 +51,32 @@ class Active(Group):
         """
         return len(self.fitting_configs) == self.nconfigs
 
+    def can_extract(self):
+        """Runs post-execution routines to clean-up the calculations. 
+        """
+        self._expand_sequence()
+        if len(self.sequence) == 0:
+            if (len(self.configs) != self.nconfigs and
+                self.nconfigs is not None):
+                #We need to have at least one folder for each config;
+                #otherwise we aren't ready to go.
+                return False
+
+            result = False
+            for f, a in zip(list(self.configs.keys()), list(self.config_atoms.keys())):
+                if not self.config_atoms.get(a).calc.can_extract(self.configs.get(f)):
+                    msg.std("Config {} not ready for extraction.".format(self.configs.get(f)), 2)
+                    # remove the not-ready-for-extraction item from the dictionaries
+                    self.configs.pop(f)
+                    self.config_atoms.pop(a)
+                    # continue processing the rest.
+                    continue
+                else:
+                    result = True
+            return result
+        else:
+            return all(group.can_extract() for group in self.sequence.values())
+
     @property
     def auid_file(self):
         """Returns the full path to the euid file for this group.
