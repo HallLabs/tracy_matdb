@@ -258,9 +258,10 @@ class Active(Group):
                     return False
 
                 #Make sure that the calculation isn't complete.
-                if any(a.calc.can_extract(self.last_iteration[i])
-                       for i, a in self.last_config_atoms.items()):
-                    return False
+                if self.last_config_atoms is not None:
+                    if any(a.calc.can_extract(self.last_iteration[i])
+                           for i, a in self.last_config_atoms.items()):
+                      return False
 
             # We must have what we need to execute. Compile the command and
             # submit.
