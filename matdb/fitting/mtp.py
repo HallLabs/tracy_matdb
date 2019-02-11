@@ -201,9 +201,16 @@ class MTP(Trainer):
             with open(path.join(self.root,"status.txt"),"r") as f:
                 for line in f:
                     old_status = line.strip().split()
-                self.iter_status = old_status[0]
-                self.iter_count = int(old_status[1])
-                self.cell_iter = int(old_status[2])
+
+                if old_status[0] == "done":
+                    self.iter_status = "train"
+                    # iter_count is the total iteration number for the whole process, not limited to one cell
+                    self.iter_count = int(old_status[1]) + 1
+                    self.cell_iter = int(old_status[2])
+                else:
+                    self.iter_status = old_status[0]
+                    self.iter_count = int(old_status[1])
+                    self.cell_iter = int(old_status[2])
         else:
             self.iter_status = None
             self.iter_count = None
@@ -233,14 +240,15 @@ class MTP(Trainer):
             self.active.calcargs = fix_static(self.active.calcargs)
         self._trainfile = path.join(self.root, "train.cfg")
 
+
     def _set_resources(self):
         """determines the resource usage depending on which `mtp` step we're
         on.
         """
-        # status 'done' --> next step will run 'mlp train' command
+        # status 'train' --> next step will run 'mlp train' command
         # status 'relax_setup' --> next step will run 'mlp relax' command
         # these two commands can be run as multi-process
-        if self.iter_status in ("done", "relax_setup"):
+        if self.iter_status in ("train", "relax_setup"):
             self.ncores = self.execution["ntasks"]
             self.execution["mem_per_cpu"] = self._convert_mem()
         else:
@@ -286,16 +294,6 @@ class MTP(Trainer):
             mtpargs (dict): the input dictionary of arguments.
         """
 
-        if "iteration_threshold" in mtpargs and mtpargs["iteration_threshold"] is not None:
-            self.iter_threshold = mtpargs["iteration_threshold"]
-        else:
-            self.iter_threshold = 50
-
-        if "next_cell_threshold" in mtpargs and mtpargs["next_cell_threshold"] is not None:
-            self.next_cell_threshold = mtpargs["next_cell_threshold"]
-        else:
-            self.next_cell_threshold = 0
-            
         if "relax_ini" in mtpargs and mtpargs["relax_ini"] is not None:
             self._set_relax_ini(mtpargs["relax_ini"])
         else:
@@ -333,6 +331,19 @@ class MTP(Trainer):
             self.relax_max_atoms = None
             self.cell_sizes = None
 
+        if "iteration_threshold" in mtpargs and mtpargs["iteration_threshold"] is not None:
+            self.iter_threshold = mtpargs["iteration_threshold"]
+        else:
+            if self.cell_sizes is None:
+                self.iter_threshold = 50
+            else:
+                self.iter_threshold = 50 * len(self.cell_sizes)
+
+        if "next_cell_threshold" in mtpargs and mtpargs["next_cell_threshold"] is not None:
+            self.next_cell_threshold = mtpargs["next_cell_threshold"]
+        else:
+            self.next_cell_threshold = 0
+            
         if (self.relax_max_atoms is not None and
             (self.relax_max_atoms < self.relax_min_atoms or
              self.relax_max_atoms <0)) or self.relax_min_atoms < 0:
@@ -463,9 +474,10 @@ class MTP(Trainer):
             msg.info("Extracting from {0} folders".format(len(self.active.last_iteration)))
             self.active.extract()
             pbar = tqdm(total=len(self.active.last_iteration))
-            for atm in self.active.last_config_atoms.values():
-                self._create_train_cfg(atm, path.join(self.root, "train.cfg"))
-                pbar.update(1)
+            if self.active.last_config_atoms is not None:
+                for atm in self.active.last_config_atoms.values():
+                  self._create_train_cfg(atm, path.join(self.root, "train.cfg"))
+                  pbar.update(1)
 
     def _create_train_cfg(self, atm, target):
         """Creates a 'train.cfg' file for the calculation stored at the target
@@ -732,12 +744,13 @@ class MTP(Trainer):
 
             if old_status[0] == "done":
                 self.iter_status = "train"
+                # iter_count is the total iteration number for the whole process, not limited to one cell
                 self.iter_count = int(old_status[1]) + 1
+                self.cell_iter = int(old_status[2])
                     
                 if int(old_status[3]) <= self.next_cell_threshold:
-                    self.iter_count = 1
                     self.cell_iter = int(old_status[2]) + 1
-                    if len(self.cell_sizes) < self.cell_iter:
+                    if len(self.cell_sizes) > self.cell_iter:
                         self.relax_max_atoms = self.cell_sizes[self.cell_iter]
                     else:
                         msg.err("The MTP process has finished for the cell sizes "
@@ -750,7 +763,7 @@ class MTP(Trainer):
                         remove(target2)                        
 
                 if self.iter_count >= self.iter_threshold:
-                    msg.err("The number of iterations for this size has exceeded "
+                    msg.err("The number of iterations has exceeded "
                             "the allowed number of {0}. To increase this limit "
                             "use the iteration_threshold aption in the YML "
                             "file.".format(self.iter_threshold))
