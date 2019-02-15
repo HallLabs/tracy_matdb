@@ -302,10 +302,13 @@ class AsyncQe(Espresso, AsyncCalculator):
         # we need to move into the folder being extracted in order to
         # let ase check the convergence
         with chdir(folder):
+            lattice = self.atoms.cell
+            vol = np.linalg.det(lattice)
+            rl = (vol**(1./3.))/0.529177208
             self.converged = output["convergence"]
             E = np.array(output["etot"])
             F = np.array(output["forces"])
-            S = np.array(output["stress"])
+            S = np.array(output["stress"])*rl**3
             self.atoms.add_property(self.force_name, F)
             self.atoms.add_param(self.stress_name, S)
             self.atoms.add_param(self.virial_name, S*self.atoms.get_volume())
