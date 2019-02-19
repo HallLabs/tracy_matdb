@@ -230,7 +230,7 @@ class AsyncQe(Espresso, AsyncCalculator):
                 for line in f: #pragma: no cover, we just need to test
                                #that the CRASH file is found. We don't
                                #need to test the error write out.
-                    msg.err(f.strip())
+                    msg.err(line.strip())
             return False
         #If we can extract a final total energy from the OUTCAR file, we
         #consider the calculation to be finished.
@@ -290,6 +290,10 @@ class AsyncQe(Espresso, AsyncCalculator):
             folder (str): path to the folder in which the executable was run.
             cleanup (str): the level of cleanup to perfor after extraction.
         """
+        # If the folder can not be extracted, return False
+        if not self.can_extract(folder):
+            return False
+
         # Read output
         out_file = path.join(folder,'{0}.xml'.format(self.out_file))
         output = self._read(out_file)

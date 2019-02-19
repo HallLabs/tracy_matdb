@@ -63,16 +63,13 @@ class Active(Group):
                 return False
 
             result = False
-            for f, a in zip(list(self.configs.keys()), list(self.config_atoms.keys())):
-                if not self.config_atoms.get(a).calc.can_extract(self.configs.get(f)):
-                    msg.std("Config {} not ready for extraction.".format(self.configs.get(f)), 2)
-                    # remove the not-ready-for-extraction item from the dictionaries
-                    self.configs.pop(f)
-                    self.config_atoms.pop(a)
-                    # continue processing the rest.
+            for f, a in zip(self.configs.values(), self.config_atoms.values()):
+                if not a.calc.can_extract(f):
+                    msg.std("Config {} not ready for extraction.".format(f), 2)
+                    # continue processing the rest. If any folder can be extracted, return True.
                     continue
-                else:
-                    result = True
+            else:
+                result = True
             return result
         else:
             return all(group.can_extract() for group in self.sequence.values())

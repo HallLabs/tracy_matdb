@@ -476,6 +476,9 @@ class MTP(Trainer):
             pbar = tqdm(total=len(self.active.last_iteration))
             if self.active.last_config_atoms is not None:
                 for atm in self.active.last_config_atoms.values():
+                  if not atm.calc.can_extract(atm.calc.folder):
+                      msg.std("Folder {} can not be extracted.".format(atm.calc.folder), 2)
+                      continue
                   self._create_train_cfg(atm, path.join(self.root, "train.cfg"))
                   pbar.update(1)
 
