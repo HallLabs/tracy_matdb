@@ -694,6 +694,10 @@ class Group(object):
             else:
                 template = env.get_template(settings["template"])
 
+            # By default, don't do timeout on QE calculation
+            if "exec_time_out_minutes" not in settings:
+                settings["exec_time_out_minutes"] = 0
+
             with open(target, 'w') as f:
                 f.write(template.render(**settings))
         else:
