@@ -47,6 +47,10 @@ execution:
 
 #{{ This section is for local personal computer using bash command
   template: 'bash_build_ml.sh'
+
+  # specify time out in minutes for calculating of each structure.
+  # give it 0 will not do time out.
+  exec_time_out_minutes: 30
 #}}
 
 #{{ This section is for super computer using sbatch command.
