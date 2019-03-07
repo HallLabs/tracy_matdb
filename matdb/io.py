@@ -50,10 +50,20 @@ def atoms_to_cfg(atm, target, config_id=None, type_map=None):
     chem_syms = atm.get_chemical_symbols()
     pos = atm.positions
 
+    if pos.shape[0] != len(chem_syms):
+        msg.err("the number of rows in pos {0} is not equal to the number of elements in chem_syms {1}.".format(pos.shape, len(chem_syms)))
+        return
+
     if hasattr(atm, "calc") and atm.calc is not None and hasattr(atm.calc, "key"):
         calc_name = "{0}_".format(atm.calc.key)
     else:
         calc_name = ""
+
+    if "{0}force".format(calc_name) in atm.properties:
+        force = atm.properties["{0}force".format(calc_name)]
+        if pos.shape[0] != force.shape[0]:
+            msg.err("the number of rows in force {0} is not equal to the number of rows in pos {1}.".format(force.shape, pos.shape))
+            return
 
     local_map = {}
     for i, specs in enumerate(np.unique(chem_syms)):
@@ -75,7 +85,6 @@ def atoms_to_cfg(atm, target, config_id=None, type_map=None):
         f.write("  ")
 
         if "{0}force".format(calc_name) in atm.properties:
-            force = atm.properties["{0}force".format(calc_name)]
             f.write(" AtomData:  id type       cartes_x      cartes_y      "
                     "cartes_z           fx          fy          fz\n")
         else:

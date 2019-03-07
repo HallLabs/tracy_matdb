@@ -498,9 +498,12 @@ class MTP(Trainer):
                 type_map[symbols.index(s)] = i
         atoms_to_cfg(atm, temp_cfg, type_map=type_map)
 
+        # If a configuration doesn't generate a temp_cfg file, issue an error message and return.
+        # This will make it continue processing the rest configurations.
         if not path.isfile(temp_cfg): #pragma: no cover
-            raise IOError("Failed to create cfg file for atoms object stored "
-                          "at: {0}".format(atm.calc.folder))
+            msg.err("Failed to create cfg file for atoms object stored "
+                    "at: {0}".format(atm.calc.folder))
+            return
         
         if path.isfile(target):
             cat([temp_cfg, target], path.join(self.root, "temp2.cfg"))
