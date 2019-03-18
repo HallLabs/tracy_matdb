@@ -15,10 +15,8 @@ from matdb.atoms import AtomsList, Atoms
 class Active(Group):
     """Sets up the calculations for a set of configurations that are being
     added to by the active learning approach.
-
     .. note:: Additional attributes are also exposed by the super class
       :class:`Group`.
-
     Attributes:
         auids (list): the unique ids for each config in the group
     """
@@ -44,6 +42,8 @@ class Active(Group):
         cur_iter = len(glob(path.join(self.root,"iter_*.pkl")))
         self.iter_file = path.join(self.root,"iter_{}.pkl".format(cur_iter))
         self._load_last_iter()
+        if self.last_iteration is not None:
+            self.set_size = len(self.last_iteration)
 
     def ready(self):
         """Returns True if this database has finished its computations and is
@@ -140,7 +140,6 @@ class Active(Group):
 
     def add_configs(self,new_configs,iteration):
         """Adds the atoms objects in the list to the configs of the active set.
-
         Args:
             new_configs (list): list of `matdb.atoms.Atoms` objects to be added
                 to the active learning set.
@@ -190,11 +189,9 @@ class Active(Group):
     def setup(self, rerun=False):
         """Enumerates the desired number of structures and setups up a folder
         for each one.
-
         Args:
             rerun (bool): when True, recreate the folders even if they
               already exist.
-
         """
         super(Active, self).setup(self._setup_configs,rerun)
 
@@ -285,3 +282,56 @@ class Active(Group):
                                                       recovery=recovery,
                                                       env_vars=env_vars))
             return all(already_executed)
+
+    def jobfile(self, rerun=0, recovery=False):
+        """Creates the job array file to run each of the sub-configurations in
+        this database.
+        Args:
+            rerun (int): when > 0, recreate the jobfile even if it
+              already exists.
+            recovery (bool): when True, configure the jobfile to run
+              recovery jobs for those that have previously failed. This uses a
+              different template and execution path.
+        """
+
+        self._expand_sequence()
+
+        if len(self.sequence) == 0:
+            if recovery:
+                from matdb.utility import linecount
+                target = path.join(self.root, "recovery.sh")
+                xpath = path.join(self.root, "failures")
+                asize = linecount(xpath)
+            else:
+                target = path.join(self.root, "jobfile.sh")
+                xpath = path.join(self.root, "{}.".format(self.prefix))
+                asize = len(self.configs)
+
+            if (path.isfile(target) and rerun == 0) or asize == 0:
+                return
+
+            # We use the global execution parameters and then any updates
+            # locally. We need to add the execution directory (including prefix) and
+            # the number of jobs in the array.
+            settings = self.database.execution.copy()
+            settings.update(self.execution.items())
+
+            settings["set_size"] = self.set_size
+            settings["execution_path"] = xpath
+            settings["array_size"] = asize-self.set_size
+
+            if "array_limit" in settings and asize < settings["array_limit"]:
+                del settings["array_limit"]
+
+            from jinja2 import Environment, PackageLoader
+            env = Environment(loader=PackageLoader('matdb', 'templates'))
+            if recovery:
+                template = env.get_template(settings["template"].replace("array", "recovery"))
+            else:
+                template = env.get_template(settings["template"])
+
+            with open(target, 'w') as f:
+                f.write(template.render(**settings))
+        else:
+            for group in self.sequence.values():
+                group.jobfile(rerun=rerun, recovery=recovery)
