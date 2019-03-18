@@ -949,4 +949,3 @@ class MTP(Trainer):
               #class. It also doesn't make sense to use splits within
               #the mtp context.
             super(MTP, self)._update_split_params()
-                                                                                                  
