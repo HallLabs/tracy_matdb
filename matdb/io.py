@@ -107,7 +107,7 @@ def atoms_to_cfg(atm, target, config_id=None, type_map=None):
             f.write("            {0}\n".format("    ".join(["{0: .8f}".format(i) for i in virial])))
 
         if config_id is None:
-            conf_id = "{0}_{1}".format("".join(np.unique(chem_syms)),len(pos))
+            conf_id = atm.get_chemical_formula(mode='reduce')
         else:
             conf_id = config_id
         f.write(" Feature   conf_id  {}\n".format(conf_id))
@@ -420,6 +420,9 @@ def save_dict_to_h5(h5file, dic, path='/'):
                 # this chunk of code is only ever used by the unit testing suite.
                 dt = h5py.special_dtype(vlen=np.float64)
                 h5file.create_dataset(path+key, data=item, dtype=dt)
+            elif 'U' in str(item.dtype):
+                temp = [i.encode() for i in item]
+                h5file[path + key] = temp                
             else:
                 h5file[path + key] = item
         elif isinstance(item, dict):
