@@ -7,6 +7,7 @@ from ase.build import make_supercell
 import numpy as np
 from copy import deepcopy
 from itertools import product
+from collections import OrderedDict
 
 import h5py
 from ase import io
@@ -294,7 +295,8 @@ class Atoms(ase.Atoms):
             # We need to convert the attributes of the other atoms
             # object so that we can initialize this one properly.
             symbols = other.get_chemical_symbols()
-            symbols = ''.join([i+str(symbols.count(i)) for i in set(symbols)])
+            cls = OrderedDict.fromkeys(symbols)
+            symbols = ''.join([i+str(symbols.count(i)) for i in cls.keys()])
 
             magmoms = None
             if hasattr(other, "magnetic_moments") and other.magnetic_moments is not None:
@@ -439,7 +441,8 @@ class Atoms(ase.Atoms):
                 data["calc_kwargs"]["potcars"] = _recursively_convert_units(self.calc.potcars)
             
         symbols = self.get_chemical_symbols()
-        data["symbols"] = ''.join([i+str(symbols.count(i)) for i in set(symbols)])
+        cls = OrderedDict.fromkeys(symbols)
+        data["symbols"] = ''.join([i+str(symbols.count(i)) for i in cls.keys()])
         if self.group_uuid is not None:
             data["group_uuid"] = self.group_uuid
         data["uuid"] = self.uuid
