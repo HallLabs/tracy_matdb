@@ -15,6 +15,7 @@
 from hashlib import sha1
 import re
 from os import path, stat, mkdir, remove, environ, rename
+from tempfile import gettempdir
 
 import ase
 from ase.calculators.vasp import Vasp
