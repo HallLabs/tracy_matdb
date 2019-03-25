@@ -108,8 +108,10 @@ def create_to_relax(setup_args):
                             if len(lab) > max_atoms and max_num is None:
                                 max_num = int(data[0])
                                 break
-                # In case in the input file, there is no configuration that has the number of atoms
-                # bigger than max_atoms, the max_num will be set to the number in the last line.  
+                # In case in the input file, there is no configuration
+                # that has the number of atoms bigger than max_atoms,
+                # the max_num will be set to the number in the last
+                # line.
                 if max_num is None:
                     max_num = last_num
                 args["structures"] = range(min_num, max_num)
@@ -313,7 +315,7 @@ class MTP(Trainer):
         if "run_as_root" in mtpargs and mtpargs["run_as_root"] is not None:
             self.run_as_root = mtpargs["run_as_root"]
         else:
-            self.train_args = False
+            self.run_as_root = False
 
         if "smallest_relax_cell" in mtpargs:
             self.relax_min_atoms = mtpargs["smallest_relax_cell"]
@@ -900,7 +902,6 @@ class MTP(Trainer):
                 raise LogicError("The active database failed to setup the calculations "
                                  "for iteration {0}".format(self.iter_count))
             self.active.execute()
-            
             with open(path.join(self.root,"status.txt"),"w+") as f:
                 f.write("done {0} {1} {2}".format(self.iter_count, self.cell_iter,
                                                   len(new_configs)))
