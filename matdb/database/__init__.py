@@ -418,8 +418,8 @@ class Group(object):
         # import sys
 
         kw_dict = self.grpargs.copy()
-        args_dict = {"root": self.root, "override": self.override,
-                     "version":__version__, "python_version":sys.version}
+        args_dict = {"root": self.root, "version":__version__,
+                     "python_version":sys.version}
         if include_time_stamp:
             args_dict["datetime"] = str(datetime.now())
 
