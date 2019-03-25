@@ -108,8 +108,10 @@ def create_to_relax(setup_args):
                             if len(lab) > max_atoms and max_num is None:
                                 max_num = int(data[0])
                                 break
-                # In case in the input file, there is no configuration that has the number of atoms
-                # bigger than max_atoms, the max_num will be set to the number in the last line.  
+                # In case in the input file, there is no configuration
+                # that has the number of atoms bigger than max_atoms,
+                # the max_num will be set to the number in the last
+                # line.
                 if max_num is None:
                     max_num = last_num
                 args["structures"] = range(min_num, max_num)
@@ -171,7 +173,6 @@ def _prot_to_cfg(source, species, relax_file, type_map, root, min_atoms, max_ato
 class MTP(Trainer):
     """Implements a simple wrapper around the MTP training functionality for
     creating MTP potentials.
-
     Args:
         controller (matdb.fitting.controller.Controller): fitting controller
           provides access to previous fitting steps and training/validation data.
@@ -180,7 +181,6 @@ class MTP(Trainer):
           the GAP fit.
         dbs (list): of `str` patterns from the database that should be included
           in the training and validation.
-
     Attributes:
         name (str): name of the folder in which all the fitting for this trainer
           takes place; defaults to `{n}b`.
@@ -203,10 +203,11 @@ class MTP(Trainer):
                     old_status = line.strip().split()
 
                 if old_status[0] == "done":
-                    self.iter_status = "train"
-                    # iter_count is the total iteration number for the whole process, not limited to one cell
-                    self.iter_count = int(old_status[1]) + 1
-                    self.cell_iter = int(old_status[2])
+                   self.iter_status = "train"
+                   # iter_count is the total iteration number for the
+                   # whole process, not limited to one cell
+                   self.iter_count = int(old_status[1]) + 1
+                   self.cell_iter = int(old_status[2])
                 else:
                     self.iter_status = old_status[0]
                     self.iter_count = int(old_status[1])
@@ -233,7 +234,8 @@ class MTP(Trainer):
         dbargs = {"root":db_root,
                   "parent":Database("active", db_root, self.controller.db, steps, {},
                                     self.ran_seed),
-                  "calculator": self.controller.db.calculator}
+                  "calculator": self.controller.db.calculator,
+                  "name": self.parent.name}
         self.active = Active(**dbargs)
         fix_static = getattr(self.active.calc, "set_static", None)
         if callable(fix_static):
@@ -254,7 +256,7 @@ class MTP(Trainer):
         else:
             self.ncores = 1
             self.execution["ntasks"] = 1
-            self.execution["mem_per_cpu"] = self.execution["total_mem"]
+            self.execution["mem"] = self.execution["total_mem"]
 
     def _convert_mem(self):
         """Converts memory to the correct values including units."""
@@ -289,7 +291,6 @@ class MTP(Trainer):
         
     def _set_local_attributes(self, mtpargs):
         """Sets the attributes of the mtp object from the input dictionary.
-
         Args:
             mtpargs (dict): the input dictionary of arguments.
         """
@@ -310,6 +311,11 @@ class MTP(Trainer):
             self.train_args = mtpargs["train"]
         else:
             self.train_args = {}
+            
+        if "run_as_root" in mtpargs and mtpargs["run_as_root"] is not None:
+            self.run_as_root = mtpargs["run_as_root"]
+        else:
+            self.run_as_root = False
 
         if "smallest_relax_cell" in mtpargs:
             self.relax_min_atoms = mtpargs["smallest_relax_cell"]
@@ -430,6 +436,9 @@ class MTP(Trainer):
         else:
             relax_args["threshold_break"] = "10.0"
 
+        if "use_abinitio" in relaxargs:
+            relax_args["use_abinitio"] = True
+
         self.relax_ini = relax_args
 
     def ready(self):
@@ -471,21 +480,23 @@ class MTP(Trainer):
                 else:
                     raise IOError("File {0} containing most recently added "
                                   "structures is missing.".format(self.active.iter_file))
+
             msg.info("Extracting from {0} folders".format(len(self.active.last_iteration)))
             self.active.extract()
             pbar = tqdm(total=len(self.active.last_iteration))
+            ccb = 1
             if self.active.last_config_atoms is not None:
                 for atm in self.active.last_config_atoms.values():
                   if not atm.calc.can_extract(atm.calc.folder):
                       msg.std("Folder {} can not be extracted.".format(atm.calc.folder), 2)
                       continue
                   self._create_train_cfg(atm, path.join(self.root, "train.cfg"))
+                  ccb += 1
                   pbar.update(1)
 
     def _create_train_cfg(self, atm, target):
         """Creates a 'train.cfg' file for the calculation stored at the target
         directory.
-
         Args:
             atm (matdb.atoms.Atoms): an atoms object to write to the cfg file.
             target (str): the path to the desierd "train.cfg" file.            
@@ -605,8 +616,12 @@ class MTP(Trainer):
         #     --skip-preinit: skip the 75 iterations done when params are not given
 
         if self.use_mpi:
-            template = ("mpirun --allow-run-as-root -n {} mlp train pot.mtp "
-                        "train.cfg".format(self.ncores))
+            if self.run_as_root:
+                template = ("mpirun --allow-run-as-root -n {} mlp train pot.mtp "
+                            "train.cfg".format(self.ncores))
+            else:
+                template = ("mpirun -n {} mlp train pot.mtp "
+                            "train.cfg".format(self.ncores))
         else:
             template = "mlp train pot.mtp train.cfg"
             
@@ -672,13 +687,23 @@ class MTP(Trainer):
         # --log=<str>: Write relaxation log to <str>
 
         if self.use_mpi:
-            template = ("mpirun --allow-run-as-root -n {0} mlp relax relax.ini "
-                        "--cfg-filename=to-relax.cfg "
-                        "--save-relaxed={1} --log=relax_{2} "
-                        "--save-unrelaxed={3}".format(self.ncores,
-                                                      "relaxed.cfg",
-                                                      "log.txt",
-                                                      "unrelaxed.cfg"))
+            if self.run_as_root:
+                template = ("mpirun --allow-run-as-root -n {0} mlp relax relax.ini "
+                            "--cfg-filename=to-relax.cfg "
+                            "--save-relaxed={1} --log=relax_{2} "
+                            "--save-unrelaxed={3}".format(self.ncores,
+                                                          "relaxed.cfg",
+                                                          "log.txt",
+                                                          "unrelaxed.cfg"))
+            else:
+                template = ("mpirun -n {0} mlp relax relax.ini "
+                            "--cfg-filename=to-relax.cfg "
+                            "--save-relaxed={1} --log=relax_{2} "
+                            "--save-unrelaxed={3}".format(self.ncores,
+                                                          "relaxed.cfg",
+                                                          "log.txt",
+                                                          "unrelaxed.cfg"))
+                
         else:
             template = ("mlp relax relax.ini "
                         "--cfg-filename=to-relax.cfg "
@@ -732,7 +757,6 @@ class MTP(Trainer):
     def command(self):
         """Returns the command that is needed to train the GAP
         potentials specified by this object.
-
         .. note:: This method also configures the directory that the command
           will run in so that it has the relevant files.
         """
@@ -881,7 +905,6 @@ class MTP(Trainer):
                 raise LogicError("The active database failed to setup the calculations "
                                  "for iteration {0}".format(self.iter_count))
             self.active.execute()
-            
             with open(path.join(self.root,"status.txt"),"w+") as f:
                 f.write("done {0} {1} {2}".format(self.iter_count, self.cell_iter,
                                                   len(new_configs)))
@@ -891,7 +914,6 @@ class MTP(Trainer):
 
     def status(self, printed=True):
         """Returns or prints the current status of the MTP training.
-
         Args:
             printed (bool): when True, print the status to screen; otherwise,
               return a dictionary with the relevant quantities.

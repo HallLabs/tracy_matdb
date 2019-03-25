@@ -98,7 +98,7 @@ class Atoms(ase.Atoms):
                  **readargs):
 
         if (symbols is not None and not isinstance(symbols,string_types)) or (
-                symbols is not None and path.exists(symbols)):
+                symbols is not None and path.isfile(symbols)):
             try:
                 self.copy_from(symbols)
             except TypeError:
@@ -455,7 +455,6 @@ class Atoms(ase.Atoms):
         Args:
             target (str): The path to the target file. Default is "atoms.h5".
         """
-
         frmt = target.split('.')[-1]
         if frmt == "h5" or frmt == "hdf5":
             from matdb.io import save_dict_to_h5

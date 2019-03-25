@@ -218,7 +218,7 @@ class AsyncQe(Espresso, AsyncCalculator):
         return all(present.values())
 
     def can_extract(self, folder):
-        """Returns True if the specified VASP folder has completed
+        """Returns True if the specified QE folder has completed
         executing and the results are available for use.
         """
         if not path.isdir(folder):

@@ -103,7 +103,7 @@ def test_to_dict(CoNiTi):
                                                      'Ti': '08Apr2002'}}},
              'permutations': {'ternary': [['Co', 'Ni', 'Ti']]}, 'ran_seed': 10,
              'config_type': None,
-             'version': __version__, 'override': {}, 'execution': None, 'root': prot.root,
+             'version': __version__, 'execution': None, 'root': prot.root,
              'structures': {'unary': 'all',
                          'binary': ['b210_', 'b20_', 'b211_', 'b212_', 'b215_',
                                     'b216_', 'b217_', 'b218_', 'b219_', 'b221_'],

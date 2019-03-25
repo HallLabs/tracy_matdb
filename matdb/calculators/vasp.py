@@ -1,5 +1,5 @@
 """Implements a `matdb` compatible subclass of the
-:class:`ase.calculators.vasp.Vasp` calculator.  
+:class:`ase.calculators.vasp.Vasp` calculator.
 
 .. note:: Because this calculator is intended to be run asynchronously
   as part of `matdb` framework, it does *not* include a method to
@@ -9,11 +9,13 @@
 .. warning:: Because of the underlying implementation in ASE, you must
   use a separate instance of the :class:`AsyncVasp` for each
   :class:`ase.Atoms` object that you want to calculate for.
+
 """
 
 from hashlib import sha1
 import re
 from os import path, stat, mkdir, remove, environ, rename
+from tempfile import gettempdir
 
 import ase
 from ase.calculators.vasp import Vasp
@@ -26,6 +28,51 @@ from matdb.kpoints import custom as write_kpoints
 from matdb.utility import chdir, execute, relpath, config_specs
 from matdb.exceptions import VersionError, SpeciesError
 from matdb.calculators.utility import paths
+
+_versions = {}
+"""dict: keys are absolute paths to executables; values are the extracted
+version numbers.
+"""
+
+def vasp_version(exec_path):
+    """Extracts the version number from the specified VASP executable.
+    Args:
+        exec_path (str): path to the executable to test version for.
+    """
+    global _versions
+    if exec_path in _versions:
+        return _versions[exec_path]
+    
+    if (exec_path is None or exec_path == ""):
+        if "" not in _versions:
+            msg.warn("VASP execution path not set in calculator. Could not "
+                     "determine VASP version.")
+            _versions[""] = ""
+        return ""
+    
+    executable = path.abspath(path.expanduser(exec_path))
+    vaspdir = path.join(gettempdir(), "vasp_version")
+    if not path.isdir(vaspdir):
+        mkdir(vaspdir)
+        
+    result = ""
+    try:
+        data = execute([executable], vaspdir, venv=True)
+        result = data["output"][0].strip().split()[0]
+    except:
+        msg.warn("Error attempting to get VASP version.")
+
+    # Files that need to be removed after being created by the
+    # vasp executable.
+    files = ["CHG", "CHGCAR", "WAVECAR", "XDATCAR", "vasprun.xml", "OUTCAR",
+             "IBZKPT", "OSZICAR", "CONTCAR", "EIGENVAL", "DOSCAR", "PCDAT"]
+    with chdir(vaspdir):
+        for f in files:# pragma: no cover (vasp would have to be intalled to test this).
+            if path.isfile(f):
+                remove(f)
+        
+    _versions[exec_path] = result
+    return result
 
 def phonon_defaults(d, dfpt=False):
     """Adds the usual settings for the INCAR file when performing
@@ -431,6 +478,7 @@ class AsyncVasp(Vasp, AsyncCalculator):
                 pbackup[pset] = getattr(self, pset)
 
         with chdir(folder):
+            print("folder", folder)
             self.read_incar()
             self.converged = self.read_convergence()
             
@@ -534,30 +582,7 @@ class AsyncVasp(Vasp, AsyncCalculator):
         if hasattr(self,"kpoints"):
             vasp_dict["kwargs"]["kpoints"] = self.kpoints
         if self.version is None:
-            if self.executable is not None: # pragma: no cover (vasp
-                                            # would have to be
-                                            # intalled to test this).
-                data = execute([self.executable],self.contr_dir,venv=True)
-                try:
-                    vasp_dict["version"] = data["output"][0].strip().split()[0]
-                    self.version = vasp_dict["version"]
-                except:
-                    msg.warn("Error attempting to get VASP version.")
-            else:
-                msg.warn("VASP execution path not set in calculator. Could not "
-                         "determine VASP version.")
-                self.version = ""
-        else:
-            vasp_dict["version"] = self.version
-        # Files that need to be removed after being created by the
-        # vasp executable.
-
-        files = ["CHG", "CHGCAR", "WAVECAR", "XDATCAR", "vasprun.xml", "OUTCAR",
-                 "IBZKPT", "OSZICAR", "CONTCAR", "EIGENVAL", "DOSCAR", "PCDAT"]
-
-        for f in files:# pragma: no cover (vasp would have to be
-                                            # intalled to test this).
-            if path.isfile(path.join(self.contr_dir,f)):
-                remove(path.join(self.contr_dir,f))
+            self.version = vasp_version(self.executable)
+        vasp_dict["version"] = self.version
 
         return vasp_dict

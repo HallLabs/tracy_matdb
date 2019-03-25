@@ -655,10 +655,10 @@ def test_check_deps():
 
     from matdb.utility import required_packages, check_deps
 
-    assert ["ase", "beautifulsoup4", "certifi", "chardet", "cycler", "h5py", "html5lib",
-            "idna", "matplotlib", "mpld3", "numpy", "phenum", "phonopy", "pyparsing",
-            "python-dateutil", "pytz", "PyYAML", "requests", "subprocess32", "termcolor", 
-            "tqdm", "urllib3", "webencodings", "seekpath"] == required_packages()
+    assert sorted(["ase", "beautifulsoup4", "certifi", "chardet", "cycler", "h5py",
+            "html5lib", "idna", "matplotlib", "mpld3", "numpy", "phenum", "phonopy",
+            "pyparsing", "python-dateutil", "pytz", "PyYAML", "requests", "termcolor",
+            "tqdm", "urllib3", "webencodings", "seekpath"]) == sorted(required_packages())
 
     res = check_deps()
 
