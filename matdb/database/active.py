@@ -3,6 +3,7 @@
 from hashlib import sha1
 from glob import glob
 from os import path, getcwd, chdir, remove, listdir, mkdir
+from copy import deepcopy
 
 import numpy as np
 from six import string_types
@@ -42,8 +43,7 @@ class Active(Group):
         cur_iter = len(glob(path.join(self.root,"iter_*.pkl")))
         self.iter_file = path.join(self.root,"iter_{}.pkl".format(cur_iter))
         self._load_last_iter()
-        if self.last_iteration is not None:
-            self.set_size = len(self.last_iteration)
+        self.set_size = deepcopy(self.nconfigs)
 
     def ready(self):
         """Returns True if this database has finished its computations and is
@@ -165,13 +165,14 @@ class Active(Group):
             auid = sha1(''.join(map(str, (tuple([tuple(i) for i in config.cell]),
                         tuple([tuple(i) for i in config.positions]),
                         tuple(config.get_chemical_symbols())))).encode('utf-8'))
+            
             if self.auids is not None:
                 if auid.hexdigest() in self.auids:
                     self.nconfigs -= 1
                     continue
             else:
                 self.auids = []
-
+                
             dind += 1
             self.create(config,cid=dind)
             self.index[auid.hexdigest()] = self.configs[dind]
