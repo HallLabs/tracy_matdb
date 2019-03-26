@@ -578,8 +578,9 @@ def test_reading_multiple_files(tmpdir):
     atRL = AtomsList([temp,temp2])
 
     assert len(atRL) == 2
-    assert atRL[0].calc.kwargs["encut"] == 400
-    assert atRL[1].calc.kwargs["encut"] == 600    
+    assert atRL[0].calc.kwargs["encut"] != atRL[1].calc.kwargs["encut"]
+    assert atRL[1].calc.kwargs["encut"] in [400,600]
+    assert atRL[0].calc.kwargs["encut"] in [400,600]
 
     atom_dict = {"atom_1":temp, "atom_2": temp2}
 
@@ -590,5 +591,6 @@ def test_reading_multiple_files(tmpdir):
     atRL = AtomsList(temp3)
 
     assert len(atRL) == 2
-    assert atRL[0].calc.kwargs["encut"] == 400
-    assert atRL[1].calc.kwargs["encut"] == 600    
+    assert atRL[0].calc.kwargs["encut"] != atRL[1].calc.kwargs["encut"]
+    assert atRL[1].calc.kwargs["encut"] in [400,600]
+    assert atRL[0].calc.kwargs["encut"] in [400,600]
