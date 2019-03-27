@@ -247,10 +247,12 @@ class MTP(Trainer):
         """determines the resource usage depending on which `mtp` step we're
         on.
         """
-        # status 'train' --> next step will run 'mlp train' command
-        # status 'relax_setup' --> next step will run 'mlp relax' command
-        # these two commands can be run as multi-process
-        if self.iter_status in ("train", "relax_setup"):
+        # When status is None or 'train' --> next step will run 'mlp train' command
+        #    A status of None means it's the very fist iteration where the file 
+        #    "status.txt" haven't been created yet.
+        # When status 'relax_setup' --> next step will run 'mlp relax' command
+        # These two commands can be run as multi-process
+        if self.iter_status in (None, "train", "relax_setup"):
             self.ncores = self.execution["ntasks"]
             self.execution["mem_per_cpu"] = self._convert_mem()
         else:
