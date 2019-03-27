@@ -106,6 +106,7 @@ fitting:
       steps:
         - type: "mtp.MTP"
           largest_relax_cell: [4,6,8,10]
+          run_as_root: True
           split: "A"
           species:
             - "Co"
