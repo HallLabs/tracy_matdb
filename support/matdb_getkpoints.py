@@ -1,3 +1,5 @@
+#!/usr/bin/python
+
 """This is a unit testing stub for the `getKPoints` executable that constructs
 `KPOINTS` files for the DFT runs. It just creates a `KPOINTS` file with a
 comment to trick `matdb` into thinking that the folder is ready to execute. This

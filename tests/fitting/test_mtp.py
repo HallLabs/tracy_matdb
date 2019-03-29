@@ -255,7 +255,8 @@ def test_init(mtpdb):
                     execution=mtpfit.execution, split=mtpfit.split, root=mtpfit.root,
                     parent=mtpfit.parent, dbfilter=mtpfit.dbfilter, **mtpargs)
 
-    assert mtpfit.iter_status == "done"
+    #it should changed to "train" in order to auto-transit to next cell iteration
+    assert mtpfit.iter_status == "train"
     assert not mtpfit.ready()
 
 
@@ -343,7 +344,7 @@ def test_train_setup(mtpdb):
 
     mtpfit.active.add_configs(new_configs, 2)
     mtpfit.active.setup()
-    act_root = path.join(mtpdb.root, "Active", "active.active")
+    act_root = path.join(mtpdb.root, "Active", "active.CoWV_mtp")
     files = ["OUTCAR{}", "CONTCAR{}"]
     for i in range(1,11):
         target = path.join(act_root, "Ac.{0}".format(i))
@@ -365,9 +366,10 @@ def test_templates(mtpdb):
 
     mtpfit = mtpdb.trainers.fits['CoWV_mtp'].sequences['CoWV_mtp'].steps['mtp']
     #train template
-    template = "mpirun -n 72 mlp train pot.mtp train.cfg > training.txt"
+    template = ("mpirun --allow-run-as-root -n 1 mlp train pot.mtp train.cfg > training.txt",  
+                "mpirun -n 72 mlp train pot.mtp train.cfg > training.txt")
 
-    assert mtpfit._train_template() == template
+    assert mtpfit._train_template() in template
 
     mtpfit.use_mpi = False
     mtpfit.train_args = {"curr-pot-name":"name1", "valid-cfgs": "name2.cfg",
@@ -377,8 +379,8 @@ def test_templates(mtpdb):
     assert mtpfit._train_template() == template
     
     #calc-grade template
-    template = "mlp calc-grade pot.mtp train.cfg train.cfg temp1.cfg"
-    assert mtpfit._calc_grade_template() == template
+    template = "mlp calc-grade pot.mtp train.cfg train.cfg temp1.cfg" 
+    assert template in mtpfit._calc_grade_template()
 
     mtpfit.grade_args = {"force-weight":10, "mvs-filename":"name1"}
 
@@ -390,12 +392,14 @@ def test_templates(mtpdb):
 
     mtpfit.use_mpi = True
     #relax template
-    template_parts = ["mpirun", "-n 72", "mlp relax relax.ini",
+    template_parts = ["mpirun", "mlp relax relax.ini",
                       "--cfg-filename=to-relax.cfg", "--save-relaxed=relaxed.cfg",
                       "--log=relax_log.txt", "--save-unrelaxed=unrelaxed.cfg"]
+    template_alternative_parts = ["-n 72", "-n 1"]
     mtp_out = mtpfit._relax_template()
     for part in template_parts:
         assert part in mtp_out
+    assert template_alternative_parts[0] in mtp_out or template_alternative_parts[1] in mtp_out
 
     mtpfit.use_mpi = False
     mtpfit.relax_args = {"log": "name1", "bfgs-wolfe_c1": True, "max-step": 10}
@@ -484,13 +488,13 @@ def test_command_functions(mtpdb):
     assert line.strip() == "relax_setup 1 0"
     assert path.isfile(path.join(mtpfit.root, "relax.ini"))
     assert path.isfile(path.join(mtpfit.root, "pot.mtp"))
-    assert cmd_template == mtpfit._train_template
+    assert cmd_template == mtpfit._train_template()
 
     # Now we setup for the test of the relaxation_setup
     copyonce(path.join(mtpfit.root, "pot.mtp"), path.join(mtpfit.root, "Trained.mtp_"))
     cmd_template = mtpfit.command()
 
-    assert cmd_template == "matdb_mtp_to_relax.py"
+    assert "matdb_mtp_to_relax.py" in cmd_template
     with open(target, "r") as f:
         line = f.read()
     assert line.strip() == "relax 1 0"
