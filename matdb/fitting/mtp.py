@@ -258,11 +258,15 @@ class MTP(Trainer):
         else:
             self.ncores = 1
             self.execution["ntasks"] = 1
-            self.execution["mem"] = self.execution["total_mem"]
+            if "total_mem" in self.execution:
+                self.execution["mem_per_cpu"] = self.execution["total_mem"]
 
     def _convert_mem(self):
         """Converts memory to the correct values including units."""
 
+        if "mem_per_cpu" in self.execution:
+            return self.execution["mem_per_cpu"]
+ 
         init_mem, final_unit = self.execution["total_mem"][:-2], self.execution["total_mem"][-2:]
         final_mem = float(init_mem)/self.execution["ntasks"]
         while final_mem < 1:
