@@ -33,6 +33,7 @@ RUN python3 -m pip install --upgrade pip \
 RUN mkdir $HOME_DIR/matdb
 COPY requirements.txt $HOME_DIR/matdb
 RUN python3 -m pip install -r $HOME_DIR/matdb/requirements.txt
+RUN ln -s /usr/local/bin/phonopy /usr/bin/phonopy # this is to fix unit test issue for test_vasp.py on local device.
 
 COPY matdb $HOME_DIR/matdb/matdb
 COPY tests $HOME_DIR/matdb/tests

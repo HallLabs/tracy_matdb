@@ -307,19 +307,34 @@ def test_to_dict(tmpdir):
 
     calc_dict = calc.to_dict()
 
-    kwargs = {"ibrion":5, "xc":"pbe", "nsw": 1, "kpoints":{"method":"mueller","mindistance":30},
+    kwargs1 = {"ibrion":5, "xc":"pbe", "nsw": 1, "kpoints":{"method":"mueller","mindistance":30},
               "potcars": {"directory":'156def0ed29f1a908d5a7b4eae006c672e7b0ff1', "xc":"pbe",
                           "versions":{"Ag": '09Dec2005', "Pd":'04Jan2005'},
                           "setups":{"Ag": "_pv"}}}
-    out = {"folder":'$control$/Vasp', "ran_seed":0, "contr_dir":'$control$',
-           "kwargs": kwargs, "args": ()}#, "version": "vasp.4.6.35"}
+    kwargs2 = {"ibrion":5, "xc":"pbe", "nsw": 1, "kpoints":{"method":"mueller","mindistance":30},
+              "potcars": {"directory":'03526af4c062e11236b794c0b260a2571cfe12d6', "xc":"pbe",
+                          "versions":{"Ag": '09Dec2005', "Pd":'04Jan2005'},
+                          "setups":{"Ag": "_pv"}}}
 
-    assert compare_nested_dicts(calc_dict,out)
+
+    out1 = {"folder":'$control$/Vasp', "ran_seed":0, "contr_dir":'$control$',
+           "kwargs": kwargs1, "args": ()}#, "version": "vasp.4.6.35"}
+    out2 = {"folder":'$control$/Vasp', "ran_seed":0, "contr_dir":'$control$',
+           "kwargs": kwargs2, "args": ()}#, "version": "vasp.4.6.35"}
+
+    # "version" appears in calc_dict on local device
+    if "version" in calc_dict:
+        out1["version"] = calc_dict["version"]
+        out2["version"] = calc_dict["version"]
+
+    assert compare_nested_dicts(calc_dict,out1) or compare_nested_dicts(calc_dict,out2)
 
     calc_dict = calc.to_dict()
-    out = {"folder":'$control$/Vasp', "ran_seed":0, "contr_dir":'$control$',
-           "kwargs": kwargs, "args": (), "version": ""}
-    assert compare_nested_dicts(calc_dict,out)
+    out1 = {"folder":'$control$/Vasp', "ran_seed":0, "contr_dir":'$control$',
+           "kwargs": kwargs1, "args": (), "version": ""}
+    out2 = {"folder":'$control$/Vasp', "ran_seed":0, "contr_dir":'$control$',
+           "kwargs": kwargs2, "args": (), "version": ""}
+    assert compare_nested_dicts(calc_dict,out1) or compare_nested_dicts(calc_dict,out2)
 
 def test_phonon_defaults():
     """Tests the default phonon settings.
@@ -350,7 +365,7 @@ def test_extract_force_sets(tmpdir):
     from matdb.calculators.vasp import extract_force_sets, extract_force_constants
     from matdb.utility import relpath, symlink
 
-    phonon_dir = str(tmpdir.join("phononpy"))
+    phonon_dir = str(tmpdir.join("phonopy"))
     mkdir(phonon_dir)
     configs = {"1":str(tmpdir)}
 
