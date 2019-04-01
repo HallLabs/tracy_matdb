@@ -72,6 +72,7 @@ def Pd_copy(tmpdir):
 
     target = relpath("./tests/Pd/matdb_copy.yml")
     dbdir = str(tmpdir.join("pd_db_copy"))
+    mkdir(dbdir)
     copyonce(target, path.join(dbdir, "matdb.yml"))
     target = path.join(dbdir,"matdb")
 
@@ -182,31 +183,17 @@ def dynPd(Pd):
 
     return Pd
 
-@pytest.mark.skip()
-def test_Pd_phonplot(dynPd, tmpdir):
-    """Tests the plotting of phonon bands for supercell convergence test in Pd.
-    """
-    from matdb.plotting.comparative import band_plot
-    dbs = dynPd.find("Pd.phonon-*.hessian")
-    target = str(tmpdir.join("Pd.phonon-convergence.pdf"))
-    args = {
-        "dim": 3,
-        "save": target
-    }
-    band_plot(dbs, **args)
-    assert path.isfile(target)
-
-@pytest.mark.skip()
 def test_Pd_setup(Pd, Pd_copy):
     """Makes sure the initial folders were setup according to the spec.
     """
-    raise Exception("RAWR")
+    #raise Exception("RAWR")
     Pd.setup()
-    modelroot = path.join(Pd.root, "Manual","phonon","Pd")
+    modelroot = path.join(Pd.root, "Manual","phonon.manual","Pd")
+    import pdb; pdb.set_trace()
     assert Pd["Manual/phonon/Pd/"].root == modelroot
     
     #The matdb.yml file specifies the following database:
-    dbs = ["Manual/phonon/Pd/"]
+    dbs = ["Manual/phonon.manual/Pd/"]
     #Each one should have a folder for: ["hessian", "modulations"]
     #On the first go, the modulations folder will be empty because the DFT
     #calculations haven't been performed yet. However, hessian should have DFT
@@ -223,14 +210,29 @@ def test_Pd_setup(Pd, Pd_copy):
         dbfolder = path.join(Pd.root, db)
         compare_tree(dbfolder, folders)
 
+    import pdb; pdb.set_trace()
     #Now we will test some of the border cases of the database __init__ method
     Pd_copy.setup()
 
-    db = "Manual/phonon/Pd"
+    db = "Manual/phonon.manual/Pd"
     dbfolder = path.join(Pd_copy.root, db)
     compare_tree(dbfolder, folders)
 
-@pytest.mark.skip()
+def test_Pd_phonplot(dynPd, tmpdir):
+    """Tests the plotting of phonon bands for supercell convergence test in Pd.
+    """
+    from matdb.plotting.comparative import band_plot
+    import pdb; pdb.set_trace()
+    #dbs = dynPd.find("Pd.phonon-*.hessian")
+    dbs = dynPd.find("phonon")
+    target = str(tmpdir.join("Pd.phonon-convergence.pdf"))
+    args = {
+        "dim": 3,
+        "save": target
+    }
+    band_plot(dbs, **args)
+    assert path.isfile(target)
+
 def test_steps(Pd):
     """Tests compilation of all steps in the database.
     """
@@ -242,7 +244,6 @@ def test_steps(Pd):
     seqs = sorted(['Pd'])
     assert Pd.sequences() == seqs
 
-#@pytest.mark.skip()
 def test_find(Pd):
     """Tests the find function and the __getitem__ method with pattern matching.
     """
@@ -306,7 +307,6 @@ def test_find(Pd):
     group = Pd["enumeration/phonon"]
     assert group == None
 
-@pytest.mark.skip()
 def test_execute(Pd, capsys):
     """Tests the execute and extract methods 
     """
@@ -363,7 +363,6 @@ def test_execute(Pd, capsys):
     # Run extract again to make sure the atoms.h5 files are no rewritten
     Pd.extract()
 
-@pytest.mark.skip()
 def test_recovery(Pd):
     """Tests the rerun on unfinshed jobs
     """
@@ -397,7 +396,6 @@ def test_recovery(Pd):
     assert not path.isfile(path.join(Pd.root,"Manual","phonon.manual","Pd","recovery.sh"))
     assert not path.isfile(path.join(Pd.root,"Manual","phonon.manual","Pd","failures"))
 
-#@pytest.mark.skip()
 def test_hash(Pd):
     """Tests the hash_dbs and verify_hash methods
     """
@@ -415,7 +413,6 @@ def test_hash(Pd):
     # _mimic_vasp(folder,Pd_2.root,"S1.1")
     # assert Pd_2.hash_dbs != db_hash
 
-@pytest.mark.skip()
 def test_finalize(Pd):
     """ Test the finalize function in the controller module
     """
@@ -442,7 +439,6 @@ def test_finalize(Pd):
         loaded_final = load_dict_from_h5(hf)
     assert path.isfile(target)
 
-@pytest.mark.skip()
 def test_split(Pd_split):
     """ Test the split function in the controller object
     """
@@ -469,7 +465,6 @@ def test_split(Pd_split):
             assert len(hal) == int(np.ceil((5-len(tal))*p))
             assert len(sal) == 5-len(tal)-len(hal)
     
-@pytest.mark.skip()
 def test_Pd_hessian(Pd):
     """Tests the `niterations` functionality and some of the standard
     methods of the class on simple Pd.
