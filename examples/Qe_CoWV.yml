@@ -8,7 +8,7 @@ species:
 # If the POTCAR names are non-standard, include the *suffix* after the
 # element name here.
 # Directory in which the database folder system will be created.
-root: '~/compute/MTP/CoWV'
+root: '~/codes/compute/MTP/CoWV'
 venv: 'matdb'
 # Define the calculator to use for this Database
 calculator:

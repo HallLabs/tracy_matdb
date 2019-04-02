@@ -54,5 +54,5 @@ COPY one_off_fix/pip /usr/bin/pip3
 COPY one_off_fix/espresso.py /usr/local/lib/python3.5/dist-packages/ase/io/espresso.py.new
 
 RUN echo export PATH=$PATH:${MTP_ROOT}/bin >> ${HOME_DIR}/.bashrc
-RUN mkdir -p /root/compute/MTP/CoWV
+RUN mkdir -p /root/codes/compute/MTP/CoWV
 RUN chmod +x /root/codes/*.sh
