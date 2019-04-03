@@ -464,8 +464,10 @@ class Group(object):
         f_path = path.join(self.root, rel_path, file_name) \
                  if rel_path is not None else path.join(self.root,file_name)
 
-        result = None
-        if path.isfile(f_path):
+        #Initialze the result as an empty list instead of None
+        result = {}
+        #If the pkl file is not exist or is empty, don't bother to load it
+        if path.isfile(f_path) and path.getsize(f_path) > 0:
             with open(f_path,"rb") as f:
                 result = pickle.load(f)
 
@@ -854,7 +856,9 @@ class Group(object):
         if len(self.sequence) == 0:
             #Test to see if we have already set the database up.
             confok = False
-            if (len(self.configs) == self.nconfigs or
+            #If there is zero new configs, we still need to create an empty iter_*.pkl 
+            #file in the database folder
+            if self.nconfigs != 0 and (len(self.configs) == self.nconfigs or
                 len(self.configs) > 0 and self.nconfigs is None):
                 imsg = "The {} database has already been setup."
                 msg.info(imsg.format(self.name), 2)
