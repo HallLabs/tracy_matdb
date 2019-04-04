@@ -465,7 +465,7 @@ class Group(object):
                  if rel_path is not None else path.join(self.root,file_name)
 
         #Initialze the result as an empty list instead of None
-        result = {}
+        result = []
         #If the pkl file is not exist or is empty, don't bother to load it
         if path.isfile(f_path) and path.getsize(f_path) > 0:
             with open(f_path,"rb") as f:
