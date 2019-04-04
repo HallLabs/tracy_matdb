@@ -75,6 +75,19 @@ def test_recursive_convert():
     
     assert not compare_nested_dicts(test,dict_out)
 
+def test_calc_name_converter():
+    """Tests the calculator name convertor.
+    """
+    from matdb.atoms import _calc_name_converter
+
+    name = "qe"
+    conv_name = _calc_name_converter(name)
+    assert conv_name == name
+
+    name = "vasp"
+    conv_name = _calc_name_converter(name)
+    assert conv_name == "Vasp"
+
 def test_hdf5(tmpdir):
     """Tests whether an atoms object with calculated parameters can be saved to
     JSON and then restored.
@@ -181,6 +194,17 @@ def test_Atoms_creation(tmpdir):
     assert np.allclose(atR.cell,atSi.cell)
     remove(path.join(target,"temp.xyz"))
 
+def test_Atoms_get_energy():
+    """Tests get_energy method.
+    """
+    from matdb.atoms import Atoms
+
+    at1 = Atoms("Si8",positions=[[0,0,0],[0.25,0.25,0.25],[0.5,0.5,0],[0.75,0.75,0.25],
+                                  [0.5,0,0.5],[0.75,0.25,0.75],[0,0.5,0.5],[0.25,0.75,0.75]],
+                 cell=[5.43,5.43,5.43])
+    at1.add_param("vasp_energy", 4532)
+    assert at1.get_energy() == 4532
+
 def test_Atoms_attributes(tmpdir):
     """Tests the some of the attributes of an atoms object.
     """
@@ -232,6 +256,72 @@ def test_Atoms_attributes(tmpdir):
          [ 11159.15815145,  18969.1757571 ,  18969.1757571 ]]
     assert "vasp_force" in at1.info["properties"]
     
+def test_Atoms_copy():
+    """Tests the mothed Atoms.copy_from() to copy from an matdb.atoms
+    """
+    from matdb.atoms import Atoms
+    from numpy import array_equal
+
+    at1 = Atoms("Co3W2V3",positions=[[0,0,0],[0.25,0.25,0.25],[0.5,0.5,0],[1.75,1.75,1.25],
+                                  [1.5,1,1.5],[2.75,2.25,2.75],[2,2.5,2.5],[2.25,2.75,2.75]],
+                 cell=[5.43,5.43,5.43],info={"rand":10, "params":{"vasp_energy": 1234}, "properties":{}})
+    at2 = at1.copy()
+
+    assert at1.info["params"] == at2.info["params"]
+    assert at1.info["properties"] == at2.info["properties"]
+
+    # make sure the symbols and positions are still match
+    assert at1.get_chemical_symbols() == at2.get_chemical_symbols()
+    assert array_equal(at1.positions, at2.positions)
+    assert array_equal(at1.cell, at2.cell)
+
+def test_Atoms_copy_from():
+    """Tests the mothed Atoms.copy_from() to copy from an matdb.atoms
+    """
+    from matdb.atoms import Atoms
+    from numpy import array_equal
+
+    at1 = Atoms("Co3W2V3",positions=[[0,0,0],[0.25,0.25,0.25],[0.5,0.5,0],[1.75,1.75,1.25],
+                                  [1.5,1,1.5],[2.75,2.25,2.75],[2,2.5,2.5],[2.25,2.75,2.75]],
+                 cell=[5.43,5.43,5.43],info={"rand":10, "params":{"vasp_energy": 1234}, "properties":{}})
+    at2 = Atoms()
+    at2.copy_from(at1)
+
+    assert at1.info["params"] == at2.info["params"]
+    assert at1.info["properties"] == at2.info["properties"]
+
+    # make sure the symbols and positions are still match
+    assert at1.get_chemical_symbols() == at2.get_chemical_symbols()
+    assert array_equal(at1.positions, at2.positions)
+    assert array_equal(at1.cell, at2.cell)
+
+def test_Atoms_copy_from_aseAtoms():
+    """Tests the mothed Atoms.copy_from() to copy from an ase.atoms
+    """
+    from ase.atoms import Atoms as aseAtoms
+    from matdb.atoms import Atoms
+    from numpy import array_equal
+
+    at1 = aseAtoms("Co3W2V3",positions=[[0,0,0],[0.25,0.25,0.25],[0.5,0.5,0],[1.75,1.75,1.25],
+                                  [1.5,1,1.5],[2.75,2.25,2.75],[2,2.5,2.5],[2.25,2.75,2.75]],
+                 cell=[5.43,5.43,5.43])
+
+    at1.info['nneightol'] = 1112
+    at1.info['cutoff'] = 521
+    at1.info['cutoff_break'] = 1042
+
+    at2 = Atoms()
+    at2.copy_from(at1)
+
+    assert at2.info["params"]['nneightol'] == at1.info['nneightol']
+    assert at2.info["params"]['cutoff'] == at1.info['cutoff']
+    assert at2.info["params"]['cutoff_break'] == at1.info['cutoff_break']
+
+    # make sure the symbols and positions are still match
+    assert at1.get_chemical_symbols() == at2.get_chemical_symbols()
+    assert array_equal(at1.positions, at2.positions)
+    assert array_equal(at1.cell, at2.cell)
+
 def test_AtomsList_creation(tmpdir):
     """Tests the creation of the AtomsList object. 
     """
@@ -295,6 +385,25 @@ def test_AtomsList_creation(tmpdir):
     assert len(al4) == 1
     assert isinstance(al4[0],Atoms)
     assert al4[0].vasp_energy == at1.vasp_energy
+
+def test_AtomsList_empty_io(tmpdir):
+    from matdb.atoms import Atoms, AtomsList
+    from os import path
+
+    target = str(tmpdir.join("empty_AtomsList"))
+    globals_setup(target)
+
+    if not path.isdir(target):
+        mkdir(target)
+
+    empty_list = AtomsList([])
+    empty_list.write(path.join(target,"temp.h5"))
+    assert len(empty_list) == 0
+    assert path.isfile(path.join(target,"temp.h5"))
+
+    aR = AtomsList()
+    aR.read(path.join(target,"temp.h5"))
+    assert len(aR) == 0
 
 def test_AtomsList_attributes():
     """Tests the atoms lists attributes.
@@ -594,3 +703,37 @@ def test_reading_multiple_files(tmpdir):
     assert atRL[0].calc.kwargs["encut"] != atRL[1].calc.kwargs["encut"]
     assert atRL[1].calc.kwargs["encut"] in [400,600]
     assert atRL[0].calc.kwargs["encut"] in [400,600]
+
+def test_AtomsList_sort():
+    """Tests the method AtomsList.sort
+    """
+    from matdb.atoms import Atoms, AtomsList
+
+    at1 = Atoms("Si8",positions=[[0,0,0],[0.25,0.25,0.25],[0.5,0.5,0],[0.75,0.75,0.25],
+                                  [0.5,0,0.5],[0.75,0.25,0.75],[0,0.5,0.5],[0.25,0.75,0.75]],
+                 cell=[5.43,5.43,5.43],info={"rand":10})
+    at2 = Atoms("S6",positions=[[0,0,0],[0.25,0.25,0.25],[0.5,0.5,0],[0.75,0.75,0.25],
+                                  [0.5,0,0.5],[0.75,0.25,0.75]],
+                 cell=[6.43,5.43,4.43],info={"rand":10})
+    at3 = Atoms("CNi",positions=[[0,0,0],[0.5,0.5,0.5]], info={"rand":8})
+    at4 = Atoms("CoV",positions=[[0,0,0],[0.25,0.5,0.25]], info={"rand":8})
+
+    at1.add_param("vasp_energy", 25361.504084423999)
+    at2.add_param("vasp_energy", 25362.504084423999)
+    at3.add_param("vasp_energy", 25363.504084423999)
+    at4.add_param("vasp_energy", 25364.504084423999)
+    
+    al1 = AtomsList([at4,at2,at1,at3])
+
+    al1.sort(attr="vasp_energy")
+    assert al1[0].symbols.get_chemical_formula() == "Si8"
+    assert al1[1].symbols.get_chemical_formula() == "S6"
+    assert al1[2].symbols.get_chemical_formula() == "CNi"
+    assert al1[3].symbols.get_chemical_formula() == "CoV"
+
+    al1.sort(attr="vasp_energy", reverse=True)
+    assert al1[0].symbols.get_chemical_formula() == "CoV"
+    assert al1[1].symbols.get_chemical_formula() == "CNi"
+    assert al1[2].symbols.get_chemical_formula() == "S6"
+    assert al1[3].symbols.get_chemical_formula() == "Si8"
+
