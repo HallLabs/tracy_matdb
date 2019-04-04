@@ -30,7 +30,7 @@ following links document the internal API and give some examples.
    :maxdepth: 1
    :caption: Sub-packages and Modules:
 
-   calculators.rst
+   calculator.rst
    databases.rst
    fitting.rst
    kpoints.rst

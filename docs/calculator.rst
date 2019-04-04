@@ -1,5 +1,5 @@
-`matdb` Calculators
-===================
+Calculators
+===========
 
 YML File Specifications
 -----------------------
@@ -29,4 +29,12 @@ Calculators currently supported are:
 
    calculators/qe.rst
    calculators/vasp.rst
+   calculators/aflow.rst
 
+
+.. toctree::
+   :caption: Calculator Utility and other modules
+   :maxdepth: 1
+
+   calculators/basic.rst
+   calculators/utility.rst
