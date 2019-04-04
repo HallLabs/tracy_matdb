@@ -1,3 +1,10 @@
+"""Depending on the `matdb` context, it is often useful to watch
+   the output that is being piped to the batch output file. This
+   script is a simple handler around `tail -f` that keeps track
+   of file paths for output files.
+
+"""
+
 #!/usr/bin/python
 from os import path
 from matdb import msg

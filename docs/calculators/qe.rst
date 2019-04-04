@@ -114,6 +114,9 @@ below:
          Al: '2.0.1' '.5.1'
 	 Pd: '2.0.1' '2.1.1'
 
+QE Calculator
+-------------
+
 .. automodule:: matdb.calculators.qe
    :synopsis: Quantum Espresso subclass for interacting with the `ase`
               Quantum Espresso calculator for job file creation.

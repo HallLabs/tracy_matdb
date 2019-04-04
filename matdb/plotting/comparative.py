@@ -15,7 +15,7 @@ from matdb.phonons import from_yaml, _calc_bands, calc as phon_calc
 from matdb.kpoints import parsed_kpath
 from matdb import msg
 from matdb.transforms import conform_supercell
-from matdb.calculators import build_calc
+from matdb.calculators.utility import build_calc
 
 def band_plot(dbs, fits=None, npts=100, title="{} Phonon Spectrum", save=None,
               figsize=(10, 8), nbands=None, delta=0.01, quick=True, **kwargs):

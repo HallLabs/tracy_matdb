@@ -1,3 +1,8 @@
+"""When producing hessians with the Hessian group, a supercell
+   needs to be selected. This script streamlines the selection
+   process for multiple seeds and sizes.
+
+"""
 #!/usr/bin/python
 from os import path
 from glob import glob

@@ -1,3 +1,9 @@
+"""Each context has a controller that provides a find() method for
+   looking up instances within that context. This script provides
+   a simple interface for finding things.
+
+"""
+
 #!/usr/bin/python
 from os import path
 from matdb import msg

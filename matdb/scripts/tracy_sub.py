@@ -1,3 +1,8 @@
+"""Once a database of configurations has been built and prepped 
+   for submission to the Tracy Queue this script will grab the data 
+   and submit it to the job script.
+
+"""
 #!/usr/bin/python
 
 import datetime
@@ -6,7 +11,7 @@ import argparse
 import sys
 from os import path
 
-import tracy_wrapper
+#import tracy_wrapper
 
 from matdb.utility import _get_reporoot
 from matdb import msg

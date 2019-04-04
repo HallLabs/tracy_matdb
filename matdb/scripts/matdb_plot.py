@@ -1,3 +1,7 @@
+"""While constructing the database, there are several times when
+   plots are needed: phonon bands, prediction errors, etc. This
+   script provides a unified interface for all such plotting.
+"""
 #!/usr/bin/python
 from os import path, mkdir
 import matplotlib

@@ -1,3 +1,10 @@
+"""Because matdb supports many different interatomic potential
+   trainers, and since each possibly has its own custom format
+   for the configuration databases, conversion is inevitable.
+   Matdb uses HDF5 for compactness, but can convert between 
+   formats using this script.
+"""
+
 #!/usr/bin/python
 from os import path
 from matdb import msg

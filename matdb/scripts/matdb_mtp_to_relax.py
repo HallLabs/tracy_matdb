@@ -1,3 +1,7 @@
+"""Constructs the to-relax.cfg file for the mtp potential
+   to learn on for the desired system.
+"""
+
 #!/usr/bin/python
 def examples():
     """Prints examples of using the script to the console using colored output.

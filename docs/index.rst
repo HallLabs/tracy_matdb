@@ -1,5 +1,5 @@
-.. matdb documentation master file, created by
-   sphinx-quickstart on Tue Apr  4 10:08:13 2017.
+.. Tracy Science documentation master file, created by
+   sphinx-quickstart on Mon Apr  1 13:53:39 2019.
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
@@ -24,19 +24,29 @@ following links document the internal API and give some examples.
    :caption: Control Scripts:
 	     
    scripts.rst
+   execution.rst
 
 .. toctree::
    :maxdepth: 1
-   :caption: Sub-packages, Modules, and other details:
+   :caption: Sub-packages and Modules:
 
+   calculators.rst
    databases.rst
    fitting.rst
    kpoints.rst
    io.rst
+   data.rst
+   base.rst
+   atoms.rst
+   descriptors.rst
+   queries.rst
    utility.rst
-   calculator.rst
-   execution.rst
-
+   transforms.rst
+   exceptions.rst
+   logs.rst
+   msg.rst
+   phonons.rst
+   plotting.rst
 
 Indices and tables
 ==================

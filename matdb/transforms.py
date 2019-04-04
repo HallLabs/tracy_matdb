@@ -1,9 +1,9 @@
 """Often it is desirable to transform an atoms object into another atoms
 object. This is a one-to-one mapping. If you are looking to apply a
-transformation that creates new configs, you should use a regular
+transformation that creates new configurations, you should use a regular
 `matdb.database.Group` subclass.
 
-To create your own transform, make an importable function that accepts a single
+To create your own `transform` function, declare an importable function that accepts a single
 positional argument, `at` of type :class:`matdb.Atoms` and returns an object of
 the same type.
 """
@@ -83,7 +83,7 @@ def _get_supers(at, sizes):
     return result
 
 def supercell(at, supercell=None, min_distance=None, max_multiple=None):
-    """Transforms the given atoms object into a supercell.
+    """Transforms an atoms object into a supercell.
 
     .. note:: If you don't specify an explicit supercell using `supercell`
       keyword, `matdb` will enumerate all unique supercells up to
@@ -95,7 +95,7 @@ def supercell(at, supercell=None, min_distance=None, max_multiple=None):
           forms the supercell matrix. It should have length 3 or 9. If length 3,
           it is assumed to be a diagonal matrix.
         min_distance (float): for enumerated supercell selection, the minimum
-          distance (in Ang.) that should exist between every atom and its
+          distance (in Angstrom) that should exist between every atom and its
           periodic image in the supercell.
         max_multiple (int): the number of atoms in the supercell is the number
           of atoms in the primitive, times the determinant of the supercell

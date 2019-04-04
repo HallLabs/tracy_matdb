@@ -1,3 +1,9 @@
+"""In a previous version of `matdb`, the pre-comp-atoms.h5
+   file would be removed after cleanup. But, if the cleanup
+   produced any unnoticed errors, we may lose the pre-comp 
+   file and it is hard to reproduce. This script remedies that.
+"""
+
 #!/usr/bin/python
 from os import path, remove
 import h5py

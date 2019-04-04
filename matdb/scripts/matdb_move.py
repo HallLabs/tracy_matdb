@@ -1,3 +1,9 @@
+"""During regular research prototyping, it is often useful to
+   retry a fit with different parameters (for example while
+   changing the code). This script allows an existing trainer
+   to be renamed or duplicated.
+"""
+
 #!/usr/bin/python
 from os import path, remove, listdir
 import yaml

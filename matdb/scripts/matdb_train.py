@@ -1,3 +1,12 @@
+"""Once a database of configurations has been built, the next
+   step is to train some interatomic potentials. This script
+   wraps the `teach_sparse` functionality in QUIP and connects
+   the database of configurations to it according to best
+   practices. Note that 2+3+xxx training is an iterative process
+   and so this script needs to be run multiple times.
+
+"""
+
 #!/usr/bin/python
 def examples():
     """Prints examples of using the script to the console using colored output.
