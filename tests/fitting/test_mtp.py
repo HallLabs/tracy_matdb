@@ -546,6 +546,8 @@ def test_command_functions2(mtpdb):
     cmd_template = mtpfit.command()
     assert cmd_template == ''
 
+    #import pdb; pdb.set_trace()
+
     assert len(mtpfit.active.last_iteration) == 10
     assert path.isfile(path.join(mtpfit.root, "relaxed.cfg_iter_1"))
     assert path.isfile(path.join(mtpfit.root, "new_training.cfg_iter_1"))
