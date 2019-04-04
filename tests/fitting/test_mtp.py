@@ -531,8 +531,6 @@ def test_command_functions(mtpdb):
         line = f.read()
     assert line.strip() == "add 1 0"    
 
-#This test doesn't work because something is wrong with the jinja template import
-@pytest.mark.skip()
 def test_command_functions2(mtpdb):
     # Finally we test the add step
     from matdb.utility import copyonce, _get_reporoot, touch
@@ -553,7 +551,7 @@ def test_command_functions2(mtpdb):
     assert path.isfile(path.join(mtpfit.root, "new_training.cfg_iter_1"))
     
     templates = path.join(_get_reporoot(), "tests", "mtp", "training")
-    act_root = path.join(mtpdb.root, "Active", "active.active")
+    act_root = path.join(mtpdb.root, "Active", "active.CoWV_mtp")
     files = ["OUTCAR{}", "CONTCAR{}"]
     for i in range(1,11):
         target = path.join(act_root, "Ac.{0}".format(i))
@@ -565,4 +563,4 @@ def test_command_functions2(mtpdb):
         line = f.read()
     assert line.strip() == "done 1 0 10"    
     cmd_template = mtpfit.command()
-    assert cmd_template == mtpfit._train_template
+    assert cmd_template == mtpfit._train_template()
