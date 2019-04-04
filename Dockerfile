@@ -44,7 +44,7 @@ COPY MANIFEST.in $HOME_DIR/codes/matdb
 COPY examples $HOME_DIR/codes
 
 RUN cd $HOME_DIR/codes/matdb \
-    && python3 -m pip install .
+    && python3 -m pip install -e .
 
 # This is to fix the annoying false error messages when the matdb trying to check for depends.
 COPY one_off_fix/pip /usr/bin/pip3
