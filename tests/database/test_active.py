@@ -31,8 +31,8 @@ def Act(tmpdir):
 def test_all_active(Act):
     """Tetsts the setup of the Active database.
     """
-    assert Act.last_iteration is None
-    assert Act.last_config_atoms is None
+    assert (Act.last_iteration is None) or (len(Act.last_iteration) == 0)
+    assert (Act.last_config_atoms is None) or (len(Act.last_config_atoms) == 0)
 
     configs = []
     atSi = Atoms("Si8",positions=[[0,0,0],[0.25,0.25,0.25],[0.5,0.5,0],[0.75,0.75,0.25],
