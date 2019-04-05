@@ -250,7 +250,7 @@ sampled configurations from each lattice will be stored.
 ******************
 
 Once a database of configurations is available, `matdb` can automate
-the fits for you using these settings. See :doc:`fitting.rst` for more
+the fits for you using these settings. See :doc:`fitting` for more
 details.
 
 .. code-block:: yaml

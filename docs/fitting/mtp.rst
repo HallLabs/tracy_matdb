@@ -272,7 +272,7 @@ First Iteration
 8. Run `matdb_train.py cntrl -x` to submit the job to the queue
    (single core process).
 9. Run `matdb_train.py cntrl -t` adss the selected configurations to
-   the :doc:`database/active` for calculation with a first principles
+   the :doc:`../database/active` for calculation with a first principles
    code and submits them to the job queue.
 
 Second Iteration
@@ -282,7 +282,7 @@ The second iteration can be started once the first principles
 calculations are complete.
 
 1. Run `matdb_build.py cntrl -e` to extract data from the new
-   configurations in the :doc:`database/active`.
+   configurations in the :doc:`../database/active`.
 2. Run `matdb_train.py cntrl -t` sets up the files to update the `mtp`
    potential.
 3. Run `matdb_train.py cntrl -x` submits the computations to the queue
@@ -298,7 +298,7 @@ calculations are complete.
 7. Run `matdb_train.py cntrl -x` to submit the job to the queue
    (single core process).
 8. Run `matdb_train.py cntrl -t` adss the selected configurations to
-   the :doc:`database/active` for calculation with a first principles
+   the :doc:`../database/active` for calculation with a first principles
    code and submits them to the job queue.
 
 The process for the second iteration is repeated until either the
