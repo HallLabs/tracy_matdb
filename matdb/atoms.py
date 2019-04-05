@@ -238,14 +238,6 @@ class Atoms(ase.Atoms):
         if name in self.info["properties"]:
             del self.info["properties"][name]
             
-    def __del__(self):
-        attributes = list(vars(self))
-        for attr in attributes:
-            if isinstance(getattr(self,attr),dict):
-                self.attr = {}
-            else:
-                self.attr = None
-
     def __getattr__(self, name):
         if name in ["params", "properties"]:
             return self.info[name]
@@ -289,7 +281,6 @@ class Atoms(ase.Atoms):
         """Replace contents of this Atoms object with data from `other`."""
 
         from ase.spacegroup import Spacegroup
-        self.__class__.__del__(self)
         
         if isinstance(other, Atoms):
             # We need to convert the attributes of the other atoms

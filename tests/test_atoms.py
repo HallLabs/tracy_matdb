@@ -256,6 +256,38 @@ def test_Atoms_attributes(tmpdir):
          [ 11159.15815145,  18969.1757571 ,  18969.1757571 ]]
     assert "vasp_force" in at1.info["properties"]
     
+def test_Atoms__getattr__():
+    """Tests the mothed Atoms.__getattr__
+    """
+    from matdb.atoms import Atoms
+
+    at1 = Atoms("Co3W2V3",positions=[[0,0,0],[0.25,0.25,0.25],[0.5,0.5,0],[1.75,1.75,1.25],
+                                  [1.5,1,1.5],[2.75,2.25,2.75],[2,2.5,2.5],[2.25,2.75,2.75]],
+                 cell=[5.43,5.43,5.43],info={"params":{"vasp_energy": 1234}, "properties":{}})
+    assert at1.__getattr__("params") == {"vasp_energy": 1234}
+    assert at1.__getattr__("properties") == {}
+    assert np.allclose(at1.__getattr__("cell"), [[5.43, 0.  , 0.  ], [0.  , 5.43, 0.  ], [0.  , 0.  , 5.43]])
+    assert np.allclose(at1.__getattr__("positions"), [[0,0,0],[0.25,0.25,0.25],[0.5,0.5,0],[1.75,1.75,1.25],
+                                  [1.5,1,1.5],[2.75,2.25,2.75],[2,2.5,2.5],[2.25,2.75,2.75]])
+
+def test_Atoms__setattr__():
+    """Tests the mothed Atoms.__setattr__
+    """
+    from matdb.atoms import Atoms
+
+    at1 = Atoms("Co3W2V3")
+    at1.__setattr__("params", {"vasp_energy": 1234})
+    at1.__setattr__("properties", {})
+    at1.__setattr__("cell", [[5.43, 0.  , 0.  ], [0.  , 5.43, 0.  ], [0.  , 0.  , 5.43]]) 
+    at1.__setattr__("positions", [[0,0,0],[0.25,0.25,0.25],[0.5,0.5,0],[1.75,1.75,1.25],
+                                  [1.5,1,1.5],[2.75,2.25,2.75],[2,2.5,2.5],[2.25,2.75,2.75]])
+
+    assert at1.__getattr__("params") == {"vasp_energy": 1234}
+    assert at1.__getattr__("properties") == {}
+    assert np.allclose(at1.__getattr__("cell"), [[5.43, 0.  , 0.  ], [0.  , 5.43, 0.  ], [0.  , 0.  , 5.43]])
+    assert np.allclose(at1.__getattr__("positions"), [[0,0,0],[0.25,0.25,0.25],[0.5,0.5,0],[1.75,1.75,1.25],
+                                  [1.5,1,1.5],[2.75,2.25,2.75],[2,2.5,2.5],[2.25,2.75,2.75]])
+
 def test_Atoms_copy():
     """Tests the mothed Atoms.copy_from() to copy from an matdb.atoms
     """
