@@ -1,7 +1,7 @@
 """Since some potential fitting requires multi-step processes, we need to
 implement controller objects that keep the various training steps ordered
 correctly, and provide easy access to relevant data from previous steps. This
-module supplies objects (similar in spirit to :mod:`matdb.database.__init__`
+module supplies objects (similar in spirit to :mod:`matdb.database.__init__`)
 for producting sequences of training objects that can be repeated across
 parameter grids.
 """
@@ -25,7 +25,7 @@ class TrainingSequence(object):
         root (str): root directory in which all other training sequences for
           the configurations in the same specification will be stored.
         controller (TController): instance controlling multiple trainers.
-        steps (list): of `dict` describing the kinds of potential training steps
+        steps (list): list of `dict` describing the kinds of potential training steps
           to setup.
         kwargs (dict): key-value pairs to pass to the individual trainer
           objects (only used if they don't override the values).
@@ -88,7 +88,7 @@ class TrainingSequence(object):
     def isteps(self):
         """Returns a generator over steps in this sequence. The generator yields
         the next step *only* if the previous one is already finished (i.e., the
-        `ready()` method returns True.
+        `ready()` method returns True).
         """
         previous = None
         for tname, trainer in self.steps.items():
@@ -126,8 +126,7 @@ class TrainingSequence(object):
         """Submits the job script for the each training step in the sequence.
 
         Args:
-            dryrun (bool): when True, simulate the submission without actually
-              submitting.
+            dryrun (bool): when True, simulate the submission without submitting.
         """
         for fitname, fit in self.isteps:
             fit.execute(dryrun)
@@ -181,7 +180,7 @@ class TController(object):
           to use.
         root (str): path to the root directory for the system.
         fits (dict): key-value pairs defining the list of fitters to try out.
-        e0 (list): of `float` values indicating the *isolated* atom energy in
+        e0 (list): list of `float` values indicating the *isolated* atom energy in
           `eV`.
         plotting (dict): keyword arguments for plotting to generate for each
           trainer after it is finished fitting. This uses
@@ -212,8 +211,8 @@ class TController(object):
         collection of this object.
 
         Args:
-            tfilter (list): of `str` patterns to match against *fit* names.
-            tfilter (list): of `str` patterns to match against *step* names.
+            tfilter (list): list of `str` patterns to match against *fit* names.
+            tfilter (list): list of `str` patterns to match against *step* names.
         """
         from fnmatch import fnmatch
         for name, fit in self.fits.items():
@@ -252,8 +251,8 @@ class TController(object):
 
         Args:
             datafile (str): path to the data file to read the atoms list from.
-            tfilter (list): of `str` patterns to match against *fit* names.
-            tfilter (list): of `str` patterns to match against *step* names.
+            tfilter (list): list of `str` patterns to match against *fit* names.
+            tfilter (list): list of `str` patterns to match against *step* names.
             energy (bool): when True, validate the energies of each
               configuration.
             forces (bool): when True, validate the force *components* of each
@@ -273,8 +272,8 @@ class TController(object):
         """Creates the jobfiles for every trainer in the system.
 
         Args:
-            tfilter (list): of `str` patterns to match against *fit* names.
-            tfilter (list): of `str` patterns to match against *step* names.
+            tfilter (list): list of `str` patterns to match against *fit* names.
+            tfilter (list): list of `str` patterns to match against *step* names.
         """
         for fitname, fit in self.ifiltered(tfilter, sfilter):
             fit.jobfiles()
@@ -283,8 +282,8 @@ class TController(object):
         """Executes the jobfiles for every trainer in the system.
 
         Args:
-            tfilter (list): of `str` patterns to match against *fit* names.
-            tfilter (list): of `str` patterns to match against *step* names.
+            tfilter (list): list of `str` patterns to match against *fit* names.
+            tfilter (list): list of `str` patterns to match against *step* names.
         """
         for fitname, fit in self.ifiltered(tfilter, sfilter):
             fit.execute(dryrun)
@@ -293,8 +292,8 @@ class TController(object):
         """Prints status information for training steps in the controller.
 
         Args:
-            tfilter (list): of `str` patterns to match against *fit* names.
-            tfilter (list): of `str` patterns to match against *step* names.
+            tfilter (list): list of `str` patterns to match against *fit* names.
+            tfilter (list): list of `str` patterns to match against *step* names.
             printed (bool): when True, print the status to screen; otherwise,
               return a dictionary with the relevant quantities.
         """

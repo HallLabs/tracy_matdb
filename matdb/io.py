@@ -187,7 +187,7 @@ def cfg_to_atomslist(cfgfile, config_type=None, species=None):
           species in the CFG dictionary.
 
     Returns:
-        AtomList : An AtomsList object containing the all the cells in the CFG file.
+        matdb.atoms.AtomsList : An AtomsList object containing the all the cells in the CFG file.
 
     """
 
