@@ -2,5 +2,5 @@ Comparative Module
 =============================
 
 .. automodule:: matdb.plotting.comparative
-   :synopsis: Functions 
+   :synopsis: Plotter modules for phonon bands.
    :members:      

@@ -1,5 +1,5 @@
 """`matdb` generates many databases and potentials en route to the final
-product. In order to adjust parameters it is useful to plot potentials and
+product. In order to adjust parameters, it is useful to plot potentials and
 convergence runs against each other.
 """
 from os import path
@@ -22,19 +22,19 @@ def band_plot(dbs, fits=None, npts=100, title="{} Phonon Spectrum", save=None,
     """Plots the phonon bands for the specified CLI args.
 
     Args:
-        dbs (list): of :class:`matdb.database.hessian.Hessian` `phonopy`
+        dbs (list): list of :class:`matdb.database.hessian.Hessian` `phonopy`
           calculation database instances that have DFT-accurate band
           information.
-        fits (list): of :class:`~matdb.fitting.basic.Trainer` to calculate bands
+        fits (list): list of :class:`~matdb.fitting.basic.Trainer` to calculate bands
           for.
-        dim (list): of `int`; supercell dimensions for the phonon calculations.
+        dim (list): list of `int`; supercell dimensions for the phonon calculations.
         npts (int): number of points to sample along the special path in
           k-space.
         title (str): Override the default title for plotting; use `{}` for
           formatting chemical formula.
         save (str): name of a file to save the plot to; otherwise the plot is
           shown in a window.
-        figsize (tuple): of `float`; the size of the figure in inches.
+        figsize (tuple): tuple of `float`; the size of the figure in inches.
         delta (float): size of displacement for finite difference derivative.
         nbands (int): number of bands to plot.
         quick (bool): when True, use symmetry to speed up the Hessian

@@ -2,5 +2,5 @@ Plotter Functions
 =============================
 
 .. automodule:: matdb.plotting.plotter
-   :synopsis: Functions 
+   :synopsis: Generic plotter module.
    :members:      

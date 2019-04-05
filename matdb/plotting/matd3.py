@@ -1,5 +1,5 @@
 """Custom plug-ins to create interactive plots with `matplotlib` and
-`d3.js` for exploring fits and material properties.
+`d3.js`. Plots are used for exploring fits and material properties.
 """
 from mpld3 import utils, plugins
 from os import path
@@ -8,7 +8,7 @@ import numpy as np
 class PointDetailImage(object):
     """Container for an image associated with a single point in the main plot.
 
-    .. note:: To add labels to x- and y- axes, use `subplot_kw`
+    .. note:: To add labels to x- and y- axis, use `subplot_kw`
       arguments. Adding a title uses that same set. See
       :meth:`~matplotlib.figure.Figure.add_subplot` for details.
 
@@ -250,23 +250,23 @@ def html(data, folder, plot="scatter", subplot_kw=None, gridspec_kw=None,
 
 class ImagesAtPoint(plugins.PluginBase):
     """Plugin for displaying a series of rasterized plots specific to
-    the particular point that get's clicked on.
+    the particular point that gets clicked on.
 
     Args:
         points (matplotlib.collections.PathCollection): list of points returned
           by the matplotlib plotting routine (such as
           :func:`matplotlib.pyplot.plot`, :func:`matplotlib.pyplot.scatter`,
           etc.
-        names (list): of names or titles to display for each point in `points`.
+        names (list): list of names or titles to display for each point in `points`.
         ncols (int): number of columns of images below the main image.
         titles (dict): keys are user-defined plot types in `images`; values are
           `str` titles to use for each of the image types.
         images (dict): keys are user-defined plot types;
-          values are a list of URLs to put in the `<img>` tag's `src` attribute
+          values are a list of URLs to put in the `src` attribute of the `<img>` tag
           for each point in `points`.
 
     Attributes:
-        names (list): of names or titles to display for each point in `points`.
+        names (list): list of names or titles to display for each point in `points`.
         ncols (int): number of columns of images below the main image.
         images (dict): keys are user-defined plot types;
           values are a list of base64-encode URLs (returned by
