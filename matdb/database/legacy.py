@@ -65,12 +65,12 @@ class LegacyDatabase(object):
         name (str): the name to use for the database.
         root (str): root directory in which all other database sequences for
           the configurations in the same specification will be stored.
-        controller (matdb.database.controller.Controller): instance controlling
+        controller (matdb.database.Controller): instance controlling
           multiple configurations.
         splits (dict): keys are split names; values are `float` *training*
           percentages to use.
-        folder (str): path to the directory here the database files are stored.
-        pattern (str): or a list of `str` that provide :func:`~fnmatch.fnmatch`
+        folder (str): path to the directory where the database files are stored.
+        pattern (str): `str` or list of `str` that provide :func:`~fnmatch.fnmatch`
           patterns for selecting files in `folder`. All the provided files will
           be combined to form the final database.
         config_type (str): the configuration type to use in labeling the instances in
@@ -81,7 +81,7 @@ class LegacyDatabase(object):
           tensor.
 
     Attributes:
-        dbfiles (list): of `str` file paths that were sources for this legacy
+        dbfiles (list): list of `str` file paths that were sources for this legacy
           database.
     """
     def __init__(self, name=None, root=None, controller=None, splits=None,

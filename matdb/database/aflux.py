@@ -125,11 +125,11 @@ class Aflow(Group):
         catalog (str): one of the catalogs supported on AFLOW: ['icsd', 'lib1',
           'lib2', 'lib3']. Also supports a `list` of catalog names.
         batch_size (int): number of data entries to return per HTTP request.
-        filters (list): of DSL-compatible filters; see documentation above.
-        select (list): of `str` keyword names to include in the result.
+        filters (list): list of DSL-compatible filters; see documentation above.
+        select (list): list of `str` keyword names to include in the result.
         orderby (dict): with keys `keyword` and `reverse` specifying an optional
           keyword to order the result by.
-        exclude (list): of `str` keywords to exclude from the result.
+        exclude (list): list of `str` keywords to exclude from the result.
         keywords (dict): keys are keyword obects accessible from `aflow.K`;
           values are desired `str` names in the parameters dictionary of the
           atoms object. See :meth:`aflow.entries.Entry.atoms`.
@@ -138,15 +138,15 @@ class Aflow(Group):
         catalog (str): one of the catalogs supported on AFLOW: ['icsd', 'lib1',
           'lib2', 'lib3']. Also supports a `list` of catalog names.
         batch_size (int): number of data entries to return per HTTP request.
-        filters (list): of :class:`aflow.keywords.Keyword` for filtering the
+        filters (list): list of :class:`aflow.keywords.Keyword` for filtering the
           results.
-        select (list): of :class:`aflow.keywords.Keyword` to include in the
+        select (list): list of :class:`aflow.keywords.Keyword` to include in the
           result.
         orderby (dict): :class:`aflow.keywords.Keyword` to order the result by.
         reverse (bool): when True, reverse the ordering of the results.
-        exclude (list): of :class:`aflow.keywords.Keyword` to exclude from the
+        exclude (list): list of :class:`aflow.keywords.Keyword` to exclude from the
           result.
-        auids (list): of `str` ids from AFLOW database that are the latest
+        auids (list): list of `str` ids from AFLOW database that are the latest
           result from executing the query.
     """
     def __init__(self, catalog=None, batch_size=100, filters=None, select=None,

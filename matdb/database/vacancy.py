@@ -1,4 +1,4 @@
-'''Group of matdb.atoms.Atoms objects with atomic vacancies
+'''Group of :class:`~matdb.atoms.Atoms` objects with atomic vacancies
 taken from a seed configuration.
 '''
 
@@ -13,7 +13,7 @@ from matdb.atoms import Atoms, AtomsList
 from matdb.database import Group  # create the vacancies group
 
 class Vacancy(Group):
-    '''Vacancy.py: Group to create atomic vacancies from a seed configuration.
+    '''Group to create atomic vacancies from a seed configuration.
 
     Args:
         name(str): default name Vacancy
@@ -26,20 +26,19 @@ class Vacancy(Group):
         dbargs (dict): dictionary of arguments to be passed to the
             `Group` class.
     .. note:: Additional attributes are also exposed by the super class
-          :class:`Group`.
+          :class:`~matdb.database.Group`.
 
     Attributes:
-        name (str): name of this database type relative to the over database
+        name (str): Name of this database type relative to the database
              collection. This is also the name of the folder in which all of
              its calculations will be performed.
         num_atom(int): The number of atoms present in each atoms object.
         num_vac(int): The number of vacancies per cell.
-        select_atoms(list): list of lists with indices of atoms to be removed
-        unique_perm(int): number of possible combinations
+        select_atoms(list): List of lists with indices of atoms to be removed
+        unique_perm(int): Number of possible combinations
 
     Returns:
-        vacancies(AtomsList): list of atoms objects of length nconfigs with
-             unique vacancies for each cell.
+        AtomsList: list of atoms objects of length nconfigs with unique vacancies for each cell.
     '''
 
     def __init__(self, ran_seed=None, vac_per_atom=0, min_index=0,
@@ -150,7 +149,7 @@ class Vacancy(Group):
 
     @property
     def fitting_configs(self):
-        """Returns a :class:`matdb.atoms.AtomsList` for all configs in this
+        """Returns a :class:`~matdb.atoms.AtomsList` for all configs in this
         group.
         """
         if len(self.sequence) == 0:
@@ -194,7 +193,7 @@ class Vacancy(Group):
         return result
 
     def rset(self):
-        """Returns a :class:`matdb.atoms.AtomsList`, one for each config in the
+        """Returns a :class:`~matdb.atoms.AtomsList`, one for each config in the
         latest result set.
         """
         if len(self.sequence) == 0:
@@ -231,7 +230,7 @@ class Vacancy(Group):
         """Loops over the vacancies routine until the desired number of
         configurations have been reached
         Args:
-            group (:class:`matdb.database.basic.Group`): An instance of
+            group (:class:`~matdb.database.basic.Group`): An instance of
                 the group class.
             rerun (int): when > 0, recreate job files; if > 1, recreate the
                 folders even if they already exist.
@@ -266,7 +265,7 @@ class Vacancy(Group):
                  would produce the same vacancies in each cell.
 
         .. note:: Additional attributes are also exposed by the super class
-              :class:`Group`.
+              :class:`~matdb.database.Group`.
 
         Attributes:
             name (str): name of this database type relative to the over

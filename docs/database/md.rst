@@ -5,6 +5,6 @@ MD Database
 ***********
 
 .. automodule:: matdb.database.md
-   :synopsis: Database sub-classes for implementing databases ...
+   :synopsis: Module for generating MD runs.
    :members:      
 

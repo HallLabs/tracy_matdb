@@ -5,6 +5,6 @@ Liquid Database
 ***************
 
 .. automodule:: matdb.database.liquid
-   :synopsis: Database sub-classes for implementing databases ...
+   :synopsis: Database of configuration generated from liquid-temperature molecular dynamics.
    :members:      
 

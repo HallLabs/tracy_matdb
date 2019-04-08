@@ -37,23 +37,21 @@ class AsyncQe(Espresso, AsyncCalculator):
       `matdb`.
 
     Args:
-        atoms (matdb.Atoms): configuration to calculate using QE.
+        atoms (matdb.atoms.Atoms): configuration to calculate using QE.
         folder (str): path to the directory where the calculation should take
           place.
         contr_dir (str): The absolute path of the controller's root directory.
         ran_seed (int or float): the random seed to be used for this calculator.
     
     Attributes:
-        tarball (list): of `str` QE output file names that should be included
-          in an archive that represents the result of the calculation.
-        folder (str): path to the directory where the calculation should take
-          place.
+        tarball (list): list of `str` QE output file names that should be included in an archive that represents the result of the calculation.
+        folder (str): path to the directory where the calculation should take place.
         potcars (dict): a dictionary of the values for the potentials used.
         kpoints (dict): a dictionary of the values used for k-point generation.
         out_file (str): the output file that QE will write too.
         out_dir (str): the output directory for QE files.
         version (str): the version of QE used for calculations.
-        atoms (matdb.Atoms): the configuration for calculations.
+        atoms (matdb.atoms.Atoms): the configuration for calculations.
 
     """
     key = "qe"

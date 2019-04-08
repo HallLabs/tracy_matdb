@@ -22,7 +22,7 @@ def build_calc(name, relpath, *args, **kwargs):
         relpath (str): path to the directory in which to instantiate the calculator.
 
     Note:
-        atoms (matdb.Atoms): 
+        atoms (matdb.atoms.Atoms): 
             default atoms object for the calculator. An empty `Atoms` object is created. 
             This shouldn't impact calculations since the calculator does not require a folder to run.
 

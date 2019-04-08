@@ -17,10 +17,10 @@ class Active(Group):
     added to by the active learning approach.
 
     .. note:: Additional attributes are also exposed by the super class
-      :class:`Group`.
+      :class:`~matdb.database.Group`.
 
     Attributes:
-        auids (list): the unique ids for each config in the group
+        list: the unique ids for each config in the group
     """
     def __init__(self, name="active", **dbargs):
         self.name = name
@@ -104,7 +104,7 @@ class Active(Group):
 
     @property
     def rset(self):
-        """Returns a :class:`matdb.atoms.AtomsList`, one for each config in the
+        """Returns a :class:`~matdb.atoms.AtomsList`, one for each config in the
         latest result set.
         """
 
@@ -119,7 +119,7 @@ class Active(Group):
         """Adds the atoms objects in the list to the configs of the active set.
 
         Args:
-            new_configs (list): list of `matdb.atoms.Atoms` objects to be added
+            list: list of :class:`~matdb.atoms.Atoms` objects to be added
                 to the active learning set.
         """
 
@@ -202,16 +202,14 @@ class Active(Group):
     def execute(self, dryrun=False, recovery=False, env_vars=None):
         """Submits the job script for each of the folders in this
         database if they are ready to run.
+
         Args:
-            dryrun (bool): when True, simulate the submission without
-              actually submitting.
-            recovery (bool): when True, submit the script for running recovery
-              jobs.
-            env_vars (dict): of environment variables to set before calling the
-              execution. The variables will be set back after execution.
+            dryrun (bool): when True, simulate the submission without actually submitting.
+            recovery (bool): when True, submit the script for running recovery jobs.
+            env_vars (dict): `dict` of environment variables to set before calling the execution. The variables will be set back after execution.
+
         Returns:
-            bool: True if the submission generated a job id
-            (considered successful).
+            bool: True if the submission generated a job id (considered successful).
         """
 
         self._expand_sequence()

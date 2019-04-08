@@ -19,10 +19,10 @@ class Manual(Group):
         dbargs (dict): a dictionary of arguments for the Group class.
 
     .. note:: Additional attributes are also exposed by the super class
-      :class:`Group`.
+      :class:`~matdb.database.Group`.
 
     Attributes:
-        name (str): name of this database type relative to the over database
+        name (str): Name of this database type relative to the database
           collection. This is also the name of the folder in which all of its
           calculations will be performed.
     """
@@ -58,7 +58,7 @@ class Manual(Group):
 
     @property
     def fitting_configs(self):
-        """Returns a :class:`matdb.atoms.AtomsList` for all configs in this
+        """Returns a :class:`~matdb.atoms.AtomsList` for all configs in this
         group.
         """
         if len(self.sequence) == 0:
@@ -79,7 +79,7 @@ class Manual(Group):
         """Returns the reusable set to the next database group.
 
         Returns:
-            list: of :class:`matdb.atoms.Atoms`
+            list: list of :class:`~matdb.atoms.Atoms`
         """
         if len(self.sequence) == 0:
             #We are at the bottom of the stack;
