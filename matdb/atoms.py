@@ -205,10 +205,7 @@ class Atoms(ase.Atoms):
             value: the value/values that are associated with the attribute.
         """
         name = str(name)
-        if hasattr(self,name) or name in self.info["properties"]:
-            self.info["properties"][name] = value
-        else:
-            self.info["properties"][name]=value
+        self.info["properties"][name]=value
 
     def add_param(self,name,value):
         """Adds an attribute to the class instance.
@@ -217,10 +214,7 @@ class Atoms(ase.Atoms):
             value: the value/values that are associated with the attribute.
         """
         name = str(name)
-        if hasattr(self,name) or name in self.info["params"]:
-            self.info["params"][name] = value
-        else:
-            self.info["params"][name]=value
+        self.info["params"][name]=value
         
     def rm_param(self,name):
         """Removes a parameter as attribute from the class instance and info dictionary.
@@ -370,7 +364,7 @@ class Atoms(ase.Atoms):
                     if kwargs is not None:
                         calc = calc(self, data["folder"], data["calc_contr_dir"],
                                     data["calc_ran_seed"], *args, **kwargs)
-                    else:
+                    else: # pragma: no cover (all calculators require key words at this time)
                         calc = calc(self, data["folder"], data["calc_contr_dir"],
                                     data["calc_ran_seed"], *args)
                 else: #pragma: no cover This case has never come up in
@@ -510,9 +504,6 @@ class AtomsList(list):
             else:
                 return seq
 
-    def __getslice__(self, first, last):
-        return self.__getitem__(slice(first,last,None))
-
     def __getitem__(self, idx):
         if isinstance(idx, list) or isinstance(idx, np.ndarray):
             idx = np.array(idx)
@@ -554,7 +545,7 @@ class AtomsList(list):
         import operator
         if attr is None:
             if key is not None:
-                list.sort(self, key, reverse)
+                list.sort(self, key=key, reverse=reverse)
             else:
                 list.sort(self, reverse=reverse)
         else:

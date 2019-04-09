@@ -75,6 +75,32 @@ def test_recursive_convert():
     
     assert not compare_nested_dicts(test,dict_out)
 
+def test_recursive_convert_atom_list():
+    """Tests the recursive unit conversion.
+    """
+    from matdb.atoms import _recursively_convert_units, Atoms
+    import numpy
+
+    at1 = Atoms("Si8",positions=[[0,0,0],[0.25,0.25,0.25],[0.5,0.5,0],[0.75,0.75,0.25],
+                                  [0.5,0,0.5],[0.75,0.25,0.75],[0,0.5,0.5],[0.25,0.75,0.75]],
+                 cell=[5.43,5.43,5.43],info={"rand":10})
+    
+    at2 = Atoms("S6",positions=[[0,0,0],[0.25,0.25,0.25],[0.5,0.5,0],[0.75,0.75,0.25],
+                                  [0.5,0,0.5],[0.75,0.25,0.75]],
+                 cell=[6.43,5.43,4.43],info={"rand":10})
+
+    at3 = Atoms("CNi",positions=[[0,0,0],[0.5,0.5,0.5]], info={"rand":8})
+
+    dict_in = {"a":10, "b":[at1, at2, at3]}
+
+    test = _recursively_convert_units(dict_in, True)
+    assert len(test["b"]) == 3
+    assert isinstance(test["b"], dict)
+
+    test = _recursively_convert_units(dict_in)
+    assert len(test["b"]) == 3
+    assert isinstance(test["b"], numpy.ndarray)
+
 def test_calc_name_converter():
     """Tests the calculator name convertor.
     """
@@ -194,6 +220,18 @@ def test_Atoms_creation(tmpdir):
     assert np.allclose(atR.cell,atSi.cell)
     remove(path.join(target,"temp.xyz"))
 
+def test_make_supercell():
+    """Tests make_supercell method.
+    """
+    from matdb.atoms import Atoms
+    supercell=(1, 1, 1)
+    atSi = Atoms("Si8",positions=[[0,0,0],[0.25,0.25,0.25],[0.5,0.5,0],[0.75,0.75,0.25],
+                                  [0.5,0,0.5],[0.75,0.25,0.75],[0,0.5,0.5],[0.25,0.75,0.75]],
+                 cell=[5.43,5.43,5.43])
+    scell = atSi.make_supercell(supercell)
+    assert scell is not None
+    assert isinstance(scell, Atoms)
+
 def test_Atoms_get_energy():
     """Tests get_energy method.
     """
@@ -270,6 +308,11 @@ def test_Atoms__getattr__():
     assert np.allclose(at1.__getattr__("positions"), [[0,0,0],[0.25,0.25,0.25],[0.5,0.5,0],[1.75,1.75,1.25],
                                   [1.5,1,1.5],[2.75,2.25,2.75],[2,2.5,2.5],[2.25,2.75,2.75]])
 
+    at2 = Atoms("Co3W2V3", cell=[5.43,5.43,5.43])
+    del at2.__dict__["info"]
+    assert not hasattr(at2,"info")
+    assert np.allclose(at2.__getattr__("cell"), [[5.43, 0.  , 0.  ], [0.  , 5.43, 0.  ], [0.  , 0.  , 5.43]])
+
 def test_Atoms__setattr__():
     """Tests the mothed Atoms.__setattr__
     """
@@ -277,19 +320,25 @@ def test_Atoms__setattr__():
 
     at1 = Atoms("Co3W2V3")
     at1.__setattr__("params", {"vasp_energy": 1234})
-    at1.__setattr__("properties", {})
+    at1.__setattr__("properties", {"rank": 21})
     at1.__setattr__("cell", [[5.43, 0.  , 0.  ], [0.  , 5.43, 0.  ], [0.  , 0.  , 5.43]]) 
     at1.__setattr__("positions", [[0,0,0],[0.25,0.25,0.25],[0.5,0.5,0],[1.75,1.75,1.25],
                                   [1.5,1,1.5],[2.75,2.25,2.75],[2,2.5,2.5],[2.25,2.75,2.75]])
 
     assert at1.__getattr__("params") == {"vasp_energy": 1234}
-    assert at1.__getattr__("properties") == {}
+    assert at1.__getattr__("properties") == {"rank": 21}
     assert np.allclose(at1.__getattr__("cell"), [[5.43, 0.  , 0.  ], [0.  , 5.43, 0.  ], [0.  , 0.  , 5.43]])
     assert np.allclose(at1.__getattr__("positions"), [[0,0,0],[0.25,0.25,0.25],[0.5,0.5,0],[1.75,1.75,1.25],
                                   [1.5,1,1.5],[2.75,2.25,2.75],[2,2.5,2.5],[2.25,2.75,2.75]])
 
+    at1.__setattr__("rank", 22)
+    assert at1.__getattr__("rank") == 22
+   
+    at1.__setattr__("vasp_energy", 4321)
+    assert at1.__getattr__("vasp_energy") == 4321
+
 def test_Atoms_copy():
-    """Tests the mothed Atoms.copy_from() to copy from an matdb.atoms
+    """Tests the mothed Atoms.copy to copy from an matdb.atoms
     """
     from matdb.atoms import Atoms
     from numpy import array_equal
@@ -308,7 +357,7 @@ def test_Atoms_copy():
     assert array_equal(at1.cell, at2.cell)
 
 def test_Atoms_copy_from():
-    """Tests the mothed Atoms.copy_from() to copy from an matdb.atoms
+    """Tests the mothed Atoms.copy_from to copy from an matdb.atoms
     """
     from matdb.atoms import Atoms
     from numpy import array_equal
@@ -316,6 +365,8 @@ def test_Atoms_copy_from():
     at1 = Atoms("Co3W2V3",positions=[[0,0,0],[0.25,0.25,0.25],[0.5,0.5,0],[1.75,1.75,1.25],
                                   [1.5,1,1.5],[2.75,2.25,2.75],[2,2.5,2.5],[2.25,2.75,2.75]],
                  cell=[5.43,5.43,5.43],info={"rand":10, "params":{"vasp_energy": 1234}, "properties":{}})
+    at1.__setattr__("magnetic_moments", [1.2,2.3,3.4,4.5,5.6,6.7,7.8,8.9])
+
     at2 = Atoms()
     at2.copy_from(at1)
 
@@ -757,6 +808,16 @@ def test_AtomsList_sort():
     
     al1 = AtomsList([at4,at2,at1,at3])
 
+    #This is to test __getitem__
+    al2 = al1[0:2]
+    assert len(al2) == 2
+
+    al1.sort(key=len)
+    assert al1[0].symbols.get_chemical_formula() == "CoV"
+    assert al1[1].symbols.get_chemical_formula() == "CNi"
+    assert al1[2].symbols.get_chemical_formula() == "S6"
+    assert al1[3].symbols.get_chemical_formula() == "Si8"
+
     al1.sort(attr="vasp_energy")
     assert al1[0].symbols.get_chemical_formula() == "Si8"
     assert al1[1].symbols.get_chemical_formula() == "S6"
@@ -768,4 +829,3 @@ def test_AtomsList_sort():
     assert al1[1].symbols.get_chemical_formula() == "CNi"
     assert al1[2].symbols.get_chemical_formula() == "S6"
     assert al1[3].symbols.get_chemical_formula() == "Si8"
-
