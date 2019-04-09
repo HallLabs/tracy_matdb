@@ -273,7 +273,7 @@ class MTP(Trainer):
             final_mem = final_mem*1000
             if final_unit.lower() == "gb":
                 final_unit = "MB"
-            elif final_uint.lower() == "mb":
+            elif final_unit.lower() == "mb":
                 final_unit = "KB"
             else:
                 msg.error("Unrecognized memory size {}".format(final_unit))
