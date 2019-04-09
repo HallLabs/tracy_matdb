@@ -26,6 +26,7 @@ RUN apt update && apt install -yq \
 
 RUN python3 -m pip install --upgrade pip \
     && python3 -m pip install pytest \
+    && python3 -m pip install pytest-cov \
     && python3 -m pip install tqdm \
     && python3 -m pip install pandas \
     && python3 -m pip install aflow    # this is needed for unit test "tests/calculators/test_aflux.py"
