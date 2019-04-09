@@ -189,7 +189,6 @@ def test_Pd_setup(Pd, Pd_copy):
     #raise Exception("RAWR")
     Pd.setup()
     modelroot = path.join(Pd.root, "Manual","phonon.manual","Pd")
-    import pdb; pdb.set_trace()
     assert Pd["Manual/phonon/Pd/"].root == modelroot
     
     #The matdb.yml file specifies the following database:
@@ -210,7 +209,6 @@ def test_Pd_setup(Pd, Pd_copy):
         dbfolder = path.join(Pd.root, db)
         compare_tree(dbfolder, folders)
 
-    import pdb; pdb.set_trace()
     #Now we will test some of the border cases of the database __init__ method
     Pd_copy.setup()
 
@@ -222,7 +220,6 @@ def test_Pd_phonplot(dynPd, tmpdir):
     """Tests the plotting of phonon bands for supercell convergence test in Pd.
     """
     from matdb.plotting.comparative import band_plot
-    import pdb; pdb.set_trace()
     #dbs = dynPd.find("Pd.phonon-*.hessian")
     dbs = dynPd.find("phonon")
     target = str(tmpdir.join("Pd.phonon-convergence.pdf"))
