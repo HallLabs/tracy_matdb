@@ -212,7 +212,7 @@ def cat(files, target):
     """Combines the specified list of files into a single file.
 
     Args:
-        files (list): of `str` file paths to combine.
+        files (list): list of `str` file paths to combine.
         target (str): name/path of the output file that will include all of the
           combined files.
     """

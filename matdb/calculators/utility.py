@@ -21,7 +21,7 @@ def build_calc(name, relpath, *args, **kwargs):
         name (str): name of the calculator in this package; one of ['Quip'].
         relpath (str): path to the directory in which to instantiate the calculator.
 
-    Note:
+    Notes:
         atoms (matdb.atoms.Atoms): 
             default atoms object for the calculator. An empty `Atoms` object is created. 
             This shouldn't impact calculations since the calculator does not require a folder to run.

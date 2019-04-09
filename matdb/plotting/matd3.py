@@ -16,8 +16,8 @@ class PointDetailImage(object):
       (3, 2) inches.
 
     Args:
-        x (numpy.ndarray): of x-values used for the 2D plot.
-        y (numpy.ndarray): of y-values used for the 2D plot.
+        x (numpy.ndarray): array of x-values used for the 2D plot.
+        y (numpy.ndarray): array of y-values used for the 2D plot.
         plot (str): type of plot to perform; one of the plot types on
           :class:`matplotlib.axes._subplots.AxesSubplot`.
         subplot_kw (dict): keywords passed to the

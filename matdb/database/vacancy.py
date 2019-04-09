@@ -94,13 +94,13 @@ class Vacancy(Group):
         object config.
 
         Args:
-            select_atoms(list of lists): the selected indices to be removed
+            select_atoms(list): the selected indices to be removed
                  from each config.
             num_atoms(int): number of atoms present in the cell.
             num_vac(int): number of vacancies to include in each config.
-            extension_index(list of lists): selected_atoms for min_index>0.
+            extension_index(list): selected_atoms for min_index>0.
         Returns:
-            select_atoms(list of lists): the indices to remove from each
+            select_atoms(list): the indices to remove from each
                  config.
         """
         # Choose random combination options until the length is reached.
@@ -130,12 +130,12 @@ class Vacancy(Group):
         n choose k is less than 1000.
 
         Args:
-            select_atoms(list of lists): the selected indices to be removed
+            select_atoms(list): the selected indices to be removed
                  from each config.
             num_atoms(int): number of atoms present in the cell.
             num_vac(int): number of vacancies to include in each config.
         Returns:
-            select_atoms(list of lists): the indices to remove from each
+            select_atoms(list): the indices to remove from each
                  config.
         '''
         atomic_vacancies = range(choose(num_atoms, num_vac, exact=True))

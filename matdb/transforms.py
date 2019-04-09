@@ -4,7 +4,7 @@ transformation that creates new configurations, you should use a regular
 `matdb.database.Group` subclass.
 
 To create your own `transform` function, declare an importable function that accepts a single
-positional argument, `at` of type :class:`matdb.Atoms` and returns an object of
+positional argument, `at` of type :class:`matdb.atoms.Atoms` and returns an object of
 the same type.
 """
 import numpy as np
@@ -40,9 +40,9 @@ def _get_supers(at, sizes):
     the given target sizes.
 
     Args:
-        at (matdb.Atoms): atoms object to make supercells for.
-        sizes (list): of `int` target cell *sizes*. These should be multiples of
-          :attr:`matdb.Atoms.n` or they will be rounded to the nearest multiple.
+        at (matdb.atoms.Atoms): atoms object to make supercells for.
+        sizes (list): list of `int` target cell *sizes*. These should be multiples of
+          :attr:`matdb.atoms.Atoms.n` or they will be rounded to the nearest multiple.
     """
     from supercell import get_supers
     _sizes = [s/at.n if s % at.n == 0 else int(round(s/float(at.n))) for s in sizes]

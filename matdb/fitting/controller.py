@@ -212,7 +212,7 @@ class TController(object):
 
         Args:
             tfilter (list): list of `str` patterns to match against *fit* names.
-            tfilter (list): list of `str` patterns to match against *step* names.
+            sfilter (list): list of `str` patterns to match against *step* names.
         """
         from fnmatch import fnmatch
         for name, fit in self.fits.items():
@@ -252,7 +252,7 @@ class TController(object):
         Args:
             datafile (str): path to the data file to read the atoms list from.
             tfilter (list): list of `str` patterns to match against *fit* names.
-            tfilter (list): list of `str` patterns to match against *step* names.
+            sfilter (list): list of `str` patterns to match against *step* names.
             energy (bool): when True, validate the energies of each
               configuration.
             forces (bool): when True, validate the force *components* of each
@@ -273,7 +273,7 @@ class TController(object):
 
         Args:
             tfilter (list): list of `str` patterns to match against *fit* names.
-            tfilter (list): list of `str` patterns to match against *step* names.
+            sfilter (list): list of `str` patterns to match against *step* names.
         """
         for fitname, fit in self.ifiltered(tfilter, sfilter):
             fit.jobfiles()
@@ -293,7 +293,7 @@ class TController(object):
 
         Args:
             tfilter (list): list of `str` patterns to match against *fit* names.
-            tfilter (list): list of `str` patterns to match against *step* names.
+            sfilter (list): list of `str` patterns to match against *step* names.
             printed (bool): when True, print the status to screen; otherwise,
               return a dictionary with the relevant quantities.
         """

@@ -24,11 +24,11 @@ from matdb.utility import load_datetime, special_values, dbcat
 
 def split(atlist, splits, targets, dbdir, ran_seed, dbfile=None, recalc=0,
           nonsplit=None):
-    """Splits the :class:`matdb.atoms.AtomsList` multiple times, one for
+    """Splits the :class:`~matdb.atoms.AtomsList` multiple times, one for
     each `split` setting in the database specification.
 
     Args:
-        atlsit (AtomsList or list): the list of :class:`matdb.atams.Atoms` objects
+        atlsit (AtomsList or list): the list of :class:`matdb.atoms.Atoms` objects
           to be split or a list to the files containing the atoms objects.
         splits (dict): the splits to perform.
         targets (dict): the files to save the splits in, these should
@@ -508,7 +508,7 @@ def swap_column(hnf, b, row):
     return hnf, b
 
 def decompress(prim, basis, types_int, hnf_int):
-    """Decompresses the crystal back into it's original form.
+    """Decompresses the crystal back into its original form.
 
     Args:
         prim (list): the primitive lattice vectors as rows of a matrix.

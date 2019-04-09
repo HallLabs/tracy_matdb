@@ -16,7 +16,7 @@ class Substitution(Group):
 
     Args:
         name(str): Default name Substitution
-        stoich (list of list): each list contains the decimal concentration
+        stoich (list): each list contains the decimal concentration
              of each element in the system where followed by decimal fraction
              of the number of configs which follow this stoichiometry.
              The decimal concentration in each list as well as the decimal

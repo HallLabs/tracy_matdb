@@ -216,7 +216,7 @@ class AsyncQe(Espresso, AsyncCalculator):
         return all(present.values())
 
     def can_extract(self, folder):
-        """Returns True if the specified VASP folder has completed
+        """Returns True if the specified folder has completed
         executing and the results are available for use.
         """
         if not path.isdir(folder):
@@ -260,7 +260,7 @@ class AsyncQe(Espresso, AsyncCalculator):
             return False
 
     def is_executing(self, folder):
-        """Returns True if the specified VASP folder is in process of executing.
+        """Returns True if the specified folder is in process of executing.
 
         Args:
             folder (str): path to the folder in which the executable was run.

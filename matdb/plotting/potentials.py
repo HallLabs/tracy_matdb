@@ -1,5 +1,5 @@
 """Functions for plotting interatomic potential performance vs. correct (REF)
-answers within a particular :class:`matdb.AtomsList`.
+answers within a particular :class:`matdb.atoms.AtomsList`.
 """
 from tqdm import tqdm
 import numpy as np
@@ -28,9 +28,9 @@ def generate(plots, pot, atoms, folder=None, base64=False, index=0, ndimer=50,
 
     Args:
         plots (str): string of character codes as described above.
-        fit (matdb.calculators.Calculator): trainer that has an IP to calculate
+        fit (matdb.calculators.basic.AsyncCalculator): trainer that has an IP to calculate
           properties with.
-        atoms (matdb.AtomsList): list of atoms from which to calculate correlations.
+        atoms (matdb.atoms.AtomsList): list of atoms from which to calculate correlations.
         folder (str): path to the folder where the saved image should be stored.
         base64 (bool): when True, use a base-64 encoded `src` for the output of
           this image; otherwise, the image is saved to `folder` and only its
@@ -79,8 +79,8 @@ def trimer(pot, atoms, elements, folder=None, base64=False, index=None,
 
     Args:
         elements (list): list of chemical symbols in the system.
-        pot (matdb.calculator.Calculator): IP to calculate properties with.
-        atoms (matdb.AtomsList): list of atoms from which to calculate correlations.
+        pot (matdb.calculators.basic.AsyncCalculator): IP to calculate properties with.
+        atoms (matdb.atoms.AtomsList): list of atoms from which to calculate correlations.
         folder (str): path to the folder where the saved image should be stored.
         base64 (bool): when True, use a base-64 encoded `src` for the output of
           this image; otherwise, the image is saved to `folder` and only its
@@ -144,10 +144,10 @@ def _dimer_range(elements):
     """Calculates a reasonable range over which to vary distance in a dimer.
 
     Args:
-        elements (list): of chemical symbols in the system.
+        elements (list): list of chemical symbols in the system.
 
     Returns:
-        tuple: of `(rmin, rvegard, rmax)` where `rmin` and `rmax` are the minimum
+        tuple: array of `(rmin, rvegard, rmax)` where `rmin` and `rmax` are the minimum
         and maximum lattice parameters for the *pure* elements and `rvegard` is the
         linearly interpolated lattice parameter for the *alloy* using Vegard's law.
     """
@@ -169,8 +169,8 @@ def dimer(pot, atoms, elements, folder=None, base64=False, index=None,
 
     Args:
         elements (list): list of chemical symbols in the system.
-        pot (matdb.calculator.Calculator): IP to calculate properties with.
-        atoms (matdb.AtomsList): list of atoms from which to calculate correlations.
+        pot (matdb.calculators.basic.AsyncCalculator): IP to calculate properties with.
+        atoms (matdb.atoms.AtomsList): list of atoms from which to calculate correlations.
         folder (str): path to the folder where the saved image should be stored.
         base64 (bool): when True, use a base-64 encoded `src` for the output of
           this image; otherwise, the image is saved to `folder` and only its
@@ -229,8 +229,8 @@ def _get_xy(pot, atoms, prop, peratom=False, energy=False, force=False,
     """Gets the x and y values for the specified potential and property.
 
     Args:
-        pot (matdb.calculator.Calculator): IP to calculate properties with.
-        atoms (matdb.AtomsList): list of atoms to calculate correlations with
+        pot (matdb.calculators.basic.AsyncCalculator): IP to calculate properties with.
+        atoms (matdb.atoms.AtomsList): list of atoms to calculate correlations with
           respect to.
         prop (str): name of the property on each atoms object.
         peratom (bool): when True, plot per atom quantities.
@@ -239,7 +239,7 @@ def _get_xy(pot, atoms, prop, peratom=False, energy=False, force=False,
         virial (bool): when True, calculate the virial tensor..
 
     Returns:
-        tuple: of `(ref, pot)` values.
+        tuple: tuple of `(ref, pot)` values.
     """
     ipprop = None
     if energy:
@@ -266,8 +266,8 @@ def energy(pot, atoms, folder=None, base64=False, index=None, valkey="ref"):
     """Produces an energy correlation plot for the specified potential.
 
     Args:
-        pot (matdb.calculator.Calculator): IP to calculate properties with.
-        atoms (matdb.AtomsList): list of atoms from which to calculate correlations.
+        pot (matdb.calculators.basic.AsyncCalculator): IP to calculate properties with.
+        atoms (matdb.atoms.AtomsList): list of atoms from which to calculate correlations.
         folder (str): path to the folder where the saved image should be stored.
         base64 (bool): when True, use a base-64 encoded `src` for the output of
           this image; otherwise, the image is saved to `folder` and only its
@@ -297,8 +297,8 @@ def force(pot, atoms, folder=None, base64=False, index=None, valkey="ref"):
     """Produces a force correlation plot for the specified potential.
 
     Args:
-        pot (matdb.calculator.Calculator): IP to calculate properties with.
-        atoms (matdb.AtomsList): list of atoms from which to calculate correlations.
+        pot (matdb.calculators.basic.AsyncCalculator): IP to calculate properties with.
+        atoms (matdb.atoms.AtomsList): list of atoms from which to calculate correlations.
         folder (str): path to the folder where the saved image should be stored.
         base64 (bool): when True, use a base-64 encoded `src` for the output of
           this image; otherwise, the image is saved to `folder` and only its
@@ -331,8 +331,8 @@ def virial(pot, atoms, folder=None, base64=False, index=None, valkey="ref"):
     """Produces a virial correlation plot for the specified potential.
 
     Args:
-        pot (matdb.calculator.Calculator): IP to calculate properties with.
-        atoms (matdb.AtomsList): list of atoms from which to calculate correlations.
+        pot (matdb.calculators.basic.AsyncCalculator): IP to calculate properties with.
+        atoms (matdb.atoms.AtomsList): list of atoms from which to calculate correlations.
         folder (str): path to the folder where the saved image should be stored.
         base64 (bool): when True, use a base-64 encoded `src` for the output of
           this image; otherwise, the image is saved to `folder` and only its
@@ -365,8 +365,8 @@ def EvsV(pot, atoms, folder=None, base64=False, index=None, valkey="ref"):
     potential.
 
     Args:
-        pot (matdb.calculator.Calculator): IP to calculate properties with.
-        atoms (matdb.AtomsList): list of atoms from which to calculate correlations.
+        pot (matdb.calculators.basic.AsyncCalculator): IP to calculate properties with.
+        atoms (matdb.atoms.AtomsList): list of atoms from which to calculate correlations.
         folder (str): path to the folder where the saved image should be stored.
         base64 (bool): when True, use a base-64 encoded `src` for the output of
           this image; otherwise, the image is saved to `folder` and only its

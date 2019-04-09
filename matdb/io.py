@@ -15,7 +15,7 @@ from matdb.utility import chdir, execute
 _rxcfg = re.compile(r"[a-z\s:\n]+", re.I)
 
 _cfg_pos = ["cartes_x", "cartes_y", "cartes_z"]
-"""list: of `str` label names in the CFG file corresponding to the x, y and z
+"""list: list of `str` label names in the CFG file corresponding to the x, y and z
 positions respectively.
 """
 _cfg_force = ["fx", "fy", "fz"]
@@ -118,8 +118,8 @@ def atoms_to_cfg(atm, target, config_id=None, type_map=None):
 def _cfgd_to_atoms(cfgd, species=None):
     """Converts a CFG dictionary to an atoms object.
     Args:
-        cfgd (dict): of a single config extracted by :func:`cfg_to_xyz`.
-        species (list): of element names corresponding to the integer species in
+        cfgd (dict): dict of a single config extracted by :func:`cfg_to_xyz`.
+        species (list): list of element names corresponding to the integer species in
           the CFG dictionary.
     """
     from matdb.atoms import Atoms
@@ -250,7 +250,7 @@ def cfg_to_xyz(cfgfile, outfile="output.xyz", config_type=None, species=None):
         cfgfile (str): path to the file to convert.
         config_type (str): name of the config_type to assign to each
           configuration.
-        species (list): of element names corresponding to the integer species in
+        species (list): list of element names corresponding to the integer species in
           the CFG dictionary.
     """
 

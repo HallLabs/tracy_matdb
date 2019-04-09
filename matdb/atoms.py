@@ -71,8 +71,7 @@ class Atoms(ase.Atoms):
         pbc (list): list of bools for the periodic boundary conditions in x y 
           and z. 
         calculator (object): a `matdb` calculator object.
-        info (dict): a dictionary containing other info (this will get stored in 
-          the params dictionary.
+        info (dict): a dictionary containing other info. It will be stored in the params dictionary.
         n (int): the number of atoms in the cell.
         properties (dict): a dictionary of properties where the keys are the property
           names and the values are a list containing the property value for each atom.
@@ -291,7 +290,7 @@ class Atoms(ase.Atoms):
         return result
                 
     def copy_from(self, other):
-        """Replace contents of this Atoms object with data from `other`."""
+        """Replaces contents of this Atoms object with data from `other`."""
 
         from ase.spacegroup import Spacegroup
         self.__class__.__del__(self)
@@ -402,7 +401,7 @@ class Atoms(ase.Atoms):
             self.__init__(io.read(target,**kwargs))
             
     def to_dict(self):
-        """Converts the contents of a :class:`~matdb.atoms.Atoms` object to a
+        """Converts the contents of an :class:`~matdb.atoms.Atoms` object to a
         dictionary so it can be saved to file.
 
         Args:
@@ -557,14 +556,12 @@ class AtomsList(list):
 
     def sort(self, key=None, reverse=False, attr=None):
         """
-        Sort the AtomsList in place. This is the same as the standard
+        Sorts the AtomsList. This is the same as the standard
         :meth:`list.sort` method, except for the additional `attr`
         argument. If this is present then the sorted list will be
-        ordered by the :class:`~matdb.atoms.Atoms` attribute `attr`, e.g.::
-           al.sort(attr='energy')
-        will order the configurations by their `energy` (assuming that
-        :attr:`Atoms.params` contains an entry named `energy` for each
-        configuration; otherwise an :exc:`AttributError` will be raised).
+        ordered by the :class:`~matdb.atoms.Atoms` attribute `attr`,
+        e.g.:al.sort(attr='energy') will order the configurations by their `energy` 
+        (assuming that :attr:`Atoms.params` contains an entry named `energy` for each configuration; otherwise an :exc:`AttributError` will be raised).
         """
         import operator
         if attr is None:

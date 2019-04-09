@@ -99,8 +99,8 @@ def band_raw(primitive, bandfiles=None, pots=None, supercell=None, npts=100,
           bands for. Use the ASE format string as a prefix,
           e.g. `vasp-xml:vasprun.xml` or `extxyz:atoms.xyz`. Default assumes
           `vasp:{}` if no format is specified.
-        bandfiles (list): of `str` file paths to the plain `band.yaml` files.
-        supercell (list): of `int`; supercell dimensions for the phonon
+        bandfiles (list): list of `str` file paths to the plain `band.yaml` files.
+        supercell (list): list of `int`; supercell dimensions for the phonon
           calculations.
         npts (int): number of points to sample along the special path in
           k-space.
@@ -108,7 +108,7 @@ def band_raw(primitive, bandfiles=None, pots=None, supercell=None, npts=100,
           formatting chemical formula.
         save (str): name of a file to save the plot to; otherwise the plot is
           shown in a window.
-        figsize (tuple): of `float`; the size of the figure in inches.
+        figsize (tuple): tuple of `float`; the size of the figure in inches.
         nbands (int): number of bands to plot.
         delta (float): size of displacement for finite difference derivative.
         quick (bool): when True, use symmetry to speed up the Hessian

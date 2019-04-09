@@ -142,7 +142,7 @@ class LegacyDatabase(object):
 
     @property
     def rset(self):
-        """Returns a :class:`matdb.atoms.AtomsList`, one for each config in the
+        """Returns a :class:`~matdb.atoms.AtomsList`, one for each config in the
         latest result set.
         """
         return AtomsList(self._dbfile)

@@ -1,4 +1,4 @@
-"""Implements a :class:`matdb.databas.basic.Group` for querying the
+"""Implements a :class:`~matdb.databas.basic.Group` for querying the
 `aflowlib.org` database. This group is an abstraction of the functionality in
 the `aflow` python package. Since that package allows keywords to be defined and
 manipulated using overloaded versions of built-in operators, we abstract that
@@ -82,7 +82,7 @@ def kfilter(dsl):
     """Constructs a :class:`aflow.keywords.Keyword` for the given DSL entries.
 
     Args:
-        dsl (list): of `str` or other primitive types that defines a filter.
+        dsl (list): list of `str` or other primitive types that defines a filter.
     """
     if any(isinstance(c, list) for c in dsl):
         #This is a nested (aka complex) filter with multiple filters that need
@@ -218,7 +218,7 @@ class Aflow(Group):
 
     @property
     def rset(self):
-        """Returns a :class:`matdb.atoms.AtomsList`, one for each config in the
+        """Returns a :class:`~matdb.atoms.AtomsList`, one for each config in the
         latest result set.
         """
 

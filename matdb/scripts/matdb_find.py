@@ -65,7 +65,7 @@ def _generic_find(controller, heading, patterns):
           :class:`matdb.fitting.Controller`. The specified controller's `find`
           method is used for the lookup.
         heading (str): title to print before the table of discovered values.
-        patterns (list): of `str` patterns to search for.
+        patterns (list): list of `str` patterns to search for.
     """
     msg.info(heading)
     msg.info("--------------------------")
