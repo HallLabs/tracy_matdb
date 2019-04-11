@@ -275,8 +275,8 @@ class MTP(Trainer):
                 final_unit = "MB"
             elif final_unit.lower() == "mb":
                 final_unit = "KB"
-            else:
-                msg.error("Unrecognized memory size {}".format(final_unit))
+            else: #pragma: no cover
+                msg.err("Unrecognized memory size {}".format(final_unit))
 
         final_mem = int(np.round(final_mem))
 
@@ -333,7 +333,7 @@ class MTP(Trainer):
                 self.cell_sizes = mtpargs["largest_relax_cell"]
                 if len(self.cell_sizes) > self.cell_iter:
                     self.relax_max_atoms = self.cell_sizes[self.cell_iter]
-                else:
+                else: #pragma: no cover
                     msg.err("The MTP process has finished for the cell sizes {0}"
                             "specified in the YML file.".format(self.cell_sizes))
             else:
@@ -473,7 +473,7 @@ class MTP(Trainer):
                         for atm in step.rset:
                             self._create_train_cfg(atm, path.join(self.root, "train.cfg"))
                             pbar.update(1)
-                else:
+                else: # pragma: no cover (Don't use LegacyDatabase for M1)
                     pbar = tqdm(total=len(db.rset))
                     for atm in db.rset:
                         self._create_train_cfg(atm, path.join(self.root, "train.cfg"))
@@ -788,7 +788,7 @@ class MTP(Trainer):
                     self.cell_iter = int(old_status[2]) + 1
                     if len(self.cell_sizes) > self.cell_iter:
                         self.relax_max_atoms = self.cell_sizes[self.cell_iter]
-                    else:
+                    else: #pragma: no cover
                         msg.err("The MTP process has finished for the cell sizes "
                                 "specified in the YML file.")
                     target1 = path.join(self.root,"unrelaxed.cfg")
@@ -798,7 +798,7 @@ class MTP(Trainer):
                     if path.isfile(target2):
                         remove(target2)                        
 
-                if self.iter_count >= self.iter_threshold:
+                if self.iter_count >= self.iter_threshold: #pragma: no cover
                     msg.err("The number of iterations has exceeded "
                             "the allowed number of {0}. To increase this limit "
                             "use the iteration_threshold aption in the YML "

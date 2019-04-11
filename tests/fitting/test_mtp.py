@@ -424,6 +424,13 @@ def test_train_setup(mtpdb):
     mtpfit._make_train_cfg(1)
     assert path.isfile(path.join(mtpfit.root, "train.cfg"))
 
+    struct_count = 0
+    with open(path.join(mtpfit.root, "train.cfg"),"r") as f:
+        for line in f:
+            if "BEGIN_CFG" in line:
+                struct_count += 1
+    assert struct_count == 10
+
     new_configs = []
     for i in range(1,11):
         source = path.join(templates, "POSCAR{0}".format(i))
@@ -439,13 +446,21 @@ def test_train_setup(mtpdb):
             copyonce(path.join(templates, f.format(i)), path.join(target, f.format('')))
 
     # This is trying to manipulate an NOT extractable structure
-    #target = path.join(act_root, "Ac.{0}".format(3))
-    #remove(path.join(target, files[0].format('')))
-    #open(path.join(target, files[0].format('')), 'a').close() 
+    target = path.join(act_root, "Ac.{0}".format(3), "OUTCAR")
+    remove(target)
+    source = path.join(_get_reporoot(), "tests", "files", "VASP", "OUTCAR_incomplete")
+    copyonce(source, target)
 
     mtpfit.active.last_iteration = None
     mtpfit._make_train_cfg(2)
     assert path.isfile(path.join(mtpfit.root, "train.cfg"))
+
+    struct_count = 0
+    with open(path.join(mtpfit.root, "train.cfg"),"r") as f:
+        for line in f:
+            if "BEGIN_CFG" in line:
+                struct_count += 1
+    assert struct_count == 19
 
     mtpfit.active.last_iteration = None
     remove(mtpfit.active.iter_file)
@@ -457,13 +472,20 @@ def test_templates(mtpdb):
     """
 
     mtpfit = mtpdb.trainers.fits['CoWV_mtp'].sequences['CoWV_mtp'].steps['mtp']
+    mtpfit.run_as_root = True
     #train template
     template = ("mpirun --allow-run-as-root -n 1 mlp train pot.mtp train.cfg > training.txt",  
-                "mpirun -n 72 mlp train pot.mtp train.cfg > training.txt")
+                "mpirun --allow-run-as-root -n 72 mlp train pot.mtp train.cfg > training.txt")
+    assert mtpfit._train_template() in template
 
+    mtpfit.run_as_root = False
+    #train template
+    template = ("mpirun -n 1 mlp train pot.mtp train.cfg > training.txt",  
+                "mpirun -n 72 mlp train pot.mtp train.cfg > training.txt")
     assert mtpfit._train_template() in template
 
     mtpfit.use_mpi = False
+    mtpfit.run_as_root = False
     mtpfit.train_args = {"curr-pot-name":"name1", "valid-cfgs": "name2.cfg",
                          "bfgs-conv-tol":0.001}
 
@@ -483,6 +505,7 @@ def test_templates(mtpdb):
         assert part in mtp_out
 
     mtpfit.use_mpi = True
+    mtpfit.run_as_root = False
     #relax template
     template_parts = ["mpirun", "mlp relax relax.ini",
                       "--cfg-filename=to-relax.cfg", "--save-relaxed=relaxed.cfg",
@@ -493,7 +516,19 @@ def test_templates(mtpdb):
         assert part in mtp_out
     assert template_alternative_parts[0] in mtp_out or template_alternative_parts[1] in mtp_out
 
+    mtpfit.run_as_root = True
+    #relax template
+    template_parts = ["mpirun", "--allow-run-as-root", "mlp relax relax.ini",
+                      "--cfg-filename=to-relax.cfg", "--save-relaxed=relaxed.cfg",
+                      "--log=relax_log.txt", "--save-unrelaxed=unrelaxed.cfg"]
+    template_alternative_parts = ["-n 72", "-n 1"]
+    mtp_out = mtpfit._relax_template()
+    for part in template_parts:
+        assert part in mtp_out
+    assert template_alternative_parts[0] in mtp_out or template_alternative_parts[1] in mtp_out
+
     mtpfit.use_mpi = False
+    mtpfit.run_as_root = False
     mtpfit.relax_args = {"log": "name1", "bfgs-wolfe_c1": True, "max-step": 10}
     template_parts = ["mlp relax relax.ini", "--cfg-filename=to-relax.cfg",
                       "--save-relaxed=relaxed.cfg", "--log=relax_log.txt",
@@ -650,6 +685,8 @@ def test_command_functions2(mtpdb):
         for f in files:
             copyonce(path.join(templates, f.format(i)), path.join(target, f.format('')))
 
+    touch(path.join(mtpfit.root, "unrelaxed.cfg"))
+    touch(path.join(mtpfit.root, "to-relax.cfg"))
     target = path.join(mtpfit.root, "status.txt")
     with open(target, "r") as f:
         line = f.read()
