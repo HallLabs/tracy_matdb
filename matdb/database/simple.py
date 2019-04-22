@@ -143,13 +143,12 @@ class Manual(Group):
                 else:
                     return False
         else:
-            ready = False
+            ready = True
             for p in self.sequence.values():
                 if not p.ready():
                     msg.std("{} is not ready. Exiting.".format(p.root), 2)
+                    ready = False
                     break
-            else:
-                ready = True
             return ready
 
     def sub_dict(self):

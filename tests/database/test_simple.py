@@ -33,14 +33,43 @@ def Pd(tmpdir):
 
     return cntrl
 
-def test_init(Pd):
-    dbdir = Pd.root
-    db = Database("manual", dbdir, Pd, [{"type":"simple.Manual"}], {}, 0)
-    dbargs = {"root": dbdir, "parent": db, "calculator": Pd.calculator}
+@pytest.fixture()
+def Pd_manual_not_extractable(tmpdir):
+    target = relpath("./tests/Pd/matdb.yml")
+    dbdir = str(tmpdir.join("manual_not_extractale_db"))
+    mkdir(dbdir)
+    copyonce(target, path.join(dbdir, "matdb.yml"))
+
+    seed_root = path.join(dbdir, "seed")
+    if not path.isdir(seed_root):
+        mkdir(seed_root)
+
+    target = path.join(dbdir,"matdb")
+    cntrl = Controller(target, dbdir)
+
+    # trying to create a Manual object with extractable=False
+    db = Database("phonon", dbdir, cntrl, [{"type":"simple.Manual"}], {}, 0)
+    dbargs = {"root": dbdir, "parent": db, "calculator": cntrl.calculator}
     mdb = Manual(extractable=False, **dbargs)
-    
+
+    cfg_target = path.join(seed_root, "Pd")
+    cfg_source = path.join(_get_reporoot(), "tests", "database", "files", "Pd", "POSCAR1")
+    copyonce(cfg_source, cfg_target)
+
+    return (cntrl, mdb)
+
+def test_init_not_extractable(Pd_manual_not_extractable):
+    """ test Manual and not extractable 
+    """
+    mPd, mdb = Pd_manual_not_extractable
     assert mdb is not None
     assert mdb.nconfigs == 1 
+    assert mdb.sub_dict() == {'extractable': False, 'name': 'manual'}
+    assert not mdb.extractable
+    assert not mdb._trainable
+
+    #mPb.setup()
+    #assert mdb.is_setup()
     
 def test_setup(Pd):
     """Tetsts the setup of the simple.Manual database.
