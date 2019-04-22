@@ -56,6 +56,10 @@ class Manual(Group):
                 self._set_calc_defaults(calcargs)
                 dbargs["calculator"] = calcargs
 
+    def _set_calc_defaults(self, calcargs):
+        """ No implementation for this method.
+        """
+
     @property
     def fitting_configs(self):
         """Returns a :class:`matdb.atoms.AtomsList` for all configs in this
