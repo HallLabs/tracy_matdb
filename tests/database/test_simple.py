@@ -68,9 +68,6 @@ def test_init_not_extractable(Pd_manual_not_extractable):
     assert not mdb.extractable
     assert not mdb._trainable
 
-    #mPb.setup()
-    #assert mdb.is_setup()
-    
 def test_setup(Pd):
     """Tetsts the setup of the simple.Manual database.
     """
@@ -130,20 +127,18 @@ def test_setup(Pd):
         dest = path.join(dbfolder,"Pd{}".format(j),"S1.1", "CONTCAR")
         symlink(src,dest)
 
-    #remove(path.join(mdb.root, "Pd1", "S1.1", "pre_comp_atoms.h5"))
+    assert not mdb.ready()
+
     mdb.extract()
-    assert len(mdb.config_atoms) == 3
-    assert len(mdb.configs) == 3
-    assert len(mdb.last_config_atoms) == 3
+    assert len(mdb.sequence) == 3
+    assert len(mdb.sequence['Pd1'].config_atoms) == 1
+    assert len(mdb.sequence['Pd2'].config_atoms) == 1
+    assert len(mdb.sequence['Pd3'].config_atoms) == 1
+    assert len(mdb.sequence['Pd1'].configs) == 1
+    assert len(mdb.sequence['Pd2'].configs) == 1
+    assert len(mdb.sequence['Pd3'].configs) == 1
+
+    assert len(mdb.fitting_configs) == 3
     assert len(mdb.rset) == 3
     assert not mdb.is_executing()
-
-    remove(path.join(mdb.root, "Pd1", "S1.1", "OUTCAR"))
-    dest = path.join(mdb.root, "Pd1", "S1.1", "OUTCAR")
-    src = relpath("./tests/data/Pd/basic_fail/S.4/OUTCAR")
-    symlink(src,dest)
-    assert mdb.is_executing()
-
-    #mdb.rset
-    #mdb.fitting_configs
 
