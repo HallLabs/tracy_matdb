@@ -4,6 +4,23 @@
 import pytest
 import numpy as np
 
+def test_dbconfig():
+    """Tests the db config function.
+    """
+    from matdb.database.utility import dbconfig
+    from os import path
+    import json
+    from matdb.utility import load_datetime
+
+    dbfile = "./tests/database/p-50-2.h5"
+    confpath = dbfile + ".json"
+    assert path.isfile(confpath)
+    
+    with open(confpath) as f:
+         config = json.load(f, object_pairs_hook=load_datetime)
+         #assertIsNotNone(config)
+         assert config!= None
+
 def test_swap_column():
     """Tests the swap column function.
     """
