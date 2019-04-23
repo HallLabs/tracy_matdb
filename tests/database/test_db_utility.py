@@ -12,7 +12,7 @@ def test_dbconfig():
     import json
     from matdb.utility import load_datetime
 
-    dbfile = "./tests/database/p-50-2.h5"
+    dbfile = "./tests/database/files/p-50-2.h5"
     confpath = dbfile + ".json"
     assert path.isfile(confpath)
     
