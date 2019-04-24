@@ -71,7 +71,7 @@ class Active(Group):
             else:
                 result = True
             return result
-        else:
+        else: #pragma: no cover, enumerated database shouldn't take seeds
             return all(group.can_extract() for group in self.sequence.values())
 
     @property
@@ -170,7 +170,7 @@ class Active(Group):
                 if auid.hexdigest() in self.auids:
                     self.nconfigs -= 1
                     continue
-            else:
+            else: #pragma: no cover, self.auids could never be None, it could be empty though
                 self.auids = []
                 
             dind += 1
@@ -276,7 +276,7 @@ class Active(Group):
             else:
                 return False
 
-        else:
+        else: #pragma: no cover, enumerated database shouldn't take seeds
             already_executed = []
             for group in self.sequence.values():
                 already_executed.append(group.execute(dryrun=dryrun,
@@ -333,6 +333,6 @@ class Active(Group):
 
             with open(target, 'w') as f:
                 f.write(template.render(**settings))
-        else:
+        else: #pragma: no cover, enumerated database shouldn't take seeds
             for group in self.sequence.values():
                 group.jobfile(rerun=rerun, recovery=recovery)
