@@ -34,8 +34,8 @@ def Pd(tmpdir):
     return cntrl
 
 @pytest.fixture()
-def Pd_manual_not_extractable(tmpdir):
-    target = relpath("./tests/Pd/matdb.yml")
+def Pd_not_extractable(tmpdir):
+    target = relpath("./tests/Pd/matdb_not_extractable.yml")
     dbdir = str(tmpdir.join("manual_not_extractale_db"))
     mkdir(dbdir)
     copyonce(target, path.join(dbdir, "matdb.yml"))
@@ -44,32 +44,56 @@ def Pd_manual_not_extractable(tmpdir):
     if not path.isdir(seed_root):
         mkdir(seed_root)
 
-    target = path.join(dbdir,"matdb")
-    cntrl = Controller(target, dbdir)
-
-    # trying to create a Manual object with extractable=False
-    db = Database("phonon", dbdir, cntrl, [{"type":"simple.Manual"}], {}, 0)
-    dbargs = {"root": dbdir, "parent": db, "calculator": cntrl.calculator}
-    mdb = Manual(extractable=False, **dbargs)
-
     cfg_target = path.join(seed_root, "Pd")
     cfg_source = path.join(_get_reporoot(), "tests", "database", "files", "Pd", "POSCAR1")
     copyonce(cfg_source, cfg_target)
 
-    return (cntrl, mdb)
+    target = path.join(dbdir,"matdb")
+    cntrl = Controller(target, dbdir)
 
-def test_init_not_extractable(Pd_manual_not_extractable):
-    """ test Manual and not extractable 
+    # these 3 lines are just added to cover dbargs["calculator"] not None in __init__ 
+    db = Database("phonon", dbdir, cntrl, [{"type":"simple.Manual"}], {}, 0)
+    dbargs = {"root": dbdir, "parent": db, "calculator": cntrl.calculator}
+    mdb = Manual(extractable=False, **dbargs)
+
+    return cntrl
+
+def test_not_extractable(Pd_not_extractable):
+    """ test not extractable 
     """
-    mPd, mdb = Pd_manual_not_extractable
+    mPd = Pd_not_extractable
+    mPd.setup()
+
+    mdb = mPd.collections['phonon'].steps['manual']
     assert mdb is not None
     assert mdb.nconfigs == 1 
     assert mdb.sub_dict() == {'extractable': False, 'name': 'manual'}
     assert not mdb.extractable
     assert not mdb._trainable
 
-def test_setup(Pd):
-    """Tetsts the setup of the simple.Manual database.
+    assert mdb.is_setup()
+    assert len(mdb.sequence) == 1
+    assert len(mdb.sequence['Pd'].configs) == 1
+
+    assert mdb.ready()
+    assert mdb.can_extract()
+
+    folders = {
+        "__files__": ["phonon_S1_uuid.txt"],
+        "Pd": {
+            "__files__": ["phonon_S1_uuid.txt", "compute.pkl"],
+            "S1.1": {
+                "__files__": ["INCAR", "PRECALC", "POSCAR", "POTCAR", "atoms.h5",
+                              "uuid.txt", "KPOINTS", "ase-sort.dat"]
+            }
+        }
+    }
+
+    dbfolder = mdb.root
+    compare_tree(dbfolder,folders)    
+
+def test_all(Pd):
+    """Tetsts setup/extract/ready of the simple.Manual database.
     """
 
     Pd.setup()
@@ -141,4 +165,15 @@ def test_setup(Pd):
     assert len(mdb.fitting_configs) == 3
     assert len(mdb.rset) == 3
     assert not mdb.is_executing()
+
+    assert mdb.ready()
+
+    # setup again(with rerun=True) on an already ready database
+    Pd.setup(rerun=True)
+    assert mdb.is_setup()
+    assert mdb.ready()
+    assert len(mdb.sequence) == 3
+    assert len(mdb.sequence['Pd1'].config_atoms) == 1
+    assert len(mdb.fitting_configs) == 3
+    assert len(mdb.rset) == 3
 
