@@ -184,13 +184,27 @@ def test_execute(Act):
     assert Act.can_extract()
     assert Act.execute()
 
-    # execute again
+    # We need to fake some VASP output so that we can cleanup the
+    # database and get the rset
+    src = relpath("./tests/data/Pd/complete/OUTCAR__DynMatrix_phonon_Pd_dim-2.00")
+    dbfolder = Act.root
+    for j in range(1,4):
+        dest = path.join(dbfolder,"Ac.{}".format(j),"OUTCAR")
+        symlink(src,dest)
+            
+    dbfolder = Act.root
+    for j in range(1,4):
+        src = path.join(dbfolder,"Ac.{}".format(j),"POSCAR")
+        dest = path.join(dbfolder,"Ac.{}".format(j),"CONTCAR")
+        symlink(src,dest)
     assert not Act.is_executing()
     assert Act.can_extract()
-    assert Act.execute()
+
+    # execute should return false.
+    assert not Act.execute()
 
     assert Act.nconfigs == 3
-    # the jobs never get actually executed because we are using sbatch on personal device for this test
+    # the job never get actually executed because we are using sbatch on personal device for this test
     assert len(Act.fitting_configs) == 0
 
 def test_execute2(Act):

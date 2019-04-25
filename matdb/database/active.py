@@ -273,7 +273,7 @@ class Active(Group):
                 from matdb.msg import okay
                 okay("{}: {}".format(self.root, xres["output"][0].strip()))
                 return True
-            else:
+            else: #pragma: no cover
                 return False
 
         else: #pragma: no cover, enumerated database shouldn't take seeds
