@@ -92,6 +92,9 @@ class Hessian(Group):
         dosmesh (list): mesh for calculating the phonon density-of-states.
     """
     splittable = False
+    """
+    This database cannot be split for training/testing but must be used in its entirety for either one or the other.
+    """
 
     def __init__(self, phonopy={}, name="hessian", bandmesh=None,
                  dosmesh=None, tolerance=0.1, dfpt=False, **dbargs):

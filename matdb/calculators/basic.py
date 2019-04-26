@@ -22,10 +22,20 @@ class AsyncCalculator(object):
         key (str): short, lower-case name to identify the calculator type.
     """
     key = None
+    """
+    Short, lower-case name to identify the calculator type.
+    """
+
     pathattrs = []
+    """
+    A list of paths that the calculator needs access to, the values for these paths are found in kwargs.
+    """
     __metaclass__ = abc.ABCMeta
 
     def init_calc(self, kwargs):
+        """
+        Initializes an instance of the calculator class using the key word, value pairs stored in the kwargs dictionary.
+        """
 
         if "key" in kwargs:
             self.key = kwargs.pop("key")
@@ -149,10 +159,21 @@ class SyncCalculator(object):
     Attributes:
         key (str): short, lower-case name to identify the calculator type.
     """
+
     key = None
+    """
+    Short, lower-case name to identify the calculator type
+    """
+
     pathattrs = []
+    """
+    A list of paths that the calculator needs access to, the values for these paths are found in kwargs.
+    """
     
     def init_calc(self, kwargs):
+        """
+        Initializes an instance of the calculator class using the key word, value pairs stored in the kwargs dictionary.
+        """
         if "key" in kwargs:
             self.key = kwargs.pop("key")
 

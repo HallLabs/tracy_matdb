@@ -291,6 +291,9 @@ class ImagesAtPoint(plugins.PluginBase):
     };
 
     """
+    """
+    This is a global string that contains javascript code that must be used along withe every plot produced.
+    """
     settings = ["ncols"]
     def __init__(self, points, names=None, ncols=3, titles=None, **images):
         self.dict_ = {"type": "image@point",

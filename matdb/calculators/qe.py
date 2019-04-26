@@ -55,7 +55,14 @@ class AsyncQe(Espresso, AsyncCalculator):
 
     """
     key = "qe"
+    """
+    The short name for the calculator.
+    """
+
     pathattrs = ["potcars.directory"]
+    """
+    List of directories that need to be set as class attributes.
+    """
 
     def __init__(self, atoms, folder, contr_dir, ran_seed, *args, **kwargs):
 

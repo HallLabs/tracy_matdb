@@ -545,6 +545,10 @@ class AtomsList(list):
         return res
 
     def iterframes(self, reverse=False):
+        """
+        Implements an iterator over the Atoms in the AtomsList, i.e., when reversed  is "True" the Atoms are iterated over in reversed order, i.e., last to first instead of first to last.							
+
+        """
         if reverse:
             return reversed(self)
         else:
@@ -552,6 +556,9 @@ class AtomsList(list):
 
     @property
     def random_access(self):
+        """
+        Sets the random_access property to True, i.e., the AtomsList can be accessed at random.
+        """
         return True
 
     def sort(self, key=None, reverse=False, attr=None):
@@ -576,6 +583,9 @@ class AtomsList(list):
 
 
     def apply(self, func):
+        """
+        Applies the passed in function "func" to each Atoms object in the AtomsList.
+        """
         return np.array([func(at) for at in self])
         
     def read(self,target,**kwargs):

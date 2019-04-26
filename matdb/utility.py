@@ -38,6 +38,9 @@ from matdb import __version__
 
 @contextmanager
 def redirect_stdout(new_target):
+    """
+    Redirects messages from standard out, i.e., the terminal, to "new_target", i.e., a file or another location.
+    """
     old_target, sys.stdout = sys.stdout, new_target # replace sys.stdout
     try:
         yield new_target # run some code with the replaced stdout
