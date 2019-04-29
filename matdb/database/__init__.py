@@ -292,7 +292,7 @@ class Group(object):
         else:
             try:
                 result = next(iter(self.config_atoms.values())).get_calculator()
-            except:
+            except: #pragma: no cover
                 raise
         return result
 
@@ -1471,7 +1471,7 @@ class Database(object):
         return final_dict
 
 
-class RecycleBin(Database):
+class RecycleBin(Database): #pragma: no cover
     """A database of past calculations to be stored for later use.
     Args:
         parent (Controller): instance controlling multiple configurations.
@@ -1815,7 +1815,7 @@ class Controller(object):
                     return seq
             else:
                 return step
-        else:
+        else: #pragma: no cover
             msg.err("The group name {0} could not be found in the steps of "
                     "the database {1}".format(group.lower(),coll.steps.values()))
 

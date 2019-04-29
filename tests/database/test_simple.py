@@ -177,3 +177,31 @@ def test_all(Pd):
     assert len(mdb.fitting_configs) == 3
     assert len(mdb.rset) == 3
 
+def test_corner_cases_in_Group(Pd):
+    """Tetsts some corner cases in class Group.
+    """
+
+    Pd.setup()
+    mdb = Pd.collections['phonon'].steps['manual']
+    dbfolder = mdb.root
+
+    # create a file named `S1.4`
+    open(path.join(dbfolder,"Pd1","S1.4"), 'a').close()
+    # create a folder named `S1.A`
+    mkdir(path.join(dbfolder,"Pd1","S1.A"))
+
+    # the file `S1.1` and folder `S1.A` should be ignored
+    assert mdb.is_setup()
+    assert len(mdb.sequence) == 3
+    assert len(mdb.sequence['Pd1'].configs) == 1
+
+    # create a empty folder named `S1.5` 
+    mkdir(path.join(dbfolder,"Pd1","S1.5"))
+    # shold cause a warning message and is_setup() should return False
+    assert not mdb.is_setup()
+
+    for atom in mdb.iconfigs:
+        assert atom is not None
+
+    assert mdb.key
+
