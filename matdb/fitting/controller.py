@@ -1,5 +1,5 @@
 """Since some potential fitting requires multi-step processes, we need to
-implement controller objects that keep the various training steps ordered
+implement Controller objects that keep the various training steps ordered
 correctly, and provide easy access to relevant data from previous steps. This
 module supplies objects (similar in spirit to :mod:`matdb.database.__init__`)
 for producting sequences of training objects that can be repeated across
@@ -190,6 +190,9 @@ class TController(object):
     """
     def __init__(self, db=None, root=None, fits=None, e0=None, plotting=None,
                  **kwargs):
+        """Assumes that a YAML file is parsed into a dict, the process sets a bunch of variables. Near the end of the method, it initialized the database object, which 
+        looks like a class that handels the interactions with the data to be stored. 
+        """
         from matdb.utility import dict_update
         self.db = db
         self.e0 = e0
@@ -207,7 +210,9 @@ class TController(object):
             self.fits[fspec["name"]] = seq
 
     def ifiltered(self, tfilter=None, sfilter=None):
-        """Returns a *filtered* generator over sequences of trainers in the :attr:`fits`
+        """It is a utility function to iterate over the entries in the database.
+
+        Returns a *filtered* generator over sequences of trainers in the :attr:`fits`
         collection of this object.
 
         Args:
@@ -222,7 +227,9 @@ class TController(object):
                         yield (fitn, seq)
 
     def steps(self):
-        """Compiles a list of all steps in this set of trainers.
+        """For displaying the contents of the database.
+
+        Compiles a list of all steps in this set of trainers.
         """
         result = []
         for name, fits in self.fits.items():
@@ -234,7 +241,9 @@ class TController(object):
         return sorted(result)
 
     def sequences(self):
-        """Compiles a list of all sequences in this set of trainers.
+        """For displaying the contents of hte database.
+
+        Compiles a list of all sequences in this set of trainers.
         """
         result = []
         for name, fits in self.fits.items():
@@ -269,7 +278,10 @@ class TController(object):
             trainer.validate(configs, energy, force, virial)
 
     def jobfiles(self, tfilter=None, sfilter=None):
-        """Creates the jobfiles for every trainer in the system.
+        """Propagates the jobfiles commands to all its contained trainers (held in varibale: TController.seq). It can be controlled by passing a function into the dfilter keyword variable.
+        Note that each trainer in TController.seq seems to be an instance of TSequenceRepeater.
+        
+        Creates the jobfiles for every trainer in the system.
 
         Args:
             tfilter (list): list of `str` patterns to match against *fit* names.
@@ -279,7 +291,9 @@ class TController(object):
             fit.jobfiles()
 
     def execute(self, tfilter=None, sfilter=None, dryrun=False):
-        """Executes the jobfiles for every trainer in the system.
+        """It propagates the execute commands to all database entries. It can be controlled by passing a function into the dfilter keyword variable. 
+
+        Executes the jobfiles for every trainer in the system.
 
         Args:
             tfilter (list): list of `str` patterns to match against *fit* names.
@@ -301,7 +315,9 @@ class TController(object):
             fit.status(printed)
 
     def find(self, pattern):
-        """Finds a list of trainers that match the specified pattern. Trainer FQNs
+        """Looks for data in the database. Either with the specific identifier or with a regular expression (to find multiple based off a pattern).
+
+        Finds a list of trainers that match the specified pattern. Trainer FQNs
         follow the pattern `trainer-suffix.step` where the suffix may be
         optional and the step names are defined by the `name` of each
         :class:`Trainer` sub-class. Wildcard `*` or any other
@@ -330,7 +346,9 @@ class TController(object):
         return result
 
     def __getitem__(self, key):
-        """Gets the trainer or sequence with the specified key. The keys follow
+        """A Python magic method that enables the class to use special python syntax to invoke items. It just takes data from the database in our case. 
+
+        Gets the trainer or sequence with the specified key. The keys follow
         the pattern `trainer-suffix.step` where the suffix may be optional and
         the step names are defined by the `name` of each :class:`Trainer`
         sub-class.

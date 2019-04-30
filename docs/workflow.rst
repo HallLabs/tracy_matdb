@@ -30,7 +30,7 @@ Potential Construction Workflow
 -------------------------------
 
 Once all desired databases have been computed it is possible to train
-an interatomic potential. The pontetial training as controlled by the
+an interatomic potential. The potential training as controlled by the
 same `yml` file that the database creation was written from.
 
 The workflow for `matdb` potential traininig looks like:

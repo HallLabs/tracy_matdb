@@ -34,7 +34,7 @@ def examples():
 
     msg.example(script, explain, contents, required, output, outputfmt, details)
 
-script_options = {
+_script_options = {
     "subspec": {"help": "File containing the submission specifications."},
     "-test_run": {"action": "store_true",
                  "help": ("Allows for test runs that won't submit to the queue.")},

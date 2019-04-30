@@ -28,9 +28,9 @@ following links document the internal API and give some examples.
 
 .. toctree::
    :maxdepth: 1
-   :caption: Sub-packages and Modules:
+   :caption: Sub-packages and Modules: 
 
-   calculator.rst
+   calculator.rst 
    databases.rst
    fitting.rst
    kpoints.rst

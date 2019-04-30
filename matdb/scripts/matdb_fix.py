@@ -33,7 +33,7 @@ def examples():
 
     msg.example(script, explain, contents, required, output, outputfmt, details)
 
-script_options = {
+_script_options = {
     "dbspec": {"help": "File containing the database specifications."},
     "-p": {"help": ("Specify the search pattern(s)"), "nargs": '+',
            "required": True},
@@ -53,7 +53,7 @@ def _parser_options():
     from matdb import base
     pdescr = "MATDB Pre-Comp Fixer"
     parser = argparse.ArgumentParser(parents=[base.bparser], description=pdescr)
-    for arg, options in script_options.items():
+    for arg, options in _script_options.items():
         parser.add_argument(arg, **options)
         
     args = base.exhandler(examples, parser)

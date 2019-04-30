@@ -82,7 +82,7 @@ interatomic potential. Valid options are:
 - **scale-by-force**: (float) If given value is >0 then configurations
    near equilibrium (with roughly force < the given value) get more
    weight. Default is 0.0.
-- **max-iter**: (integer) The maximal number of BFGS
+- **max-iter**: (integer) The maximal number of BFGS (**!!explain!!**)
    iterations. Default is 1000.
 - **trained-pot-name**: (string) The filename for trained potential to
    be saved to. Default is `Trained.mtp_`.

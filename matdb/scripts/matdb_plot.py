@@ -34,7 +34,7 @@ def examples():
 
     msg.example(script, explain, contents, required, output, outputfmt, details)
 
-script_options = {
+_script_options = {
     "dbspec": {"help": "File containing the database specifications."},
     "-d": {"help": ("Specify the pattern of the databases to work with. "
                     "For example `Pd.phonon-2.dynmatrix` specifies the "

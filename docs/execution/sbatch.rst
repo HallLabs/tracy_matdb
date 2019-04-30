@@ -1,7 +1,7 @@
 SBATCH
 ======
 
-`sbatch` is used to submit jobs to a `slurm` style workload manager on
+`sbatch` is used to submit jobs to a `slurm` style (**!!maybe a hyperlink to `slurm` style??**) workload manager on
 many supercomputers. There may be differences in implementation of
 slurm templates for different supercomputers but the following fields
 should be applicaple to most use cases.

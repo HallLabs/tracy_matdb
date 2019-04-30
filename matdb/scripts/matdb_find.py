@@ -26,7 +26,7 @@ def examples():
 
     msg.example(script, explain, contents, required, output, outputfmt, details)
 
-script_options = {
+_script_options = {
     "dbspec": {"help": "File containing the database specifications."},
     "-d": {"help": ("When specified, search the database context."),
            "action": "store_true"},
@@ -47,7 +47,7 @@ def _parser_options():
     from matdb import base
     pdescr = "MATDB Context Finder"
     parser = argparse.ArgumentParser(parents=[base.bparser], description=pdescr)
-    for arg, options in script_options.items():
+    for arg, options in _script_options.items():
         parser.add_argument(arg, **options)
         
     args = base.exhandler(examples, parser)

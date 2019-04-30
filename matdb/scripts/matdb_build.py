@@ -1,8 +1,12 @@
 #!/usr/bin/python
 def examples():
-    """Prints examples of using the script to the console using colored output.
+    """Prints examples of using the script to the console using colored output. The example is usually just text in the function, 
+     which facilitates displaying the examples in the command line help.
     """
     from matdb import msg
+    """the msg module is a custom modle to help with displaying text to the command line. It has functionality to allow color text in the command line, as well as 
+    manages which text should be displayed based off the verbosity level (this is set when starting the program, there is a default value if not set).
+    """
     script = "MATDB Automated Materials Database Constructor"
     explain = ("In order to apply machine learning to produce potentials "
                "we first need a collection of atomic configurations from "
@@ -25,8 +29,8 @@ def examples():
     outputfmt = ("")
 
     msg.example(script, explain, contents, required, output, outputfmt, details)
-
-script_options = {
+######## what does this do?
+_script_options = {
     "dbspec": {"help": "File containing the database specifications."},
     "-s": {"action": "store_true",
            "help": "Run the setup method for each database."},
@@ -74,6 +78,8 @@ def _parser_options():
     import argparse
     import sys
     from matdb import base
+    """base is a collection of fundamental programming objects for the rest of hte software, it is mostly a helper function for commandline parsing.
+    """
     pdescr = "MATDB Database Constructor"
     parser = argparse.ArgumentParser(parents=[base.bparser], description=pdescr)
     for arg, options in script_options.items():
@@ -84,7 +90,7 @@ def _parser_options():
         return
 
     return args
-
+######## what does this do?
 def run(args):
     """Runs the matdb setup and cleanup to produce database files.
     """
@@ -94,6 +100,8 @@ def run(args):
     #No matter what other options the user has chosen, we will have to create a
     #database controller for the specification they have given us.
     from matdb.database import Controller
+    """The Controller class is to help the rest of the software parse and store configuration settings from the YAML file. 
+    """
     cdb = Controller(args["dbspec"])
     if args["s"]:
         cdb.setup(args["rerun"], args["dfilter"])
