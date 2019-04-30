@@ -1,0 +1,450 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>matdb.fitting.controller &#8212; matdb 0.0.5 documentation</title>
+    <link rel="stylesheet" href="../../../_static/nature.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <script type="text/javascript" src="../../../_static/language_data.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">matdb 0.0.5 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for matdb.fitting.controller</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Since some potential fitting requires multi-step processes, we need to</span>
+<span class="sd">implement Controller objects that keep the various training steps ordered</span>
+<span class="sd">correctly, and provide easy access to relevant data from previous steps. This</span>
+<span class="sd">module supplies objects (similar in spirit to :mod:`matdb.database.__init__`)</span>
+<span class="sd">for producting sequences of training objects that can be repeated across</span>
+<span class="sd">parameter grids.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">from</span> <span class="nn">collections</span> <span class="k">import</span> <span class="n">OrderedDict</span>
+<span class="kn">from</span> <span class="nn">os</span> <span class="k">import</span> <span class="n">path</span>
+<span class="kn">import</span> <span class="nn">six</span>
+<span class="kn">from</span> <span class="nn">matdb</span> <span class="k">import</span> <span class="n">msg</span>
+<span class="kn">from</span> <span class="nn">matdb.atoms</span> <span class="k">import</span> <span class="n">AtomsList</span>
+<span class="kn">from</span> <span class="nn">copy</span> <span class="k">import</span> <span class="n">copy</span>
+
+<div class="viewcode-block" id="TrainingSequence"><a class="viewcode-back" href="../../../fitting/controller.html#matdb.fitting.controller.TrainingSequence">[docs]</a><span class="k">class</span> <span class="nc">TrainingSequence</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Represents a sequence of training steps (each sub-classing</span>
+<span class="sd">    :class:`~matdb.training.basic.Trainer`) where each subsequent step depends</span>
+<span class="sd">    on the results of the previous step.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        name (str): name of the training sequence so it can be referenced by FQN</span>
+<span class="sd">          notation.</span>
+<span class="sd">        repeater (TSequenceRepeater): repeater for a set of training sequences</span>
+<span class="sd">          that all share the same root training and validation databases.</span>
+<span class="sd">        root (str): root directory in which all other training sequences for</span>
+<span class="sd">          the configurations in the same specification will be stored.</span>
+<span class="sd">        controller (TController): instance controlling multiple trainers.</span>
+<span class="sd">        steps (list): list of `dict` describing the kinds of potential training steps</span>
+<span class="sd">          to setup.</span>
+<span class="sd">        kwargs (dict): key-value pairs to pass to the individual trainer</span>
+<span class="sd">          objects (only used if they don&#39;t override the values).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">repeater</span><span class="p">,</span> <span class="n">root</span><span class="p">,</span> <span class="n">controller</span><span class="p">,</span> <span class="n">steps</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">fqn</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{}</span><span class="s2">.</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">repeater</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">root</span> <span class="o">=</span> <span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">root</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">repeater</span> <span class="o">=</span> <span class="n">repeater</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">controller</span> <span class="o">=</span> <span class="n">controller</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">path</span><span class="o">.</span><span class="n">isdir</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">root</span><span class="p">):</span>
+            <span class="kn">from</span> <span class="nn">os</span> <span class="k">import</span> <span class="n">mkdir</span>
+            <span class="n">mkdir</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">root</span><span class="p">)</span>
+
+        <span class="kn">from</span> <span class="nn">importlib</span> <span class="k">import</span> <span class="n">import_module</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_settings</span> <span class="o">=</span> <span class="n">steps</span>
+        <span class="sd">&quot;&quot;&quot;dict: with keys and values describing the kinds of training steps to setup.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="kn">from</span> <span class="nn">collections</span> <span class="k">import</span> <span class="n">OrderedDict</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">steps</span> <span class="o">=</span> <span class="n">OrderedDict</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">tspec</span> <span class="ow">in</span> <span class="n">steps</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">tspec</span><span class="p">,</span> <span class="n">six</span><span class="o">.</span><span class="n">string_types</span><span class="p">):</span>
+                <span class="c1">#This is a reference to an existing database instance that was</span>
+                <span class="c1">#defined previously.</span>
+                <span class="n">instance</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">controller</span><span class="p">[</span><span class="n">tspec</span><span class="p">]</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">steps</span><span class="p">[</span><span class="n">instance</span><span class="o">.</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">instance</span>
+                <span class="k">continue</span>
+
+            <span class="n">modname</span><span class="p">,</span> <span class="n">clsname</span> <span class="o">=</span> <span class="n">tspec</span><span class="p">[</span><span class="s2">&quot;type&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">)</span>
+            <span class="n">fqdn</span> <span class="o">=</span> <span class="s2">&quot;matdb.fitting.</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">modname</span><span class="p">)</span>
+            <span class="n">module</span> <span class="o">=</span> <span class="n">import_module</span><span class="p">(</span><span class="n">fqdn</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">module</span><span class="p">,</span> <span class="n">clsname</span><span class="p">):</span><span class="c1"># pragma: no cover</span>
+                <span class="c1">#We haven&#39;t implemented this database type yet, just skip the</span>
+                <span class="c1">#initialization for now.</span>
+                <span class="n">msg</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s2">&quot;Cannot find trainer of type </span><span class="si">{}</span><span class="s2">.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">tspec</span><span class="p">[</span><span class="s2">&quot;type&quot;</span><span class="p">]))</span>
+                <span class="k">continue</span>
+
+            <span class="bp">cls</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">module</span><span class="p">,</span> <span class="n">clsname</span><span class="p">)</span>
+
+            <span class="c1">#Make a copy of the original dictionary so that we don&#39;t mess up the</span>
+            <span class="c1">#pointers; then add in the keyword arguments that are missing.</span>
+            <span class="n">cpspec</span> <span class="o">=</span> <span class="n">tspec</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+            <span class="k">del</span> <span class="n">cpspec</span><span class="p">[</span><span class="s2">&quot;type&quot;</span><span class="p">]</span>
+            <span class="n">cpspec</span><span class="p">[</span><span class="s2">&quot;root&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">root</span>
+            <span class="n">cpspec</span><span class="p">[</span><span class="s2">&quot;parent&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span>
+            <span class="n">cpspec</span><span class="p">[</span><span class="s2">&quot;controller&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">controller</span>
+
+            <span class="c1">#Add in the default values passed in from the parent instances, but</span>
+            <span class="c1">#only update them if they weren&#39;t specified.</span>
+            <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="k">if</span> <span class="n">k</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">cpspec</span><span class="p">:</span>
+                    <span class="n">cpspec</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">v</span>
+
+            <span class="n">instance</span> <span class="o">=</span> <span class="bp">cls</span><span class="p">(</span><span class="o">**</span><span class="n">cpspec</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">steps</span><span class="p">[</span><span class="n">instance</span><span class="o">.</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">instance</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">isteps</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns a generator over steps in this sequence. The generator yields</span>
+<span class="sd">        the next step *only* if the previous one is already finished (i.e., the</span>
+<span class="sd">        `ready()` method returns True).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">previous</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">for</span> <span class="n">tname</span><span class="p">,</span> <span class="n">trainer</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">steps</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">if</span> <span class="n">previous</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">previous</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">ready</span><span class="p">():</span>
+                <span class="n">previous</span> <span class="o">=</span> <span class="p">(</span><span class="n">tname</span><span class="p">,</span> <span class="n">trainer</span><span class="p">)</span>
+                <span class="k">yield</span> <span class="n">previous</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">StopIteration</span><span class="p">()</span>
+
+<div class="viewcode-block" id="TrainingSequence.jobfiles"><a class="viewcode-back" href="../../../fitting/controller.html#matdb.fitting.controller.TrainingSequence.jobfiles">[docs]</a>    <span class="k">def</span> <span class="nf">jobfiles</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Runs the jobfile creation methods of the steps in this sequence, in</span>
+<span class="sd">        the correct order and only as each step completes.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">fitname</span><span class="p">,</span> <span class="n">fit</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">isteps</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">fit</span><span class="o">.</span><span class="n">ready</span><span class="p">():</span>
+                <span class="k">continue</span>
+
+            <span class="n">fit</span><span class="o">.</span><span class="n">jobfile</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">fit</span><span class="o">.</span><span class="n">_jobfile</span><span class="p">)):</span>
+                <span class="n">fqn</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{}</span><span class="s2">.</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">fitname</span><span class="p">)</span>
+                <span class="n">msg</span><span class="o">.</span><span class="n">okay</span><span class="p">(</span><span class="s2">&quot;Completed jobfile creation for </span><span class="si">{}</span><span class="s2">.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">fqn</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="TrainingSequence.status"><a class="viewcode-back" href="../../../fitting/controller.html#matdb.fitting.controller.TrainingSequence.status">[docs]</a>    <span class="k">def</span> <span class="nf">status</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">printed</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Determines status information for each of the training steps within</span>
+<span class="sd">        this sequence.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            printed (bool): when True, print the status to screen; otherwise,</span>
+<span class="sd">              return a dictionary with the relevant quantities.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">fitname</span><span class="p">,</span> <span class="n">fit</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">isteps</span><span class="p">:</span>
+            <span class="n">fit</span><span class="o">.</span><span class="n">status</span><span class="p">(</span><span class="n">printed</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TrainingSequence.execute"><a class="viewcode-back" href="../../../fitting/controller.html#matdb.fitting.controller.TrainingSequence.execute">[docs]</a>    <span class="k">def</span> <span class="nf">execute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dryrun</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Submits the job script for the each training step in the sequence.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            dryrun (bool): when True, simulate the submission without submitting.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">fitname</span><span class="p">,</span> <span class="n">fit</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">isteps</span><span class="p">:</span>
+            <span class="n">fit</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">dryrun</span><span class="p">)</span></div></div>
+
+<div class="viewcode-block" id="TSequenceRepeater"><a class="viewcode-back" href="../../../fitting/controller.html#matdb.fitting.controller.TSequenceRepeater">[docs]</a><span class="k">class</span> <span class="nc">TSequenceRepeater</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Represents a group of training sequences that share the same underlying</span>
+<span class="sd">    database of configurations for training and validation, but that vary only</span>
+<span class="sd">    by standard parameter grids.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">root</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">controller</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">steps</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="n">niterations</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sequences</span> <span class="o">=</span> <span class="n">OrderedDict</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">root</span> <span class="o">=</span> <span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">root</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">path</span><span class="o">.</span><span class="n">isdir</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">root</span><span class="p">):</span>
+            <span class="kn">from</span> <span class="nn">os</span> <span class="k">import</span> <span class="n">mkdir</span>
+            <span class="n">mkdir</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">root</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">niterations</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="kn">from</span> <span class="nn">matdb.utility</span> <span class="k">import</span> <span class="n">obj_update</span><span class="p">,</span> <span class="n">pgrid</span>
+            <span class="c1"># from copy import copy</span>
+
+            <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">sequence</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">niterations</span><span class="p">):</span>
+                <span class="n">suffix</span> <span class="o">=</span> <span class="n">sequence</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;suffix&quot;</span><span class="p">)</span>
+                <span class="n">grid</span><span class="p">,</span> <span class="n">keys</span> <span class="o">=</span> <span class="n">pgrid</span><span class="p">(</span><span class="n">sequence</span><span class="p">,</span> <span class="p">[</span><span class="s2">&quot;suffix&quot;</span><span class="p">])</span>
+                <span class="k">for</span> <span class="n">ival</span><span class="p">,</span> <span class="n">vals</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">grid</span><span class="p">):</span>
+                    <span class="n">isteps</span> <span class="o">=</span> <span class="n">copy</span><span class="p">(</span><span class="n">steps</span><span class="p">)</span>
+                    <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">oval</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">keys</span><span class="p">,</span> <span class="n">vals</span><span class="p">):</span>
+                        <span class="n">obj_update</span><span class="p">(</span><span class="n">isteps</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="n">oval</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+
+                    <span class="n">nsuffix</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">vals</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span> <span class="k">else</span> <span class="s2">&quot;-</span><span class="si">{0:d}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">ival</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="n">suffix</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                        <span class="n">nn</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">+</span> <span class="s2">&quot;-</span><span class="si">{0}{1}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">suffix</span><span class="p">,</span> <span class="n">nsuffix</span><span class="p">)</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">nn</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">+</span> <span class="s2">&quot;-</span><span class="si">{0:d}{1}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">nsuffix</span><span class="p">)</span>
+
+                    <span class="n">iobj</span> <span class="o">=</span> <span class="n">TrainingSequence</span><span class="p">(</span><span class="n">nn</span><span class="p">,</span> <span class="bp">self</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">root</span><span class="p">,</span>
+                                            <span class="n">controller</span><span class="p">,</span> <span class="n">isteps</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">sequences</span><span class="p">[</span><span class="n">nn</span><span class="p">]</span> <span class="o">=</span> <span class="n">iobj</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">single</span> <span class="o">=</span> <span class="n">TrainingSequence</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="bp">self</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">root</span><span class="p">,</span> <span class="n">controller</span><span class="p">,</span> <span class="n">steps</span><span class="p">,</span>
+                                      <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">sequences</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">single</span></div>
+
+<div class="viewcode-block" id="TController"><a class="viewcode-back" href="../../../fitting/controller.html#matdb.fitting.controller.TController">[docs]</a><span class="k">class</span> <span class="nc">TController</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Controller for handling sequences of training steps.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        db (matdb.database.Controller): controller for the available data sets</span>
+<span class="sd">          to use.</span>
+<span class="sd">        root (str): path to the root directory for the system.</span>
+<span class="sd">        fits (dict): key-value pairs defining the list of fitters to try out.</span>
+<span class="sd">        e0 (list): list of `float` values indicating the *isolated* atom energy in</span>
+<span class="sd">          `eV`.</span>
+<span class="sd">        plotting (dict): keyword arguments for plotting to generate for each</span>
+<span class="sd">          trainer after it is finished fitting. This uses</span>
+<span class="sd">          :func:`~matdb.plotting.potentials.generate`.</span>
+<span class="sd">        kwargs (dict): additional key-value pairs to pass down to the individual</span>
+<span class="sd">          trainer objects.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">db</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">root</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">fits</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">e0</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">plotting</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Assumes that a YAML file is parsed into a dict, the process sets a bunch of variables. Near the end of the method, it initialized the database object, which </span>
+<span class="sd">        looks like a class that handels the interactions with the data to be stored. </span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">from</span> <span class="nn">matdb.utility</span> <span class="k">import</span> <span class="n">dict_update</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">db</span> <span class="o">=</span> <span class="n">db</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">e0</span> <span class="o">=</span> <span class="n">e0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">root</span> <span class="o">=</span> <span class="n">root</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">plotting</span> <span class="o">=</span> <span class="n">plotting</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">fits</span> <span class="o">=</span> <span class="n">OrderedDict</span><span class="p">()</span>
+
+        <span class="k">for</span> <span class="n">fspec</span> <span class="ow">in</span> <span class="n">fits</span><span class="p">:</span>
+            <span class="n">cpspec</span> <span class="o">=</span> <span class="n">fspec</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+            <span class="n">cpspec</span><span class="p">[</span><span class="s2">&quot;root&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">root</span>
+            <span class="n">cpspec</span><span class="p">[</span><span class="s2">&quot;controller&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span>
+
+            <span class="n">dict_update</span><span class="p">(</span><span class="n">cpspec</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">)</span>
+            <span class="n">seq</span> <span class="o">=</span> <span class="n">TSequenceRepeater</span><span class="p">(</span><span class="o">**</span><span class="n">cpspec</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">fits</span><span class="p">[</span><span class="n">fspec</span><span class="p">[</span><span class="s2">&quot;name&quot;</span><span class="p">]]</span> <span class="o">=</span> <span class="n">seq</span>
+
+<div class="viewcode-block" id="TController.ifiltered"><a class="viewcode-back" href="../../../fitting/controller.html#matdb.fitting.controller.TController.ifiltered">[docs]</a>    <span class="k">def</span> <span class="nf">ifiltered</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tfilter</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">sfilter</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;It is a utility function to iterate over the entries in the database.</span>
+
+<span class="sd">        Returns a *filtered* generator over sequences of trainers in the :attr:`fits`</span>
+<span class="sd">        collection of this object.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            tfilter (list): list of `str` patterns to match against *fit* names.</span>
+<span class="sd">            sfilter (list): list of `str` patterns to match against *step* names.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">from</span> <span class="nn">fnmatch</span> <span class="k">import</span> <span class="n">fnmatch</span>
+        <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">fit</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">fits</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">if</span> <span class="n">tfilter</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="nb">any</span><span class="p">(</span><span class="n">fnmatch</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">t</span><span class="p">)</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">tfilter</span><span class="p">):</span>
+                <span class="k">for</span> <span class="n">fitn</span><span class="p">,</span> <span class="n">seq</span> <span class="ow">in</span> <span class="n">fit</span><span class="o">.</span><span class="n">sequences</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                    <span class="k">if</span> <span class="n">sfilter</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="nb">any</span><span class="p">(</span><span class="n">fnmatch</span><span class="p">(</span><span class="n">fitn</span><span class="p">,</span><span class="n">s</span><span class="p">)</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">sfilter</span><span class="p">):</span>
+                        <span class="k">yield</span> <span class="p">(</span><span class="n">fitn</span><span class="p">,</span> <span class="n">seq</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TController.steps"><a class="viewcode-back" href="../../../fitting/controller.html#matdb.fitting.controller.TController.steps">[docs]</a>    <span class="k">def</span> <span class="nf">steps</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;For displaying the contents of the database.</span>
+
+<span class="sd">        Compiles a list of all steps in this set of trainers.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">fits</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">fits</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">for</span> <span class="n">repeater</span> <span class="ow">in</span> <span class="n">fits</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+                <span class="k">for</span> <span class="n">parent</span><span class="p">,</span> <span class="n">seq</span> <span class="ow">in</span> <span class="n">repeater</span><span class="o">.</span><span class="n">sequences</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                    <span class="k">for</span> <span class="n">step</span> <span class="ow">in</span> <span class="n">seq</span><span class="o">.</span><span class="n">steps</span><span class="p">:</span>
+                        <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{0}</span><span class="s2">.</span><span class="si">{1}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">parent</span><span class="p">,</span> <span class="n">step</span><span class="p">))</span>
+
+        <span class="k">return</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">result</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TController.sequences"><a class="viewcode-back" href="../../../fitting/controller.html#matdb.fitting.controller.TController.sequences">[docs]</a>    <span class="k">def</span> <span class="nf">sequences</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;For displaying the contents of hte database.</span>
+
+<span class="sd">        Compiles a list of all sequences in this set of trainers.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">fits</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">fits</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">for</span> <span class="n">repeater</span> <span class="ow">in</span> <span class="n">fits</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+                <span class="n">result</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">repeater</span><span class="o">.</span><span class="n">sequences</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+
+        <span class="k">return</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">result</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TController.validate"><a class="viewcode-back" href="../../../fitting/controller.html#matdb.fitting.controller.TController.validate">[docs]</a>    <span class="k">def</span> <span class="nf">validate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">datafile</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">tfilter</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">sfilter</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">energy</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                 <span class="n">force</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">virial</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Validates all potentials/fitters in this controller against the</span>
+<span class="sd">        specified data file. If not specified, then the built-in hold out sets</span>
+<span class="sd">        are used.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            datafile (str): path to the data file to read the atoms list from.</span>
+<span class="sd">            tfilter (list): list of `str` patterns to match against *fit* names.</span>
+<span class="sd">            sfilter (list): list of `str` patterns to match against *step* names.</span>
+<span class="sd">            energy (bool): when True, validate the energies of each</span>
+<span class="sd">              configuration.</span>
+<span class="sd">            forces (bool): when True, validate the force *components* of each</span>
+<span class="sd">              configuration.</span>
+<span class="sd">            virial (bool): when True, validate the virial *components* of each</span>
+<span class="sd">              configuration.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">datafile</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">configs</span> <span class="o">=</span> <span class="n">AtomsList</span><span class="p">(</span><span class="n">datafile</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">configs</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="k">for</span> <span class="n">trainer</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">ifiltered</span><span class="p">(</span><span class="n">tfilter</span><span class="p">,</span> <span class="n">sfilter</span><span class="p">):</span>
+            <span class="n">trainer</span><span class="o">.</span><span class="n">validate</span><span class="p">(</span><span class="n">configs</span><span class="p">,</span> <span class="n">energy</span><span class="p">,</span> <span class="n">force</span><span class="p">,</span> <span class="n">virial</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TController.jobfiles"><a class="viewcode-back" href="../../../fitting/controller.html#matdb.fitting.controller.TController.jobfiles">[docs]</a>    <span class="k">def</span> <span class="nf">jobfiles</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tfilter</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">sfilter</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Propagates the jobfiles commands to all its contained trainers (held in varibale: TController.seq). It can be controlled by passing a function into the dfilter keyword variable.</span>
+<span class="sd">        Note that each trainer in TController.seq seems to be an instance of TSequenceRepeater.</span>
+<span class="sd">        </span>
+<span class="sd">        Creates the jobfiles for every trainer in the system.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            tfilter (list): list of `str` patterns to match against *fit* names.</span>
+<span class="sd">            sfilter (list): list of `str` patterns to match against *step* names.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">fitname</span><span class="p">,</span> <span class="n">fit</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">ifiltered</span><span class="p">(</span><span class="n">tfilter</span><span class="p">,</span> <span class="n">sfilter</span><span class="p">):</span>
+            <span class="n">fit</span><span class="o">.</span><span class="n">jobfiles</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="TController.execute"><a class="viewcode-back" href="../../../fitting/controller.html#matdb.fitting.controller.TController.execute">[docs]</a>    <span class="k">def</span> <span class="nf">execute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tfilter</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">sfilter</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">dryrun</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;It propagates the execute commands to all database entries. It can be controlled by passing a function into the dfilter keyword variable. </span>
+
+<span class="sd">        Executes the jobfiles for every trainer in the system.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            tfilter (list): list of `str` patterns to match against *fit* names.</span>
+<span class="sd">            tfilter (list): list of `str` patterns to match against *step* names.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">fitname</span><span class="p">,</span> <span class="n">fit</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">ifiltered</span><span class="p">(</span><span class="n">tfilter</span><span class="p">,</span> <span class="n">sfilter</span><span class="p">):</span>
+            <span class="n">fit</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">dryrun</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TController.status"><a class="viewcode-back" href="../../../fitting/controller.html#matdb.fitting.controller.TController.status">[docs]</a>    <span class="k">def</span> <span class="nf">status</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tfilter</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">sfilter</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">printed</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Prints status information for training steps in the controller.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            tfilter (list): list of `str` patterns to match against *fit* names.</span>
+<span class="sd">            sfilter (list): list of `str` patterns to match against *step* names.</span>
+<span class="sd">            printed (bool): when True, print the status to screen; otherwise,</span>
+<span class="sd">              return a dictionary with the relevant quantities.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">fitname</span><span class="p">,</span> <span class="n">fit</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">ifiltered</span><span class="p">(</span><span class="n">tfilter</span><span class="p">,</span> <span class="n">sfilter</span><span class="p">):</span>
+            <span class="n">fit</span><span class="o">.</span><span class="n">status</span><span class="p">(</span><span class="n">printed</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TController.find"><a class="viewcode-back" href="../../../fitting/controller.html#matdb.fitting.controller.TController.find">[docs]</a>    <span class="k">def</span> <span class="nf">find</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pattern</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Looks for data in the database. Either with the specific identifier or with a regular expression (to find multiple based off a pattern).</span>
+
+<span class="sd">        Finds a list of trainers that match the specified pattern. Trainer FQNs</span>
+<span class="sd">        follow the pattern `trainer-suffix.step` where the suffix may be</span>
+<span class="sd">        optional and the step names are defined by the `name` of each</span>
+<span class="sd">        :class:`Trainer` sub-class. Wildcard `*` or any other</span>
+<span class="sd">        :func:`~fnmatch.fnmatch` patterns may be used.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">pattern</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="n">repname</span><span class="p">,</span> <span class="n">trainer</span><span class="p">,</span> <span class="n">step</span> <span class="o">=</span> <span class="n">pattern</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">trainer</span><span class="p">,</span> <span class="n">step</span> <span class="o">=</span> <span class="n">pattern</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="s1">&#39;-&#39;</span> <span class="ow">in</span> <span class="n">trainer</span><span class="p">:</span>
+                <span class="n">repname</span> <span class="o">=</span> <span class="n">trainer</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;-&#39;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">repname</span> <span class="o">=</span> <span class="n">trainer</span>
+
+        <span class="kn">from</span> <span class="nn">fnmatch</span> <span class="k">import</span> <span class="n">fnmatch</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">reps</span> <span class="o">=</span> <span class="p">[</span><span class="n">irep</span> <span class="k">for</span> <span class="n">krep</span><span class="p">,</span> <span class="n">irep</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">fits</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
+                <span class="k">if</span> <span class="n">fnmatch</span><span class="p">(</span><span class="n">krep</span><span class="p">,</span> <span class="n">repname</span><span class="p">)]</span>
+        <span class="k">for</span> <span class="n">rep</span> <span class="ow">in</span> <span class="n">reps</span><span class="p">:</span>
+            <span class="n">seqs</span> <span class="o">=</span> <span class="p">[</span><span class="n">iseq</span> <span class="k">for</span> <span class="n">kseq</span><span class="p">,</span> <span class="n">iseq</span> <span class="ow">in</span> <span class="n">rep</span><span class="o">.</span><span class="n">sequences</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
+                    <span class="k">if</span> <span class="n">fnmatch</span><span class="p">(</span><span class="n">kseq</span><span class="p">,</span> <span class="n">trainer</span><span class="p">)]</span>
+            <span class="k">for</span> <span class="n">seq</span> <span class="ow">in</span> <span class="n">seqs</span><span class="p">:</span>
+                <span class="n">result</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="n">istep</span> <span class="k">for</span> <span class="n">kstep</span><span class="p">,</span> <span class="n">istep</span> <span class="ow">in</span> <span class="n">seq</span><span class="o">.</span><span class="n">steps</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
+                               <span class="k">if</span> <span class="n">fnmatch</span><span class="p">(</span><span class="n">kstep</span><span class="p">,</span> <span class="n">step</span><span class="p">)])</span>
+
+        <span class="k">return</span> <span class="n">result</span></div>
+
+    <span class="k">def</span> <span class="nf">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;A Python magic method that enables the class to use special python syntax to invoke items. It just takes data from the database in our case. </span>
+
+<span class="sd">        Gets the trainer or sequence with the specified key. The keys follow</span>
+<span class="sd">        the pattern `trainer-suffix.step` where the suffix may be optional and</span>
+<span class="sd">        the step names are defined by the `name` of each :class:`Trainer`</span>
+<span class="sd">        sub-class.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">trainer</span><span class="p">,</span> <span class="n">step</span> <span class="o">=</span> <span class="n">key</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="s1">&#39;-&#39;</span> <span class="ow">in</span> <span class="n">trainer</span><span class="p">:</span>
+            <span class="n">repname</span> <span class="o">=</span> <span class="n">trainer</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;-&#39;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">repname</span> <span class="o">=</span> <span class="n">trainer</span>
+
+        <span class="n">result</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="n">repname</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">fits</span><span class="p">:</span>
+            <span class="n">rep</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">fits</span><span class="p">[</span><span class="n">repname</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">trainer</span> <span class="ow">in</span> <span class="n">rep</span><span class="o">.</span><span class="n">sequences</span><span class="p">:</span>
+                <span class="n">seq</span> <span class="o">=</span> <span class="n">rep</span><span class="o">.</span><span class="n">sequences</span><span class="p">[</span><span class="n">trainer</span><span class="p">]</span>
+                <span class="n">result</span> <span class="o">=</span> <span class="n">seq</span><span class="o">.</span><span class="n">steps</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">step</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">result</span></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">matdb 0.0.5 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2017, Conrad W. Rosenbrock.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.8.5.
+    </div>
+  </body>
+</html>

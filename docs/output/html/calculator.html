@@ -1,0 +1,153 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Calculators &#8212; matdb 0.0.5 documentation</title>
+    <link rel="stylesheet" href="_static/nature.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="_static/language_data.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Quantum Espresso" href="calculators/qe.html" />
+    <link rel="prev" title="SBATCH" href="execution/sbatch.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="calculators/qe.html" title="Quantum Espresso"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="execution/sbatch.html" title="SBATCH"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">matdb 0.0.5 documentation</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="calculators">
+<h1>Calculators<a class="headerlink" href="#calculators" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="yml-file-specifications">
+<h2>YML File Specifications<a class="headerlink" href="#yml-file-specifications" title="Permalink to this headline">¶</a></h2>
+<p>Within the <cite>matdb.yml</cite> file the only keywords that can be used for
+each calculator are the <cite>name</cite> and <cite>exec_path</cite> fields. The <cite>name</cite>
+field is should simply supply the name of the calculator desired, most
+of the time the given name, if otherwise it will be specified in that
+calculators documentation. The <cite>exec_path</cite> is optional and provides
+the path to the executable for the calculator, i.e., <cite>vasp.x</cite> or
+<cite>pw.x</cite>. If <cite>exec_path</cite> is not supplied then it is assumed that the
+executable is on your system path. All other fields are calculator
+dependent and the individual calculators documentation should be
+consulted.</p>
+</div>
+<div class="section" id="supported-calculators">
+<h2>Supported Calculators<a class="headerlink" href="#supported-calculators" title="Permalink to this headline">¶</a></h2>
+<p><cite>matdb</cite> was designed such that it can be extended to interface with
+any <cite>ase</cite> calculator. Details on haw to add a specific calculator to
+<cite>matdb</cite> can be found below.</p>
+<p>Calculators currently supported are:</p>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="calculators/qe.html">Quantum Espresso</a></li>
+<li class="toctree-l1"><a class="reference internal" href="calculators/vasp.html">VASP</a></li>
+<li class="toctree-l1"><a class="reference internal" href="calculators/aflow.html">AFLOW</a></li>
+</ul>
+</div>
+<div class="toctree-wrapper compound">
+<p class="caption"><span class="caption-text">Calculator Utility and other modules</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="calculators/basic.html">Basic</a></li>
+<li class="toctree-l1"><a class="reference internal" href="calculators/utility.html">Utility</a></li>
+</ul>
+</div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">Table of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Calculators</a><ul>
+<li><a class="reference internal" href="#yml-file-specifications">YML File Specifications</a></li>
+<li><a class="reference internal" href="#supported-calculators">Supported Calculators</a><ul>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="execution/sbatch.html"
+                        title="previous chapter">SBATCH</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="calculators/qe.html"
+                        title="next chapter">Quantum Espresso</a></p>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/calculator.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="calculators/qe.html" title="Quantum Espresso"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="execution/sbatch.html" title="SBATCH"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">matdb 0.0.5 documentation</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2017, Conrad W. Rosenbrock.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.8.5.
+    </div>
+  </body>
+</html>

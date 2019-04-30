@@ -1,0 +1,185 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>SBATCH &#8212; matdb 0.0.5 documentation</title>
+    <link rel="stylesheet" href="../_static/nature.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <script type="text/javascript" src="../_static/language_data.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Calculators" href="../calculator.html" />
+    <link rel="prev" title="Execution" href="../execution.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="../calculator.html" title="Calculators"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="../execution.html" title="Execution"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">matdb 0.0.5 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../execution.html" accesskey="U">Execution</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="sbatch">
+<h1>SBATCH<a class="headerlink" href="#sbatch" title="Permalink to this headline">¶</a></h1>
+<p><cite>sbatch</cite> is used to submit jobs to a <cite>slurm</cite> style workload manager on
+many supercomputers. There may be differences in implementation of
+slurm templates for different supercomputers but the following fields
+should be applicaple to most use cases.</p>
+<div class="section" id="yml-file-specifications">
+<h2>yml File specifications<a class="headerlink" href="#yml-file-specifications" title="Permalink to this headline">¶</a></h2>
+<p>There are a number of fields that must be provided for population to
+the <cite>sbatch</cite> template. These fields are:</p>
+<ul class="simple">
+<li><strong>template</strong>: (string) The name of the template file located in
+<cite>matdb/templates</cite> to populate.</li>
+<li><strong>time</strong>: (integer) Time, in hours, that job will be allowed to run for.</li>
+<li><strong>ntasks</strong>: (integer) The number of tasks that are being performed, i.e., how
+many cpus to request.</li>
+<li><strong>nodes</strong>: (integer) The number of nodes to request.</li>
+<li><strong>mem_per_cpu</strong>: (integer) The amounnt of memory, in giga-bytes, to
+request on each cpu used.</li>
+<li><strong>exec_path</strong>: (string) Path to the executable that will be called
+by <cite>slurm</cite>.</li>
+<li><strong>job_name</strong>: (string) The job name for human reference.</li>
+</ul>
+<p>Additional opptional parameters include:</p>
+<ul class="simple">
+<li><strong>partition</strong>: (string) The name of a special partition to assign
+the jobs to.</li>
+<li><strong>array_limit</strong>: (integer) Only to be used if the template supports
+job arrays. Sets the maximum number of jobs that can run at a time.</li>
+<li><strong>modules_load</strong>: (list) Loads the specified modules into the session.</li>
+<li><strong>modules_unload</strong>: (list) Unloads the specified modules into the session.</li>
+<li><strong>preamble</strong>: (string) Anything that needs to be done immediately
+before execution of the script.</li>
+<li><strong>options</strong>: (list) Any other <cite>slurm</cite> options that the user wishes
+to include.</li>
+</ul>
+<p>For the preamble, you can use multi-line strings in YAML like:</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">preamble</span><span class="p">:</span> <span class="p p-Indicator">&gt;</span>
+  <span class="no">first line</span>
+  <span class="no">second line</span>
+  <span class="no">and so on...</span>
+</pre></div>
+</div>
+<p>Templates included in <cite>matdb</cite> for <cite>sbatch</cite> are:</p>
+<ol class="arabic simple">
+<li><cite>run_array_ml.sh</cite>: used to run job arrays, such as the training of
+databases where multiple calculations can be happening
+simultaneously.</li>
+<li><cite>run_single_ml.sh</cite>: used to run a single job that won’t make uso fo
+job arrays.</li>
+</ol>
+</div>
+<div class="section" id="example">
+<h2>Example<a class="headerlink" href="#example" title="Permalink to this headline">¶</a></h2>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">execution</span><span class="p">:</span>
+  <span class="nt">template</span><span class="p">:</span> <span class="s">&#39;run_array_ml.sh&#39;</span>
+  <span class="nt">time</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">4</span>
+  <span class="nt">ntasks</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">1</span>
+  <span class="nt">nodes</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">1</span>
+  <span class="nt">mem_per_cpu</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">4</span>
+  <span class="nt">job_name</span><span class="p">:</span> <span class="s">&#39;AgPd</span><span class="nv"> </span><span class="s">DB&#39;</span>
+  <span class="nt">partition</span><span class="p">:</span> <span class="s">&#39;physics&#39;</span>
+  <span class="nt">array_limit</span><span class="p">:</span> <span class="l l-Scalar l-Scalar-Plain">50</span>
+  <span class="nt">modules_load</span><span class="p">:</span> <span class="p p-Indicator">[</span><span class="s">&#39;mkl/11.2.0&#39;</span><span class="p p-Indicator">]</span>
+  <span class="nt">exec_path</span><span class="p">:</span> <span class="s">&#39;vasp&#39;</span>
+</pre></div>
+</div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="../index.html">Table of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">SBATCH</a><ul>
+<li><a class="reference internal" href="#yml-file-specifications">yml File specifications</a></li>
+<li><a class="reference internal" href="#example">Example</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="../execution.html"
+                        title="previous chapter">Execution</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="../calculator.html"
+                        title="next chapter">Calculators</a></p>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="../_sources/execution/sbatch.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="../calculator.html" title="Calculators"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="../execution.html" title="Execution"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">matdb 0.0.5 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../execution.html" >Execution</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2017, Conrad W. Rosenbrock.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.8.5.
+    </div>
+  </body>
+</html>

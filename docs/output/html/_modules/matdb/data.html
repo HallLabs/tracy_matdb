@@ -1,0 +1,105 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>matdb.data &#8212; matdb 0.0.5 documentation</title>
+    <link rel="stylesheet" href="../../_static/nature.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <script type="text/javascript" src="../../_static/language_data.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">matdb 0.0.5 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for matdb.data</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Data about elemental and alloy systems that doesn&#39;t change with time.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="n">latpars</span> <span class="o">=</span><span class="p">{</span><span class="s2">&quot;H&quot;</span><span class="p">:</span> <span class="mf">3.75</span><span class="p">,</span><span class="s2">&quot;He&quot;</span><span class="p">:</span> <span class="mf">3.57</span><span class="p">,</span><span class="s2">&quot;Li&quot;</span><span class="p">:</span> <span class="mf">3.49</span><span class="p">,</span><span class="s2">&quot;Be&quot;</span><span class="p">:</span> <span class="mf">2.29</span><span class="p">,</span><span class="s2">&quot;B&quot;</span><span class="p">:</span> <span class="mf">8.73</span><span class="p">,</span><span class="s2">&quot;C&quot;</span><span class="p">:</span> <span class="mf">3.57</span><span class="p">,</span><span class="s2">&quot;N&quot;</span><span class="p">:</span> <span class="mf">4.039</span><span class="p">,</span>
+          <span class="s2">&quot;O&quot;</span><span class="p">:</span> <span class="mf">6.83</span><span class="p">,</span><span class="s2">&quot;Ne&quot;</span><span class="p">:</span> <span class="mf">4.43</span><span class="p">,</span><span class="s2">&quot;Na&quot;</span><span class="p">:</span> <span class="mf">4.23</span><span class="p">,</span><span class="s2">&quot;Mg&quot;</span><span class="p">:</span> <span class="mf">3.21</span><span class="p">,</span><span class="s2">&quot;Al&quot;</span><span class="p">:</span> <span class="mf">4.05</span><span class="p">,</span><span class="s2">&quot;Si&quot;</span><span class="p">:</span> <span class="mf">5.43</span><span class="p">,</span><span class="s2">&quot;P&quot;</span><span class="p">:</span> <span class="mf">7.17</span><span class="p">,</span>
+          <span class="s2">&quot;S&quot;</span><span class="p">:</span> <span class="mf">10.47</span><span class="p">,</span><span class="s2">&quot;Cl&quot;</span><span class="p">:</span> <span class="mf">6.24</span><span class="p">,</span><span class="s2">&quot;Ar&quot;</span><span class="p">:</span> <span class="mf">5.26</span><span class="p">,</span><span class="s2">&quot;K&quot;</span><span class="p">:</span> <span class="mf">5.23</span><span class="p">,</span><span class="s2">&quot;Ca&quot;</span><span class="p">:</span> <span class="mf">5.58</span><span class="p">,</span><span class="s2">&quot;Sc&quot;</span><span class="p">:</span> <span class="mf">3.31</span><span class="p">,</span><span class="s2">&quot;Ti&quot;</span><span class="p">:</span> <span class="mf">2.95</span><span class="p">,</span>
+          <span class="s2">&quot;V&quot;</span><span class="p">:</span> <span class="mf">3.02</span><span class="p">,</span><span class="s2">&quot;Cr&quot;</span><span class="p">:</span> <span class="mf">2.88</span><span class="p">,</span><span class="s2">&quot;Mn&quot;</span><span class="p">:</span> <span class="mf">8.89</span><span class="p">,</span><span class="s2">&quot;Fe&quot;</span><span class="p">:</span> <span class="mf">2.87</span><span class="p">,</span><span class="s2">&quot;Co&quot;</span><span class="p">:</span> <span class="mf">2.51</span><span class="p">,</span><span class="s2">&quot;Ni&quot;</span><span class="p">:</span> <span class="mf">3.52</span><span class="p">,</span><span class="s2">&quot;Cu&quot;</span><span class="p">:</span> <span class="mf">3.61</span><span class="p">,</span>
+          <span class="s2">&quot;Zn&quot;</span><span class="p">:</span> <span class="mf">2.66</span><span class="p">,</span><span class="s2">&quot;Ga&quot;</span><span class="p">:</span> <span class="mf">4.51</span><span class="p">,</span><span class="s2">&quot;Ge&quot;</span><span class="p">:</span> <span class="mf">5.66</span><span class="p">,</span><span class="s2">&quot;As&quot;</span><span class="p">:</span> <span class="mf">4.13</span><span class="p">,</span><span class="s2">&quot;Se&quot;</span><span class="p">:</span> <span class="mf">4.36</span><span class="p">,</span><span class="s2">&quot;Br&quot;</span><span class="p">:</span> <span class="mf">6.67</span><span class="p">,</span><span class="s2">&quot;Kr&quot;</span><span class="p">:</span> <span class="mf">5.72</span><span class="p">,</span>
+          <span class="s2">&quot;Rb&quot;</span><span class="p">:</span> <span class="mf">5.59</span><span class="p">,</span><span class="s2">&quot;Sr&quot;</span><span class="p">:</span> <span class="mf">6.08</span><span class="p">,</span><span class="s2">&quot;Y&quot;</span><span class="p">:</span> <span class="mf">3.65</span><span class="p">,</span><span class="s2">&quot;Zr&quot;</span><span class="p">:</span> <span class="mf">3.23</span><span class="p">,</span><span class="s2">&quot;Nb&quot;</span><span class="p">:</span> <span class="mf">3.3</span><span class="p">,</span><span class="s2">&quot;Mo&quot;</span><span class="p">:</span> <span class="mf">3.15</span><span class="p">,</span><span class="s2">&quot;Tc&quot;</span><span class="p">:</span> <span class="mf">2.74</span><span class="p">,</span>
+          <span class="s2">&quot;Ru&quot;</span><span class="p">:</span> <span class="mf">2.7</span><span class="p">,</span><span class="s2">&quot;Rh&quot;</span><span class="p">:</span> <span class="mf">3.8</span><span class="p">,</span><span class="s2">&quot;Pd&quot;</span><span class="p">:</span> <span class="mf">3.89</span><span class="p">,</span><span class="s2">&quot;Ag&quot;</span><span class="p">:</span> <span class="mf">4.09</span><span class="p">,</span><span class="s2">&quot;Cd&quot;</span><span class="p">:</span> <span class="mf">2.98</span><span class="p">,</span><span class="s2">&quot;In&quot;</span><span class="p">:</span> <span class="mf">4.59</span><span class="p">,</span><span class="s2">&quot;Sn&quot;</span><span class="p">:</span> <span class="mf">5.82</span><span class="p">,</span>
+          <span class="s2">&quot;Sb&quot;</span><span class="p">:</span> <span class="mf">4.51</span><span class="p">,</span><span class="s2">&quot;Te&quot;</span><span class="p">:</span> <span class="mf">4.45</span><span class="p">,</span><span class="s2">&quot;I&quot;</span><span class="p">:</span> <span class="mf">7.27</span><span class="p">,</span><span class="s2">&quot;Xe&quot;</span><span class="p">:</span> <span class="mf">6.2</span><span class="p">,</span><span class="s2">&quot;Cs&quot;</span><span class="p">:</span> <span class="mf">6.05</span><span class="p">,</span><span class="s2">&quot;Ba&quot;</span><span class="p">:</span> <span class="mf">5.02</span><span class="p">,</span><span class="s2">&quot;Hf&quot;</span><span class="p">:</span> <span class="mf">3.2</span><span class="p">,</span>
+          <span class="s2">&quot;Ta&quot;</span><span class="p">:</span> <span class="mf">3.31</span><span class="p">,</span><span class="s2">&quot;W&quot;</span><span class="p">:</span> <span class="mf">3.16</span><span class="p">,</span><span class="s2">&quot;Re&quot;</span><span class="p">:</span> <span class="mf">2.76</span><span class="p">,</span><span class="s2">&quot;Os&quot;</span><span class="p">:</span> <span class="mf">2.64</span><span class="p">,</span><span class="s2">&quot;Ir&quot;</span><span class="p">:</span> <span class="mf">3.84</span><span class="p">,</span><span class="s2">&quot;Pt&quot;</span><span class="p">:</span> <span class="mf">3.92</span><span class="p">,</span><span class="s2">&quot;Au&quot;</span><span class="p">:</span> <span class="mf">4.08</span><span class="p">,</span>
+          <span class="s2">&quot;Hg&quot;</span><span class="p">:</span> <span class="mf">2.99</span><span class="p">,</span><span class="s2">&quot;Tl&quot;</span><span class="p">:</span> <span class="mf">3.46</span><span class="p">,</span><span class="s2">&quot;Pb&quot;</span><span class="p">:</span> <span class="mf">4.95</span><span class="p">,</span><span class="s2">&quot;Bi&quot;</span><span class="p">:</span> <span class="mf">4.75</span><span class="p">}</span>
+
+<div class="viewcode-block" id="vegard"><a class="viewcode-back" href="../../data.html#matdb.data.vegard">[docs]</a><span class="k">def</span> <span class="nf">vegard</span><span class="p">(</span><span class="n">elements</span><span class="p">,</span> <span class="n">concs</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Interpolates the lattice parameters for the given alloy system using</span>
+<span class="sd">    vegard&#39;s law.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        elements (list): list of `str` chemical symbols; keys in :data:`latpars`.</span>
+<span class="sd">        concs (list): list of concentrations for each element in `elements`.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">conctot</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">concs</span><span class="p">)</span>
+    <span class="n">lat</span> <span class="o">=</span> <span class="p">[</span><span class="n">latpars</span><span class="p">[</span><span class="n">e</span><span class="p">]</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">elements</span><span class="p">]</span>
+    <span class="k">return</span> <span class="nb">sum</span><span class="p">(</span><span class="n">a</span><span class="o">*</span><span class="n">b</span><span class="o">/</span><span class="n">conctot</span> <span class="k">for</span> <span class="n">a</span><span class="p">,</span> <span class="n">b</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">lat</span><span class="p">,</span> <span class="n">concs</span><span class="p">))</span></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">matdb 0.0.5 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2017, Conrad W. Rosenbrock.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.8.5.
+    </div>
+  </body>
+</html>

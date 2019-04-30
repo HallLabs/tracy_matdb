@@ -1,0 +1,735 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>matdb.atoms &#8212; matdb 0.0.5 documentation</title>
+    <link rel="stylesheet" href="../../_static/nature.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <script type="text/javascript" src="../../_static/language_data.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">matdb 0.0.5 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for matdb.atoms</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Implementation of Atoms object and AtomsList. </span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">ase</span>
+<span class="kn">from</span> <span class="nn">ase.calculators.singlepoint</span> <span class="k">import</span> <span class="n">SinglePointCalculator</span>
+<span class="kn">from</span> <span class="nn">ase.build</span> <span class="k">import</span> <span class="n">make_supercell</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">copy</span> <span class="k">import</span> <span class="n">deepcopy</span>
+<span class="kn">from</span> <span class="nn">itertools</span> <span class="k">import</span> <span class="n">product</span>
+
+<span class="kn">import</span> <span class="nn">h5py</span>
+<span class="kn">from</span> <span class="nn">ase</span> <span class="k">import</span> <span class="n">io</span>
+<span class="kn">from</span> <span class="nn">six</span> <span class="k">import</span> <span class="n">string_types</span>
+<span class="kn">from</span> <span class="nn">os</span> <span class="k">import</span> <span class="n">path</span>
+<span class="kn">from</span> <span class="nn">uuid</span> <span class="k">import</span> <span class="n">uuid4</span>
+<span class="kn">from</span> <span class="nn">matdb</span> <span class="k">import</span> <span class="n">msg</span>
+<span class="kn">from</span> <span class="nn">matdb.transforms</span> <span class="k">import</span> <span class="n">conform_supercell</span>
+<span class="kn">import</span> <span class="nn">matdb.calculators</span> <span class="k">as</span> <span class="nn">calculators</span>
+
+<span class="k">def</span> <span class="nf">_recursively_convert_units</span><span class="p">(</span><span class="n">in_dict</span><span class="p">,</span> <span class="n">split</span> <span class="o">=</span> <span class="kc">False</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Recursively goes through a dictionary and converts it&#39;s units to be</span>
+<span class="sd">    numpy instead of standard arrays.</span>
+<span class="sd">    Args:</span>
+<span class="sd">        in_dict (dict): the input dictionary.</span>
+<span class="sd">    Returns:</span>
+<span class="sd">        a copy of the dict with the entries converted to numpy ints,</span>
+<span class="sd">        floats, and arrays.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">dict_copy</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">in_dict</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">item</span><span class="p">,</span><span class="nb">int</span><span class="p">):</span>
+            <span class="n">dict_copy</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">(</span><span class="n">item</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">item</span><span class="p">,</span><span class="nb">float</span><span class="p">):</span>
+            <span class="n">dict_copy</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">(</span><span class="n">item</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">item</span><span class="p">,</span><span class="nb">dict</span><span class="p">):</span>
+            <span class="n">dict_copy</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">_recursively_convert_units</span><span class="p">(</span><span class="n">item</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">item</span><span class="p">,</span><span class="nb">list</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">split</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">item</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">Atoms</span><span class="p">):</span>
+                <span class="n">atoms_dict</span> <span class="o">=</span> <span class="p">{}</span>
+                <span class="k">for</span> <span class="n">i</span><span class="p">,</span><span class="n">a</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">item</span><span class="p">):</span>
+                    <span class="n">atoms_dict</span><span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">i</span><span class="p">)]</span> <span class="o">=</span> <span class="n">a</span><span class="o">.</span><span class="n">to_dict</span><span class="p">()</span>
+                <span class="n">dict_copy</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">_recursively_convert_units</span><span class="p">(</span><span class="n">atoms_dict</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">dict_copy</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">item</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">dict_copy</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">item</span>
+                
+    <span class="k">return</span> <span class="n">dict_copy</span>
+
+<span class="k">def</span> <span class="nf">_calc_name_converter</span><span class="p">(</span><span class="n">name</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Converts the name returned and saved by the ase calculator to the</span>
+<span class="sd">    matdb calculator instance name.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">name_dict</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;vasp&quot;</span><span class="p">:</span><span class="s2">&quot;Vasp&quot;</span><span class="p">}</span>
+    <span class="k">return</span> <span class="n">name_dict</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="k">if</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">name_dict</span> <span class="k">else</span> <span class="n">name</span>
+
+<div class="viewcode-block" id="Atoms"><a class="viewcode-back" href="../../atoms.html#matdb.atoms.Atoms">[docs]</a><span class="k">class</span> <span class="nc">Atoms</span><span class="p">(</span><span class="n">ase</span><span class="o">.</span><span class="n">Atoms</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;An implementation of the :class:`ase.Atoms` object that adds the</span>
+<span class="sd">    additional attributes of params and properties.</span>
+
+<span class="sd">    .. note:: All arguments are optional. The user only needs to specify the symbols or the atomic numbers for the system not both.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        symbols (str): The chemical symbols for the system, i.e., &#39;Si8&#39; or &#39;CoNb&#39;</span>
+<span class="sd">        positions (list): The (x,y,z) position of each atom in the cell.</span>
+<span class="sd">        numbers (list): List of the atomic numbers of the atoms.</span>
+<span class="sd">        momenta (list): The momenta of each atom.</span>
+<span class="sd">        masses (list): The masses of each atom.</span>
+<span class="sd">        charges (list): The charges of each atom.</span>
+<span class="sd">        cell (list): The lattice vectors for the cell.</span>
+<span class="sd">        pbc (list): list of bools for the periodic boundary conditions in x y </span>
+<span class="sd">          and z. </span>
+<span class="sd">        calculator (object): a `matdb` calculator object.</span>
+<span class="sd">        info (dict): a dictionary containing other info. It will be stored in the params dictionary.</span>
+<span class="sd">        n (int): the number of atoms in the cell.</span>
+<span class="sd">        properties (dict): a dictionary of properties where the keys are the property</span>
+<span class="sd">          names and the values are a list containing the property value for each atom.</span>
+<span class="sd">        params (dict): a dictionary of parameters that apply to the entire system.</span>
+<span class="sd">        group_uuid (str): the uuid for the group.</span>
+<span class="sd">        uuid (str): a uuid4 str for unique identification.</span>
+
+<span class="sd">    .. note:: Additional attributes are also exposed by the super class :class:`ase.Atoms`.</span>
+<span class="sd">    </span>
+<span class="sd">    Attributes:</span>
+<span class="sd">        properties (dict): a dictionary of properties where the keys are the property</span>
+<span class="sd">          names and the values are a list containing the property value for each atom.</span>
+<span class="sd">        params (dict): a dictionary of parameters that apply to the entire system.</span>
+<span class="sd">        n (int): the number of atoms in the cell</span>
+<span class="sd">        calc (object): the `matdb` calculator to be used for calculations.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">symbols</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">positions</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">numbers</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">tags</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="n">momenta</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">masses</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">magmoms</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">charges</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="n">scaled_positions</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">cell</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">pbc</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">constraint</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="n">calculator</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">info</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">n</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">celldisp</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="n">properties</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">params</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">fixed_size</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">set_species</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                 <span class="n">fpointer</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">finalise</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">group_uuid</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">uuid</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="o">**</span><span class="n">readargs</span><span class="p">):</span>
+
+        <span class="k">if</span> <span class="p">(</span><span class="n">symbols</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">symbols</span><span class="p">,</span><span class="n">string_types</span><span class="p">))</span> <span class="ow">or</span> <span class="p">(</span>
+                <span class="n">symbols</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">symbols</span><span class="p">)):</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">copy_from</span><span class="p">(</span><span class="n">symbols</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">TypeError</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">symbols</span><span class="p">,</span><span class="o">**</span><span class="n">readargs</span><span class="p">)</span>
+
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1">#NB: make sure that we match exactly on the keyword arguments. Do</span>
+            <span class="c1">#*NOT* use positional arguments for this constructor.</span>
+            <span class="nb">super</span><span class="p">(</span><span class="n">Atoms</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">symbols</span><span class="o">=</span><span class="n">symbols</span><span class="p">,</span>
+                 <span class="n">positions</span><span class="o">=</span><span class="n">positions</span><span class="p">,</span> <span class="n">numbers</span><span class="o">=</span><span class="n">numbers</span><span class="p">,</span>
+                 <span class="n">tags</span><span class="o">=</span><span class="n">tags</span><span class="p">,</span> <span class="n">momenta</span><span class="o">=</span><span class="n">momenta</span><span class="p">,</span> <span class="n">masses</span><span class="o">=</span><span class="n">masses</span><span class="p">,</span>
+                 <span class="n">magmoms</span><span class="o">=</span><span class="n">magmoms</span><span class="p">,</span> <span class="n">charges</span><span class="o">=</span><span class="n">charges</span><span class="p">,</span>
+                 <span class="n">scaled_positions</span><span class="o">=</span><span class="n">scaled_positions</span><span class="p">,</span>
+                 <span class="n">cell</span><span class="o">=</span><span class="n">cell</span><span class="p">,</span> <span class="n">pbc</span><span class="o">=</span><span class="n">pbc</span><span class="p">,</span> <span class="n">celldisp</span><span class="o">=</span><span class="n">celldisp</span><span class="p">,</span>
+                 <span class="n">constraint</span><span class="o">=</span><span class="n">constraint</span><span class="p">,</span>
+                 <span class="n">calculator</span><span class="o">=</span><span class="n">calculator</span><span class="p">,</span> <span class="n">info</span><span class="o">=</span><span class="n">info</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">n</span> <span class="o">=</span> <span class="n">n</span> <span class="k">if</span> <span class="n">n</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">positions</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">calc</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">calc</span> <span class="o">=</span> <span class="n">calculator</span> <span class="k">if</span> <span class="n">calculator</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="kc">None</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">calc</span> <span class="o">=</span> <span class="n">calculator</span> <span class="k">if</span> <span class="n">calculator</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">calc</span>
+
+        <span class="k">if</span> <span class="s2">&quot;params&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">info</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">info</span><span class="p">[</span><span class="s2">&quot;params&quot;</span><span class="p">]</span><span class="o">=</span><span class="p">{}</span>
+        <span class="k">if</span> <span class="s2">&quot;properties&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">info</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">info</span><span class="p">[</span><span class="s2">&quot;properties&quot;</span><span class="p">]</span><span class="o">=</span><span class="p">{}</span>
+
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">symbols</span><span class="p">,</span><span class="n">ase</span><span class="o">.</span><span class="n">Atoms</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">symbols</span><span class="o">.</span><span class="n">arrays</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="k">if</span> <span class="n">k</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;positions&#39;</span><span class="p">,</span><span class="s1">&#39;numbers&#39;</span><span class="p">]:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">add_property</span><span class="p">(</span><span class="n">k</span><span class="p">,</span><span class="n">v</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">k</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">info</span><span class="p">[</span><span class="s2">&quot;params&quot;</span><span class="p">]:</span> <span class="c1"># pragma: no cover This</span>
+                                             <span class="c1"># should never happen</span>
+                                             <span class="c1"># check in place just in</span>
+                                             <span class="c1"># case.</span>
+                    <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">info</span><span class="p">[</span><span class="s2">&quot;params&quot;</span><span class="p">][</span><span class="n">k</span><span class="p">]</span>
+                <span class="k">if</span> <span class="n">k</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">info</span><span class="p">:</span> <span class="c1"># pragma: no cover This should</span>
+                                   <span class="c1"># never happen check in place just</span>
+                                   <span class="c1"># in case.</span>
+                    <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">info</span><span class="p">[</span><span class="n">k</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="s2">&quot;calc&quot;</span><span class="p">):</span>
+            <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">calc</span><span class="p">,</span><span class="s2">&quot;results&quot;</span><span class="p">):</span>
+                <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">calc</span><span class="o">.</span><span class="n">results</span><span class="o">.</span><span class="n">items</span><span class="p">():</span> <span class="c1"># pragma: no cover (DFT codes don&#39;t</span>
+                                                       <span class="c1"># use this).</span>
+                    <span class="k">if</span> <span class="n">k</span> <span class="o">!=</span> <span class="s1">&#39;force&#39;</span><span class="p">:</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">add_param</span><span class="p">(</span><span class="n">k</span><span class="p">,</span><span class="n">v</span><span class="p">)</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">add_property</span><span class="p">(</span><span class="n">k</span><span class="p">,</span><span class="n">v</span><span class="p">)</span>                    
+
+        <span class="k">if</span> <span class="n">properties</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">properties</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">add_property</span><span class="p">(</span><span class="n">k</span><span class="p">,</span><span class="n">v</span><span class="p">)</span>
+                
+        <span class="k">if</span> <span class="n">params</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">params</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">add_param</span><span class="p">(</span><span class="n">k</span><span class="p">,</span><span class="n">v</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">info</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">info</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="k">if</span> <span class="n">k</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;params&quot;</span><span class="p">,</span><span class="s2">&quot;properties&quot;</span><span class="p">]:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">add_param</span><span class="p">(</span><span class="n">k</span><span class="p">,</span><span class="n">v</span><span class="p">)</span>
+                
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">info</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">info_set</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="n">v</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">info</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
+            <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">info_set</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="k">if</span> <span class="n">k</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;params&quot;</span><span class="p">,</span><span class="s2">&quot;properties&quot;</span><span class="p">]:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">add_param</span><span class="p">(</span><span class="n">k</span><span class="p">,</span><span class="n">v</span><span class="p">)</span>
+                    <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">info</span><span class="p">[</span><span class="n">k</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;group_uuid&quot;</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">group_uuid</span> <span class="o">=</span> <span class="n">group_uuid</span>
+    
+        <span class="bp">self</span><span class="o">.</span><span class="n">uuid</span> <span class="o">=</span> <span class="n">uuid</span> <span class="k">if</span> <span class="n">uuid</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="nb">str</span><span class="p">(</span><span class="n">uuid4</span><span class="p">())</span>
+                
+        <span class="bp">self</span><span class="o">.</span><span class="n">_initialised</span> <span class="o">=</span> <span class="kc">True</span>
+
+    <span class="k">def</span> <span class="nf">__lt__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Determins which object should be placed first in a list.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">positions</span><span class="p">)</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">other</span><span class="o">.</span><span class="n">positions</span><span class="p">)</span>
+
+<div class="viewcode-block" id="Atoms.get_energy"><a class="viewcode-back" href="../../atoms.html#matdb.atoms.Atoms.get_energy">[docs]</a>    <span class="k">def</span> <span class="nf">get_energy</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the energy if it has been added to the params.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="k">if</span> <span class="s2">&quot;energy&quot;</span> <span class="ow">in</span> <span class="n">p</span><span class="p">:</span>
+                <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="n">p</span><span class="p">]</span></div>
+
+<div class="viewcode-block" id="Atoms.make_supercell"><a class="viewcode-back" href="../../atoms.html#matdb.atoms.Atoms.make_supercell">[docs]</a>    <span class="k">def</span> <span class="nf">make_supercell</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">supercell</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns a new :class:`~matdb.atoms.Atoms` object that is a supercell of the</span>
+<span class="sd">        current one.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">scell</span> <span class="o">=</span> <span class="n">conform_supercell</span><span class="p">(</span><span class="n">supercell</span><span class="p">)</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="n">make_supercell</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">scell</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">Atoms</span><span class="p">(</span><span class="n">result</span><span class="p">)</span></div>
+        
+<div class="viewcode-block" id="Atoms.add_property"><a class="viewcode-back" href="../../atoms.html#matdb.atoms.Atoms.add_property">[docs]</a>    <span class="k">def</span> <span class="nf">add_property</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">name</span><span class="p">,</span><span class="n">value</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Adds an attribute to the class instance.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            name (str): the name of the attribute.</span>
+<span class="sd">            value: the value/values that are associated with the attribute.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">name</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">name</span><span class="p">)</span> <span class="ow">or</span> <span class="n">name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">info</span><span class="p">[</span><span class="s2">&quot;properties&quot;</span><span class="p">]:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">info</span><span class="p">[</span><span class="s2">&quot;properties&quot;</span><span class="p">][</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">info</span><span class="p">[</span><span class="s2">&quot;properties&quot;</span><span class="p">][</span><span class="n">name</span><span class="p">]</span><span class="o">=</span><span class="n">value</span></div>
+
+<div class="viewcode-block" id="Atoms.add_param"><a class="viewcode-back" href="../../atoms.html#matdb.atoms.Atoms.add_param">[docs]</a>    <span class="k">def</span> <span class="nf">add_param</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">name</span><span class="p">,</span><span class="n">value</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Adds an attribute to the class instance.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            name (str): the name of the attribute.</span>
+<span class="sd">            value: the value/values that are associated with the attribute.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">name</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">name</span><span class="p">)</span> <span class="ow">or</span> <span class="n">name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">info</span><span class="p">[</span><span class="s2">&quot;params&quot;</span><span class="p">]:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">info</span><span class="p">[</span><span class="s2">&quot;params&quot;</span><span class="p">][</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">info</span><span class="p">[</span><span class="s2">&quot;params&quot;</span><span class="p">][</span><span class="n">name</span><span class="p">]</span><span class="o">=</span><span class="n">value</span></div>
+        
+<div class="viewcode-block" id="Atoms.rm_param"><a class="viewcode-back" href="../../atoms.html#matdb.atoms.Atoms.rm_param">[docs]</a>    <span class="k">def</span> <span class="nf">rm_param</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">name</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Removes a parameter as attribute from the class instance and info dictionary.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            name (str): the name of the attribute.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">info</span><span class="p">[</span><span class="s2">&quot;params&quot;</span><span class="p">]:</span>
+            <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">info</span><span class="p">[</span><span class="s2">&quot;params&quot;</span><span class="p">][</span><span class="n">name</span><span class="p">]</span></div>
+
+<div class="viewcode-block" id="Atoms.rm_property"><a class="viewcode-back" href="../../atoms.html#matdb.atoms.Atoms.rm_property">[docs]</a>    <span class="k">def</span> <span class="nf">rm_property</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Removes a property as attribute from the class instance and info dictionary.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            name (str): the name of the property/attribute.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">info</span><span class="p">[</span><span class="s2">&quot;properties&quot;</span><span class="p">]:</span>
+            <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">info</span><span class="p">[</span><span class="s2">&quot;properties&quot;</span><span class="p">][</span><span class="n">name</span><span class="p">]</span></div>
+            
+    <span class="k">def</span> <span class="nf">__del__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">attributes</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">vars</span><span class="p">(</span><span class="bp">self</span><span class="p">))</span>
+        <span class="k">for</span> <span class="n">attr</span> <span class="ow">in</span> <span class="n">attributes</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">attr</span><span class="p">),</span><span class="nb">dict</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">attr</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">attr</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="k">def</span> <span class="nf">__getattr__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">name</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;params&quot;</span><span class="p">,</span> <span class="s2">&quot;properties&quot;</span><span class="p">]:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">info</span><span class="p">[</span><span class="n">name</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">_dict</span> <span class="o">=</span> <span class="nb">object</span><span class="o">.</span><span class="fm">__getattribute__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;__dict__&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="s2">&quot;info&quot;</span> <span class="ow">in</span> <span class="n">_dict</span><span class="p">:</span>
+                <span class="n">info</span> <span class="o">=</span> <span class="nb">object</span><span class="o">.</span><span class="fm">__getattribute__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;info&quot;</span><span class="p">)</span>
+                <span class="k">if</span> <span class="s2">&quot;params&quot;</span> <span class="ow">in</span> <span class="n">info</span> <span class="ow">and</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">info</span><span class="p">[</span><span class="s2">&quot;params&quot;</span><span class="p">]:</span>
+                    <span class="k">return</span> <span class="n">info</span><span class="p">[</span><span class="s2">&quot;params&quot;</span><span class="p">][</span><span class="n">name</span><span class="p">]</span>
+                <span class="k">elif</span> <span class="s2">&quot;properties&quot;</span> <span class="ow">in</span> <span class="n">info</span> <span class="ow">and</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">info</span><span class="p">[</span><span class="s2">&quot;properties&quot;</span><span class="p">]:</span>
+                    <span class="k">return</span> <span class="n">info</span><span class="p">[</span><span class="s2">&quot;properties&quot;</span><span class="p">][</span><span class="n">name</span><span class="p">]</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">return</span> <span class="nb">object</span><span class="o">.</span><span class="fm">__getattribute__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">return</span> <span class="nb">object</span><span class="o">.</span><span class="fm">__getattribute__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__setattr__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">name</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;params&quot;</span><span class="p">,</span> <span class="s2">&quot;properties&quot;</span><span class="p">]:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">info</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">if</span> <span class="s2">&quot;info&quot;</span> <span class="ow">in</span> <span class="nb">object</span><span class="o">.</span><span class="fm">__getattribute__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;__dict__&quot;</span><span class="p">):</span>
+                <span class="n">info</span> <span class="o">=</span> <span class="nb">object</span><span class="o">.</span><span class="fm">__getattribute__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;info&quot;</span><span class="p">)</span>
+                <span class="k">if</span> <span class="s2">&quot;params&quot;</span> <span class="ow">in</span> <span class="n">info</span> <span class="ow">and</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">info</span><span class="p">[</span><span class="s2">&quot;params&quot;</span><span class="p">]:</span>
+                    <span class="n">info</span><span class="p">[</span><span class="s2">&quot;params&quot;</span><span class="p">][</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
+                <span class="k">elif</span> <span class="s2">&quot;properties&quot;</span> <span class="ow">in</span> <span class="n">info</span> <span class="ow">and</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">info</span><span class="p">[</span><span class="s2">&quot;properties&quot;</span><span class="p">]:</span>
+                    <span class="n">info</span><span class="p">[</span><span class="s2">&quot;properties&quot;</span><span class="p">][</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">return</span> <span class="nb">super</span><span class="p">(</span><span class="n">Atoms</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__setattr__</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">return</span> <span class="nb">super</span><span class="p">(</span><span class="n">Atoms</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__setattr__</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+        
+<div class="viewcode-block" id="Atoms.copy"><a class="viewcode-back" href="../../atoms.html#matdb.atoms.Atoms.copy">[docs]</a>    <span class="k">def</span> <span class="nf">copy</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns a copy of this atoms object that has different pointers to</span>
+<span class="sd">        self, values, etc.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="n">Atoms</span><span class="p">()</span>
+        <span class="n">result</span><span class="o">.</span><span class="n">copy_from</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">result</span></div>
+                
+<div class="viewcode-block" id="Atoms.copy_from"><a class="viewcode-back" href="../../atoms.html#matdb.atoms.Atoms.copy_from">[docs]</a>    <span class="k">def</span> <span class="nf">copy_from</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Replaces contents of this Atoms object with data from `other`.&quot;&quot;&quot;</span>
+
+        <span class="kn">from</span> <span class="nn">ase.spacegroup</span> <span class="k">import</span> <span class="n">Spacegroup</span>
+        <span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="fm">__del__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="n">Atoms</span><span class="p">):</span>
+            <span class="c1"># We need to convert the attributes of the other atoms</span>
+            <span class="c1"># object so that we can initialize this one properly.</span>
+            <span class="n">symbols</span> <span class="o">=</span> <span class="n">other</span><span class="o">.</span><span class="n">get_chemical_symbols</span><span class="p">()</span>
+            <span class="n">symbols</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="n">i</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">symbols</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="n">i</span><span class="p">))</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">set</span><span class="p">(</span><span class="n">symbols</span><span class="p">)])</span>
+
+            <span class="n">magmoms</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="s2">&quot;magnetic_moments&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="n">other</span><span class="o">.</span><span class="n">magnetic_moments</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="c1">#Call the get in this try block would setup a new calculator to try and</span>
+                <span class="c1">#calculate the moments. We are interested in a *copy*, meaning that the</span>
+                <span class="c1">#quantity should already exist.</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">magmoms</span> <span class="o">=</span> <span class="n">other</span><span class="o">.</span><span class="n">get_magnetic_moment</span><span class="p">()</span>
+                <span class="k">except</span><span class="p">:</span>
+                    <span class="k">pass</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">charges</span> <span class="o">=</span> <span class="n">other</span><span class="o">.</span><span class="n">get_charges</span><span class="p">()</span>
+            <span class="k">except</span><span class="p">:</span>
+                <span class="n">charges</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">constraint</span> <span class="o">=</span> <span class="n">other</span><span class="o">.</span><span class="n">constraint</span>
+            <span class="k">except</span><span class="p">:</span>
+                <span class="n">constraint</span> <span class="o">=</span> <span class="kc">None</span>
+                
+            <span class="n">masses</span> <span class="o">=</span> <span class="n">other</span><span class="o">.</span><span class="n">get_masses</span><span class="p">()</span>
+            <span class="n">momenta</span> <span class="o">=</span> <span class="n">other</span><span class="o">.</span><span class="n">get_momenta</span><span class="p">()</span>
+            <span class="n">info</span> <span class="o">=</span> <span class="n">deepcopy</span><span class="p">(</span><span class="n">other</span><span class="o">.</span><span class="n">info</span><span class="p">)</span>
+            <span class="n">group_uuid</span> <span class="o">=</span> <span class="n">other</span><span class="o">.</span><span class="n">group_uuid</span>
+            
+            <span class="bp">self</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">symbols</span><span class="o">=</span><span class="n">symbols</span><span class="p">,</span> <span class="n">positions</span><span class="o">=</span><span class="n">other</span><span class="o">.</span><span class="n">positions</span><span class="p">,</span> <span class="n">n</span><span class="o">=</span><span class="n">other</span><span class="o">.</span><span class="n">n</span><span class="p">,</span>
+                          <span class="n">properties</span><span class="o">=</span><span class="n">other</span><span class="o">.</span><span class="n">properties</span><span class="p">,</span> <span class="n">magmoms</span><span class="o">=</span><span class="n">magmoms</span><span class="p">,</span>
+                          <span class="n">params</span><span class="o">=</span><span class="n">other</span><span class="o">.</span><span class="n">params</span><span class="p">,</span> <span class="n">masses</span><span class="o">=</span><span class="n">masses</span><span class="p">,</span> <span class="n">momenta</span><span class="o">=</span><span class="n">momenta</span><span class="p">,</span>
+                          <span class="n">charges</span><span class="o">=</span><span class="n">charges</span><span class="p">,</span> <span class="n">cell</span><span class="o">=</span><span class="n">other</span><span class="o">.</span><span class="n">cell</span><span class="p">,</span> <span class="n">pbc</span><span class="o">=</span><span class="n">other</span><span class="o">.</span><span class="n">pbc</span><span class="p">,</span>
+                          <span class="n">constraint</span><span class="o">=</span><span class="n">constraint</span><span class="p">,</span> <span class="n">info</span><span class="o">=</span><span class="n">info</span><span class="p">,</span> <span class="n">calculator</span><span class="o">=</span><span class="n">other</span><span class="o">.</span><span class="n">calc</span><span class="p">,</span>
+                          <span class="n">group_uuid</span> <span class="o">=</span> <span class="n">group_uuid</span><span class="p">)</span>
+
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="n">ase</span><span class="o">.</span><span class="n">Atoms</span><span class="p">):</span>
+            <span class="nb">super</span><span class="p">(</span><span class="n">Atoms</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">other</span><span class="p">)</span>
+            <span class="k">if</span> <span class="s2">&quot;params&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">info</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">info</span><span class="p">[</span><span class="s2">&quot;params&quot;</span><span class="p">]</span><span class="o">=</span><span class="p">{}</span>
+            <span class="k">if</span> <span class="s2">&quot;properties&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">info</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">info</span><span class="p">[</span><span class="s2">&quot;properties&quot;</span><span class="p">]</span><span class="o">=</span><span class="p">{}</span>
+
+            <span class="c1"># copy info dict</span>
+            <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="s1">&#39;info&#39;</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">other</span><span class="o">.</span><span class="n">info</span><span class="p">)</span>
+                <span class="k">if</span> <span class="s1">&#39;nneightol&#39;</span> <span class="ow">in</span> <span class="n">other</span><span class="o">.</span><span class="n">info</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">add_param</span><span class="p">(</span><span class="s2">&quot;nneightol&quot;</span><span class="p">,</span><span class="n">other</span><span class="o">.</span><span class="n">info</span><span class="p">[</span><span class="s1">&#39;nneightol&#39;</span><span class="p">])</span>
+                <span class="k">if</span> <span class="s1">&#39;cutoff&#39;</span> <span class="ow">in</span> <span class="n">other</span><span class="o">.</span><span class="n">info</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">add_param</span><span class="p">(</span><span class="s2">&quot;cutoff&quot;</span><span class="p">,</span><span class="n">other</span><span class="o">.</span><span class="n">info</span><span class="p">[</span><span class="s1">&#39;cutoff&#39;</span><span class="p">])</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">add_param</span><span class="p">(</span><span class="s2">&quot;cutoff_break&quot;</span><span class="p">,</span><span class="n">other</span><span class="o">.</span><span class="n">info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;cutoff_break&#39;</span><span class="p">))</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">constraints</span> <span class="o">=</span> <span class="n">deepcopy</span><span class="p">(</span><span class="n">other</span><span class="o">.</span><span class="n">constraints</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">group_uuid</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">uuid</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">uuid4</span><span class="p">())</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">n</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">other</span><span class="p">)</span>
+
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s1">&#39;can only copy from instances of matdb.Atoms or ase.Atoms&#39;</span><span class="p">)</span>
+        
+        <span class="c1"># copy any normal attributes we&#39;ve missed</span>
+        <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">other</span><span class="o">.</span><span class="vm">__dict__</span><span class="o">.</span><span class="n">items</span><span class="p">():</span> <span class="c1">#pragma: no cover</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">k</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;_&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="n">k</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__dict__</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="vm">__dict__</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">v</span></div>
+
+<div class="viewcode-block" id="Atoms.read"><a class="viewcode-back" href="../../atoms.html#matdb.atoms.Atoms.read">[docs]</a>    <span class="k">def</span> <span class="nf">read</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">target</span><span class="o">=</span><span class="s2">&quot;atoms.h5&quot;</span><span class="p">,</span><span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Reads an atoms object in from file.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            target (str): The path to the target file. Default &quot;atoms.h5&quot;.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">frmt</span> <span class="o">=</span> <span class="n">target</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">frmt</span> <span class="o">==</span> <span class="s2">&quot;h5&quot;</span> <span class="ow">or</span> <span class="n">frmt</span> <span class="o">==</span> <span class="s2">&quot;hdf5&quot;</span><span class="p">:</span>
+            <span class="kn">from</span> <span class="nn">matdb.io</span> <span class="k">import</span> <span class="n">load_dict_from_h5</span>
+            <span class="k">with</span> <span class="n">h5py</span><span class="o">.</span><span class="n">File</span><span class="p">(</span><span class="n">target</span><span class="p">,</span><span class="s2">&quot;r&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">hf</span><span class="p">:</span>
+                <span class="n">data</span> <span class="o">=</span> <span class="n">load_dict_from_h5</span><span class="p">(</span><span class="n">hf</span><span class="p">)</span>
+            <span class="k">if</span> <span class="s2">&quot;atom&quot;</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">keys</span><span class="p">())[</span><span class="mi">0</span><span class="p">]:</span>
+                <span class="n">data</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="nb">list</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">keys</span><span class="p">())[</span><span class="mi">0</span><span class="p">]]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">**</span><span class="n">data</span><span class="p">)</span>
+            <span class="k">if</span> <span class="s2">&quot;calc&quot;</span> <span class="ow">in</span> <span class="n">data</span><span class="p">:</span>
+                <span class="n">calc</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">calculators</span><span class="p">,</span> <span class="n">_calc_name_converter</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s2">&quot;calc&quot;</span><span class="p">]))</span>
+                <span class="n">args</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s2">&quot;calc_args&quot;</span><span class="p">]</span> <span class="k">if</span> <span class="s2">&quot;calc_args&quot;</span> <span class="ow">in</span> <span class="n">data</span> <span class="k">else</span> <span class="kc">None</span>
+                <span class="n">kwargs</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s2">&quot;calc_kwargs&quot;</span><span class="p">]</span> <span class="k">if</span> <span class="s1">&#39;calc_kwargs&#39;</span> <span class="ow">in</span> <span class="n">data</span> <span class="k">else</span> <span class="kc">None</span>
+                <span class="k">if</span> <span class="n">args</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">kwargs</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                        <span class="n">calc</span> <span class="o">=</span> <span class="n">calc</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">[</span><span class="s2">&quot;folder&quot;</span><span class="p">],</span> <span class="n">data</span><span class="p">[</span><span class="s2">&quot;calc_contr_dir&quot;</span><span class="p">],</span>
+                                    <span class="n">data</span><span class="p">[</span><span class="s2">&quot;calc_ran_seed&quot;</span><span class="p">],</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">calc</span> <span class="o">=</span> <span class="n">calc</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">[</span><span class="s2">&quot;folder&quot;</span><span class="p">],</span> <span class="n">data</span><span class="p">[</span><span class="s2">&quot;calc_contr_dir&quot;</span><span class="p">],</span>
+                                    <span class="n">data</span><span class="p">[</span><span class="s2">&quot;calc_ran_seed&quot;</span><span class="p">],</span> <span class="o">*</span><span class="n">args</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span> <span class="c1">#pragma: no cover This case has never come up in</span>
+                      <span class="c1">#testing, however we wil keep it here to be</span>
+                      <span class="c1">#verbose.</span>
+                    <span class="k">if</span> <span class="n">kwargs</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                        <span class="n">calc</span> <span class="o">=</span> <span class="n">calc</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">[</span><span class="s2">&quot;folder&quot;</span><span class="p">],</span> <span class="n">data</span><span class="p">[</span><span class="s2">&quot;calc_contr_dir&quot;</span><span class="p">],</span>
+                                    <span class="n">data</span><span class="p">[</span><span class="s2">&quot;calc_ran_seed&quot;</span><span class="p">],</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+                    <span class="k">else</span><span class="p">:</span> 
+                        <span class="n">calc</span> <span class="o">=</span> <span class="n">calc</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">[</span><span class="s2">&quot;folder&quot;</span><span class="p">],</span> <span class="n">data</span><span class="p">[</span><span class="s2">&quot;calc_contr_dir&quot;</span><span class="p">],</span>
+                                    <span class="n">data</span><span class="p">[</span><span class="s2">&quot;calc_ran_seed&quot;</span><span class="p">])</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">set_calculator</span><span class="p">(</span><span class="n">calc</span><span class="p">)</span>
+
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">io</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">target</span><span class="p">,</span><span class="o">**</span><span class="n">kwargs</span><span class="p">))</span></div>
+            
+<div class="viewcode-block" id="Atoms.to_dict"><a class="viewcode-back" href="../../atoms.html#matdb.atoms.Atoms.to_dict">[docs]</a>    <span class="k">def</span> <span class="nf">to_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Converts the contents of an :class:`~matdb.atoms.Atoms` object to a</span>
+<span class="sd">        dictionary so it can be saved to file.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            atoms (matdb.atoms.Atoms): the atoms object to be converted to  a dictionary</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            A dictionary containing the relavent parts of an atoms object to  be saved.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">import</span> <span class="nn">sys</span>
+        <span class="kn">from</span> <span class="nn">matdb</span> <span class="k">import</span> <span class="n">__version__</span>
+        
+        <span class="n">data</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">data</span><span class="p">[</span><span class="s2">&quot;n&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">positions</span><span class="p">))</span>
+        <span class="n">data</span><span class="p">[</span><span class="s2">&quot;pbc&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pbc</span><span class="p">)</span>
+        <span class="n">data</span><span class="p">[</span><span class="s2">&quot;params&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">_recursively_convert_units</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">copy</span><span class="p">())</span>
+        <span class="n">data</span><span class="p">[</span><span class="s2">&quot;properties&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">prop</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">properties</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">if</span> <span class="n">value</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">prop</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;pos&quot;</span><span class="p">,</span> <span class="s2">&quot;species&quot;</span><span class="p">,</span> <span class="s2">&quot;Z&quot;</span><span class="p">,</span> <span class="s2">&quot;n_neighb&quot;</span><span class="p">,</span> <span class="s2">&quot;map_shift&quot;</span><span class="p">]:</span>
+                    <span class="n">data</span><span class="p">[</span><span class="s2">&quot;properties&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">_recursively_convert_units</span><span class="p">({</span><span class="n">prop</span><span class="p">:</span><span class="n">value</span><span class="p">}))</span>
+
+        <span class="n">data</span><span class="p">[</span><span class="s2">&quot;positions&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">positions</span><span class="p">)</span>
+        <span class="n">data</span><span class="p">[</span><span class="s2">&quot;cell&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cell</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">calc</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">calc</span><span class="p">,</span> <span class="n">SinglePointCalculator</span><span class="p">):</span>
+            <span class="n">calc_dict</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">calc</span><span class="o">.</span><span class="n">to_dict</span><span class="p">()</span>
+            <span class="n">data</span><span class="p">[</span><span class="s2">&quot;calc&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">calc</span><span class="o">.</span><span class="n">name</span>
+            <span class="n">data</span><span class="p">[</span><span class="s2">&quot;calc_contr_dir&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">calc_dict</span><span class="p">[</span><span class="s2">&quot;contr_dir&quot;</span><span class="p">]</span>
+            <span class="k">if</span> <span class="s2">&quot;version&quot;</span> <span class="ow">in</span> <span class="n">calc_dict</span><span class="p">:</span>
+                <span class="n">data</span><span class="p">[</span><span class="s2">&quot;calc_version&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">calc_dict</span><span class="p">[</span><span class="s2">&quot;version&quot;</span><span class="p">]</span> 
+            <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">calc</span><span class="p">,</span><span class="s2">&quot;args&quot;</span><span class="p">):</span>
+                <span class="n">data</span><span class="p">[</span><span class="s2">&quot;calc_args&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">calc</span><span class="o">.</span><span class="n">args</span>
+            <span class="k">if</span> <span class="s2">&quot;kwargs&quot;</span> <span class="ow">in</span> <span class="n">calc_dict</span><span class="p">:</span>
+                <span class="n">data</span><span class="p">[</span><span class="s2">&quot;calc_kwargs&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">_recursively_convert_units</span><span class="p">(</span><span class="n">calc_dict</span><span class="p">[</span><span class="s2">&quot;kwargs&quot;</span><span class="p">])</span>
+            <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">calc</span><span class="p">,</span><span class="s2">&quot;folder&quot;</span><span class="p">):</span>
+                <span class="n">data</span><span class="p">[</span><span class="s2">&quot;folder&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">calc</span><span class="o">.</span><span class="n">folder</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">calc</span><span class="o">.</span><span class="n">contr_dir</span><span class="p">,</span> <span class="s1">&#39;$control$&#39;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">calc</span><span class="p">,</span><span class="s2">&quot;ran_seed&quot;</span><span class="p">):</span>
+                <span class="n">data</span><span class="p">[</span><span class="s2">&quot;calc_ran_seed&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">calc</span><span class="o">.</span><span class="n">ran_seed</span><span class="p">)</span>
+            <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">calc</span><span class="p">,</span> <span class="s2">&quot;kpoints&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">calc</span><span class="o">.</span><span class="n">kpoints</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">data</span><span class="p">[</span><span class="s2">&quot;calc_kwargs&quot;</span><span class="p">][</span><span class="s2">&quot;kpoints&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">_recursively_convert_units</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">calc</span><span class="o">.</span><span class="n">kpoints</span><span class="p">)</span>
+            <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">calc</span><span class="p">,</span> <span class="s2">&quot;potcars&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">calc</span><span class="o">.</span><span class="n">kpoints</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">data</span><span class="p">[</span><span class="s2">&quot;calc_kwargs&quot;</span><span class="p">][</span><span class="s2">&quot;potcars&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">_recursively_convert_units</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">calc</span><span class="o">.</span><span class="n">potcars</span><span class="p">)</span>
+            
+        <span class="n">symbols</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_chemical_symbols</span><span class="p">()</span>
+        <span class="n">data</span><span class="p">[</span><span class="s2">&quot;symbols&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="n">i</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">symbols</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="n">i</span><span class="p">))</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">set</span><span class="p">(</span><span class="n">symbols</span><span class="p">)])</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">group_uuid</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">data</span><span class="p">[</span><span class="s2">&quot;group_uuid&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">group_uuid</span>
+        <span class="n">data</span><span class="p">[</span><span class="s2">&quot;uuid&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">uuid</span>
+        <span class="n">data</span><span class="p">[</span><span class="s2">&quot;python_version&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">sys</span><span class="o">.</span><span class="n">version</span>
+        <span class="n">data</span><span class="p">[</span><span class="s2">&quot;version&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">__version__</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">data</span></div>
+
+<div class="viewcode-block" id="Atoms.write"><a class="viewcode-back" href="../../atoms.html#matdb.atoms.Atoms.write">[docs]</a>    <span class="k">def</span> <span class="nf">write</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">target</span><span class="o">=</span><span class="s2">&quot;atoms.h5&quot;</span><span class="p">,</span><span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Writes an atoms object to file.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            target (str): The path to the target file. Default is &quot;atoms.h5&quot;.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">frmt</span> <span class="o">=</span> <span class="n">target</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">frmt</span> <span class="o">==</span> <span class="s2">&quot;h5&quot;</span> <span class="ow">or</span> <span class="n">frmt</span> <span class="o">==</span> <span class="s2">&quot;hdf5&quot;</span><span class="p">:</span>
+            <span class="kn">from</span> <span class="nn">matdb.io</span> <span class="k">import</span> <span class="n">save_dict_to_h5</span>
+            <span class="k">with</span> <span class="n">h5py</span><span class="o">.</span><span class="n">File</span><span class="p">(</span><span class="n">target</span><span class="p">,</span><span class="s2">&quot;w&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">hf</span><span class="p">:</span>
+                <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">to_dict</span><span class="p">()</span>
+                <span class="n">save_dict_to_h5</span><span class="p">(</span><span class="n">hf</span><span class="p">,</span><span class="n">data</span><span class="p">,</span><span class="s1">&#39;/&#39;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">io</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">target</span><span class="p">,</span><span class="bp">self</span><span class="p">,</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div></div>
+            
+<div class="viewcode-block" id="AtomsList"><a class="viewcode-back" href="../../atoms.html#matdb.atoms.AtomsList">[docs]</a><span class="k">class</span> <span class="nc">AtomsList</span><span class="p">(</span><span class="nb">list</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;An AtomsList like object for storing lists of Atoms objects read in</span>
+<span class="sd">    from file.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">source</span><span class="o">=</span><span class="p">[],</span> <span class="n">frmt</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">start</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">stop</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">step</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="o">**</span><span class="n">readargs</span><span class="p">):</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">source</span> <span class="o">=</span> <span class="n">source</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">frmt</span> <span class="o">=</span> <span class="n">frmt</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_start</span>  <span class="o">=</span> <span class="n">start</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_stop</span>   <span class="o">=</span> <span class="n">stop</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_step</span>   <span class="o">=</span> <span class="n">step</span>
+        <span class="c1"># if the source has a wildcard or would somehow be a list we</span>
+        <span class="c1"># need to iterate over it here.</span>
+        <span class="n">tmp_ar</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">source</span><span class="p">,</span><span class="nb">list</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">source</span><span class="p">)</span><span class="o">&gt;</span><span class="mi">0</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">source</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span><span class="n">Atoms</span><span class="p">):</span>
+                <span class="k">for</span> <span class="n">source_file</span> <span class="ow">in</span> <span class="n">source</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">source_file</span><span class="p">,</span><span class="o">**</span><span class="n">readargs</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">tmp_ar</span> <span class="o">=</span> <span class="n">source</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">source</span><span class="p">,</span><span class="nb">list</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">source</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">tmp_ar</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">source</span><span class="p">,</span><span class="n">Atoms</span><span class="p">):</span>
+                <span class="n">tmp_ar</span> <span class="o">=</span> <span class="p">[</span><span class="n">source</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">source</span><span class="p">,</span><span class="o">**</span><span class="n">readargs</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">tmp_ar</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="nb">list</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="nb">list</span><span class="p">(</span><span class="nb">iter</span><span class="p">(</span><span class="n">tmp_ar</span><span class="p">)))</span>
+
+    <span class="k">def</span> <span class="nf">__getattr__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">name</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;__&#39;</span><span class="p">):</span>
+            <span class="c1"># don&#39;t override any special attributes</span>
+            <span class="k">raise</span> <span class="ne">AttributeError</span>
+        <span class="k">if</span> <span class="n">name</span> <span class="o">==</span><span class="s2">&quot;get_positions&quot;</span><span class="p">:</span>
+            <span class="c1"># In order to write out using ase we need to not support</span>
+            <span class="c1"># this attribute.</span>
+            <span class="k">raise</span> <span class="ne">AttributeError</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">source</span><span class="o">.</span><span class="fm">__getattr__</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
+            <span class="n">seq</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">at</span> <span class="ow">in</span> <span class="nb">iter</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">seq</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="n">at</span><span class="p">,</span> <span class="n">name</span><span class="p">))</span>
+                <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
+                    <span class="k">pass</span>
+            <span class="k">if</span> <span class="n">seq</span> <span class="o">==</span> <span class="p">[]:</span> <span class="c1">#pragma: no cover</span>
+                <span class="k">return</span> <span class="kc">None</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">seq</span>
+
+    <span class="k">def</span> <span class="nf">__getslice__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">first</span><span class="p">,</span> <span class="n">last</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="fm">__getitem__</span><span class="p">(</span><span class="nb">slice</span><span class="p">(</span><span class="n">first</span><span class="p">,</span><span class="n">last</span><span class="p">,</span><span class="kc">None</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">idx</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">idx</span><span class="p">,</span> <span class="nb">list</span><span class="p">)</span> <span class="ow">or</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">idx</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
+            <span class="n">idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">idx</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">idx</span><span class="o">.</span><span class="n">dtype</span><span class="o">.</span><span class="n">kind</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;b&#39;</span><span class="p">,</span> <span class="s1">&#39;i&#39;</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">IndexError</span><span class="p">(</span><span class="s2">&quot;Array used for fancy indexing must be of type integer or bool&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">idx</span><span class="o">.</span><span class="n">dtype</span><span class="o">.</span><span class="n">kind</span> <span class="o">==</span> <span class="s1">&#39;b&#39;</span><span class="p">:</span> <span class="c1">#pragma: no cover</span>
+                <span class="n">idx</span> <span class="o">=</span> <span class="n">idx</span><span class="o">.</span><span class="n">nonzero</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">res</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">idx</span><span class="p">:</span>
+                <span class="n">at</span> <span class="o">=</span> <span class="nb">list</span><span class="o">.</span><span class="fm">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">i</span><span class="p">)</span>
+                <span class="n">res</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">at</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">res</span> <span class="o">=</span> <span class="nb">list</span><span class="o">.</span><span class="fm">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">idx</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">res</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+            <span class="n">res</span> <span class="o">=</span> <span class="n">AtomsList</span><span class="p">(</span><span class="n">res</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">res</span>
+
+<div class="viewcode-block" id="AtomsList.iterframes"><a class="viewcode-back" href="../../atoms.html#matdb.atoms.AtomsList.iterframes">[docs]</a>    <span class="k">def</span> <span class="nf">iterframes</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">reverse</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Implements an iterator over the Atoms in the AtomsList, i.e., when reversed  is &quot;True&quot; the Atoms are iterated over in reversed order, i.e., last to first instead of first to last.							</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">reverse</span><span class="p">:</span>
+            <span class="k">return</span> <span class="nb">reversed</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="nb">iter</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span></div>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">random_access</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Sets the random_access property to True, i.e., the AtomsList can be accessed at random.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="kc">True</span>
+
+<div class="viewcode-block" id="AtomsList.sort"><a class="viewcode-back" href="../../atoms.html#matdb.atoms.AtomsList.sort">[docs]</a>    <span class="k">def</span> <span class="nf">sort</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">reverse</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">attr</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Sorts the AtomsList. This is the same as the standard</span>
+<span class="sd">        :meth:`list.sort` method, except for the additional `attr`</span>
+<span class="sd">        argument. If this is present then the sorted list will be</span>
+<span class="sd">        ordered by the :class:`~matdb.atoms.Atoms` attribute `attr`,</span>
+<span class="sd">        e.g.:al.sort(attr=&#39;energy&#39;) will order the configurations by their `energy` </span>
+<span class="sd">        (assuming that :attr:`Atoms.params` contains an entry named `energy` for each configuration; otherwise an :exc:`AttributError` will be raised).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">import</span> <span class="nn">operator</span>
+        <span class="k">if</span> <span class="n">attr</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">key</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="nb">list</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">reverse</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="nb">list</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">reverse</span><span class="o">=</span><span class="n">reverse</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">key</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;If attr is present, key must not be present&#39;</span><span class="p">)</span>
+            <span class="nb">list</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="n">operator</span><span class="o">.</span><span class="n">attrgetter</span><span class="p">(</span><span class="n">attr</span><span class="p">),</span> <span class="n">reverse</span><span class="o">=</span><span class="n">reverse</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="AtomsList.apply"><a class="viewcode-back" href="../../atoms.html#matdb.atoms.AtomsList.apply">[docs]</a>    <span class="k">def</span> <span class="nf">apply</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">func</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Applies the passed in function &quot;func&quot; to each Atoms object in the AtomsList.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">func</span><span class="p">(</span><span class="n">at</span><span class="p">)</span> <span class="k">for</span> <span class="n">at</span> <span class="ow">in</span> <span class="bp">self</span><span class="p">])</span></div>
+        
+<div class="viewcode-block" id="AtomsList.read"><a class="viewcode-back" href="../../atoms.html#matdb.atoms.AtomsList.read">[docs]</a>    <span class="k">def</span> <span class="nf">read</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">target</span><span class="p">,</span><span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Reads an atoms object in from file.</span>
+<span class="sd">        </span>
+<span class="sd">        Args:</span>
+<span class="sd">            target (str): The path to the target file.</span>
+<span class="sd">            kwargs (dict): A dictionary of arguments to pass to the ase </span>
+<span class="sd">              read function.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">frmt</span> <span class="o">=</span> <span class="n">target</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">frmt</span> <span class="o">==</span> <span class="s2">&quot;h5&quot;</span> <span class="ow">or</span> <span class="n">frmt</span> <span class="o">==</span> <span class="s2">&quot;hdf5&quot;</span><span class="p">:</span>
+            <span class="kn">from</span> <span class="nn">matdb.io</span> <span class="k">import</span> <span class="n">load_dict_from_h5</span>
+            <span class="k">with</span> <span class="n">h5py</span><span class="o">.</span><span class="n">File</span><span class="p">(</span><span class="n">target</span><span class="p">,</span><span class="s2">&quot;r&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">hf</span><span class="p">:</span>
+                <span class="n">data</span> <span class="o">=</span> <span class="n">load_dict_from_h5</span><span class="p">(</span><span class="n">hf</span><span class="p">)</span>
+            <span class="c1"># If the data was read in from an hdf5 file written by the</span>
+            <span class="c1"># AtomsList object then each atom will have a tag with it. We check</span>
+            <span class="c1"># for this by looking for the word &#39;atom&#39; inside the first key, if</span>
+            <span class="c1"># it&#39;s present we assume that all the contents of the file are an</span>
+            <span class="c1"># atoms list. If it&#39;s not then we assume this is a single atoms</span>
+            <span class="c1"># object.</span>
+
+            <span class="c1">#NB! It is possible that the atoms list object could be an *empty*</span>
+            <span class="c1">#AtomsList that was written to disk. In that case, just use an empty</span>
+            <span class="c1">#list.</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">atoms</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">elif</span> <span class="s2">&quot;atom&quot;</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">keys</span><span class="p">())[</span><span class="mi">0</span><span class="p">]:</span>
+                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">values</span><span class="p">())[</span><span class="mi">0</span><span class="p">],</span><span class="nb">dict</span><span class="p">):</span>
+                    <span class="n">atoms</span> <span class="o">=</span> <span class="p">[</span><span class="n">Atoms</span><span class="p">(</span><span class="o">**</span><span class="n">d</span><span class="p">)</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">data</span><span class="o">.</span><span class="n">values</span><span class="p">()]</span>
+                <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">values</span><span class="p">())[</span><span class="mi">0</span><span class="p">],</span><span class="n">string_types</span><span class="p">):</span>
+                    <span class="n">atoms</span> <span class="o">=</span> <span class="p">[</span><span class="n">Atoms</span><span class="p">(</span><span class="n">d</span><span class="p">)</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">data</span><span class="o">.</span><span class="n">values</span><span class="p">()]</span>
+                <span class="k">else</span><span class="p">:</span> <span class="c1">#pragma: no cover</span>
+                    <span class="n">msg</span><span class="o">.</span><span class="n">err</span><span class="p">(</span><span class="s2">&quot;The data format </span><span class="si">{}</span><span class="s2"> isn&#39;t supported for reading AtomLists &quot;</span>
+                            <span class="s2">&quot;from hdf5 files.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">type</span><span class="p">((</span><span class="n">data</span><span class="o">.</span><span class="n">values</span><span class="p">())[</span><span class="mi">0</span><span class="p">])))</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">atoms</span> <span class="o">=</span> <span class="p">[</span><span class="n">Atoms</span><span class="p">(</span><span class="n">target</span><span class="p">,</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)]</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">&gt;</span><span class="mi">0</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">atoms</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">atoms</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">atoms</span> <span class="o">=</span> <span class="p">[</span><span class="n">Atoms</span><span class="p">(</span><span class="n">d</span><span class="p">)</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">io</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">target</span><span class="p">,</span><span class="n">index</span><span class="o">=</span><span class="s1">&#39;:&#39;</span><span class="p">,</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)]</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">&gt;</span><span class="mi">0</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">atoms</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">atoms</span><span class="p">)</span></div>
+            
+<div class="viewcode-block" id="AtomsList.write"><a class="viewcode-back" href="../../atoms.html#matdb.atoms.AtomsList.write">[docs]</a>    <span class="k">def</span> <span class="nf">write</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">target</span><span class="p">,</span><span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Writes an atoms object to file.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            target (str): The path to the target file.</span>
+<span class="sd">            kwargs (dict): A dictionary of key word args to pass to the ase  write function.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">frmt</span> <span class="o">=</span> <span class="n">target</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">frmt</span> <span class="o">==</span> <span class="s2">&quot;h5&quot;</span> <span class="ow">or</span> <span class="n">frmt</span> <span class="o">==</span> <span class="s2">&quot;hdf5&quot;</span><span class="p">:</span>
+            <span class="kn">from</span> <span class="nn">matdb.io</span> <span class="k">import</span> <span class="n">save_dict_to_h5</span>
+            <span class="k">with</span> <span class="n">h5py</span><span class="o">.</span><span class="n">File</span><span class="p">(</span><span class="n">target</span><span class="p">,</span><span class="s2">&quot;w&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">hf</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">atom</span> <span class="ow">in</span> <span class="bp">self</span><span class="p">:</span>
+                    <span class="n">data</span> <span class="o">=</span> <span class="n">atom</span><span class="o">.</span><span class="n">to_dict</span><span class="p">()</span>
+                    <span class="n">hf</span><span class="o">.</span><span class="n">create_group</span><span class="p">(</span><span class="s2">&quot;atom_</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s2">&quot;uuid&quot;</span><span class="p">]))</span>
+                    <span class="n">save_dict_to_h5</span><span class="p">(</span><span class="n">hf</span><span class="p">,</span><span class="n">data</span><span class="p">,</span><span class="s2">&quot;/atom_</span><span class="si">{}</span><span class="s2">/&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s2">&quot;uuid&quot;</span><span class="p">]))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">io</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">target</span><span class="p">,</span><span class="bp">self</span><span class="p">)</span></div></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">matdb 0.0.5 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2017, Conrad W. Rosenbrock.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.8.5.
+    </div>
+  </body>
+</html>

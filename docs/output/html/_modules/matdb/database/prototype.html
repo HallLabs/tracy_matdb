@@ -1,0 +1,405 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>matdb.database.prototype &#8212; matdb 0.0.5 documentation</title>
+    <link rel="stylesheet" href="../../../_static/nature.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <script type="text/javascript" src="../../../_static/language_data.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">matdb 0.0.5 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" >Module code</a> &#187;</li>
+          <li class="nav-item nav-item-2"><a href="../database.html" accesskey="U">matdb.database</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for matdb.database.prototype</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Group of configurations selected from the prototypes database.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span> <span class="nn">copy</span> <span class="k">import</span> <span class="n">deepcopy</span>
+<span class="kn">from</span> <span class="nn">glob</span> <span class="k">import</span> <span class="n">glob</span>
+<span class="kn">from</span> <span class="nn">hashlib</span> <span class="k">import</span> <span class="n">sha1</span>
+<span class="kn">from</span> <span class="nn">os</span> <span class="k">import</span> <span class="n">path</span><span class="p">,</span> <span class="n">getcwd</span><span class="p">,</span> <span class="n">chdir</span><span class="p">,</span> <span class="n">remove</span><span class="p">,</span> <span class="n">listdir</span><span class="p">,</span> <span class="n">mkdir</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">six</span> <span class="k">import</span> <span class="n">string_types</span>
+
+<span class="kn">from</span> <span class="nn">phenum.element_data</span> <span class="k">import</span> <span class="n">get_lattice_parameter</span>
+
+<span class="kn">from</span> <span class="nn">matdb</span> <span class="k">import</span> <span class="n">msg</span>
+<span class="kn">from</span> <span class="nn">matdb.database</span> <span class="k">import</span> <span class="n">Group</span>
+<span class="kn">from</span> <span class="nn">matdb.atoms</span> <span class="k">import</span> <span class="n">Atoms</span><span class="p">,</span> <span class="n">AtomsList</span>
+<span class="kn">from</span> <span class="nn">matdb.utility</span> <span class="k">import</span> <span class="n">_get_reporoot</span><span class="p">,</span> <span class="n">chdir</span>
+
+<div class="viewcode-block" id="Prototypes"><a class="viewcode-back" href="../../../database/prototype.html#matdb.database.prototype.Prototypes">[docs]</a><span class="k">class</span> <span class="nc">Prototypes</span><span class="p">(</span><span class="n">Group</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Constructs a selection of configurations based off the AFLOW</span>
+<span class="sd">    prototype structures list.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        atoms (matdb.atoms.Atoms): seed configuration that will be</span>
+<span class="sd">          displaced to generate the database.</span>
+<span class="sd">        root (str): path to the folder where the database directories will</span>
+<span class="sd">          be stored.</span>
+<span class="sd">        parent (matdb.database.Database): parent sequence to which this database</span>
+<span class="sd">          belongs. Could also be another :class:`Hessian`.</span>
+<span class="sd">        structures (dict): a dictionary stating either the number or the file names</span>
+<span class="sd">          of the unary, binary, and ternary sized systems.</span>
+<span class="sd">        ran_seed (int): a random seed to use that would override the global seed.</span>
+<span class="sd">        permutations (dict): A dictionary of lists that would specify the</span>
+<span class="sd">          atomic permutations to restrict the configurations to. For</span>
+<span class="sd">          example to only use A:B  and no B:A permutations the</span>
+<span class="sd">          dict would be {&quot;binary&quot;: [[&quot;A&quot;,&quot;B&quot;]]}, where A and B were</span>
+<span class="sd">          replaced with the correct atomic species.</span>
+
+<span class="sd">    .. note:: Additional attributes are also exposed by the super class</span>
+<span class="sd">      :class:`~matdb.database.Group`.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        name (str): name of this database type relative to the over database</span>
+<span class="sd">          collection. This is also the name of the folder in which all of its</span>
+<span class="sd">          calculations will be performed.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;prototype&quot;</span><span class="p">,</span> <span class="n">structures</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">ran_seed</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">permutations</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="o">**</span><span class="n">dbargs</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">seeded</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="n">dbargs</span><span class="p">[</span><span class="s2">&quot;prefix&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;P&quot;</span>
+        <span class="n">dbargs</span><span class="p">[</span><span class="s2">&quot;cls&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">Prototypes</span>
+        <span class="k">if</span> <span class="s2">&quot;Prototypes&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">dbargs</span><span class="p">[</span><span class="s1">&#39;root&#39;</span><span class="p">]:</span>
+            <span class="kn">from</span> <span class="nn">os</span> <span class="k">import</span> <span class="n">mkdir</span>
+            <span class="n">new_root</span> <span class="o">=</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">dbargs</span><span class="p">[</span><span class="s1">&#39;root&#39;</span><span class="p">],</span><span class="s2">&quot;Prototypes&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">path</span><span class="o">.</span><span class="n">isdir</span><span class="p">(</span><span class="n">new_root</span><span class="p">):</span>
+                <span class="n">mkdir</span><span class="p">(</span><span class="n">new_root</span><span class="p">)</span>
+            <span class="n">dbargs</span><span class="p">[</span><span class="s1">&#39;root&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">new_root</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">Prototypes</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">**</span><span class="n">dbargs</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">in_structures</span> <span class="o">=</span> <span class="n">structures</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ran_seed</span> <span class="o">=</span> <span class="n">ran_seed</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">permutations</span> <span class="o">=</span> <span class="n">permutations</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">species</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">database</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">species</span>
+
+        <span class="c1">#Make sure that we override the global calculator default values with</span>
+        <span class="c1">#those settings that we know are needed for good phonon calculations.</span>
+        <span class="n">calcargs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">database</span><span class="o">.</span><span class="n">calculator</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="k">if</span> <span class="s2">&quot;calculator&quot;</span> <span class="ow">in</span> <span class="n">dbargs</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">dbargs</span><span class="p">[</span><span class="s2">&quot;calculator&quot;</span><span class="p">]</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="s2">&quot;name&quot;</span> <span class="ow">in</span> <span class="n">dbargs</span><span class="p">[</span><span class="s2">&quot;calculator&quot;</span><span class="p">]:</span>
+                <span class="n">calcargs</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">dbargs</span><span class="p">[</span><span class="s2">&quot;calculator&quot;</span><span class="p">])</span>
+                <span class="n">dbargs</span><span class="p">[</span><span class="s2">&quot;calculator&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">calcargs</span>
+
+        <span class="c1"># The prototypes are saved into the file prototypes.tar.gz, if</span>
+        <span class="c1"># this is the first time prototypes has been run we need to unpack it.</span>
+        <span class="n">template_root</span> <span class="o">=</span> <span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">_get_reporoot</span><span class="p">(),</span> <span class="s2">&quot;matdb&quot;</span><span class="p">,</span> <span class="s2">&quot;templates&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">path</span><span class="o">.</span><span class="n">isdir</span><span class="p">(</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">template_root</span><span class="p">,</span> <span class="s2">&quot;uniqueUnaries&quot;</span><span class="p">)):</span>
+            <span class="kn">import</span> <span class="nn">tarfile</span>
+            <span class="k">with</span> <span class="n">chdir</span><span class="p">(</span><span class="n">template_root</span><span class="p">):</span>
+                <span class="n">tarf</span> <span class="o">=</span> <span class="s2">&quot;prototypes.tar.gz&quot;</span>
+                <span class="n">tar</span> <span class="o">=</span> <span class="n">tarfile</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">tarf</span><span class="p">,</span> <span class="s2">&quot;r:gz&quot;</span><span class="p">)</span>
+                <span class="n">tar</span><span class="o">.</span><span class="n">extractall</span><span class="p">()</span>
+                <span class="n">tar</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
+        <span class="c1"># parse the structures to make a list of paths to the source folders for the</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">ran_seed</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="kn">import</span> <span class="nn">random</span>
+            <span class="n">random</span><span class="o">.</span><span class="n">seed</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ran_seed</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">puuids</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_load_puuids</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">nconfigs</span> <span class="o">=</span> <span class="mi">0</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">structures</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">k</span><span class="p">,</span><span class="n">v</span> <span class="ow">in</span> <span class="n">structures</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">if</span> <span class="n">k</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s2">&quot;unary&quot;</span><span class="p">:</span>
+                <span class="n">cand_path</span> <span class="o">=</span> <span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">template_root</span><span class="p">,</span> <span class="s2">&quot;uniqueUnaries&quot;</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">k</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s2">&quot;binary&quot;</span><span class="p">:</span>
+                <span class="n">cand_path</span> <span class="o">=</span> <span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">template_root</span><span class="p">,</span> <span class="s2">&quot;uniqueBinaries&quot;</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">k</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s2">&quot;ternary&quot;</span><span class="p">:</span>
+                <span class="n">cand_path</span> <span class="o">=</span> <span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">template_root</span><span class="p">,</span> <span class="s2">&quot;uniqueTernaries&quot;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span> <span class="c1"># pragma: no cover</span>
+                <span class="n">msg</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s2">&quot;Must specify the system size, i.e., unary, binary, or &quot;</span>
+                         <span class="s2">&quot;ternary. </span><span class="si">{}</span><span class="s2"> not recognized&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">k</span><span class="p">))</span>
+                <span class="k">continue</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">v</span><span class="p">,</span><span class="nb">list</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">structures</span><span class="p">[</span><span class="n">k</span><span class="o">.</span><span class="n">lower</span><span class="p">()]</span> <span class="o">=</span> <span class="p">[]</span>
+                <span class="k">for</span> <span class="n">prot</span> <span class="ow">in</span> <span class="n">v</span><span class="p">:</span>
+                    <span class="n">files</span> <span class="o">=</span> <span class="n">glob</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{0}</span><span class="s2">/*</span><span class="si">{1}</span><span class="s2">*&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">cand_path</span><span class="p">,</span><span class="n">prot</span><span class="p">))</span>
+                    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">files</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">:</span> <span class="c1"># pragma: no cover</span>
+                        <span class="n">msg</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s2">&quot;No prototypes of size </span><span class="si">{0}</span><span class="s2"> matched the string &quot;</span>
+                                 <span class="s2">&quot;</span><span class="si">{1}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">prot</span><span class="p">))</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">structures</span><span class="p">[</span><span class="n">k</span><span class="o">.</span><span class="n">lower</span><span class="p">()]</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">files</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">and</span> <span class="n">v</span> <span class="o">==</span> <span class="s2">&quot;all&quot;</span><span class="p">:</span>
+                <span class="n">files</span> <span class="o">=</span> <span class="n">glob</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{0}</span><span class="s2">/*&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">cand_path</span><span class="p">))</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">structures</span><span class="p">[</span><span class="n">k</span><span class="o">.</span><span class="n">lower</span><span class="p">()]</span> <span class="o">=</span> <span class="n">files</span>
+            <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
+                <span class="kn">from</span> <span class="nn">random</span> <span class="k">import</span> <span class="n">shuffle</span>
+                <span class="n">files</span> <span class="o">=</span> <span class="n">glob</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{0}</span><span class="s2">/*&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">cand_path</span><span class="p">))</span>
+                <span class="n">shuffle</span><span class="p">(</span><span class="n">files</span><span class="p">)</span>
+                <span class="n">keep</span> <span class="o">=</span> <span class="n">files</span><span class="p">[:</span><span class="n">v</span><span class="p">]</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">structures</span><span class="p">[</span><span class="n">k</span><span class="o">.</span><span class="n">lower</span><span class="p">()]</span> <span class="o">=</span> <span class="n">keep</span>
+            <span class="k">else</span><span class="p">:</span> <span class="c1">#pragma: no cover</span>
+                <span class="n">msg</span><span class="o">.</span><span class="n">err</span><span class="p">(</span><span class="s2">&quot;Couldn&#39;t parse </span><span class="si">{0}</span><span class="s2"> structures for </span><span class="si">{1}</span><span class="s2"> case. Must be either &quot;</span>
+                        <span class="s2">&quot;a list of file names, &#39;all&#39;, or an int.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="n">k</span><span class="p">))</span>
+
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">permutations</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span>  <span class="n">k</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">permutations</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">nconfigs</span> <span class="o">+=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">structures</span><span class="p">[</span><span class="n">k</span><span class="o">.</span><span class="n">lower</span><span class="p">()])</span><span class="o">*</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">permutations</span><span class="p">[</span><span class="n">k</span><span class="o">.</span><span class="n">lower</span><span class="p">()])</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">k</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s2">&quot;unary&quot;</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">nconfigs</span> <span class="o">+=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">structures</span><span class="p">[</span><span class="n">k</span><span class="o">.</span><span class="n">lower</span><span class="p">()])</span><span class="o">*</span><span class="mi">3</span>
+                <span class="k">elif</span> <span class="n">k</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s2">&quot;binary&quot;</span> <span class="ow">or</span> <span class="n">k</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s2">&quot;ternary&quot;</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">nconfigs</span> <span class="o">+=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">structures</span><span class="p">[</span><span class="n">k</span><span class="o">.</span><span class="n">lower</span><span class="p">()])</span><span class="o">*</span><span class="mi">6</span>
+                <span class="k">else</span><span class="p">:</span> <span class="c1">#pragma: no cover</span>
+                    <span class="k">continue</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">fitting_configs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns a :class:`matdb.atoms.AtomsList` for all configs in this</span>
+<span class="sd">        group.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">configs</span> <span class="o">=</span> <span class="n">AtomsList</span><span class="p">()</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sequence</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">config</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">config_atoms</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+                <span class="n">configs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">seq</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">sequence</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+                <span class="n">configs</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">seq</span><span class="o">.</span><span class="n">fitting_configs</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">configs</span>
+
+<div class="viewcode-block" id="Prototypes.sub_dict"><a class="viewcode-back" href="../../../database/prototype.html#matdb.database.prototype.Prototypes.sub_dict">[docs]</a>    <span class="k">def</span> <span class="nf">sub_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns a dict needed to initialize the class.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">args</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;structures&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">in_structures</span><span class="p">,</span> <span class="s2">&quot;ran_seed&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">ran_seed</span><span class="p">,</span>
+                <span class="s2">&quot;permutations&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">permutations</span><span class="p">,</span> <span class="s2">&quot;prefix&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">prefix</span><span class="p">,</span> <span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">}</span>
+        <span class="k">return</span> <span class="n">args</span></div>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">rset</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns all the configurations that are in this database.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            list: list of :class:`matdb.atoms.Atoms`</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sequence</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="c1">#We are at the bottom of the stack;</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">fitting_configs</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1">#Check where we are in the stack. If we are just below the database,</span>
+            <span class="c1">#then we want to return &lt;&lt;your description of the rset here&gt;&gt;</span>
+            <span class="c1">#If we are not, then we must a parameter grid of sequences</span>
+            <span class="c1">#to select from.</span>
+            <span class="k">return</span> <span class="p">[</span><span class="n">res</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">sequence</span><span class="o">.</span><span class="n">values</span><span class="p">()</span> <span class="k">for</span> <span class="n">res</span> <span class="ow">in</span> <span class="n">p</span><span class="o">.</span><span class="n">rset</span><span class="p">]</span>
+
+<div class="viewcode-block" id="Prototypes.ready"><a class="viewcode-back" href="../../../database/prototype.html#matdb.database.prototype.Prototypes.ready">[docs]</a>    <span class="k">def</span> <span class="nf">ready</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns True if all the calculations have been completed.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_expand_sequence</span><span class="p">()</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sequence</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">configs</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="n">result</span> <span class="o">=</span> <span class="kc">True</span>
+                <span class="k">for</span> <span class="n">config</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">configs</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+                    <span class="k">if</span> <span class="ow">not</span> <span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="s2">&quot;atoms.h5&quot;</span><span class="p">)):</span>
+                        <span class="n">result</span> <span class="o">=</span> <span class="kc">False</span>
+                        <span class="k">break</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">result</span> <span class="o">=</span> <span class="kc">False</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">result</span><span class="p">:</span>
+                <span class="n">msg</span><span class="o">.</span><span class="n">std</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{}</span><span class="s2"> is not ready. Exiting.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">root</span><span class="p">),</span> <span class="mi">2</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">result</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">ready</span> <span class="o">=</span> <span class="kc">False</span>
+            <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">sequence</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">p</span><span class="o">.</span><span class="n">ready</span><span class="p">():</span>
+                    <span class="n">msg</span><span class="o">.</span><span class="n">std</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{}</span><span class="s2"> is not ready. Exiting.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">root</span><span class="p">),</span> <span class="mi">2</span><span class="p">)</span>
+                    <span class="k">break</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">ready</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="k">return</span> <span class="n">ready</span></div>
+
+<div class="viewcode-block" id="Prototypes.setup"><a class="viewcode-back" href="../../../database/prototype.html#matdb.database.prototype.Prototypes.setup">[docs]</a>    <span class="k">def</span> <span class="nf">setup</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">rerun</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Creates all the configurations for calculation from the prototype</span>
+<span class="sd">        databases.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            rerun (bool): when True, recreate the folders even if they</span>
+<span class="sd">              already exist.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">Prototypes</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">setup</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_setup_configs</span><span class="p">,</span> <span class="n">rerun</span><span class="p">)</span></div>
+
+    <span class="k">def</span> <span class="nf">_setup_configs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">rerun</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Loops over the choosen prototype structures and possible</span>
+<span class="sd">        occupations for those structures, i.e., A:B and B:A, to</span>
+<span class="sd">        generate all the configurations needed for th calculation.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            rerun (bool): when True, recreate the folders even if they</span>
+<span class="sd">              already exist.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1">#We also don&#39;t want to setup again if we have the results already.</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">ready</span><span class="p">()</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">rerun</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">puuids</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">puuids</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_setup</span><span class="p">():</span>
+            <span class="kn">from</span> <span class="nn">itertools</span> <span class="k">import</span> <span class="n">product</span>
+            <span class="c1"># Loop over the sizes in the saved structures</span>
+            <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">structures</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="n">perms</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_perms</span><span class="p">(</span><span class="n">k</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">fpath</span><span class="p">,</span> <span class="n">perm</span> <span class="ow">in</span> <span class="n">product</span><span class="p">(</span><span class="n">v</span><span class="p">,</span><span class="n">perms</span><span class="p">):</span>
+                    <span class="n">hash_str</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{0}</span><span class="s2">-</span><span class="si">{1}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">fpath</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;/&quot;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span><span class="s2">&quot;&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">perm</span><span class="p">))</span>
+                    <span class="n">hash_str</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">sha1</span><span class="p">(</span><span class="n">hash_str</span><span class="o">.</span><span class="n">encode</span><span class="p">())</span><span class="o">.</span><span class="n">hexdigest</span><span class="p">())</span>
+                    <span class="k">if</span> <span class="n">hash_str</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">puuids</span><span class="p">:</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">puuids</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">hash_str</span><span class="p">)</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">_correct_poscar</span><span class="p">(</span><span class="n">fpath</span><span class="p">,</span> <span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">root</span><span class="p">,</span> <span class="s2">&quot;POSCAR&quot;</span><span class="p">),</span> <span class="n">perm</span><span class="p">)</span>
+                        <span class="n">datoms</span> <span class="o">=</span> <span class="n">Atoms</span><span class="p">(</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">root</span><span class="p">,</span> <span class="s2">&quot;POSCAR&quot;</span><span class="p">),</span><span class="nb">format</span><span class="o">=</span><span class="s2">&quot;vasp&quot;</span><span class="p">)</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="n">datoms</span><span class="p">)</span>
+                        <span class="n">remove</span><span class="p">(</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">root</span><span class="p">,</span> <span class="s2">&quot;POSCAR&quot;</span><span class="p">))</span>
+
+        <span class="c1"># Last of all, create the job file to execute the job array.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">save_pkl</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">puuids</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">puuid_file</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">jobfile</span><span class="p">(</span><span class="n">rerun</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_get_perms</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">size</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Finds the allowed permutations of the atomic species that need to</span>
+<span class="sd">        be permuted over.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            size (str): Any of &quot;unary&quot;, &quot;binary&quot;, or &quot;ternary&quot;.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="kn">from</span> <span class="nn">itertools</span> <span class="k">import</span> <span class="n">permutations</span>
+        <span class="n">res</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="n">size</span> <span class="o">==</span> <span class="s2">&quot;unary&quot;</span><span class="p">:</span>
+            <span class="n">r</span> <span class="o">=</span> <span class="mi">1</span>
+            <span class="n">res</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">permutations</span><span class="p">[</span><span class="s2">&quot;unary&quot;</span><span class="p">]</span> <span class="k">if</span> <span class="s2">&quot;unary&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">permutations</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span> <span class="k">else</span> <span class="kc">None</span>
+        <span class="k">elif</span> <span class="n">size</span> <span class="o">==</span> <span class="s2">&quot;binary&quot;</span><span class="p">:</span>
+            <span class="n">r</span> <span class="o">=</span> <span class="mi">2</span>
+            <span class="n">res</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">permutations</span><span class="p">[</span><span class="s2">&quot;binary&quot;</span><span class="p">]</span> <span class="k">if</span> <span class="s2">&quot;binary&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">permutations</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span> <span class="k">else</span> <span class="kc">None</span>
+        <span class="k">elif</span> <span class="n">size</span> <span class="o">==</span> <span class="s2">&quot;ternary&quot;</span><span class="p">:</span>
+            <span class="n">r</span> <span class="o">=</span> <span class="mi">3</span>
+            <span class="n">res</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">permutations</span><span class="p">[</span><span class="s2">&quot;ternary&quot;</span><span class="p">]</span> <span class="k">if</span> <span class="s2">&quot;ternary&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">permutations</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span> <span class="k">else</span> <span class="kc">None</span>
+        <span class="k">else</span><span class="p">:</span> <span class="c1"># pragma: no cover</span>
+            <span class="n">msg</span><span class="o">.</span><span class="n">err</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{}</span><span class="s2"> is not a valid prototype size.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">size</span><span class="p">))</span>
+            <span class="k">return</span> <span class="kc">None</span>
+
+        <span class="n">possible_perms</span> <span class="o">=</span> <span class="p">[</span><span class="nb">list</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">permutations</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">species</span><span class="p">,</span> <span class="n">r</span><span class="o">=</span><span class="n">r</span><span class="p">)]</span>
+        <span class="n">perms_copy</span> <span class="o">=</span> <span class="n">deepcopy</span><span class="p">(</span><span class="n">possible_perms</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">res</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">perms_copy</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">i</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">res</span><span class="p">:</span>
+                    <span class="n">possible_perms</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">possible_perms</span>
+
+    <span class="k">def</span> <span class="nf">_correct_poscar</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">source</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">species</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Corrects the POSCAR so that it has the correct lattice parameter</span>
+<span class="sd">        and title string for the system to be read into ASE.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            source (str): the path to the prototype POSCAR.</span>
+<span class="sd">            target (str): the path to the output POSCAR.</span>
+<span class="sd">            species (list): a list of the species to be used for this POSCAR.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">f_lines</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">lat_vecs</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="c1"># read in the original POSCAR</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="s2">&quot;r&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">line</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">f</span><span class="p">):</span>
+                <span class="n">f_lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">line</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">i</span> <span class="ow">in</span> <span class="p">[</span><span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">]:</span>
+                    <span class="n">lat_vecs</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="nb">float</span><span class="p">(</span><span class="n">j</span><span class="p">)</span> <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="n">line</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">()])</span>
+                <span class="k">if</span> <span class="n">i</span> <span class="o">==</span> <span class="mi">5</span><span class="p">:</span>
+                    <span class="n">concs</span> <span class="o">=</span> <span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="n">j</span><span class="p">)</span> <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="n">line</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">()]</span>
+
+        <span class="c1"># fix the title.</span>
+        <span class="n">f_lines</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{0}</span><span class="s2"> : </span><span class="si">{1}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="s2">&quot; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">species</span><span class="p">),</span> <span class="n">f_lines</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+
+        <span class="c1"># fix the lattice parameter</span>
+        <span class="n">lat_param</span><span class="p">,</span> <span class="n">ttl</span> <span class="o">=</span> <span class="n">get_lattice_parameter</span><span class="p">(</span><span class="n">species</span><span class="p">,</span> <span class="n">concs</span><span class="p">,</span> <span class="n">lat_vecs</span><span class="p">,</span> <span class="nb">sum</span><span class="p">(</span><span class="n">concs</span><span class="p">),</span> <span class="s2">&quot; &quot;</span><span class="p">)</span>
+        <span class="n">f_lines</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{}</span><span class="s2"> </span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">lat_param</span><span class="p">)</span>
+
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">target</span><span class="p">,</span> <span class="s2">&quot;w+&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">f_lines</span><span class="p">:</span>
+                <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">line</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_load_puuids</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Loads the list of `euid` from the `rset.pkl` file for this</span>
+<span class="sd">        database group.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">puuids</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">puuids</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">load_pkl</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">puuid_file</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">puuids</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">puuid_file</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the full path to the euid file for this group.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">root</span><span class="p">,</span><span class="s2">&quot;puuids.pkl&quot;</span><span class="p">)</span></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">matdb 0.0.5 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" >Module code</a> &#187;</li>
+          <li class="nav-item nav-item-2"><a href="../database.html" >matdb.database</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2017, Conrad W. Rosenbrock.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.8.5.
+    </div>
+  </body>
+</html>

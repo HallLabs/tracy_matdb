@@ -22,7 +22,7 @@ Supported Calculators
 any `ase` calculator. Details on haw to add a specific calculator to
 `matdb` can be found below. 
 
-Calculators currently supported are: (**!!Is AFLOW a calculator?? More of a library..**)
+Calculators currently supported are: 
 
 .. toctree::
    :maxdepth: 1

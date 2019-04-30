@@ -1,0 +1,233 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>matdb.msg &#8212; matdb 0.0.5 documentation</title>
+    <link rel="stylesheet" href="../../_static/nature.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <script type="text/javascript" src="../../_static/language_data.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">matdb 0.0.5 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for matdb.msg</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;This module handles writing to the terminal or a log file with support</span>
+<span class="sd">for coloring for warnings, errors, etc.&quot;&quot;&quot;</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">print_function</span>
+<span class="kn">from</span> <span class="nn">termcolor</span> <span class="k">import</span> <span class="n">cprint</span>
+
+<span class="n">verbosity</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="sd">&quot;&quot;&quot;The verbosity level of messages being printed by the module.&quot;&quot;&quot;</span>
+<span class="n">quiet</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="sd">&quot;&quot;&quot;When in quiet mode, no text is ever printed to terminal unless its</span>
+<span class="sd">verbosity level is explicitly specified.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="n">cenum</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">&quot;cerrs&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+    <span class="s2">&quot;cwarn&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+    <span class="s2">&quot;cinfo&quot;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span>
+    <span class="s2">&quot;cgens&quot;</span><span class="p">:</span> <span class="mi">3</span><span class="p">,</span>
+    <span class="s2">&quot;cstds&quot;</span><span class="p">:</span> <span class="mi">4</span><span class="p">,</span>
+    <span class="s2">&quot;cokay&quot;</span><span class="p">:</span> <span class="mi">5</span>
+<span class="p">}</span>
+<span class="sd">&quot;&quot;&quot;Dict of the various colors available for coloring specific</span>
+<span class="sd">lines in the arb().</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="n">icols</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;red&quot;</span><span class="p">,</span> <span class="s2">&quot;yellow&quot;</span><span class="p">,</span> <span class="s2">&quot;cyan&quot;</span><span class="p">,</span> <span class="s2">&quot;blue&quot;</span><span class="p">,</span> <span class="s2">&quot;white&quot;</span><span class="p">,</span> <span class="s2">&quot;green&quot;</span><span class="p">]</span>
+<span class="n">nocolor</span> <span class="o">=</span> <span class="kc">False</span>
+<span class="sd">&quot;&quot;&quot;When true, the colored outputs all use the regular print().</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<div class="viewcode-block" id="printer"><a class="viewcode-back" href="../../msg.html#matdb.msg.printer">[docs]</a><span class="k">def</span> <span class="nf">printer</span><span class="p">(</span><span class="n">text</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Prints using color or standard print() depending on the value</span>
+<span class="sd">    of &#39;nocolor&#39;.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">nocolor</span><span class="p">:</span>
+        <span class="c1"># import sys</span>
+        <span class="c1"># sys.stdout.write(text + &quot;&quot; if (&quot;end&quot; in kwargs and kwargs[&quot;end&quot;] == &quot;&quot;) else &#39;\n&#39;)</span>
+        <span class="c1"># sys.stdout.flush()</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">text</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">color</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">cprint</span><span class="p">(</span><span class="n">text</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">cprint</span><span class="p">(</span><span class="n">text</span><span class="p">,</span> <span class="n">color</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="example"><a class="viewcode-back" href="../../msg.html#matdb.msg.example">[docs]</a><span class="k">def</span> <span class="nf">example</span><span class="p">(</span><span class="n">script</span><span class="p">,</span> <span class="n">explain</span><span class="p">,</span> <span class="n">contents</span><span class="p">,</span> <span class="n">requirements</span><span class="p">,</span> <span class="n">output</span><span class="p">,</span> <span class="n">outputfmt</span><span class="p">,</span> <span class="n">details</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Prints the example help for the script.&quot;&quot;&quot;</span>
+    <span class="n">blank</span><span class="p">()</span>
+    <span class="n">cprint</span><span class="p">(</span><span class="n">script</span><span class="o">.</span><span class="n">upper</span><span class="p">(),</span> <span class="s2">&quot;yellow&quot;</span><span class="p">)</span>
+    <span class="n">cprint</span><span class="p">(</span><span class="s1">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="s2">&quot;=&quot;</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">70</span><span class="p">)])</span> <span class="o">+</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">,</span> <span class="s2">&quot;yellow&quot;</span><span class="p">)</span>
+
+    <span class="n">cprint</span><span class="p">(</span><span class="s2">&quot;DETAILS&quot;</span><span class="p">,</span> <span class="s2">&quot;blue&quot;</span><span class="p">)</span>
+    <span class="n">std</span><span class="p">(</span><span class="n">explain</span> <span class="o">+</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+
+    <span class="n">cprint</span><span class="p">(</span><span class="n">requirements</span><span class="p">,</span> <span class="s2">&quot;red&quot;</span><span class="p">)</span>
+    <span class="n">cprint</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="s2">&quot;green&quot;</span><span class="p">)</span>
+    <span class="n">blank</span><span class="p">()</span>
+
+    <span class="k">if</span> <span class="n">details</span> <span class="o">!=</span> <span class="s2">&quot;&quot;</span><span class="p">:</span>
+        <span class="n">std</span><span class="p">(</span><span class="n">details</span><span class="p">)</span>
+        <span class="n">blank</span><span class="p">()</span>
+
+    <span class="n">cprint</span><span class="p">(</span><span class="s2">&quot;OUTPUT FORMAT&quot;</span><span class="p">,</span> <span class="s2">&quot;blue&quot;</span><span class="p">)</span>
+    <span class="n">std</span><span class="p">(</span><span class="n">outputfmt</span><span class="p">)</span>
+    <span class="n">blank</span><span class="p">()</span>
+
+    <span class="n">cprint</span><span class="p">(</span><span class="s2">&quot;EXAMPLES&quot;</span><span class="p">,</span> <span class="s2">&quot;blue&quot;</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">contents</span><span class="p">)):</span>
+        <span class="n">pre</span><span class="p">,</span> <span class="n">code</span><span class="p">,</span> <span class="n">post</span> <span class="o">=</span> <span class="n">contents</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+        <span class="n">std</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{}</span><span class="s2">) </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">pre</span><span class="p">))</span>
+        <span class="n">cprint</span><span class="p">(</span><span class="s2">&quot;    &quot;</span> <span class="o">+</span> <span class="n">code</span><span class="p">,</span> <span class="s2">&quot;cyan&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">post</span> <span class="o">!=</span> <span class="s2">&quot;&quot;</span><span class="p">:</span>
+            <span class="n">std</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span> <span class="o">+</span> <span class="n">post</span><span class="p">)</span>
+        <span class="n">blank</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="arb"><a class="viewcode-back" href="../../msg.html#matdb.msg.arb">[docs]</a><span class="k">def</span> <span class="nf">arb</span><span class="p">(</span><span class="n">text</span><span class="p">,</span> <span class="n">cols</span><span class="p">,</span> <span class="n">split</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Prints a line of text in arbitrary colors specified by the numeric</span>
+<span class="sd">    values contained in msg.cenum dictionary.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">stext</span> <span class="o">=</span> <span class="n">text</span> <span class="k">if</span> <span class="n">text</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">!=</span> <span class="n">split</span> <span class="k">else</span> <span class="n">text</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+    <span class="n">words</span> <span class="o">=</span> <span class="n">stext</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">split</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">word</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">words</span><span class="p">):</span>
+        <span class="n">col</span> <span class="o">=</span> <span class="n">icols</span><span class="p">[</span><span class="n">cols</span><span class="p">[</span><span class="n">i</span><span class="p">]]</span>
+        <span class="n">printer</span><span class="p">(</span><span class="n">word</span><span class="p">,</span> <span class="n">col</span><span class="p">,</span> <span class="n">end</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">words</span><span class="p">)</span><span class="o">-</span><span class="mi">1</span><span class="p">:</span>
+            <span class="n">printer</span><span class="p">(</span><span class="n">split</span><span class="p">,</span> <span class="n">end</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">printer</span><span class="p">(</span><span class="n">split</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="set_verbosity"><a class="viewcode-back" href="../../msg.html#matdb.msg.set_verbosity">[docs]</a><span class="k">def</span> <span class="nf">set_verbosity</span><span class="p">(</span><span class="n">level</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Sets the modules message verbosity level for *all* messages printed.</span>
+
+<span class="sd">    :arg level: a positive integer (&gt;0); higher levels including more detail.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">global</span> <span class="n">verbosity</span>
+    <span class="n">verbosity</span> <span class="o">=</span> <span class="n">level</span></div>
+
+<div class="viewcode-block" id="set_quiet"><a class="viewcode-back" href="../../msg.html#matdb.msg.set_quiet">[docs]</a><span class="k">def</span> <span class="nf">set_quiet</span><span class="p">(</span><span class="n">is_quiet</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Sets whether the messaging system is running in quiet mode. Quiet mode</span>
+<span class="sd">    only prints messages with explicit verbosity specified. If verbosity==None</span>
+<span class="sd">    and quiet==True, any message with level &gt;= 0 is printed.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">global</span> <span class="n">quiet</span>
+    <span class="n">quiet</span> <span class="o">=</span> <span class="n">is_quiet</span></div>
+
+<div class="viewcode-block" id="will_print"><a class="viewcode-back" href="../../msg.html#matdb.msg.will_print">[docs]</a><span class="k">def</span> <span class="nf">will_print</span><span class="p">(</span><span class="n">level</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Returns True if the current global status of messaging would print a</span>
+<span class="sd">    message using any of the printing functions in this module.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">level</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="c1">#We only affect printability using the quiet setting.</span>
+        <span class="k">return</span> <span class="n">quiet</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">quiet</span> <span class="o">==</span> <span class="kc">False</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="p">((</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">verbosity</span><span class="p">,</span> <span class="nb">int</span><span class="p">)</span> <span class="ow">and</span> <span class="n">level</span> <span class="o">&lt;=</span> <span class="n">verbosity</span><span class="p">)</span> <span class="ow">or</span>
+                <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">verbosity</span><span class="p">,</span> <span class="nb">bool</span><span class="p">)</span> <span class="ow">and</span> <span class="n">verbosity</span> <span class="o">==</span> <span class="kc">True</span><span class="p">)</span> <span class="ow">or</span>
+                <span class="p">(</span><span class="n">verbosity</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">level</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="warn"><a class="viewcode-back" href="../../msg.html#matdb.msg.warn">[docs]</a><span class="k">def</span> <span class="nf">warn</span><span class="p">(</span><span class="n">msg</span><span class="p">,</span> <span class="n">level</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">prefix</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Prints the specified message as a warning; prepends &quot;WARNING&quot; to</span>
+<span class="sd">    the message.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">will_print</span><span class="p">(</span><span class="n">level</span><span class="p">):</span>
+        <span class="n">printer</span><span class="p">((</span><span class="s2">&quot;WARNING: &quot;</span> <span class="k">if</span> <span class="n">prefix</span> <span class="k">else</span> <span class="s2">&quot;&quot;</span><span class="p">)</span> <span class="o">+</span> <span class="n">msg</span><span class="p">,</span> <span class="s2">&quot;yellow&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="err"><a class="viewcode-back" href="../../msg.html#matdb.msg.err">[docs]</a><span class="k">def</span> <span class="nf">err</span><span class="p">(</span><span class="n">msg</span><span class="p">,</span> <span class="n">level</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span> <span class="n">prefix</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Prints the specified message as an error; prepends &quot;ERROR&quot; to</span>
+<span class="sd">    the message.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">will_print</span><span class="p">(</span><span class="n">level</span><span class="p">):</span>
+        <span class="n">printer</span><span class="p">((</span><span class="s2">&quot;ERROR: &quot;</span> <span class="k">if</span> <span class="n">prefix</span> <span class="k">else</span> <span class="s2">&quot;&quot;</span><span class="p">)</span> <span class="o">+</span> <span class="n">msg</span><span class="p">,</span> <span class="s2">&quot;red&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="info"><a class="viewcode-back" href="../../msg.html#matdb.msg.info">[docs]</a><span class="k">def</span> <span class="nf">info</span><span class="p">(</span><span class="n">msg</span><span class="p">,</span> <span class="n">level</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Prints the specified message as information.&quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">will_print</span><span class="p">(</span><span class="n">level</span><span class="p">):</span>
+        <span class="n">printer</span><span class="p">(</span><span class="n">msg</span><span class="p">,</span> <span class="s2">&quot;cyan&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="okay"><a class="viewcode-back" href="../../msg.html#matdb.msg.okay">[docs]</a><span class="k">def</span> <span class="nf">okay</span><span class="p">(</span><span class="n">msg</span><span class="p">,</span> <span class="n">level</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Prints the specified message as textual progress update.&quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">will_print</span><span class="p">(</span><span class="n">level</span><span class="p">):</span>
+        <span class="n">printer</span><span class="p">(</span><span class="n">msg</span><span class="p">,</span> <span class="s2">&quot;green&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="gen"><a class="viewcode-back" href="../../msg.html#matdb.msg.gen">[docs]</a><span class="k">def</span> <span class="nf">gen</span><span class="p">(</span><span class="n">msg</span><span class="p">,</span> <span class="n">level</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Prints the message as generic output to terminal.&quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">will_print</span><span class="p">(</span><span class="n">level</span><span class="p">):</span>
+        <span class="n">printer</span><span class="p">(</span><span class="n">msg</span><span class="p">,</span> <span class="s2">&quot;blue&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="blank"><a class="viewcode-back" href="../../msg.html#matdb.msg.blank">[docs]</a><span class="k">def</span> <span class="nf">blank</span><span class="p">(</span><span class="n">n</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">level</span><span class="o">=</span><span class="mi">2</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Prints a blank line to the terminal.&quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">will_print</span><span class="p">(</span><span class="n">level</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n</span><span class="p">):</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="std"><a class="viewcode-back" href="../../msg.html#matdb.msg.std">[docs]</a><span class="k">def</span> <span class="nf">std</span><span class="p">(</span><span class="n">msg</span><span class="p">,</span> <span class="n">level</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Prints using the standard print() function.&quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">will_print</span><span class="p">(</span><span class="n">level</span><span class="p">):</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">matdb 0.0.5 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2017, Conrad W. Rosenbrock.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.8.5.
+    </div>
+  </body>
+</html>

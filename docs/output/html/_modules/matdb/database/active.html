@@ -1,0 +1,344 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>matdb.database.active &#8212; matdb 0.0.5 documentation</title>
+    <link rel="stylesheet" href="../../../_static/nature.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <script type="text/javascript" src="../../../_static/language_data.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">matdb 0.0.5 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" >Module code</a> &#187;</li>
+          <li class="nav-item nav-item-2"><a href="../database.html" accesskey="U">matdb.database</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for matdb.database.active</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Group of configurations that is created during an mtp active learning iteration.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">from</span> <span class="nn">hashlib</span> <span class="k">import</span> <span class="n">sha1</span>
+<span class="kn">from</span> <span class="nn">glob</span> <span class="k">import</span> <span class="n">glob</span>
+<span class="kn">from</span> <span class="nn">os</span> <span class="k">import</span> <span class="n">path</span><span class="p">,</span> <span class="n">getcwd</span><span class="p">,</span> <span class="n">chdir</span><span class="p">,</span> <span class="n">remove</span><span class="p">,</span> <span class="n">listdir</span><span class="p">,</span> <span class="n">mkdir</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">six</span> <span class="k">import</span> <span class="n">string_types</span>
+<span class="kn">from</span> <span class="nn">tqdm</span> <span class="k">import</span> <span class="n">tqdm</span>
+
+<span class="kn">from</span> <span class="nn">matdb</span> <span class="k">import</span> <span class="n">msg</span>
+<span class="kn">from</span> <span class="nn">matdb.database</span> <span class="k">import</span> <span class="n">Group</span>
+<span class="kn">from</span> <span class="nn">matdb.atoms</span> <span class="k">import</span> <span class="n">AtomsList</span><span class="p">,</span> <span class="n">Atoms</span>
+
+<div class="viewcode-block" id="Active"><a class="viewcode-back" href="../../../database/active.html#matdb.database.active.Active">[docs]</a><span class="k">class</span> <span class="nc">Active</span><span class="p">(</span><span class="n">Group</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Sets up the calculations for a set of configurations that are being</span>
+<span class="sd">    added to by the active learning approach.</span>
+
+<span class="sd">    .. note:: Additional attributes are also exposed by the super class</span>
+<span class="sd">      :class:`~matdb.database.Group`.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        list: the unique ids for each config in the group</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;active&quot;</span><span class="p">,</span> <span class="o">**</span><span class="n">dbargs</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
+        <span class="n">dbargs</span><span class="p">[</span><span class="s1">&#39;prefix&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;Ac&quot;</span>
+        <span class="n">dbargs</span><span class="p">[</span><span class="s1">&#39;cls&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">Active</span>
+        <span class="n">dbargs</span><span class="p">[</span><span class="s1">&#39;trainable&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="k">if</span> <span class="s2">&quot;calculator&quot;</span> <span class="ow">in</span> <span class="n">dbargs</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">calcargs</span> <span class="o">=</span> <span class="n">dbargs</span><span class="p">[</span><span class="s2">&quot;calculator&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+            <span class="k">del</span> <span class="n">dbargs</span><span class="p">[</span><span class="s2">&quot;calculator&quot;</span><span class="p">]</span>
+        <span class="k">if</span> <span class="s2">&quot;Active&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">dbargs</span><span class="p">[</span><span class="s1">&#39;root&#39;</span><span class="p">]:</span>
+            <span class="n">new_root</span> <span class="o">=</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">dbargs</span><span class="p">[</span><span class="s1">&#39;root&#39;</span><span class="p">],</span><span class="s2">&quot;Active&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">path</span><span class="o">.</span><span class="n">isdir</span><span class="p">(</span><span class="n">new_root</span><span class="p">):</span>
+                <span class="n">mkdir</span><span class="p">(</span><span class="n">new_root</span><span class="p">)</span>
+            <span class="n">dbargs</span><span class="p">[</span><span class="s1">&#39;root&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">new_root</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">Active</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">**</span><span class="n">dbargs</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">auids</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_load_auids</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">nconfigs</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">auids</span><span class="p">)</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">auids</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">last_iteration</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">cur_iter</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">glob</span><span class="p">(</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">root</span><span class="p">,</span><span class="s2">&quot;iter_*.pkl&quot;</span><span class="p">)))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">iter_file</span> <span class="o">=</span> <span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">root</span><span class="p">,</span><span class="s2">&quot;iter_</span><span class="si">{}</span><span class="s2">.pkl&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">cur_iter</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_load_last_iter</span><span class="p">()</span>
+
+<div class="viewcode-block" id="Active.ready"><a class="viewcode-back" href="../../../database/active.html#matdb.database.active.Active.ready">[docs]</a>    <span class="k">def</span> <span class="nf">ready</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns True if this database has finished its computations and is</span>
+<span class="sd">        ready to be used.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">fitting_configs</span><span class="p">)</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">nconfigs</span></div>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">auid_file</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the full path to the euid file for this group.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">root</span><span class="p">,</span><span class="s2">&quot;auids.pkl&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_load_auids</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Loads the list of `auid` from the `rset.pkl` file for this</span>
+<span class="sd">        database group.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">auids</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">auids</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">load_pkl</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">auid_file</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_load_last_iter</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Loads the list of paths from the `iter_{}.pkl` file for this</span>
+<span class="sd">        database group&#39;s last iteration.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">last_iteration</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">load_pkl</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">iter_file</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">last_config_atoms</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the atoms objects from the last iteration.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">last_atoms</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">last_count</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">last_iteration</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">last_iteration</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span>
+                                           <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">last_iteration</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">):</span>
+            <span class="k">return</span> <span class="kc">None</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config_atoms</span><span class="p">)</span><span class="o">-</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">last_iteration</span><span class="p">),</span>
+                           <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config_atoms</span><span class="p">)):</span>
+                <span class="n">last_atoms</span><span class="p">[</span><span class="n">last_count</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">config_atoms</span><span class="p">[</span><span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config_atoms</span><span class="o">.</span><span class="n">keys</span><span class="p">())[</span><span class="n">i</span><span class="p">]]</span>
+                <span class="n">last_count</span> <span class="o">+=</span> <span class="mi">1</span>
+
+        <span class="k">return</span> <span class="n">last_atoms</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">fitting_configs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns a list of full paths to the folders that have `atoms.json` objects</span>
+<span class="sd">        for the full result set.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">auid</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">auids</span><span class="p">:</span>
+            <span class="n">folder</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">index</span><span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">auid</span><span class="p">)]</span>
+            <span class="n">target</span> <span class="o">=</span> <span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">folder</span><span class="p">,</span><span class="s2">&quot;atoms.h5&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="n">target</span><span class="p">):</span>
+                <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">target</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">result</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">rset</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns a :class:`~matdb.atoms.AtomsList`, one for each config in the</span>
+<span class="sd">        latest result set.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="c1">#Return the configurations from this group; it is at the</span>
+        <span class="c1">#bottom of the stack</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="n">AtomsList</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">epath</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">fitting_configs</span><span class="p">:</span>
+            <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">Atoms</span><span class="p">(</span><span class="n">epath</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">result</span>
+
+<div class="viewcode-block" id="Active.add_configs"><a class="viewcode-back" href="../../../database/active.html#matdb.database.active.Active.add_configs">[docs]</a>    <span class="k">def</span> <span class="nf">add_configs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">new_configs</span><span class="p">,</span><span class="n">iteration</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Adds the atoms objects in the list to the configs of the active set.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            list: list of :class:`~matdb.atoms.Atoms` objects to be added</span>
+<span class="sd">                to the active learning set.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">new_configs</span> <span class="o">=</span> <span class="n">new_configs</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">nconfigs</span> <span class="o">+=</span> <span class="nb">len</span><span class="p">(</span><span class="n">new_configs</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">iter_file</span> <span class="o">=</span> <span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">root</span><span class="p">,</span><span class="s2">&quot;iter_</span><span class="si">{}</span><span class="s2">.pkl&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">iteration</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">last_iteration</span> <span class="o">=</span> <span class="p">{}</span></div>
+
+    <span class="k">def</span> <span class="nf">_setup_configs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">rerun</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Sets up the database structure for the active set and creates a</span>
+<span class="sd">        folder for the `calculator` to run in for each config.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># We need to make sure that none of the configs in this round</span>
+        <span class="c1"># of the active learning have already been visited by</span>
+        <span class="c1"># constructing their auids and then verifying that the auid</span>
+        <span class="c1"># hasn&#39;t been visited before.</span>
+        <span class="n">dind</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">auids</span><span class="p">)</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">auids</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="mi">0</span>
+        <span class="n">iter_ind</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">pbar</span> <span class="o">=</span> <span class="n">tqdm</span><span class="p">(</span><span class="n">total</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">new_configs</span><span class="p">))</span>
+        <span class="k">for</span> <span class="n">config</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">new_configs</span><span class="p">:</span>
+            <span class="n">auid</span> <span class="o">=</span> <span class="n">sha1</span><span class="p">(</span><span class="s1">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="p">(</span><span class="nb">tuple</span><span class="p">([</span><span class="nb">tuple</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">config</span><span class="o">.</span><span class="n">cell</span><span class="p">]),</span>
+                        <span class="nb">tuple</span><span class="p">([</span><span class="nb">tuple</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">config</span><span class="o">.</span><span class="n">positions</span><span class="p">]),</span>
+                        <span class="nb">tuple</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">get_chemical_symbols</span><span class="p">()))))</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">))</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">auids</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">auid</span><span class="o">.</span><span class="n">hexdigest</span><span class="p">()</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">auids</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">nconfigs</span> <span class="o">-=</span> <span class="mi">1</span>
+                    <span class="k">continue</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">auids</span> <span class="o">=</span> <span class="p">[]</span>
+
+            <span class="n">dind</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="n">config</span><span class="p">,</span><span class="n">cid</span><span class="o">=</span><span class="n">dind</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">index</span><span class="p">[</span><span class="n">auid</span><span class="o">.</span><span class="n">hexdigest</span><span class="p">()]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">configs</span><span class="p">[</span><span class="n">dind</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">last_iteration</span><span class="p">[</span><span class="n">iter_ind</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">configs</span><span class="p">[</span><span class="n">dind</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">auids</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">auid</span><span class="o">.</span><span class="n">hexdigest</span><span class="p">())</span>
+            <span class="n">iter_ind</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="n">pbar</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">pbar</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">jobfile</span><span class="p">(</span><span class="n">rerun</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">save_index</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">save_pkl</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">auids</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">auid_file</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">save_pkl</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">last_iteration</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">iter_file</span><span class="p">)</span>
+
+<div class="viewcode-block" id="Active.setup"><a class="viewcode-back" href="../../../database/active.html#matdb.database.active.Active.setup">[docs]</a>    <span class="k">def</span> <span class="nf">setup</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">rerun</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Enumerates the desired number of structures and setups up a folder</span>
+<span class="sd">        for each one.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            rerun (bool): when True, recreate the folders even if they</span>
+<span class="sd">              already exist.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">Active</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">setup</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_setup_configs</span><span class="p">,</span><span class="n">rerun</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Active.is_executing"><a class="viewcode-back" href="../../../database/active.html#matdb.database.active.Active.is_executing">[docs]</a>    <span class="k">def</span> <span class="nf">is_executing</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns True if the most recently added configurations are in</span>
+<span class="sd">        process of being executed.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">is_executing</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">configs</span><span class="p">)</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">nconfigs</span><span class="p">:</span>
+            <span class="c1"># There have been configurations added to the database</span>
+            <span class="c1"># that haven&#39;t been setup yet.</span>
+            <span class="k">return</span> <span class="kc">False</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># We only want to know if the last iteration&#39;s files are</span>
+            <span class="c1"># being executed, the old iterations don&#39;t matter.</span>
+            <span class="k">for</span> <span class="n">config</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">last_iteration</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">atoms</span> <span class="o">=</span> <span class="n">Atoms</span><span class="p">(</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="s2">&quot;pre_comp_atoms.h5&quot;</span><span class="p">))</span>
+                <span class="k">except</span><span class="p">:</span>
+                    <span class="n">atoms</span> <span class="o">=</span> <span class="n">Atoms</span><span class="p">(</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="s2">&quot;atoms.h5&quot;</span><span class="p">))</span>
+                <span class="n">is_executing</span> <span class="o">=</span> <span class="n">atoms</span><span class="o">.</span><span class="n">calc</span><span class="o">.</span><span class="n">is_executing</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">is_executing</span><span class="p">:</span>
+                    <span class="k">break</span>
+
+        <span class="k">return</span> <span class="n">is_executing</span></div>
+    
+<div class="viewcode-block" id="Active.execute"><a class="viewcode-back" href="../../../database/active.html#matdb.database.active.Active.execute">[docs]</a>    <span class="k">def</span> <span class="nf">execute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dryrun</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">recovery</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">env_vars</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Submits the job script for each of the folders in this</span>
+<span class="sd">        database if they are ready to run.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            dryrun (bool): when True, simulate the submission without actually submitting.</span>
+<span class="sd">            recovery (bool): when True, submit the script for running recovery jobs.</span>
+<span class="sd">            env_vars (dict): `dict` of environment variables to set before calling the execution. The variables will be set back after execution.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            bool: True if the submission generated a job id (considered successful).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_expand_sequence</span><span class="p">()</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sequence</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">jobfile</span> <span class="o">=</span> <span class="s2">&quot;recovery.sh&quot;</span> <span class="k">if</span> <span class="n">recovery</span> <span class="k">else</span> <span class="s2">&quot;jobfile.sh&quot;</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">root</span><span class="p">,</span> <span class="n">jobfile</span><span class="p">)):</span>
+                <span class="k">return</span> <span class="kc">False</span>
+
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">recovery</span><span class="p">:</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="nb">all</span><span class="p">(</span><span class="n">a</span><span class="o">.</span><span class="n">calc</span><span class="o">.</span><span class="n">can_execute</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">configs</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+                           <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">a</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">config_atoms</span><span class="o">.</span><span class="n">items</span><span class="p">()):</span>
+                    <span class="k">return</span> <span class="kc">False</span>
+
+                <span class="c1">#We also need to check that we haven&#39;t already submitted this</span>
+                <span class="c1">#job. Check to see if it is executing.</span>
+                <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="n">a</span><span class="o">.</span><span class="n">calc</span><span class="o">.</span><span class="n">is_executing</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">configs</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+                       <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">a</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">config_atoms</span><span class="o">.</span><span class="n">items</span><span class="p">()):</span>
+                    <span class="k">return</span> <span class="kc">False</span>
+
+                <span class="c1">#Make sure that the calculation isn&#39;t complete.</span>
+                <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="n">a</span><span class="o">.</span><span class="n">calc</span><span class="o">.</span><span class="n">can_extract</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">last_iteration</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+                       <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">a</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">last_config_atoms</span><span class="o">.</span><span class="n">items</span><span class="p">()):</span>
+                    <span class="k">return</span> <span class="kc">False</span>
+
+            <span class="c1"># We must have what we need to execute. Compile the command and</span>
+            <span class="c1"># submit.</span>
+            <span class="kn">from</span> <span class="nn">matdb.utility</span> <span class="k">import</span> <span class="n">execute</span>
+            <span class="n">cargs</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">database</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">shell_command</span><span class="p">,</span> <span class="n">jobfile</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">dryrun</span><span class="p">:</span>
+                <span class="kn">from</span> <span class="nn">matdb.msg</span> <span class="k">import</span> <span class="n">okay</span>
+                <span class="n">okay</span><span class="p">(</span><span class="s2">&quot;Executed </span><span class="si">{}</span><span class="s2"> in </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="s1">&#39; &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">cargs</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">root</span><span class="p">))</span>
+                <span class="k">return</span> <span class="kc">True</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">xres</span> <span class="o">=</span> <span class="n">execute</span><span class="p">(</span><span class="n">cargs</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">root</span><span class="p">,</span> <span class="n">env_vars</span><span class="o">=</span><span class="n">env_vars</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">xres</span><span class="p">[</span><span class="s2">&quot;output&quot;</span><span class="p">])</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="ow">and</span> <span class="s2">&quot;Submitted&quot;</span> <span class="ow">in</span> <span class="n">xres</span><span class="p">[</span><span class="s2">&quot;output&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">]:</span>
+                <span class="kn">from</span> <span class="nn">matdb.msg</span> <span class="k">import</span> <span class="n">okay</span>
+                <span class="n">okay</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{}</span><span class="s2">: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">root</span><span class="p">,</span> <span class="n">xres</span><span class="p">[</span><span class="s2">&quot;output&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()))</span>
+                <span class="k">return</span> <span class="kc">True</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">return</span> <span class="kc">False</span>
+
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">already_executed</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">group</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">sequence</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+                <span class="n">already_executed</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">group</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">dryrun</span><span class="o">=</span><span class="n">dryrun</span><span class="p">,</span>
+                                                      <span class="n">recovery</span><span class="o">=</span><span class="n">recovery</span><span class="p">,</span>
+                                                      <span class="n">env_vars</span><span class="o">=</span><span class="n">env_vars</span><span class="p">))</span>
+            <span class="k">return</span> <span class="nb">all</span><span class="p">(</span><span class="n">already_executed</span><span class="p">)</span></div></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">matdb 0.0.5 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" >Module code</a> &#187;</li>
+          <li class="nav-item nav-item-2"><a href="../database.html" >matdb.database</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2017, Conrad W. Rosenbrock.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.8.5.
+    </div>
+  </body>
+</html>

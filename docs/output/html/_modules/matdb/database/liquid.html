@@ -1,0 +1,183 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>matdb.database.liquid &#8212; matdb 0.0.5 documentation</title>
+    <link rel="stylesheet" href="../../../_static/nature.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <script type="text/javascript" src="../../../_static/language_data.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">matdb 0.0.5 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" >Module code</a> &#187;</li>
+          <li class="nav-item nav-item-2"><a href="../database.html" accesskey="U">matdb.database</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for matdb.database.liquid</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Class for generating and interacting with a group of</span>
+<span class="sd">configurations generated from liquid-temperature molecular dynamics.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">from</span> <span class="nn">os</span> <span class="k">import</span> <span class="n">path</span>
+
+<span class="kn">from</span> <span class="nn">matdb.database</span> <span class="k">import</span> <span class="n">Group</span>
+
+<div class="viewcode-block" id="LiquidGroup"><a class="viewcode-back" href="../../../database/liquid.html#matdb.database.liquid.LiquidGroup">[docs]</a><span class="k">class</span> <span class="nc">LiquidGroup</span><span class="p">(</span><span class="n">Group</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Represents a sub-sampled molecular dynamics run created at a</span>
+<span class="sd">    liquid transition temperature.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        atoms (matdb.atoms.Atoms): seed configuration that will be</span>
+<span class="sd">          displaced to generate the database.</span>
+<span class="sd">        root (str): path to the folder where the database directories will</span>
+<span class="sd">          be stored.</span>
+<span class="sd">        parent (matdb.database.controller.DatabaseCollection): parent collection</span>
+<span class="sd">          to which this database belongs.</span>
+<span class="sd">        incar (dict): specify additional settings for the INCAR file (i.e.,</span>
+<span class="sd">          differing from, or in addition to those in the global set).</span>
+<span class="sd">        kpoints (dict): specify additional settings for the PRECALC file (i.e.,</span>
+<span class="sd">          differing from, or in addition to those in the global set).</span>
+<span class="sd">        execution (dict): specify override parameters for the execution</span>
+<span class="sd">          templates in this database.</span>
+
+<span class="sd">    .. note:: Additional attributes are also exposed by the super class</span>
+<span class="sd">      :class:`~matdb.database.Group`.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        name (str): name of this database type relative to the over database</span>
+<span class="sd">          collection. This is also the name of the folder in which all of its</span>
+<span class="sd">          calculations will be performed.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">atoms</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">root</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">parent</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">incar</span><span class="o">=</span><span class="p">{},</span>
+                 <span class="n">kpoints</span><span class="o">=</span><span class="p">{},</span> <span class="n">execution</span><span class="o">=</span><span class="p">{},</span> <span class="n">nconfigs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">mdbase</span><span class="o">=</span><span class="s2">&quot;md&quot;</span><span class="p">,</span>
+                 <span class="n">name</span><span class="o">=</span><span class="s2">&quot;liquid&quot;</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">LiquidGroup</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">atoms</span><span class="p">,</span> <span class="n">incar</span><span class="p">,</span> <span class="n">kpoints</span><span class="p">,</span> <span class="n">execution</span><span class="p">,</span>
+                                             <span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">root</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">),</span>
+                                             <span class="n">parent</span><span class="p">,</span> <span class="s2">&quot;L&quot;</span><span class="p">,</span> <span class="n">nconfigs</span><span class="o">=</span><span class="n">nconfigs</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mdbase</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">databases</span><span class="p">[</span><span class="n">mdbase</span><span class="p">]</span>
+
+<div class="viewcode-block" id="LiquidGroup.ready"><a class="viewcode-back" href="../../../database/liquid.html#matdb.database.liquid.LiquidGroup.ready">[docs]</a>    <span class="k">def</span> <span class="nf">ready</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Determines if this database is finished calculating by testing the</span>
+<span class="sd">        existence of the xyz database file in the root folder.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">(</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">root</span><span class="p">,</span> <span class="s2">&quot;output.xyz&quot;</span><span class="p">))</span> <span class="ow">and</span>
+                <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">configs</span><span class="p">)</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">_nsuccess</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="LiquidGroup.extract"><a class="viewcode-back" href="../../../database/liquid.html#matdb.database.liquid.LiquidGroup.extract">[docs]</a>    <span class="k">def</span> <span class="nf">extract</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cleanup</span><span class="o">=</span><span class="s2">&quot;default&quot;</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Generates the XYZ database file for all the sub-configs in this</span>
+<span class="sd">        liquid database.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            cleanup (str): the level of cleanup to perform after extraction.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">           bool: True if the database is ready; this means that any other</span>
+<span class="sd">           databases that rely on its outputs can be run.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1">#First, we need to check that the MD is done; then we can subsample it</span>
+        <span class="c1">#and run the individual DFT calculations.</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">mdbase</span><span class="o">.</span><span class="n">ready</span><span class="p">():</span>
+            <span class="k">return</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">super</span><span class="p">(</span><span class="n">LiquidGroup</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">extract</span><span class="p">(</span><span class="n">cleanup</span><span class="o">=</span><span class="n">cleanup</span><span class="p">):</span>
+            <span class="k">return</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">xyz</span><span class="p">(</span><span class="n">config_type</span><span class="o">=</span><span class="s2">&quot;liq&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="LiquidGroup.setup"><a class="viewcode-back" href="../../../database/liquid.html#matdb.database.liquid.LiquidGroup.setup">[docs]</a>    <span class="k">def</span> <span class="nf">setup</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">rerun</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Sets up a DFT folder for each of the subsampled configurations in the</span>
+<span class="sd">        base MD database.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            rerun (bool): when True, recreate the job file. If the folders</span>
+<span class="sd">              don&#39;t exist yet, they will still be created.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">mdbase</span><span class="o">.</span><span class="n">ready</span><span class="p">():</span>
+            <span class="k">return</span>
+
+        <span class="n">folders_ok</span> <span class="o">=</span> <span class="nb">super</span><span class="p">(</span><span class="n">LiquidGroup</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">setup</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">folders_ok</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">rerun</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="c1">#We also don&#39;t want to setup again if we have the results already.</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">ready</span><span class="p">():</span>
+            <span class="k">return</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">folders_ok</span><span class="p">:</span>
+            <span class="kn">from</span> <span class="nn">matdb.atoms</span> <span class="k">import</span> <span class="n">Atoms</span>
+            <span class="kn">from</span> <span class="nn">tqdm</span> <span class="k">import</span> <span class="n">tqdm</span>
+            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">mdbase</span><span class="o">.</span><span class="n">subsamples</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">tqdm</span><span class="p">(</span><span class="n">f</span><span class="p">):</span>
+                    <span class="n">config</span> <span class="o">=</span> <span class="n">line</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+                    <span class="n">datoms</span> <span class="o">=</span> <span class="n">Atoms</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="s2">&quot;POSCAR&quot;</span><span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="n">datoms</span><span class="p">)</span>
+
+        <span class="c1"># Last of all, create the job file to execute the job array.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">jobfile</span><span class="p">(</span><span class="n">rerun</span><span class="p">)</span></div></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">matdb 0.0.5 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" >Module code</a> &#187;</li>
+          <li class="nav-item nav-item-2"><a href="../database.html" >matdb.database</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2017, Conrad W. Rosenbrock.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.8.5.
+    </div>
+  </body>
+</html>

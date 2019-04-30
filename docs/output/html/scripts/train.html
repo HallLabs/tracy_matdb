@@ -1,0 +1,143 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Potential Training &#8212; matdb 0.0.5 documentation</title>
+    <link rel="stylesheet" href="../_static/nature.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <script type="text/javascript" src="../_static/language_data.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Phonon Band Plotting" href="plot.html" />
+    <link rel="prev" title="Database Builder" href="build.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="plot.html" title="Phonon Band Plotting"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="build.html" title="Database Builder"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">matdb 0.0.5 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../scripts.html" accesskey="U">Scripts for High-level Interaction</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="module-matdb.scripts.matdb_train">
+<span id="potential-training"></span><h1>Potential Training<a class="headerlink" href="#module-matdb.scripts.matdb_train" title="Permalink to this headline">¶</a></h1>
+<p>Once a database of configurations has been built, the next
+step is to train some interatomic potentials. This script
+wraps the <cite>teach_sparse</cite> functionality in QUIP and connects
+the database of configurations to it according to best
+practices. Note that 2+3+xxx training is an iterative process
+and so this script needs to be run multiple times.</p>
+<dl class="function">
+<dt id="matdb.scripts.matdb_train.examples">
+<code class="descclassname">matdb.scripts.matdb_train.</code><code class="descname">examples</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/matdb/scripts/matdb_train.html#examples"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#matdb.scripts.matdb_train.examples" title="Permalink to this definition">¶</a></dt>
+<dd><p>Prints examples of using the script to the console using colored output.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="matdb.scripts.matdb_train.run">
+<code class="descclassname">matdb.scripts.matdb_train.</code><code class="descname">run</code><span class="sig-paren">(</span><em>args</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/matdb/scripts/matdb_train.html#run"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#matdb.scripts.matdb_train.run" title="Permalink to this definition">¶</a></dt>
+<dd><p>Runs the matdb setup and cleanup to produce database files.</p>
+</dd></dl>
+
+<dl class="data">
+<dt id="matdb.scripts.matdb_train.script_options">
+<code class="descclassname">matdb.scripts.matdb_train.</code><code class="descname">script_options</code><em class="property"> = {'--data': {'help': 'Specify which data file to validate.'}, '--dryrun': {'action': 'store_true', 'help': 'With --execute, only do a dry-run to see what would happen.'}, '--energy': {'action': 'store_true', 'help': 'With --validate, calculate the energies.'}, '--force': {'action': 'store_true', 'help': 'With --validate, calculate the forces.'}, '--recalc': {'default': 0, 'help': 'Specify the stack depth for recalculation; this value is decreased as the stack is traversed. In any method with `recalc &gt; 0`, the operation is done over from scratch.', 'type': &lt;class 'int'&gt;}, '--sfilter': {'help': 'Specify a list of patterns to match against _step_ names that should be *included*.', 'nargs': '+'}, '--status': {'action': 'store_true', 'help': 'Determines status of the GAP fitting routines and job files. Sanity check before `-x`.'}, '--tfilter': {'help': 'Specify a list of patterns to match against _fit_ names that should be *included*.', 'nargs': '+'}, '--virial': {'action': 'store_true', 'help': 'With --validate, calculate the virial.'}, '--xyz': {'action': 'store_true', 'help': 'Recreate the XYZ training and validation files using the latest settings in `matdb.yml`'}, '-t': {'action': 'store_true', 'help': 'Create the database splits and the initial job scriptfor training the first steps in each sequence.'}, '-v': {'action': 'store_true', 'help': &quot;Validate the potential's energy, force and virial predictions.&quot;}, '-x': {'action': 'store_true', 'help': 'Submit the job array files for the next fits.'}, 'dbspec': {'help': 'File containing the database specifications.'}}</em><a class="headerlink" href="#matdb.scripts.matdb_train.script_options" title="Permalink to this definition">¶</a></dt>
+<dd><p>default command-line arguments and their
+<a class="reference external" href="https://docs.python.org/3/library/argparse.html#argparse.ArgumentParser.add_argument" title="(in Python v3.7)"><code class="xref py py-meth docutils literal notranslate"><span class="pre">argparse.ArgumentParser.add_argument()</span></code></a> keyword arguments.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.7)">dict</a></td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="build.html"
+                        title="previous chapter">Database Builder</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="plot.html"
+                        title="next chapter">Phonon Band Plotting</a></p>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="../_sources/scripts/train.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="plot.html" title="Phonon Band Plotting"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="build.html" title="Database Builder"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">matdb 0.0.5 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../scripts.html" >Scripts for High-level Interaction</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2017, Conrad W. Rosenbrock.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.8.5.
+    </div>
+  </body>
+</html>

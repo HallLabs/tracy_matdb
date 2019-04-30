@@ -1,0 +1,435 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Basic &#8212; matdb 0.0.5 documentation</title>
+    <link rel="stylesheet" href="../_static/nature.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <script type="text/javascript" src="../_static/language_data.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Utility" href="utility.html" />
+    <link rel="prev" title="AFLOW" href="aflow.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="utility.html" title="Utility"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="aflow.html" title="AFLOW"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">matdb 0.0.5 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../calculator.html" accesskey="U">Calculators</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="basic">
+<h1>Basic<a class="headerlink" href="#basic" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="module-matdb.calculators.basic">
+<span id="basic-calculator"></span><h2>Basic calculator<a class="headerlink" href="#module-matdb.calculators.basic" title="Permalink to this headline">¶</a></h2>
+<p>Implements an abstract base class that all <cite>matdb</cite> calculators need to
+implement.</p>
+<dl class="class">
+<dt id="matdb.calculators.basic.AsyncCalculator">
+<em class="property">class </em><code class="descclassname">matdb.calculators.basic.</code><code class="descname">AsyncCalculator</code><a class="reference internal" href="../_modules/matdb/calculators/basic.html#AsyncCalculator"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#matdb.calculators.basic.AsyncCalculator" title="Permalink to this definition">¶</a></dt>
+<dd><p>Represents a calculator such as <code class="xref py py-class docutils literal notranslate"><span class="pre">ase.Calculator</span></code> that can be run
+in multiple stages to compute properties (such as in a distributed or HCP
+environment).</p>
+<dl class="attribute">
+<dt id="matdb.calculators.basic.AsyncCalculator.key">
+<code class="descname">key</code><a class="headerlink" href="#matdb.calculators.basic.AsyncCalculator.key" title="Permalink to this definition">¶</a></dt>
+<dd><p>short, lower-case name to identify the calculator type.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.7)">str</a></td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="matdb.calculators.basic.AsyncCalculator.can_execute">
+<code class="descname">can_execute</code><span class="sig-paren">(</span><em>folder</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/matdb/calculators/basic.html#AsyncCalculator.can_execute"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#matdb.calculators.basic.AsyncCalculator.can_execute" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns <cite>True</cite> if the specified folder is ready to execute using the
+calculator’s main executable.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>folder</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.7)"><em>str</em></a>) – path to the folder in which the executable will be
+run.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="matdb.calculators.basic.AsyncCalculator.can_extract">
+<code class="descname">can_extract</code><span class="sig-paren">(</span><em>folder</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/matdb/calculators/basic.html#AsyncCalculator.can_extract"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#matdb.calculators.basic.AsyncCalculator.can_extract" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns True if the specified folder has completed executing and the results
+are available for use.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>folder</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.7)"><em>str</em></a>) – path to the folder in which the executable was run.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="matdb.calculators.basic.AsyncCalculator.cleanup">
+<code class="descname">cleanup</code><span class="sig-paren">(</span><em>folder</em>, <em>clean_level='default'</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/matdb/calculators/basic.html#AsyncCalculator.cleanup"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#matdb.calculators.basic.AsyncCalculator.cleanup" title="Permalink to this definition">¶</a></dt>
+<dd><p>Extracts results from completed calculations and sets them on the
+<code class="xref py py-class docutils literal notranslate"><span class="pre">ase.Atoms</span></code> object.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>folder</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.7)"><em>str</em></a>) – path to the folder in which the executable was run.</li>
+<li><strong>clean_level</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.7)"><em>str</em></a>) – the level of cleanup to perform.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="matdb.calculators.basic.AsyncCalculator.create">
+<code class="descname">create</code><span class="sig-paren">(</span><em>folder</em>, <em>rewrite=False</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/matdb/calculators/basic.html#AsyncCalculator.create"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#matdb.calculators.basic.AsyncCalculator.create" title="Permalink to this definition">¶</a></dt>
+<dd><p>Creates all necessary input files for the calculator’s executable.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>folder</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.7)"><em>str</em></a>) – path to the folder in which to create input files.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="matdb.calculators.basic.AsyncCalculator.energy_name">
+<code class="descname">energy_name</code><a class="headerlink" href="#matdb.calculators.basic.AsyncCalculator.energy_name" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the name of the energy property that this trainer writes onto
+an atoms object when using its calculator to calculate energy.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="matdb.calculators.basic.AsyncCalculator.extract">
+<code class="descname">extract</code><span class="sig-paren">(</span><em>folder</em>, <em>cleanup='default'</em>, <em>asis=False</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/matdb/calculators/basic.html#AsyncCalculator.extract"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#matdb.calculators.basic.AsyncCalculator.extract" title="Permalink to this definition">¶</a></dt>
+<dd><p>Extracts results from completed calculations and sets them on the
+<code class="xref py py-class docutils literal notranslate"><span class="pre">ase.Atoms</span></code> object.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>folder</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.7)"><em>str</em></a>) – path to the folder in which the executable was run.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="matdb.calculators.basic.AsyncCalculator.force_name">
+<code class="descname">force_name</code><a class="headerlink" href="#matdb.calculators.basic.AsyncCalculator.force_name" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the name of the force property that this trainer writes onto
+an atoms object when using its calculator to calculate force.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="matdb.calculators.basic.AsyncCalculator.init_calc">
+<code class="descname">init_calc</code><span class="sig-paren">(</span><em>kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/matdb/calculators/basic.html#AsyncCalculator.init_calc"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#matdb.calculators.basic.AsyncCalculator.init_calc" title="Permalink to this definition">¶</a></dt>
+<dd><p>Initializes an instance of the calculator class using the key word, value pairs stored in the kwargs dictionary.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="matdb.calculators.basic.AsyncCalculator.is_executing">
+<code class="descname">is_executing</code><span class="sig-paren">(</span><em>folder</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/matdb/calculators/basic.html#AsyncCalculator.is_executing"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#matdb.calculators.basic.AsyncCalculator.is_executing" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns True if the specified folder is in process of executing. This
+means that files/output has been produced to indicate that the process
+started and that the folder is not ready to extract yet.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>folder</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.7)"><em>str</em></a>) – path to the folder in which the executable was run.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt>
+<code class="descname">key</code><em class="property"> = None</em></dt>
+<dd><p>Short, lower-case name to identify the calculator type.</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="matdb.calculators.basic.AsyncCalculator.pathattrs">
+<code class="descname">pathattrs</code><em class="property"> = []</em><a class="headerlink" href="#matdb.calculators.basic.AsyncCalculator.pathattrs" title="Permalink to this definition">¶</a></dt>
+<dd><p>A list of paths that the calculator needs access to, the values for these paths are found in kwargs.</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="matdb.calculators.basic.AsyncCalculator.stress_name">
+<code class="descname">stress_name</code><a class="headerlink" href="#matdb.calculators.basic.AsyncCalculator.stress_name" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the name of the force property that this trainer writes onto
+an atoms object when using its calculator to calculate force.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="matdb.calculators.basic.AsyncCalculator.to_dict">
+<code class="descname">to_dict</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/matdb/calculators/basic.html#AsyncCalculator.to_dict"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#matdb.calculators.basic.AsyncCalculator.to_dict" title="Permalink to this definition">¶</a></dt>
+<dd><p>Writes the current version number of the code being run to a
+dictionary along with the parameters of the code.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>folder</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.7)"><em>str</em></a>) – path to the folder in which the executable was run.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="matdb.calculators.basic.AsyncCalculator.virial_name">
+<code class="descname">virial_name</code><a class="headerlink" href="#matdb.calculators.basic.AsyncCalculator.virial_name" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the name of the virial property that this trainer writes onto
+an atoms object when using its calculator to calculate virial.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="matdb.calculators.basic.SyncCalculator">
+<em class="property">class </em><code class="descclassname">matdb.calculators.basic.</code><code class="descname">SyncCalculator</code><a class="reference internal" href="../_modules/matdb/calculators/basic.html#SyncCalculator"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#matdb.calculators.basic.SyncCalculator" title="Permalink to this definition">¶</a></dt>
+<dd><p>Represents a calculator such as <code class="xref py py-class docutils literal notranslate"><span class="pre">ase.Calculator</span></code> that can be run
+synchronously stages to compute properties (does not require a distributed
+or HCP environment).</p>
+<dl class="attribute">
+<dt id="matdb.calculators.basic.SyncCalculator.key">
+<code class="descname">key</code><a class="headerlink" href="#matdb.calculators.basic.SyncCalculator.key" title="Permalink to this definition">¶</a></dt>
+<dd><p>short, lower-case name to identify the calculator type.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.7)">str</a></td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="matdb.calculators.basic.SyncCalculator.can_execute">
+<code class="descname">can_execute</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/matdb/calculators/basic.html#SyncCalculator.can_execute"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#matdb.calculators.basic.SyncCalculator.can_execute" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns <cite>True</cite> if this calculation can calculate properties for the
+specified atoms object.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>atoms</strong> (<a class="reference internal" href="../atoms.html#matdb.atoms.Atoms" title="matdb.atoms.Atoms"><em>matdb.atoms.Atoms</em></a>) – config to test executability for.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="matdb.calculators.basic.SyncCalculator.can_extract">
+<code class="descname">can_extract</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/matdb/calculators/basic.html#SyncCalculator.can_extract"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#matdb.calculators.basic.SyncCalculator.can_extract" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns True if the specified atoms object has completed executing and the
+results are available for use.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>atoms</strong> (<a class="reference internal" href="../atoms.html#matdb.atoms.Atoms" title="matdb.atoms.Atoms"><em>matdb.atoms.Atoms</em></a>) – config to check execution completion for.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="matdb.calculators.basic.SyncCalculator.create">
+<code class="descname">create</code><span class="sig-paren">(</span><em>rewrite=False</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/matdb/calculators/basic.html#SyncCalculator.create"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#matdb.calculators.basic.SyncCalculator.create" title="Permalink to this definition">¶</a></dt>
+<dd><p>Creates all necessary input files for the calculator’s executable.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>folder</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.7)"><em>str</em></a>) – path to the folder in which to create input files.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="matdb.calculators.basic.SyncCalculator.energy_name">
+<code class="descname">energy_name</code><a class="headerlink" href="#matdb.calculators.basic.SyncCalculator.energy_name" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the name of the energy property that this trainer writes onto
+an atoms object when using its calculator to calculate energy.</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="matdb.calculators.basic.SyncCalculator.force_name">
+<code class="descname">force_name</code><a class="headerlink" href="#matdb.calculators.basic.SyncCalculator.force_name" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the name of the force property that this trainer writes onto
+an atoms object when using its calculator to calculate force.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="matdb.calculators.basic.SyncCalculator.init_calc">
+<code class="descname">init_calc</code><span class="sig-paren">(</span><em>kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/matdb/calculators/basic.html#SyncCalculator.init_calc"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#matdb.calculators.basic.SyncCalculator.init_calc" title="Permalink to this definition">¶</a></dt>
+<dd><p>Initializes an instance of the calculator class using the key word, value pairs stored in the kwargs dictionary.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="matdb.calculators.basic.SyncCalculator.is_executing">
+<code class="descname">is_executing</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/matdb/calculators/basic.html#SyncCalculator.is_executing"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#matdb.calculators.basic.SyncCalculator.is_executing" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns True if the specified config is in process of executing.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>atoms</strong> (<a class="reference internal" href="../atoms.html#matdb.atoms.Atoms" title="matdb.atoms.Atoms"><em>matdb.atoms.Atoms</em></a>) – config to check execution for.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt>
+<code class="descname">key</code><em class="property"> = None</em></dt>
+<dd><p>Short, lower-case name to identify the calculator type</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="matdb.calculators.basic.SyncCalculator.pathattrs">
+<code class="descname">pathattrs</code><em class="property"> = []</em><a class="headerlink" href="#matdb.calculators.basic.SyncCalculator.pathattrs" title="Permalink to this definition">¶</a></dt>
+<dd><p>A list of paths that the calculator needs access to, the values for these paths are found in kwargs.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="matdb.calculators.basic.SyncCalculator.to_dict">
+<code class="descname">to_dict</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/matdb/calculators/basic.html#SyncCalculator.to_dict"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#matdb.calculators.basic.SyncCalculator.to_dict" title="Permalink to this definition">¶</a></dt>
+<dd><p>Writes the current version number of the code being run to a
+dictionary along with the parameters of the code.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>folder</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.7)"><em>str</em></a>) – path to the folder in which the executable was run.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="matdb.calculators.basic.SyncCalculator.virial_name">
+<code class="descname">virial_name</code><a class="headerlink" href="#matdb.calculators.basic.SyncCalculator.virial_name" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the name of the virial property that this trainer writes onto
+an atoms object when using its calculator to calculate virial.</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="../index.html">Table of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Basic</a><ul>
+<li><a class="reference internal" href="#module-matdb.calculators.basic">Basic calculator</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="aflow.html"
+                        title="previous chapter">AFLOW</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="utility.html"
+                        title="next chapter">Utility</a></p>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="../_sources/calculators/basic.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="utility.html" title="Utility"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="aflow.html" title="AFLOW"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">matdb 0.0.5 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../calculator.html" >Calculators</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2017, Conrad W. Rosenbrock.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.8.5.
+    </div>
+  </body>
+</html>

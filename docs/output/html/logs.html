@@ -1,0 +1,204 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Logger Module &#8212; matdb 0.0.5 documentation</title>
+    <link rel="stylesheet" href="_static/nature.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="_static/language_data.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Messaging Module" href="msg.html" />
+    <link rel="prev" title="Exception Module" href="exceptions.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="msg.html" title="Messaging Module"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="exceptions.html" title="Exception Module"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">matdb 0.0.5 documentation</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="module-matdb.logs">
+<span id="logger-module"></span><h1>Logger Module<a class="headerlink" href="#module-matdb.logs" title="Permalink to this headline">¶</a></h1>
+<p>Implements logging for managing statistics and debugging for <cite>matdb</cite>
+databases, groups, fitters, analyzers, etc.</p>
+<dl class="class">
+<dt id="matdb.logs.Logger">
+<em class="property">class </em><code class="descclassname">matdb.logs.</code><code class="descname">Logger</code><span class="sig-paren">(</span><em>root</em>, <em>identifier</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/matdb/logs.html#Logger"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#matdb.logs.Logger" title="Permalink to this definition">¶</a></dt>
+<dd><p>Handles the logging of events for a <cite>matdb</cite>.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>root</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.7)"><em>str</em></a>) – path to the root logs directory for this logger.</li>
+<li><strong>identifier</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.7)"><em>str</em></a>) – name of the log (unique in the application).</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<dl class="attribute">
+<dt id="matdb.logs.Logger.logger">
+<code class="descname">logger</code><a class="headerlink" href="#matdb.logs.Logger.logger" title="Permalink to this definition">¶</a></dt>
+<dd><p>logger class from built-in logging module.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body"><a class="reference external" href="https://docs.python.org/3/library/logging.html#logging.Logger" title="(in Python v3.7)">logging.Logger</a></td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="matdb.logs.Logger.debug">
+<code class="descname">debug</code><span class="sig-paren">(</span><em>message</em>, <em>*args</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/matdb/logs.html#Logger.debug"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#matdb.logs.Logger.debug" title="Permalink to this definition">¶</a></dt>
+<dd><p>Logs the specified debug message for this tracker.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>message</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.7)"><em>str</em></a>) – formatted message; <cite>args</cite> will be placed in-line.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="matdb.logs.Logger.error">
+<code class="descname">error</code><span class="sig-paren">(</span><em>message</em>, <em>*args</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/matdb/logs.html#Logger.error"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#matdb.logs.Logger.error" title="Permalink to this definition">¶</a></dt>
+<dd><p>Logs the specified error message for this tracker.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>message</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.7)"><em>str</em></a>) – formatted message; <cite>args</cite> will be placed in-line.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="matdb.logs.Logger.exception">
+<code class="descname">exception</code><span class="sig-paren">(</span><em>location</em>, <em>*args</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/matdb/logs.html#Logger.exception"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#matdb.logs.Logger.exception" title="Permalink to this definition">¶</a></dt>
+<dd><p>Logs an exception that occurred at <cite>location</cite>.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="matdb.logs.Logger.info">
+<code class="descname">info</code><span class="sig-paren">(</span><em>message</em>, <em>*args</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/matdb/logs.html#Logger.info"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#matdb.logs.Logger.info" title="Permalink to this definition">¶</a></dt>
+<dd><p>Logs the specified info message for this tracker.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>message</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.7)"><em>str</em></a>) – formatted message; <cite>args</cite> will be placed in-line.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="matdb.logs.Logger.warning">
+<code class="descname">warning</code><span class="sig-paren">(</span><em>message</em>, <em>*args</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/matdb/logs.html#Logger.warning"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#matdb.logs.Logger.warning" title="Permalink to this definition">¶</a></dt>
+<dd><p>Logs the specified warning message for this tracker.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>message</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.7)"><em>str</em></a>) – formatted message; <cite>args</cite> will be placed in-line.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="exceptions.html"
+                        title="previous chapter">Exception Module</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="msg.html"
+                        title="next chapter">Messaging Module</a></p>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/logs.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="msg.html" title="Messaging Module"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="exceptions.html" title="Exception Module"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">matdb 0.0.5 documentation</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2017, Conrad W. Rosenbrock.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.8.5.
+    </div>
+  </body>
+</html>

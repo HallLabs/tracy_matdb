@@ -1,0 +1,134 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Job Functions &#8212; matdb 0.0.5 documentation</title>
+    <link rel="stylesheet" href="_static/nature.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="_static/language_data.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Utility and Package Functions" href="utility.html" />
+    <link rel="prev" title="Descriptors Functions" href="descriptors.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="utility.html" title="Utility and Package Functions"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="descriptors.html" title="Descriptors Functions"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">matdb 0.0.5 documentation</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="module-matdb.queries">
+<span id="job-functions"></span><h1>Job Functions<a class="headerlink" href="#module-matdb.queries" title="Permalink to this headline">¶</a></h1>
+<p>This module contains the functions needed to submit jobs in different environments.</p>
+<dl class="function">
+<dt id="matdb.queries.sbatch">
+<code class="descclassname">matdb.queries.</code><code class="descname">sbatch</code><span class="sig-paren">(</span><em>jobfile</em>, <em>folder</em>, <em>kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/matdb/queries.html#sbatch"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#matdb.queries.sbatch" title="Permalink to this definition">¶</a></dt>
+<dd><p>Submits jobs to a supercomputer with sbatch.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>jobfile</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.7)"><em>str</em></a>) – the name of jobfile that needs to be submitted.</li>
+<li><strong>folder</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.7)"><em>str</em></a>) – the path to the jobfile.</li>
+<li><strong>kwargs</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.7)"><em>dict</em></a>) – other arguments to pass to the execute function.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="matdb.queries.tracy">
+<code class="descclassname">matdb.queries.</code><code class="descname">tracy</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/matdb/queries.html#tracy"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#matdb.queries.tracy" title="Permalink to this definition">¶</a></dt>
+<dd><p>Submits jobs for the tracy workflow.</p>
+</dd></dl>
+
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="descriptors.html"
+                        title="previous chapter">Descriptors Functions</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="utility.html"
+                        title="next chapter">Utility and Package Functions</a></p>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/queries.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="utility.html" title="Utility and Package Functions"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="descriptors.html" title="Descriptors Functions"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">matdb 0.0.5 documentation</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2017, Conrad W. Rosenbrock.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.8.5.
+    </div>
+  </body>
+</html>

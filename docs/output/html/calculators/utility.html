@@ -1,0 +1,254 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Utility &#8212; matdb 0.0.5 documentation</title>
+    <link rel="stylesheet" href="../_static/nature.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <script type="text/javascript" src="../_static/language_data.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Database Types" href="../databases.html" />
+    <link rel="prev" title="Basic" href="basic.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="../databases.html" title="Database Types"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="basic.html" title="Basic"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">matdb 0.0.5 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../calculator.html" accesskey="U">Calculators</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="utility">
+<h1>Utility<a class="headerlink" href="#utility" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="module-matdb.calculators">
+<span id="calculator-initialization-functions"></span><h2>Calculator initialization functions<a class="headerlink" href="#module-matdb.calculators" title="Permalink to this headline">¶</a></h2>
+<dl class="function">
+<dt id="matdb.calculators.get_calc_class">
+<code class="descclassname">matdb.calculators.</code><code class="descname">get_calc_class</code><span class="sig-paren">(</span><em>name</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/matdb/calculators.html#get_calc_class"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#matdb.calculators.get_calc_class" title="Permalink to this definition">¶</a></dt>
+<dd><p>Gets the class definition objects for the calculator that has the
+specified name.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="matdb.calculators.get_calculator_module">
+<code class="descclassname">matdb.calculators.</code><code class="descname">get_calculator_module</code><span class="sig-paren">(</span><em>calcargs</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/matdb/calculators.html#get_calculator_module"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#matdb.calculators.get_calculator_module" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the module corresponding to the calculator mentioned in
+<cite>calcargs</cite>.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>calcargs</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.7)"><em>dict</em></a>) – the “calculator” dictionary that is part of the
+arguments for a db group.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</div>
+<div class="section" id="module-matdb.calculators.utility">
+<span id="calculator-utility-module"></span><h2>Calculator Utility Module<a class="headerlink" href="#module-matdb.calculators.utility" title="Permalink to this headline">¶</a></h2>
+<dl class="function">
+<dt id="matdb.calculators.utility.build_calc">
+<code class="descclassname">matdb.calculators.utility.</code><code class="descname">build_calc</code><span class="sig-paren">(</span><em>name</em>, <em>relpath</em>, <em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/matdb/calculators/utility.html#build_calc"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#matdb.calculators.utility.build_calc" title="Permalink to this definition">¶</a></dt>
+<dd><p>Builds a calculator instance using sensible defaults for <em>interatomic potentials</em>
+that do <em>not</em> require a temporary directory to dump files.</p>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">The <cite>Vasp</cite>, <cite>Aflow</cite> and <cite>Qe</cite> calculators are not buildable using this
+function.</p>
+</div>
+<div class="admonition warning">
+<p class="first admonition-title">Warning</p>
+<p class="last">The calculator produced by this function <em>cannot</em> be hashed or serialized
+as part of a full <cite>matdb</cite>; it is intended for _local_ use only.</p>
+</div>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>name</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.7)"><em>str</em></a>) – name of the calculator in this package; one of [‘Quip’].</li>
+<li><strong>relpath</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.7)"><em>str</em></a>) – path to the directory in which to instantiate the calculator.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<p class="rubric">Notes</p>
+<dl class="docutils">
+<dt>atoms (matdb.atoms.Atoms):</dt>
+<dd>default atoms object for the calculator. An empty <cite>Atoms</cite> object is created.
+This shouldn’t impact calculations since the calculator does not require a folder to run.</dd>
+<dt>workdir (str):</dt>
+<dd>path to a working directory. Calculators that don’t need this folder are the only ones
+supported by this function, so we default to local directory.</dd>
+<dt>contr_dir (str):</dt>
+<dd>path to the <cite>matdb</cite> controller’s root directory. That folder is used only when
+the calculator is hashed or serialized, for local use it doesn’t matter so we default to the local directory.</dd>
+<dt>ran_seed (int):</dt>
+<dd>random seed used to initialized the calculator.</dd>
+</dl>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Raises:</th><td class="field-body"><a class="reference external" href="https://docs.python.org/3/library/exceptions.html#ValueError" title="(in Python v3.7)"><strong>ValueError</strong></a> – if the <cite>name</cite> is not a folder-independent interatomic potential.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="matdb.calculators.utility.get_calculator_hashes">
+<code class="descclassname">matdb.calculators.utility.</code><code class="descname">get_calculator_hashes</code><span class="sig-paren">(</span><em>key</em>, <em>value</em>, <em>breadcrumb</em>, <em>result</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/matdb/calculators/utility.html#get_calculator_hashes"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#matdb.calculators.utility.get_calculator_hashes" title="Permalink to this definition">¶</a></dt>
+<dd><p>Looks for calculator absolute paths recursively in configuration dicts.</p>
+<div class="admonition warning">
+<p class="first admonition-title">Warning</p>
+<p class="last">The <cite>result</cite> parameter will be mutated.</p>
+</div>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>key</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.7)"><em>str</em></a>) – key that this entry was under in the configuration dict.</li>
+<li><strong>value</strong> – value object may be any supported type.</li>
+<li><strong>breadcrumb</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.7)"><em>str</em></a>) – recursive path description for this key-value pair.</li>
+<li><strong>result</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.7)"><em>dict</em></a>) – keys are breadcrumb hashes; values are absolute paths.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="data">
+<dt id="matdb.calculators.utility.paths">
+<code class="descclassname">matdb.calculators.utility.</code><code class="descname">paths</code><em class="property"> = {}</em><a class="headerlink" href="#matdb.calculators.utility.paths" title="Permalink to this definition">¶</a></dt>
+<dd><p>keys are hashed <cite>matdb</cite> names from multiple <cite>matdb.yml</cite> files. Values
+are dictionaries populated by a call to <a class="reference internal" href="#matdb.calculators.utility.get_calculator_hashes" title="matdb.calculators.utility.get_calculator_hashes"><code class="xref py py-func docutils literal notranslate"><span class="pre">get_calculator_hashes()</span></code></a>.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.7)">dict</a></td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="matdb.calculators.utility.set_paths">
+<code class="descclassname">matdb.calculators.utility.</code><code class="descname">set_paths</code><span class="sig-paren">(</span><em>configyml</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/matdb/calculators/utility.html#set_paths"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#matdb.calculators.utility.set_paths" title="Permalink to this definition">¶</a></dt>
+<dd><p>Sets the absolute paths to any calculator-specific file resources based
+on the specified <em>live</em> configuration settings derived from a <cite>matdb.yml</cite>
+file.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>configyml</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.7)"><em>dict</em></a>) – contents of the <cite>matdb.yml</cite> file to set paths for.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="../index.html">Table of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Utility</a><ul>
+<li><a class="reference internal" href="#module-matdb.calculators">Calculator initialization functions</a></li>
+<li><a class="reference internal" href="#module-matdb.calculators.utility">Calculator Utility Module</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="basic.html"
+                        title="previous chapter">Basic</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="../databases.html"
+                        title="next chapter">Database Types</a></p>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="../_sources/calculators/utility.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="../databases.html" title="Database Types"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="basic.html" title="Basic"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">matdb 0.0.5 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../calculator.html" >Calculators</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2017, Conrad W. Rosenbrock.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.8.5.
+    </div>
+  </body>
+</html>

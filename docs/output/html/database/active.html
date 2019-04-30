@@ -1,0 +1,241 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Active Database Documentation &#8212; matdb 0.0.5 documentation</title>
+    <link rel="stylesheet" href="../_static/nature.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <script type="text/javascript" src="../_static/language_data.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Distortion Database Documentation" href="distortion.html" />
+    <link rel="prev" title="AFLOW Database Documentation" href="aflow.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="distortion.html" title="Distortion Database Documentation"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="aflow.html" title="AFLOW Database Documentation"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">matdb 0.0.5 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../databases.html" accesskey="U">Database Types</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="active-database-documentation">
+<h1>Active Database Documentation<a class="headerlink" href="#active-database-documentation" title="Permalink to this headline">¶</a></h1>
+<p>The active database is primarily used by <cite>mtp</cite> and is not added to by
+the user in a manual manner. The only thing the user should add to the
+yml file regarding this group should be any changes that the user
+wants to make to the calculator being used here.</p>
+<div class="section" id="module-matdb.database.active">
+<span id="active-database"></span><h2>Active Database<a class="headerlink" href="#module-matdb.database.active" title="Permalink to this headline">¶</a></h2>
+<p>Group of configurations that is created during an mtp active learning iteration.</p>
+<dl class="class">
+<dt id="matdb.database.active.Active">
+<em class="property">class </em><code class="descclassname">matdb.database.active.</code><code class="descname">Active</code><span class="sig-paren">(</span><em>name='active'</em>, <em>**dbargs</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/matdb/database/active.html#Active"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#matdb.database.active.Active" title="Permalink to this definition">¶</a></dt>
+<dd><p>Sets up the calculations for a set of configurations that are being
+added to by the active learning approach.</p>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">Additional attributes are also exposed by the super class
+<a class="reference internal" href="utility.html#matdb.database.Group" title="matdb.database.Group"><code class="xref py py-class docutils literal notranslate"><span class="pre">Group</span></code></a>.</p>
+</div>
+<dl class="attribute">
+<dt id="matdb.database.active.Active.list">
+<code class="descname">list</code><a class="headerlink" href="#matdb.database.active.Active.list" title="Permalink to this definition">¶</a></dt>
+<dd><p>the unique ids for each config in the group</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="matdb.database.active.Active.add_configs">
+<code class="descname">add_configs</code><span class="sig-paren">(</span><em>new_configs</em>, <em>iteration</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/matdb/database/active.html#Active.add_configs"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#matdb.database.active.Active.add_configs" title="Permalink to this definition">¶</a></dt>
+<dd><p>Adds the atoms objects in the list to the configs of the active set.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>list</strong> – list of <a class="reference internal" href="../atoms.html#matdb.atoms.Atoms" title="matdb.atoms.Atoms"><code class="xref py py-class docutils literal notranslate"><span class="pre">Atoms</span></code></a> objects to be added
+to the active learning set.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="matdb.database.active.Active.auid_file">
+<code class="descname">auid_file</code><a class="headerlink" href="#matdb.database.active.Active.auid_file" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the full path to the euid file for this group.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="matdb.database.active.Active.execute">
+<code class="descname">execute</code><span class="sig-paren">(</span><em>dryrun=False</em>, <em>recovery=False</em>, <em>env_vars=None</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/matdb/database/active.html#Active.execute"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#matdb.database.active.Active.execute" title="Permalink to this definition">¶</a></dt>
+<dd><p>Submits the job script for each of the folders in this
+database if they are ready to run.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>dryrun</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.7)"><em>bool</em></a>) – when True, simulate the submission without actually submitting.</li>
+<li><strong>recovery</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.7)"><em>bool</em></a>) – when True, submit the script for running recovery jobs.</li>
+<li><strong>env_vars</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.7)"><em>dict</em></a>) – <cite>dict</cite> of environment variables to set before calling the execution. The variables will be set back after execution.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">True if the submission generated a job id (considered successful).</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.7)">bool</a></p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="matdb.database.active.Active.fitting_configs">
+<code class="descname">fitting_configs</code><a class="headerlink" href="#matdb.database.active.Active.fitting_configs" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a list of full paths to the folders that have <cite>atoms.json</cite> objects
+for the full result set.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="matdb.database.active.Active.is_executing">
+<code class="descname">is_executing</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/matdb/database/active.html#Active.is_executing"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#matdb.database.active.Active.is_executing" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns True if the most recently added configurations are in
+process of being executed.</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="matdb.database.active.Active.last_config_atoms">
+<code class="descname">last_config_atoms</code><a class="headerlink" href="#matdb.database.active.Active.last_config_atoms" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the atoms objects from the last iteration.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="matdb.database.active.Active.ready">
+<code class="descname">ready</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/matdb/database/active.html#Active.ready"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#matdb.database.active.Active.ready" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns True if this database has finished its computations and is
+ready to be used.</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="matdb.database.active.Active.rset">
+<code class="descname">rset</code><a class="headerlink" href="#matdb.database.active.Active.rset" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a <a class="reference internal" href="../atoms.html#matdb.atoms.AtomsList" title="matdb.atoms.AtomsList"><code class="xref py py-class docutils literal notranslate"><span class="pre">AtomsList</span></code></a>, one for each config in the
+latest result set.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="matdb.database.active.Active.setup">
+<code class="descname">setup</code><span class="sig-paren">(</span><em>rerun=False</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/matdb/database/active.html#Active.setup"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#matdb.database.active.Active.setup" title="Permalink to this definition">¶</a></dt>
+<dd><p>Enumerates the desired number of structures and setups up a folder
+for each one.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>rerun</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.7)"><em>bool</em></a>) – when True, recreate the folders even if they
+already exist.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="../index.html">Table of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Active Database Documentation</a><ul>
+<li><a class="reference internal" href="#module-matdb.database.active">Active Database</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="aflow.html"
+                        title="previous chapter">AFLOW Database Documentation</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="distortion.html"
+                        title="next chapter">Distortion Database Documentation</a></p>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="../_sources/database/active.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="distortion.html" title="Distortion Database Documentation"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="aflow.html" title="AFLOW Database Documentation"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">matdb 0.0.5 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../databases.html" >Database Types</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2017, Conrad W. Rosenbrock.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.8.5.
+    </div>
+  </body>
+</html>

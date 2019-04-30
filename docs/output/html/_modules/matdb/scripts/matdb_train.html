@@ -1,0 +1,218 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>matdb.scripts.matdb_train &#8212; matdb 0.0.5 documentation</title>
+    <link rel="stylesheet" href="../../../_static/nature.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <script type="text/javascript" src="../../../_static/language_data.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">matdb 0.0.5 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for matdb.scripts.matdb_train</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Once a database of configurations has been built, the next</span>
+<span class="sd">   step is to train some interatomic potentials. This script</span>
+<span class="sd">   wraps the `teach_sparse` functionality in QUIP and connects</span>
+<span class="sd">   the database of configurations to it according to best</span>
+<span class="sd">   practices. Note that 2+3+xxx training is an iterative process</span>
+<span class="sd">   and so this script needs to be run multiple times.</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="c1">#!/usr/bin/python</span>
+<div class="viewcode-block" id="examples"><a class="viewcode-back" href="../../../scripts/train.html#matdb.scripts.matdb_train.examples">[docs]</a><span class="k">def</span> <span class="nf">examples</span><span class="p">():</span>
+    <span class="sd">&quot;&quot;&quot;Prints examples of using the script to the console using colored output.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="kn">from</span> <span class="nn">matdb</span> <span class="k">import</span> <span class="n">msg</span>
+    <span class="n">script</span> <span class="o">=</span> <span class="s2">&quot;MATDB Automated Materials Database Constructor&quot;</span>
+    <span class="n">explain</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;Once a database of configurations has been built, the next &quot;</span>
+               <span class="s2">&quot;step is to train some interatomic potentials. This script &quot;</span>
+               <span class="s2">&quot;wraps the `teach_sparse` functionality in QUIP and connects &quot;</span>
+               <span class="s2">&quot;the database of configurations to it according to best &quot;</span>
+               <span class="s2">&quot;practices. Note that 2+3+xxx training is an iterative process &quot;</span>
+               <span class="s2">&quot;and so this script needs to be run multiple times.&quot;</span><span class="p">)</span>
+    <span class="n">contents</span> <span class="o">=</span> <span class="p">[((</span><span class="s2">&quot;Start training a new potential for the first time.&quot;</span><span class="p">),</span> 
+                 <span class="s2">&quot;matdb.py system.yaml -t&quot;</span><span class="p">,</span>
+                 <span class="s2">&quot;This generates the XYZ database of configurations, and sets &quot;</span>
+                 <span class="s2">&quot;up the jobfile for execution.&quot;</span><span class="p">),</span>
+                <span class="p">((</span><span class="s2">&quot;Continue training the next step in the sequence after &quot;</span>
+                  <span class="s2">&quot;execution of the previous example is completed.&quot;</span><span class="p">),</span> 
+                 <span class="s2">&quot;matdb.py system.yaml -c&quot;</span><span class="p">,</span>
+                 <span class="s2">&quot;This generates a new jobfile for execution and updates the &quot;</span>
+                 <span class="s2">&quot;parameters based on fitting errors. This should be &quot;</span>
+                 <span class="s2">&quot;called once for each additional step in the overall &quot;</span>
+                 <span class="s2">&quot;sequence of potential training steps.&quot;</span><span class="p">)]</span>
+    <span class="n">required</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;&#39;matdb.yaml&#39; file with database settings.&quot;</span><span class="p">)</span>
+    <span class="n">output</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
+    <span class="n">details</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
+    <span class="n">outputfmt</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
+
+    <span class="n">msg</span><span class="o">.</span><span class="n">example</span><span class="p">(</span><span class="n">script</span><span class="p">,</span> <span class="n">explain</span><span class="p">,</span> <span class="n">contents</span><span class="p">,</span> <span class="n">required</span><span class="p">,</span> <span class="n">output</span><span class="p">,</span> <span class="n">outputfmt</span><span class="p">,</span> <span class="n">details</span><span class="p">)</span></div>
+
+<span class="n">script_options</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">&quot;dbspec&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;help&quot;</span><span class="p">:</span> <span class="s2">&quot;File containing the database specifications.&quot;</span><span class="p">},</span>
+    <span class="s2">&quot;-t&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;action&quot;</span><span class="p">:</span> <span class="s2">&quot;store_true&quot;</span><span class="p">,</span>
+           <span class="s2">&quot;help&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;Create the database splits and the initial job script&quot;</span>
+                    <span class="s2">&quot;for training the first steps in each sequence.&quot;</span><span class="p">)},</span>
+    <span class="s2">&quot;-x&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;action&quot;</span><span class="p">:</span> <span class="s2">&quot;store_true&quot;</span><span class="p">,</span>
+           <span class="s2">&quot;help&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;Submit the job array files for the next fits.&quot;</span><span class="p">)},</span>
+    <span class="s2">&quot;-v&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;action&quot;</span><span class="p">:</span> <span class="s2">&quot;store_true&quot;</span><span class="p">,</span>
+           <span class="s2">&quot;help&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;Validate the potential&#39;s energy, force and virial&quot;</span>
+                    <span class="s2">&quot; predictions.&quot;</span><span class="p">)},</span>
+    <span class="s2">&quot;--status&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;action&quot;</span><span class="p">:</span> <span class="s2">&quot;store_true&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;help&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;Determines status of the GAP fitting routines and &quot;</span>
+                         <span class="s2">&quot;job files. Sanity check before `-x`.&quot;</span><span class="p">)},</span>
+    <span class="s2">&quot;--xyz&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;action&quot;</span><span class="p">:</span> <span class="s2">&quot;store_true&quot;</span><span class="p">,</span>
+              <span class="s2">&quot;help&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;Recreate the XYZ training and validation files using &quot;</span>
+                       <span class="s2">&quot;the latest settings in `matdb.yml`&quot;</span><span class="p">)},</span>
+    <span class="s2">&quot;--recalc&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;type&quot;</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="s2">&quot;default&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+                 <span class="s2">&quot;help&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;Specify the stack depth for recalculation; this &quot;</span>
+                          <span class="s2">&quot;value is decreased as the stack is traversed. In &quot;</span>
+                          <span class="s2">&quot;any method with `recalc &gt; 0`, the operation is done &quot;</span>
+                          <span class="s2">&quot;over from scratch.&quot;</span><span class="p">)},</span>
+    <span class="s2">&quot;--data&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;help&quot;</span><span class="p">:</span> <span class="s2">&quot;Specify which data file to validate.&quot;</span><span class="p">},</span>
+    <span class="s2">&quot;--tfilter&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;nargs&quot;</span><span class="p">:</span> <span class="s2">&quot;+&quot;</span><span class="p">,</span>
+                 <span class="s2">&quot;help&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;Specify a list of patterns to match against _fit_ &quot;</span>
+                          <span class="s2">&quot;names that should be *included*.&quot;</span><span class="p">)},</span>
+    <span class="s2">&quot;--sfilter&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;nargs&quot;</span><span class="p">:</span> <span class="s2">&quot;+&quot;</span><span class="p">,</span>
+                  <span class="s2">&quot;help&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;Specify a list of patterns to match against _step_ &quot;</span>
+                           <span class="s2">&quot;names that should be *included*.&quot;</span><span class="p">)},</span>
+    <span class="s2">&quot;--energy&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;action&quot;</span><span class="p">:</span> <span class="s2">&quot;store_true&quot;</span><span class="p">,</span>
+                 <span class="s2">&quot;help&quot;</span><span class="p">:</span> <span class="s2">&quot;With --validate, calculate the energies.&quot;</span><span class="p">},</span>
+    <span class="s2">&quot;--force&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;action&quot;</span><span class="p">:</span> <span class="s2">&quot;store_true&quot;</span><span class="p">,</span>
+                 <span class="s2">&quot;help&quot;</span><span class="p">:</span> <span class="s2">&quot;With --validate, calculate the forces.&quot;</span><span class="p">},</span>
+    <span class="s2">&quot;--virial&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;action&quot;</span><span class="p">:</span> <span class="s2">&quot;store_true&quot;</span><span class="p">,</span>
+                 <span class="s2">&quot;help&quot;</span><span class="p">:</span> <span class="s2">&quot;With --validate, calculate the virial.&quot;</span><span class="p">},</span>
+    <span class="s2">&quot;--dryrun&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;action&quot;</span><span class="p">:</span> <span class="s2">&quot;store_true&quot;</span><span class="p">,</span>
+                 <span class="s2">&quot;help&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;With --execute, only do a dry-run to see what&quot;</span>
+                          <span class="s2">&quot; would happen.&quot;</span><span class="p">)},</span>
+<span class="p">}</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">dict: default command-line arguments and their</span>
+<span class="sd">    :meth:`argparse.ArgumentParser.add_argument` keyword arguments.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="k">def</span> <span class="nf">_parser_options</span><span class="p">():</span>
+    <span class="sd">&quot;&quot;&quot;Parses the options and arguments from the command line.&quot;&quot;&quot;</span>
+    <span class="c1">#We have two options: get some of the details from the config file,</span>
+    <span class="kn">import</span> <span class="nn">argparse</span>
+    <span class="kn">import</span> <span class="nn">sys</span>
+    <span class="kn">from</span> <span class="nn">matdb</span> <span class="k">import</span> <span class="n">base</span>
+    <span class="n">pdescr</span> <span class="o">=</span> <span class="s2">&quot;MATDB Potential Fitter&quot;</span>
+    <span class="n">parser</span> <span class="o">=</span> <span class="n">argparse</span><span class="o">.</span><span class="n">ArgumentParser</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="p">[</span><span class="n">base</span><span class="o">.</span><span class="n">bparser</span><span class="p">],</span> <span class="n">description</span><span class="o">=</span><span class="n">pdescr</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">arg</span><span class="p">,</span> <span class="n">options</span> <span class="ow">in</span> <span class="n">script_options</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="n">arg</span><span class="p">,</span> <span class="o">**</span><span class="n">options</span><span class="p">)</span>
+        
+    <span class="n">args</span> <span class="o">=</span> <span class="n">base</span><span class="o">.</span><span class="n">exhandler</span><span class="p">(</span><span class="n">examples</span><span class="p">,</span> <span class="n">parser</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">args</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span>
+
+    <span class="k">return</span> <span class="n">args</span>
+
+<div class="viewcode-block" id="run"><a class="viewcode-back" href="../../../scripts/train.html#matdb.scripts.matdb_train.run">[docs]</a><span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="n">args</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Runs the matdb setup and cleanup to produce database files.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">args</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span>
+
+    <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+    <span class="kn">from</span> <span class="nn">matdb</span> <span class="k">import</span> <span class="n">msg</span>
+
+    <span class="c1">#No matter what other options the user has chosen, we will have to create a</span>
+    <span class="c1">#database controller for the specification they have given us.</span>
+    <span class="kn">from</span> <span class="nn">matdb.database</span> <span class="k">import</span> <span class="n">Controller</span>
+    <span class="n">cdb</span> <span class="o">=</span> <span class="n">Controller</span><span class="p">(</span><span class="n">args</span><span class="p">[</span><span class="s2">&quot;dbspec&quot;</span><span class="p">])</span>
+    <span class="k">if</span> <span class="n">args</span><span class="p">[</span><span class="s2">&quot;xyz&quot;</span><span class="p">]:</span>
+        <span class="n">cdb</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">cdb</span><span class="o">.</span><span class="n">trainers</span><span class="o">.</span><span class="n">split</span><span class="p">,</span> <span class="n">recalc</span><span class="o">=</span><span class="n">args</span><span class="p">[</span><span class="s2">&quot;recalc&quot;</span><span class="p">])</span>
+    <span class="k">if</span> <span class="n">args</span><span class="p">[</span><span class="s2">&quot;t&quot;</span><span class="p">]:</span>
+        <span class="n">cdb</span><span class="o">.</span><span class="n">trainers</span><span class="o">.</span><span class="n">jobfiles</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">args</span><span class="p">[</span><span class="s2">&quot;x&quot;</span><span class="p">]:</span>
+        <span class="n">cdb</span><span class="o">.</span><span class="n">trainers</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">args</span><span class="p">[</span><span class="s2">&quot;tfilter&quot;</span><span class="p">],</span> <span class="n">args</span><span class="p">[</span><span class="s2">&quot;sfilter&quot;</span><span class="p">],</span> <span class="n">args</span><span class="p">[</span><span class="s2">&quot;dryrun&quot;</span><span class="p">])</span>
+    <span class="k">if</span> <span class="n">args</span><span class="p">[</span><span class="s2">&quot;v&quot;</span><span class="p">]:</span>
+        <span class="n">vdict</span> <span class="o">=</span> <span class="n">cdb</span><span class="o">.</span><span class="n">trainers</span><span class="o">.</span><span class="n">validate</span><span class="p">(</span><span class="n">args</span><span class="p">[</span><span class="s2">&quot;data&quot;</span><span class="p">],</span> <span class="n">args</span><span class="p">[</span><span class="s2">&quot;tfilter&quot;</span><span class="p">],</span>
+                                      <span class="n">args</span><span class="p">[</span><span class="s2">&quot;sfilter&quot;</span><span class="p">],</span> <span class="n">args</span><span class="p">[</span><span class="s2">&quot;energy&quot;</span><span class="p">],</span>
+                                      <span class="n">args</span><span class="p">[</span><span class="s2">&quot;force&quot;</span><span class="p">],</span> <span class="n">args</span><span class="p">[</span><span class="s2">&quot;virial&quot;</span><span class="p">])</span>
+        <span class="k">if</span> <span class="s2">&quot;e_ref&quot;</span> <span class="ow">in</span> <span class="n">vdict</span><span class="p">:</span>
+            <span class="n">e_err</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">std</span><span class="p">(</span><span class="n">vdict</span><span class="p">[</span><span class="s2">&quot;e_ref&quot;</span><span class="p">]</span><span class="o">-</span><span class="n">vdict</span><span class="p">[</span><span class="s2">&quot;e_pot&quot;</span><span class="p">])</span>
+            <span class="n">msg</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Energy RMS: </span><span class="si">{0:.4f}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">e_err</span><span class="p">))</span>
+        <span class="k">if</span> <span class="s2">&quot;f_ref&quot;</span> <span class="ow">in</span> <span class="n">vdict</span><span class="p">:</span>
+            <span class="n">f_err</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">std</span><span class="p">(</span><span class="n">vdict</span><span class="p">[</span><span class="s2">&quot;f_ref&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span><span class="o">-</span><span class="n">vdict</span><span class="p">[</span><span class="s2">&quot;f_pot&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">flatten</span><span class="p">())</span>
+            <span class="n">msg</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Force RMS: </span><span class="si">{0:.4f}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">f_err</span><span class="p">))</span>
+        <span class="k">if</span> <span class="s2">&quot;v_ref&quot;</span> <span class="ow">in</span> <span class="n">vdict</span><span class="p">:</span>
+            <span class="n">v_err</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">std</span><span class="p">(</span><span class="n">vdict</span><span class="p">[</span><span class="s2">&quot;v_ref&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span><span class="o">-</span><span class="n">vdict</span><span class="p">[</span><span class="s2">&quot;v_pot&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">flatten</span><span class="p">())</span>
+            <span class="n">msg</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Virial RMS: </span><span class="si">{0:.4f}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">v_err</span><span class="p">))</span>
+        
+    <span class="k">if</span> <span class="n">args</span><span class="p">[</span><span class="s2">&quot;status&quot;</span><span class="p">]:</span>
+        <span class="n">cdb</span><span class="o">.</span><span class="n">trainers</span><span class="o">.</span><span class="n">status</span><span class="p">()</span></div>
+        
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s1">&#39;__main__&#39;</span><span class="p">:</span> <span class="c1"># pragma: no cover</span>
+    <span class="n">run</span><span class="p">(</span><span class="n">_parser_options</span><span class="p">())</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">matdb 0.0.5 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2017, Conrad W. Rosenbrock.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.8.5.
+    </div>
+  </body>
+</html>

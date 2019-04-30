@@ -1,0 +1,271 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Substitution Database Documentation &#8212; matdb 0.0.5 documentation</title>
+    <link rel="stylesheet" href="../_static/nature.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <script type="text/javascript" src="../_static/language_data.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Vacancy Database Documentation" href="vacancy.html" />
+    <link rel="prev" title="Distortion Database Documentation" href="distortion.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="vacancy.html" title="Vacancy Database Documentation"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="distortion.html" title="Distortion Database Documentation"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">matdb 0.0.5 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../databases.html" accesskey="U">Database Types</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="substitution-database-documentation">
+<h1>Substitution Database Documentation<a class="headerlink" href="#substitution-database-documentation" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="example-yml-file-entry">
+<h2>Example yml File Entry<a class="headerlink" href="#example-yml-file-entry" title="Permalink to this headline">¶</a></h2>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">steps</span><span class="p">:</span>
+  <span class="p p-Indicator">-</span> <span class="nt">type</span><span class="p">:</span> <span class="s">&quot;substitution.Substitution&quot;</span>
+    <span class="nt">seeds</span><span class="p">:</span> <span class="p p-Indicator">[</span><span class="s">&quot;POSCAR:PdAg25&quot;</span><span class="p p-Indicator">]</span>
+    <span class="nt">stoich</span><span class="p">:</span>
+      <span class="p p-Indicator">-</span> <span class="p p-Indicator">[</span><span class="nv">0.25</span><span class="p p-Indicator">,</span> <span class="nv">0.75</span><span class="p p-Indicator">,</span> <span class="nv">2</span><span class="p p-Indicator">]</span>
+      <span class="p p-Indicator">-</span> <span class="p p-Indicator">[</span><span class="nv">0.4</span><span class="p p-Indicator">,</span> <span class="nv">0.6</span><span class="p p-Indicator">,</span> <span class="nv">5</span><span class="p p-Indicator">]</span>
+      <span class="p p-Indicator">-</span> <span class="p p-Indicator">[</span><span class="nv">0.5</span><span class="p p-Indicator">,</span> <span class="nv">0.5</span><span class="p p-Indicator">,</span> <span class="nv">3</span><span class="p p-Indicator">]</span>
+</pre></div>
+</div>
+<p>This is an example of a binary system for which we want the seed
+configuration to be altered so as to produce 2 configurations with a
+25% A and 75% B, 5 with 40% A and 60% B, and 3 with 50% A and 50% B
+resulting in a total of 10 configurations from the initial seed
+configuration. If multiple seeds are provided then this would yield
+10*(the number of seed configurations).</p>
+</div>
+<div class="section" id="module-matdb.database.substitution">
+<span id="substitution-database"></span><h2>Substitution Database<a class="headerlink" href="#module-matdb.database.substitution" title="Permalink to this headline">¶</a></h2>
+<p>Group of matdb.atoms.Atoms objects with changed stoichiometries for atomic
+positions from a seed configuration.</p>
+<dl class="class">
+<dt id="matdb.database.substitution.Substitution">
+<em class="property">class </em><code class="descclassname">matdb.database.substitution.</code><code class="descname">Substitution</code><span class="sig-paren">(</span><em>ran_seed=None</em>, <em>stoich=None</em>, <em>min_index=0</em>, <em>name='Substitution'</em>, <em>**dbargs</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/matdb/database/substitution.html#Substitution"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#matdb.database.substitution.Substitution" title="Permalink to this definition">¶</a></dt>
+<dd><p>A Group to create substitutions in the stoichiometry from
+a seed configuration.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>name</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.7)"><em>str</em></a>) – Default name Substitution</li>
+<li><strong>stoich</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.7)"><em>list</em></a>) – each list contains the decimal concentration
+of each element in the system where followed by decimal fraction
+of the number of configs which follow this stoichiometry.
+The decimal concentration in each list as well as the decimal
+fraction of nconfigs across all lists must sum to 1.</li>
+<li><strong>ran_seed</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.7)"><em>int</em></a>) – seed for the random number generator. To allow for
+reproducibility and extension of databases.</li>
+<li><strong>min_index</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.7)"><em>int</em></a>) – (default=0) For extension of databases set a nonzero
+starting index for extension calculations to avoid repeat values.</li>
+<li><strong>dbargs</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.7)"><em>dict</em></a>) – dictionary of arguments to be passed to the
+<cite>Group</cite> class.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">Additional attributes are also exposed by the super class
+<code class="xref py py-class docutils literal notranslate"><span class="pre">Group</span></code>.</p>
+</div>
+<dl class="attribute">
+<dt id="matdb.database.substitution.Substitution.name">
+<code class="descname">name</code><a class="headerlink" href="#matdb.database.substitution.Substitution.name" title="Permalink to this definition">¶</a></dt>
+<dd><p>name of this database type relative to the database
+collection. This is also the name of the folder in which
+all of its calculations will be performed.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.7)">str</a></td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="matdb.database.substitution.Substitution.num_atom">
+<code class="descname">num_atom</code><a class="headerlink" href="#matdb.database.substitution.Substitution.num_atom" title="Permalink to this definition">¶</a></dt>
+<dd><p>The number of atoms present in each atoms object.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.7)">int</a></td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">list of atoms objects of length nconfigs with unique vacancies for each cell.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Return type:</th><td class="field-body"><a class="reference internal" href="../atoms.html#matdb.atoms.AtomsList" title="matdb.atoms.AtomsList">AtomsList</a></td>
+</tr>
+</tbody>
+</table>
+<dl class="method">
+<dt id="matdb.database.substitution.Substitution.atoms_paths">
+<code class="descname">atoms_paths</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/matdb/database/substitution.html#Substitution.atoms_paths"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#matdb.database.substitution.Substitution.atoms_paths" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a list of full paths to the folders that have <cite>atoms.h5</cite>
+objects for the latest result set.</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="matdb.database.substitution.Substitution.fitting_configs">
+<code class="descname">fitting_configs</code><a class="headerlink" href="#matdb.database.substitution.Substitution.fitting_configs" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a <a class="reference internal" href="../atoms.html#matdb.atoms.AtomsList" title="matdb.atoms.AtomsList"><code class="xref py py-class docutils literal notranslate"><span class="pre">matdb.atoms.AtomsList</span></code></a> for all configs in this
+group.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="matdb.database.substitution.Substitution.ready">
+<code class="descname">ready</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/matdb/database/substitution.html#Substitution.ready"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#matdb.database.substitution.Substitution.ready" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns True if this database has finished its computations
+and is ready to be used.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="matdb.database.substitution.Substitution.rset">
+<code class="descname">rset</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/matdb/database/substitution.html#Substitution.rset"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#matdb.database.substitution.Substitution.rset" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a <a class="reference internal" href="../atoms.html#matdb.atoms.AtomsList" title="matdb.atoms.AtomsList"><code class="xref py py-class docutils literal notranslate"><span class="pre">matdb.atoms.AtomsList</span></code></a>, one for each config in the
+latest result set.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="matdb.database.substitution.Substitution.setup">
+<code class="descname">setup</code><span class="sig-paren">(</span><em>rerun=0</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/matdb/database/substitution.html#Substitution.setup"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#matdb.database.substitution.Substitution.setup" title="Permalink to this definition">¶</a></dt>
+<dd><p>Sets up a copy of the atoms object for the current config.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>rerun</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.7)"><em>int</em></a>) – when &gt; 0, recreate job files; if &gt; 1, recreate the
+folders even if they already exist.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="matdb.database.substitution.Substitution.sub_dict">
+<code class="descname">sub_dict</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/matdb/database/substitution.html#Substitution.sub_dict"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#matdb.database.substitution.Substitution.sub_dict" title="Permalink to this definition">¶</a></dt>
+<dd><p>Writes the attributes of this instance of the class to a dictionary.</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="matdb.database.substitution.Substitution.suid_file">
+<code class="descname">suid_file</code><a class="headerlink" href="#matdb.database.substitution.Substitution.suid_file" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the full path to the suid file for this group.</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="../index.html">Table of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Substitution Database Documentation</a><ul>
+<li><a class="reference internal" href="#example-yml-file-entry">Example yml File Entry</a></li>
+<li><a class="reference internal" href="#module-matdb.database.substitution">Substitution Database</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="distortion.html"
+                        title="previous chapter">Distortion Database Documentation</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="vacancy.html"
+                        title="next chapter">Vacancy Database Documentation</a></p>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="../_sources/database/substitution.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="vacancy.html" title="Vacancy Database Documentation"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="distortion.html" title="Distortion Database Documentation"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">matdb 0.0.5 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../databases.html" >Database Types</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2017, Conrad W. Rosenbrock.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.8.5.
+    </div>
+  </body>
+</html>

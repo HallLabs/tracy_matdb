@@ -1,0 +1,416 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Atoms objects and Functions &#8212; matdb 0.0.5 documentation</title>
+    <link rel="stylesheet" href="_static/nature.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="_static/language_data.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Descriptors Functions" href="descriptors.html" />
+    <link rel="prev" title="Abstract Functions" href="base.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="descriptors.html" title="Descriptors Functions"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="base.html" title="Abstract Functions"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">matdb 0.0.5 documentation</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="module-matdb.atoms">
+<span id="atoms-objects-and-functions"></span><h1>Atoms objects and Functions<a class="headerlink" href="#module-matdb.atoms" title="Permalink to this headline">¶</a></h1>
+<p>Implementation of Atoms object and AtomsList.</p>
+<dl class="class">
+<dt id="matdb.atoms.Atoms">
+<em class="property">class </em><code class="descclassname">matdb.atoms.</code><code class="descname">Atoms</code><span class="sig-paren">(</span><em>symbols=None</em>, <em>positions=None</em>, <em>numbers=None</em>, <em>tags=None</em>, <em>momenta=None</em>, <em>masses=None</em>, <em>magmoms=None</em>, <em>charges=None</em>, <em>scaled_positions=None</em>, <em>cell=None</em>, <em>pbc=None</em>, <em>constraint=None</em>, <em>calculator=None</em>, <em>info=None</em>, <em>n=None</em>, <em>celldisp=None</em>, <em>properties=None</em>, <em>params=None</em>, <em>fixed_size=None</em>, <em>set_species=True</em>, <em>fpointer=None</em>, <em>finalise=True</em>, <em>group_uuid=None</em>, <em>uuid=None</em>, <em>**readargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/matdb/atoms.html#Atoms"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#matdb.atoms.Atoms" title="Permalink to this definition">¶</a></dt>
+<dd><p>An implementation of the <code class="xref py py-class docutils literal notranslate"><span class="pre">ase.Atoms</span></code> object that adds the
+additional attributes of params and properties.</p>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">All arguments are optional. The user only needs to specify the symbols or the atomic numbers for the system not both.</p>
+</div>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>symbols</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.7)"><em>str</em></a>) – The chemical symbols for the system, i.e., ‘Si8’ or ‘CoNb’</li>
+<li><strong>positions</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.7)"><em>list</em></a>) – The (x,y,z) position of each atom in the cell.</li>
+<li><strong>numbers</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.7)"><em>list</em></a>) – List of the atomic numbers of the atoms.</li>
+<li><strong>momenta</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.7)"><em>list</em></a>) – The momenta of each atom.</li>
+<li><strong>masses</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.7)"><em>list</em></a>) – The masses of each atom.</li>
+<li><strong>charges</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.7)"><em>list</em></a>) – The charges of each atom.</li>
+<li><strong>cell</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.7)"><em>list</em></a>) – The lattice vectors for the cell.</li>
+<li><strong>pbc</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.7)"><em>list</em></a>) – list of bools for the periodic boundary conditions in x y
+and z.</li>
+<li><strong>calculator</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.7)"><em>object</em></a>) – a <cite>matdb</cite> calculator object.</li>
+<li><strong>info</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.7)"><em>dict</em></a>) – a dictionary containing other info. It will be stored in the params dictionary.</li>
+<li><strong>n</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.7)"><em>int</em></a>) – the number of atoms in the cell.</li>
+<li><strong>properties</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.7)"><em>dict</em></a>) – a dictionary of properties where the keys are the property
+names and the values are a list containing the property value for each atom.</li>
+<li><strong>params</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.7)"><em>dict</em></a>) – a dictionary of parameters that apply to the entire system.</li>
+<li><strong>group_uuid</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.7)"><em>str</em></a>) – the uuid for the group.</li>
+<li><strong>uuid</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.7)"><em>str</em></a>) – a uuid4 str for unique identification.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">Additional attributes are also exposed by the super class <code class="xref py py-class docutils literal notranslate"><span class="pre">ase.Atoms</span></code>.</p>
+</div>
+<dl class="attribute">
+<dt id="matdb.atoms.Atoms.properties">
+<code class="descname">properties</code><a class="headerlink" href="#matdb.atoms.Atoms.properties" title="Permalink to this definition">¶</a></dt>
+<dd><p>a dictionary of properties where the keys are the property
+names and the values are a list containing the property value for each atom.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.7)">dict</a></td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="matdb.atoms.Atoms.params">
+<code class="descname">params</code><a class="headerlink" href="#matdb.atoms.Atoms.params" title="Permalink to this definition">¶</a></dt>
+<dd><p>a dictionary of parameters that apply to the entire system.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.7)">dict</a></td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="matdb.atoms.Atoms.n">
+<code class="descname">n</code><a class="headerlink" href="#matdb.atoms.Atoms.n" title="Permalink to this definition">¶</a></dt>
+<dd><p>the number of atoms in the cell</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.7)">int</a></td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="matdb.atoms.Atoms.calc">
+<code class="descname">calc</code><a class="headerlink" href="#matdb.atoms.Atoms.calc" title="Permalink to this definition">¶</a></dt>
+<dd><p>the <cite>matdb</cite> calculator to be used for calculations.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body"><a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.7)">object</a></td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="matdb.atoms.Atoms.add_param">
+<code class="descname">add_param</code><span class="sig-paren">(</span><em>name</em>, <em>value</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/matdb/atoms.html#Atoms.add_param"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#matdb.atoms.Atoms.add_param" title="Permalink to this definition">¶</a></dt>
+<dd><p>Adds an attribute to the class instance.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>name</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.7)"><em>str</em></a>) – the name of the attribute.</li>
+<li><strong>value</strong> – the value/values that are associated with the attribute.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="matdb.atoms.Atoms.add_property">
+<code class="descname">add_property</code><span class="sig-paren">(</span><em>name</em>, <em>value</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/matdb/atoms.html#Atoms.add_property"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#matdb.atoms.Atoms.add_property" title="Permalink to this definition">¶</a></dt>
+<dd><p>Adds an attribute to the class instance.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>name</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.7)"><em>str</em></a>) – the name of the attribute.</li>
+<li><strong>value</strong> – the value/values that are associated with the attribute.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="matdb.atoms.Atoms.copy">
+<code class="descname">copy</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/matdb/atoms.html#Atoms.copy"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#matdb.atoms.Atoms.copy" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a copy of this atoms object that has different pointers to
+self, values, etc.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="matdb.atoms.Atoms.copy_from">
+<code class="descname">copy_from</code><span class="sig-paren">(</span><em>other</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/matdb/atoms.html#Atoms.copy_from"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#matdb.atoms.Atoms.copy_from" title="Permalink to this definition">¶</a></dt>
+<dd><p>Replaces contents of this Atoms object with data from <cite>other</cite>.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="matdb.atoms.Atoms.get_energy">
+<code class="descname">get_energy</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/matdb/atoms.html#Atoms.get_energy"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#matdb.atoms.Atoms.get_energy" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the energy if it has been added to the params.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="matdb.atoms.Atoms.make_supercell">
+<code class="descname">make_supercell</code><span class="sig-paren">(</span><em>supercell</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/matdb/atoms.html#Atoms.make_supercell"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#matdb.atoms.Atoms.make_supercell" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a new <a class="reference internal" href="#matdb.atoms.Atoms" title="matdb.atoms.Atoms"><code class="xref py py-class docutils literal notranslate"><span class="pre">Atoms</span></code></a> object that is a supercell of the
+current one.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="matdb.atoms.Atoms.read">
+<code class="descname">read</code><span class="sig-paren">(</span><em>target='atoms.h5'</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/matdb/atoms.html#Atoms.read"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#matdb.atoms.Atoms.read" title="Permalink to this definition">¶</a></dt>
+<dd><p>Reads an atoms object in from file.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>target</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.7)"><em>str</em></a>) – The path to the target file. Default “atoms.h5”.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="matdb.atoms.Atoms.rm_param">
+<code class="descname">rm_param</code><span class="sig-paren">(</span><em>name</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/matdb/atoms.html#Atoms.rm_param"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#matdb.atoms.Atoms.rm_param" title="Permalink to this definition">¶</a></dt>
+<dd><p>Removes a parameter as attribute from the class instance and info dictionary.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>name</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.7)"><em>str</em></a>) – the name of the attribute.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="matdb.atoms.Atoms.rm_property">
+<code class="descname">rm_property</code><span class="sig-paren">(</span><em>name</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/matdb/atoms.html#Atoms.rm_property"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#matdb.atoms.Atoms.rm_property" title="Permalink to this definition">¶</a></dt>
+<dd><p>Removes a property as attribute from the class instance and info dictionary.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>name</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.7)"><em>str</em></a>) – the name of the property/attribute.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="matdb.atoms.Atoms.to_dict">
+<code class="descname">to_dict</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/matdb/atoms.html#Atoms.to_dict"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#matdb.atoms.Atoms.to_dict" title="Permalink to this definition">¶</a></dt>
+<dd><p>Converts the contents of an <a class="reference internal" href="#matdb.atoms.Atoms" title="matdb.atoms.Atoms"><code class="xref py py-class docutils literal notranslate"><span class="pre">Atoms</span></code></a> object to a
+dictionary so it can be saved to file.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>atoms</strong> (<a class="reference internal" href="#matdb.atoms.Atoms" title="matdb.atoms.Atoms"><em>matdb.atoms.Atoms</em></a>) – the atoms object to be converted to  a dictionary</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">A dictionary containing the relavent parts of an atoms object to  be saved.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="matdb.atoms.Atoms.write">
+<code class="descname">write</code><span class="sig-paren">(</span><em>target='atoms.h5'</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/matdb/atoms.html#Atoms.write"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#matdb.atoms.Atoms.write" title="Permalink to this definition">¶</a></dt>
+<dd><p>Writes an atoms object to file.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>target</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.7)"><em>str</em></a>) – The path to the target file. Default is “atoms.h5”.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="matdb.atoms.AtomsList">
+<em class="property">class </em><code class="descclassname">matdb.atoms.</code><code class="descname">AtomsList</code><span class="sig-paren">(</span><em>source=[]</em>, <em>frmt=None</em>, <em>start=None</em>, <em>stop=None</em>, <em>step=None</em>, <em>**readargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/matdb/atoms.html#AtomsList"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#matdb.atoms.AtomsList" title="Permalink to this definition">¶</a></dt>
+<dd><p>An AtomsList like object for storing lists of Atoms objects read in
+from file.</p>
+<dl class="method">
+<dt id="matdb.atoms.AtomsList.apply">
+<code class="descname">apply</code><span class="sig-paren">(</span><em>func</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/matdb/atoms.html#AtomsList.apply"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#matdb.atoms.AtomsList.apply" title="Permalink to this definition">¶</a></dt>
+<dd><p>Applies the passed in function “func” to each Atoms object in the AtomsList.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="matdb.atoms.AtomsList.iterframes">
+<code class="descname">iterframes</code><span class="sig-paren">(</span><em>reverse=False</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/matdb/atoms.html#AtomsList.iterframes"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#matdb.atoms.AtomsList.iterframes" title="Permalink to this definition">¶</a></dt>
+<dd><p>Implements an iterator over the Atoms in the AtomsList, i.e., when reversed  is “True” the Atoms are iterated over in reversed order, i.e., last to first instead of first to last.</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="matdb.atoms.AtomsList.random_access">
+<code class="descname">random_access</code><a class="headerlink" href="#matdb.atoms.AtomsList.random_access" title="Permalink to this definition">¶</a></dt>
+<dd><p>Sets the random_access property to True, i.e., the AtomsList can be accessed at random.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="matdb.atoms.AtomsList.read">
+<code class="descname">read</code><span class="sig-paren">(</span><em>target</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/matdb/atoms.html#AtomsList.read"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#matdb.atoms.AtomsList.read" title="Permalink to this definition">¶</a></dt>
+<dd><p>Reads an atoms object in from file.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>target</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.7)"><em>str</em></a>) – The path to the target file.</li>
+<li><strong>kwargs</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.7)"><em>dict</em></a>) – A dictionary of arguments to pass to the ase
+read function.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="matdb.atoms.AtomsList.sort">
+<code class="descname">sort</code><span class="sig-paren">(</span><em>key=None</em>, <em>reverse=False</em>, <em>attr=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/matdb/atoms.html#AtomsList.sort"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#matdb.atoms.AtomsList.sort" title="Permalink to this definition">¶</a></dt>
+<dd><p>Sorts the AtomsList. This is the same as the standard
+<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list.sort" title="(in Python v3.7)"><code class="xref py py-meth docutils literal notranslate"><span class="pre">list.sort()</span></code></a> method, except for the additional <cite>attr</cite>
+argument. If this is present then the sorted list will be
+ordered by the <a class="reference internal" href="#matdb.atoms.Atoms" title="matdb.atoms.Atoms"><code class="xref py py-class docutils literal notranslate"><span class="pre">Atoms</span></code></a> attribute <cite>attr</cite>,
+e.g.:al.sort(attr=’energy’) will order the configurations by their <cite>energy</cite>
+(assuming that <a class="reference internal" href="#matdb.atoms.Atoms.params" title="matdb.atoms.Atoms.params"><code class="xref py py-attr docutils literal notranslate"><span class="pre">Atoms.params</span></code></a> contains an entry named <cite>energy</cite> for each configuration; otherwise an <code class="xref py py-exc docutils literal notranslate"><span class="pre">AttributError</span></code> will be raised).</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="matdb.atoms.AtomsList.write">
+<code class="descname">write</code><span class="sig-paren">(</span><em>target</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/matdb/atoms.html#AtomsList.write"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#matdb.atoms.AtomsList.write" title="Permalink to this definition">¶</a></dt>
+<dd><p>Writes an atoms object to file.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>target</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.7)"><em>str</em></a>) – The path to the target file.</li>
+<li><strong>kwargs</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.7)"><em>dict</em></a>) – A dictionary of key word args to pass to the ase  write function.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="base.html"
+                        title="previous chapter">Abstract Functions</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="descriptors.html"
+                        title="next chapter">Descriptors Functions</a></p>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/atoms.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="descriptors.html" title="Descriptors Functions"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="base.html" title="Abstract Functions"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">matdb 0.0.5 documentation</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2017, Conrad W. Rosenbrock.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.8.5.
+    </div>
+  </body>
+</html>

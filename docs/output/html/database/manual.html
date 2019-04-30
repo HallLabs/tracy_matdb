@@ -1,0 +1,233 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Manual Database Documentation &#8212; matdb 0.0.5 documentation</title>
+    <link rel="stylesheet" href="../_static/nature.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <script type="text/javascript" src="../_static/language_data.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Hessian Database Documentation" href="hessian.html" />
+    <link rel="prev" title="Vacancy Database Documentation" href="vacancy.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="hessian.html" title="Hessian Database Documentation"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="vacancy.html" title="Vacancy Database Documentation"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">matdb 0.0.5 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../databases.html" accesskey="U">Database Types</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="manual-database-documentation">
+<h1>Manual Database Documentation<a class="headerlink" href="#manual-database-documentation" title="Permalink to this headline">¶</a></h1>
+<p>To use this database the user must place every desired configuration
+of atoms they want in the database into the <cite>SEED</cite> directory of the
+<cite>root</cite> directory specified in the <cite>matdb.yml</cite> file.</p>
+<div class="section" id="example-yml-file-entry">
+<h2>Example yml File Entry<a class="headerlink" href="#example-yml-file-entry" title="Permalink to this headline">¶</a></h2>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">steps</span><span class="p">:</span>
+<span class="p p-Indicator">-</span> <span class="nt">type</span><span class="p">:</span> <span class="s">&#39;simple.Manual&#39;</span>
+  <span class="nt">seeds</span><span class="p">:</span> <span class="p p-Indicator">[</span><span class="s">&quot;POSCAR:PdAg25&quot;</span><span class="p p-Indicator">,</span><span class="s">&quot;POSCAR:PdAgp0&quot;</span><span class="p p-Indicator">,</span><span class="s">&quot;POSCAR:PdAg75&quot;</span><span class="p p-Indicator">]</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="module-matdb.database.simple">
+<span id="manual-database"></span><h2>Manual Database<a class="headerlink" href="#module-matdb.database.simple" title="Permalink to this headline">¶</a></h2>
+<p>A database of nothing but seed configurations.</p>
+<dl class="class">
+<dt id="matdb.database.simple.Manual">
+<em class="property">class </em><code class="descclassname">matdb.database.simple.</code><code class="descname">Manual</code><span class="sig-paren">(</span><em>name='manual'</em>, <em>extractable=True</em>, <em>**dbargs</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/matdb/database/simple.html#Manual"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#matdb.database.simple.Manual" title="Permalink to this definition">¶</a></dt>
+<dd><p>A basic group that just sets up a calculator for each atoms object
+specified by the user.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>name</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.7)"><em>str</em></a>) – the name of the database group.</li>
+<li><strong>extractable</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.7)"><em>bool</em></a>) – True if a calculation is to be performed.</li>
+<li><strong>dbargs</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.7)"><em>dict</em></a>) – a dictionary of arguments for the Group class.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">Additional attributes are also exposed by the super class
+<a class="reference internal" href="utility.html#matdb.database.Group" title="matdb.database.Group"><code class="xref py py-class docutils literal notranslate"><span class="pre">Group</span></code></a>.</p>
+</div>
+<dl class="attribute">
+<dt id="matdb.database.simple.Manual.name">
+<code class="descname">name</code><a class="headerlink" href="#matdb.database.simple.Manual.name" title="Permalink to this definition">¶</a></dt>
+<dd><p>Name of this database type relative to the database
+collection. This is also the name of the folder in which all of its
+calculations will be performed.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Type:</th><td class="field-body"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.7)">str</a></td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="matdb.database.simple.Manual.can_extract">
+<code class="descname">can_extract</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/matdb/database/simple.html#Manual.can_extract"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#matdb.database.simple.Manual.can_extract" title="Permalink to this definition">¶</a></dt>
+<dd><p>Runs post-execution routines to clean-up the calculations. This super class
+implementation only checks that each of the sub-config directories has
+the necessary files needed for extraction of output.</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="matdb.database.simple.Manual.fitting_configs">
+<code class="descname">fitting_configs</code><a class="headerlink" href="#matdb.database.simple.Manual.fitting_configs" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a <a class="reference internal" href="../atoms.html#matdb.atoms.AtomsList" title="matdb.atoms.AtomsList"><code class="xref py py-class docutils literal notranslate"><span class="pre">AtomsList</span></code></a> for all configs in this
+group.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="matdb.database.simple.Manual.ready">
+<code class="descname">ready</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/matdb/database/simple.html#Manual.ready"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#matdb.database.simple.Manual.ready" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns True if all the calculations have been completed.</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="matdb.database.simple.Manual.rset">
+<code class="descname">rset</code><a class="headerlink" href="#matdb.database.simple.Manual.rset" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the reusable set to the next database group.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">list of <a class="reference internal" href="../atoms.html#matdb.atoms.Atoms" title="matdb.atoms.Atoms"><code class="xref py py-class docutils literal notranslate"><span class="pre">Atoms</span></code></a></td>
+</tr>
+<tr class="field-even field"><th class="field-name">Return type:</th><td class="field-body"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.7)">list</a></td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="matdb.database.simple.Manual.setup">
+<code class="descname">setup</code><span class="sig-paren">(</span><em>rerun=False</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/matdb/database/simple.html#Manual.setup"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#matdb.database.simple.Manual.setup" title="Permalink to this definition">¶</a></dt>
+<dd><p>Creates a folder for each seed configuration.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>rerun</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.7)"><em>bool</em></a>) – when True, recreate the folders even if they
+already exist.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="matdb.database.simple.Manual.sub_dict">
+<code class="descname">sub_dict</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/matdb/database/simple.html#Manual.sub_dict"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#matdb.database.simple.Manual.sub_dict" title="Permalink to this definition">¶</a></dt>
+<dd><p>Writes the attributes of this instance of the class to a dictionary.</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="../index.html">Table of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Manual Database Documentation</a><ul>
+<li><a class="reference internal" href="#example-yml-file-entry">Example yml File Entry</a></li>
+<li><a class="reference internal" href="#module-matdb.database.simple">Manual Database</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="vacancy.html"
+                        title="previous chapter">Vacancy Database Documentation</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="hessian.html"
+                        title="next chapter">Hessian Database Documentation</a></p>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="../_sources/database/manual.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="hessian.html" title="Hessian Database Documentation"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="vacancy.html" title="Vacancy Database Documentation"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">matdb 0.0.5 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../databases.html" >Database Types</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2017, Conrad W. Rosenbrock.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.8.5.
+    </div>
+  </body>
+</html>

@@ -1,0 +1,341 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>matdb.calculators.basic &#8212; matdb 0.0.5 documentation</title>
+    <link rel="stylesheet" href="../../../_static/nature.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <script type="text/javascript" src="../../../_static/language_data.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">matdb 0.0.5 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" >Module code</a> &#187;</li>
+          <li class="nav-item nav-item-2"><a href="../calculators.html" accesskey="U">matdb.calculators</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for matdb.calculators.basic</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Implements an abstract base class that all `matdb` calculators need to</span>
+<span class="sd">implement. </span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">import</span> <span class="nn">abc</span>
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">from</span> <span class="nn">os</span> <span class="k">import</span> <span class="n">path</span>
+<span class="kn">from</span> <span class="nn">hashlib</span> <span class="k">import</span> <span class="n">sha1</span>
+
+<span class="kn">from</span> <span class="nn">matdb.base</span> <span class="k">import</span> <span class="n">abstractstatic</span>
+<span class="kn">from</span> <span class="nn">matdb.utility</span> <span class="k">import</span> <span class="n">recursive_getattr</span><span class="p">,</span> <span class="n">recursive_setattr</span><span class="p">,</span> <span class="n">config_specs</span>
+<span class="kn">from</span> <span class="nn">matdb.calculators.utility</span> <span class="k">import</span> <span class="n">paths</span>
+
+<span class="n">_rxhash</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;\b[0-9a-f]{32,40}\b&quot;</span><span class="p">,</span> <span class="n">re</span><span class="o">.</span><span class="n">I</span><span class="p">)</span>
+<span class="sd">&quot;&quot;&quot;Regex object to match SHA1 hashes.&quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="AsyncCalculator"><a class="viewcode-back" href="../../../calculators/basic.html#matdb.calculators.basic.AsyncCalculator">[docs]</a><span class="k">class</span> <span class="nc">AsyncCalculator</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Represents a calculator such as :class:`ase.Calculator` that can be run</span>
+<span class="sd">    in multiple stages to compute properties (such as in a distributed or HCP</span>
+<span class="sd">    environment).</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        key (str): short, lower-case name to identify the calculator type.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">key</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Short, lower-case name to identify the calculator type.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">pathattrs</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    A list of paths that the calculator needs access to, the values for these paths are found in kwargs.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">__metaclass__</span> <span class="o">=</span> <span class="n">abc</span><span class="o">.</span><span class="n">ABCMeta</span>
+
+<div class="viewcode-block" id="AsyncCalculator.init_calc"><a class="viewcode-back" href="../../../calculators/basic.html#matdb.calculators.basic.AsyncCalculator.init_calc">[docs]</a>    <span class="k">def</span> <span class="nf">init_calc</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Initializes an instance of the calculator class using the key word, value pairs stored in the kwargs dictionary.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="s2">&quot;key&quot;</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">key</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;key&quot;</span><span class="p">)</span>
+
+        <span class="n">titlehash</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">sha1</span><span class="p">(</span><span class="n">config_specs</span><span class="p">[</span><span class="s2">&quot;title&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s2">&quot;ASCII&quot;</span><span class="p">))</span><span class="o">.</span><span class="n">hexdigest</span><span class="p">())</span>
+        <span class="k">for</span> <span class="n">pathattr</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">pathattrs</span><span class="p">:</span>
+            <span class="n">attrval</span> <span class="o">=</span> <span class="n">recursive_getattr</span><span class="p">(</span><span class="n">kwargs</span><span class="p">,</span> <span class="n">pathattr</span><span class="p">)</span>
+            <span class="c1">#Test to see if this is a hash reference to a globally-stored</span>
+            <span class="c1">#calculator absolute path.</span>
+            <span class="k">if</span> <span class="n">attrval</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">_rxhash</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">attrval</span><span class="p">):</span>
+                <span class="n">abspath</span> <span class="o">=</span> <span class="n">paths</span><span class="p">[</span><span class="n">titlehash</span><span class="p">][</span><span class="bp">self</span><span class="o">.</span><span class="n">key</span><span class="p">][</span><span class="n">attrval</span><span class="p">]</span>
+                <span class="c1">#Overwrite the value of the hash with the actual absolute path</span>
+                <span class="c1">#to the directory.</span>
+                <span class="n">recursive_setattr</span><span class="p">(</span><span class="n">kwargs</span><span class="p">,</span> <span class="n">pathattr</span><span class="p">,</span> <span class="n">abspath</span><span class="p">)</span></div>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">energy_name</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the name of the energy property that this trainer writes onto</span>
+<span class="sd">        an atoms object when using its calculator to calculate energy.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="s2">&quot;</span><span class="si">{}</span><span class="s2">_energy&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">key</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">force_name</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the name of the force property that this trainer writes onto</span>
+<span class="sd">        an atoms object when using its calculator to calculate force.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="s2">&quot;</span><span class="si">{}</span><span class="s2">_force&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">key</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">stress_name</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the name of the force property that this trainer writes onto</span>
+<span class="sd">        an atoms object when using its calculator to calculate force.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="s2">&quot;</span><span class="si">{}</span><span class="s2">_stress&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">key</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">virial_name</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the name of the virial property that this trainer writes onto</span>
+<span class="sd">        an atoms object when using its calculator to calculate virial.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="s2">&quot;</span><span class="si">{}</span><span class="s2">_virial&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">key</span><span class="p">)</span>
+            
+<div class="viewcode-block" id="AsyncCalculator.can_execute"><a class="viewcode-back" href="../../../calculators/basic.html#matdb.calculators.basic.AsyncCalculator.can_execute">[docs]</a>    <span class="nd">@abc</span><span class="o">.</span><span class="n">abstractmethod</span>
+    <span class="k">def</span> <span class="nf">can_execute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">folder</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns `True` if the specified folder is ready to execute using the</span>
+<span class="sd">        calculator&#39;s main executable.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            folder (str): path to the folder in which the executable will be</span>
+<span class="sd">              run.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">pass</span></div>
+
+<div class="viewcode-block" id="AsyncCalculator.can_extract"><a class="viewcode-back" href="../../../calculators/basic.html#matdb.calculators.basic.AsyncCalculator.can_extract">[docs]</a>    <span class="nd">@abc</span><span class="o">.</span><span class="n">abstractmethod</span>
+    <span class="k">def</span> <span class="nf">can_extract</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">folder</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns True if the specified folder has completed executing and the results</span>
+<span class="sd">        are available for use.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            folder (str): path to the folder in which the executable was run.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">pass</span></div>
+
+<div class="viewcode-block" id="AsyncCalculator.is_executing"><a class="viewcode-back" href="../../../calculators/basic.html#matdb.calculators.basic.AsyncCalculator.is_executing">[docs]</a>    <span class="nd">@abc</span><span class="o">.</span><span class="n">abstractmethod</span>
+    <span class="k">def</span> <span class="nf">is_executing</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">folder</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns True if the specified folder is in process of executing. This</span>
+<span class="sd">        means that files/output has been produced to indicate that the process</span>
+<span class="sd">        started and that the folder is not ready to extract yet.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            folder (str): path to the folder in which the executable was run.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">pass</span></div>
+
+<div class="viewcode-block" id="AsyncCalculator.create"><a class="viewcode-back" href="../../../calculators/basic.html#matdb.calculators.basic.AsyncCalculator.create">[docs]</a>    <span class="nd">@abc</span><span class="o">.</span><span class="n">abstractmethod</span>
+    <span class="k">def</span> <span class="nf">create</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">folder</span><span class="p">,</span> <span class="n">rewrite</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Creates all necessary input files for the calculator&#39;s executable.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            folder (str): path to the folder in which to create input files.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">pass</span></div>
+
+<div class="viewcode-block" id="AsyncCalculator.extract"><a class="viewcode-back" href="../../../calculators/basic.html#matdb.calculators.basic.AsyncCalculator.extract">[docs]</a>    <span class="nd">@abc</span><span class="o">.</span><span class="n">abstractmethod</span>
+    <span class="k">def</span> <span class="nf">extract</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">folder</span><span class="p">,</span> <span class="n">cleanup</span><span class="o">=</span><span class="s2">&quot;default&quot;</span><span class="p">,</span> <span class="n">asis</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Extracts results from completed calculations and sets them on the</span>
+<span class="sd">        :class:`ase.Atoms` object.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            folder (str): path to the folder in which the executable was run.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">pass</span></div>
+
+<div class="viewcode-block" id="AsyncCalculator.cleanup"><a class="viewcode-back" href="../../../calculators/basic.html#matdb.calculators.basic.AsyncCalculator.cleanup">[docs]</a>    <span class="nd">@abc</span><span class="o">.</span><span class="n">abstractmethod</span>
+    <span class="k">def</span> <span class="nf">cleanup</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">folder</span><span class="p">,</span> <span class="n">clean_level</span><span class="o">=</span><span class="s2">&quot;default&quot;</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Extracts results from completed calculations and sets them on the</span>
+<span class="sd">        :class:`ase.Atoms` object.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            folder (str): path to the folder in which the executable was run.</span>
+<span class="sd">            clean_level (str): the level of cleanup to perform.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">pass</span></div>
+
+<div class="viewcode-block" id="AsyncCalculator.to_dict"><a class="viewcode-back" href="../../../calculators/basic.html#matdb.calculators.basic.AsyncCalculator.to_dict">[docs]</a>    <span class="nd">@abc</span><span class="o">.</span><span class="n">abstractmethod</span>
+    <span class="k">def</span> <span class="nf">to_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Writes the current version number of the code being run to a</span>
+<span class="sd">        dictionary along with the parameters of the code.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            folder (str): path to the folder in which the executable was run.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">pass</span></div></div>
+
+<div class="viewcode-block" id="SyncCalculator"><a class="viewcode-back" href="../../../calculators/basic.html#matdb.calculators.basic.SyncCalculator">[docs]</a><span class="k">class</span> <span class="nc">SyncCalculator</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Represents a calculator such as :class:`ase.Calculator` that can be run</span>
+<span class="sd">    synchronously stages to compute properties (does not require a distributed</span>
+<span class="sd">    or HCP environment).</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        key (str): short, lower-case name to identify the calculator type.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">key</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Short, lower-case name to identify the calculator type</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">pathattrs</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    A list of paths that the calculator needs access to, the values for these paths are found in kwargs.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    
+<div class="viewcode-block" id="SyncCalculator.init_calc"><a class="viewcode-back" href="../../../calculators/basic.html#matdb.calculators.basic.SyncCalculator.init_calc">[docs]</a>    <span class="k">def</span> <span class="nf">init_calc</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Initializes an instance of the calculator class using the key word, value pairs stored in the kwargs dictionary.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="s2">&quot;key&quot;</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">key</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;key&quot;</span><span class="p">)</span>
+
+        <span class="n">titlehash</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">sha1</span><span class="p">(</span><span class="n">config_specs</span><span class="p">[</span><span class="s2">&quot;title&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s2">&quot;ASCII&quot;</span><span class="p">))</span><span class="o">.</span><span class="n">hexdigest</span><span class="p">())</span>
+        <span class="c1">#This duplication with the AsyncCalculator hasn&#39;t been sufficient to</span>
+        <span class="c1">#warrant yet another super class, so we just have it again here.</span>
+        <span class="k">for</span> <span class="n">pathattr</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">pathattrs</span><span class="p">:</span>
+            <span class="n">attrval</span> <span class="o">=</span> <span class="n">recursive_getattr</span><span class="p">(</span><span class="n">kwargs</span><span class="p">,</span> <span class="n">pathattr</span><span class="p">)</span>
+            <span class="c1">#Test to see if this is a hash reference to a globally-stored</span>
+            <span class="c1">#calculator absolute path.</span>
+            <span class="k">if</span> <span class="n">attrval</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">_rxhash</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">attrval</span><span class="p">):</span>
+                <span class="n">abspath</span> <span class="o">=</span> <span class="n">paths</span><span class="p">[</span><span class="n">titlehash</span><span class="p">][</span><span class="bp">self</span><span class="o">.</span><span class="n">key</span><span class="p">][</span><span class="n">attrval</span><span class="p">]</span>
+                <span class="c1">#Overwrite the value of the hash with the actual absolute path</span>
+                <span class="c1">#to the directory.</span>
+                <span class="n">recursive_setattr</span><span class="p">(</span><span class="n">kwargs</span><span class="p">,</span> <span class="n">pathattr</span><span class="p">,</span> <span class="n">abspath</span><span class="p">)</span></div>
+            
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">energy_name</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the name of the energy property that this trainer writes onto</span>
+<span class="sd">        an atoms object when using its calculator to calculate energy.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="s2">&quot;</span><span class="si">{}</span><span class="s2">_energy&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">key</span><span class="p">)</span>
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">force_name</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the name of the force property that this trainer writes onto</span>
+<span class="sd">        an atoms object when using its calculator to calculate force.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="s2">&quot;</span><span class="si">{}</span><span class="s2">_force&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">key</span><span class="p">)</span>
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">virial_name</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the name of the virial property that this trainer writes onto</span>
+<span class="sd">        an atoms object when using its calculator to calculate virial.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="s2">&quot;</span><span class="si">{}</span><span class="s2">_virial&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">key</span><span class="p">)</span>
+            
+<div class="viewcode-block" id="SyncCalculator.can_execute"><a class="viewcode-back" href="../../../calculators/basic.html#matdb.calculators.basic.SyncCalculator.can_execute">[docs]</a>    <span class="nd">@abc</span><span class="o">.</span><span class="n">abstractmethod</span>
+    <span class="k">def</span> <span class="nf">can_execute</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns `True` if this calculation can calculate properties for the</span>
+<span class="sd">        specified atoms object.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            atoms (matdb.atoms.Atoms): config to test executability for.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">pass</span></div>
+
+<div class="viewcode-block" id="SyncCalculator.can_extract"><a class="viewcode-back" href="../../../calculators/basic.html#matdb.calculators.basic.SyncCalculator.can_extract">[docs]</a>    <span class="nd">@abc</span><span class="o">.</span><span class="n">abstractmethod</span>
+    <span class="k">def</span> <span class="nf">can_extract</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns True if the specified atoms object has completed executing and the</span>
+<span class="sd">        results are available for use.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            atoms (matdb.atoms.Atoms): config to check execution completion for.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">pass</span></div>
+
+<div class="viewcode-block" id="SyncCalculator.is_executing"><a class="viewcode-back" href="../../../calculators/basic.html#matdb.calculators.basic.SyncCalculator.is_executing">[docs]</a>    <span class="nd">@abc</span><span class="o">.</span><span class="n">abstractmethod</span>
+    <span class="k">def</span> <span class="nf">is_executing</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns True if the specified config is in process of executing.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            atoms (matdb.atoms.Atoms): config to check execution for.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">pass</span></div>
+
+<div class="viewcode-block" id="SyncCalculator.create"><a class="viewcode-back" href="../../../calculators/basic.html#matdb.calculators.basic.SyncCalculator.create">[docs]</a>    <span class="nd">@abc</span><span class="o">.</span><span class="n">abstractmethod</span>
+    <span class="k">def</span> <span class="nf">create</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">rewrite</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Creates all necessary input files for the calculator&#39;s executable.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            folder (str): path to the folder in which to create input files.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">pass</span></div>
+
+<div class="viewcode-block" id="SyncCalculator.to_dict"><a class="viewcode-back" href="../../../calculators/basic.html#matdb.calculators.basic.SyncCalculator.to_dict">[docs]</a>    <span class="nd">@abc</span><span class="o">.</span><span class="n">abstractmethod</span>
+    <span class="k">def</span> <span class="nf">to_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Writes the current version number of the code being run to a</span>
+<span class="sd">        dictionary along with the parameters of the code.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            folder (str): path to the folder in which the executable was run.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">pass</span></div></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">matdb 0.0.5 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" >Module code</a> &#187;</li>
+          <li class="nav-item nav-item-2"><a href="../calculators.html" >matdb.calculators</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2017, Conrad W. Rosenbrock.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.8.5.
+    </div>
+  </body>
+</html>

@@ -1,0 +1,628 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>matdb.fitting.basic &#8212; matdb 0.0.5 documentation</title>
+    <link rel="stylesheet" href="../../../_static/nature.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <script type="text/javascript" src="../../../_static/language_data.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">matdb 0.0.5 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for matdb.fitting.basic</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Implements a basic trainer that train material models.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">import</span> <span class="nn">abc</span>
+<span class="kn">from</span> <span class="nn">os</span> <span class="k">import</span> <span class="n">path</span>
+<span class="kn">from</span> <span class="nn">fnmatch</span> <span class="k">import</span> <span class="n">fnmatch</span>
+<span class="kn">from</span> <span class="nn">tqdm</span> <span class="k">import</span> <span class="n">tqdm</span>
+<span class="kn">from</span> <span class="nn">six</span> <span class="k">import</span> <span class="n">string_types</span>
+<span class="kn">import</span> <span class="nn">operator</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+
+<span class="kn">from</span> <span class="nn">matdb.utility</span> <span class="k">import</span> <span class="n">getattrs</span>
+<span class="kn">from</span> <span class="nn">matdb</span> <span class="k">import</span> <span class="n">msg</span>
+<span class="kn">from</span> <span class="nn">matdb.utility</span> <span class="k">import</span> <span class="n">chdir</span><span class="p">,</span> <span class="n">dbcat</span><span class="p">,</span> <span class="n">execute</span><span class="p">,</span> <span class="n">import_fqdn</span>
+<span class="kn">from</span> <span class="nn">matdb.atoms</span> <span class="k">import</span> <span class="n">AtomsList</span>
+<span class="kn">from</span> <span class="nn">matdb.database</span> <span class="k">import</span> <span class="n">Database</span>
+
+<div class="viewcode-block" id="Trainer"><a class="viewcode-back" href="../../../fitting/basic.html#matdb.fitting.basic.Trainer">[docs]</a><span class="k">class</span> <span class="nc">Trainer</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Represents an algorithm that can use a :class:`~matdb.database.Database` (or set of</span>
+<span class="sd">    databases) to produce a multi-component potential.</span>
+
+<span class="sd">    .. note:: This object provides the following methods that must be overriden:</span>
+<span class="sd">    </span>
+<span class="sd">      1. :meth:`command` must setup any dependencies in the folder that the</span>
+<span class="sd">         training executable requires.</span>
+<span class="sd">      2. :meth:`status` should return either a dictionary or a printed status</span>
+<span class="sd">         message describing the fitting status.</span>
+<span class="sd">      3. :meth:`get_calculator` should return an :class:`ase.Calculator` that can</span>
+<span class="sd">         compute energies, forces and virial tensors. **IMPORTANT**: this method</span>
+<span class="sd">         should be able to produce a calculator using only computation</span>
+<span class="sd">         done by :meth:`command` and :meth:`execute`.</span>
+
+<span class="sd">      The basic workflow is:</span>
+
+<span class="sd">      1. Call :meth:`jobfile` to construct a jobfile for HPC resources. This</span>
+<span class="sd">         method calls :meth:`command` as part of its templating procedures.</span>
+<span class="sd">      2. Call :meth:`execute`, which is a generic method that executes commands in the `jobfile`.</span>
+<span class="sd">      3. Use :attr:`calculator` to calculate energies etc. This method</span>
+<span class="sd">         internally calls :meth:`get_calculator` only once and then caches the</span>
+<span class="sd">         object for the lifetime of the Trainer.</span>
+
+<span class="sd">    .. note:: For the `dbfilter` parameter, you can use one of the standard</span>
+<span class="sd">      comparison `operator` [&#39;&gt;&#39;, &#39;&lt;&#39;, &#39;==&#39;, &#39;!=&#39;, &#39;&gt;=&#39;, &#39;&lt;=&#39;]; `value` should be the RHS</span>
+<span class="sd">      of the operator. Finally, `dbs` specifies a list of databases to apply the</span>
+<span class="sd">      filter to.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        name (str): name of this model; used as the output folder name.</span>
+<span class="sd">        controller (matdb.fitting.controller.TController): fitting controller</span>
+<span class="sd">          whose data will be used to train the potentials.</span>
+<span class="sd">        dbs (list): list of `str` database patterns from the `db` that should be</span>
+<span class="sd">          included in the training and validation.</span>
+<span class="sd">        execution (dict): settings needed to configure the jobfile for running</span>
+<span class="sd">          the fit.</span>
+<span class="sd">        parent (TrainingSequence): training sequence that this trainer belongs</span>
+<span class="sd">          to.</span>
+<span class="sd">        dbfilter (dict): keys are attributes on individual :class:`~matdb.atoms.Atoms`</span>
+<span class="sd">          objects; values are dictionaries with keys `operator`, `value` and</span>
+<span class="sd">          `dbs` as described above.</span>
+<span class="sd">        root (str): path to the root directory in which this trainer&#39;s own</span>
+<span class="sd">          folder will be created.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        fqn (str): fully-qualified name of the trainer.</span>
+<span class="sd">        cust_splits (dict): keys are database sequence names; values are custom</span>
+<span class="sd">          splits that should be used for that particular database sequence.</span>
+<span class="sd">        root (str): path to the trainer&#39;s root directory.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">controller</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">dbs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">execution</span><span class="o">=</span><span class="p">{},</span> <span class="n">split</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="n">root</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">parent</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">dbfilter</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">controller</span> <span class="o">=</span> <span class="n">controller</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">parent</span> <span class="o">=</span> <span class="n">parent</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">fqn</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{}</span><span class="s2">.</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">fqn</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">execution</span> <span class="o">=</span> <span class="p">{}</span> <span class="k">if</span> <span class="n">execution</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">execution</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">split</span> <span class="o">=</span> <span class="n">split</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">params</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_dbs</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;*.*&#39;</span><span class="p">]</span> <span class="k">if</span> <span class="n">dbs</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">dbs</span>
+        <span class="sd">&quot;&quot;&quot;list: list of `str` patterns to match against databases from the builder</span>
+<span class="sd">        context of `matdb`.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_dbs</span><span class="p">,</span> <span class="p">(</span><span class="nb">list</span><span class="p">,</span> <span class="nb">set</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">)):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_dbs</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_dbs</span><span class="p">]</span>
+
+        <span class="c1">#Configure the fitting directory for this particular set of</span>
+        <span class="c1">#potentials. This way, we can get separate directories if the parameters</span>
+        <span class="c1">#change.</span>
+        <span class="kn">from</span> <span class="nn">os</span> <span class="k">import</span> <span class="n">mkdir</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">root</span> <span class="o">=</span> <span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">root</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">path</span><span class="o">.</span><span class="n">isdir</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">root</span><span class="p">):</span>
+            <span class="n">mkdir</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">root</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">cachedir</span> <span class="o">=</span> <span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">root</span><span class="p">,</span> <span class="s2">&quot;cache&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">path</span><span class="o">.</span><span class="n">isdir</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cachedir</span><span class="p">):</span>
+            <span class="n">mkdir</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cachedir</span><span class="p">)</span>
+            
+        <span class="c1">#Find all the database sequences that match the patterns supplied to us.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dbs</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cust_splits</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_find_dbs</span><span class="p">()</span>
+
+        <span class="c1">#Invert the dbfilter so that it is keyed by database; this is for</span>
+        <span class="c1">#optimization purposes.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dbfilter</span> <span class="o">=</span> <span class="p">{}</span> <span class="k">if</span> <span class="n">dbfilter</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">dbfilter</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_dbfilters</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="sd">&quot;&quot;&quot;dict: keys are database names; values are also dictionaries but with</span>
+<span class="sd">        keys being :class:`~matdb.atoms.Atoms` attribute names and values functions that</span>
+<span class="sd">        return a bool based on a reference comparison value.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        
+        <span class="c1">#We allow plotting to use split percentages; calculate the average split</span>
+        <span class="c1">#percentage.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_update_split_params</span><span class="p">()</span>
+            
+        <span class="bp">self</span><span class="o">.</span><span class="n">_calculator</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="sd">&quot;&quot;&quot;ase.Calculator: potential for the fitted file in this Trainer.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_trainfile</span> <span class="o">=</span> <span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">root</span><span class="p">,</span> <span class="s2">&quot;train.h5&quot;</span><span class="p">)</span>
+        <span class="sd">&quot;&quot;&quot;str: path to the training file that will be passed to the training</span>
+<span class="sd">        command.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_holdoutfile</span> <span class="o">=</span> <span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">root</span><span class="p">,</span> <span class="s2">&quot;holdout.h5&quot;</span><span class="p">)</span>
+        <span class="sd">&quot;&quot;&quot;str: path to the validation file that will be passed to the training</span>
+<span class="sd">        command.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_superfile</span> <span class="o">=</span> <span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">root</span><span class="p">,</span> <span class="s2">&quot;super.h5&quot;</span><span class="p">)</span>
+        <span class="sd">&quot;&quot;&quot;str: path to the super validation file that will be passed to the</span>
+<span class="sd">        training command.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_jobfile</span> <span class="o">=</span> <span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">root</span><span class="p">,</span> <span class="s2">&quot;jobfile.sh&quot;</span><span class="p">)</span>
+        <span class="sd">&quot;&quot;&quot;str: path to the jobfile for the current trainer.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">_find_dbs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Finds all dbs that match the patterns supplied for training.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">dbpat</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dbs</span><span class="p">:</span>
+            <span class="k">if</span> <span class="s1">&#39;:&#39;</span> <span class="ow">in</span> <span class="n">dbpat</span><span class="p">:</span>
+                <span class="n">pat</span><span class="p">,</span> <span class="n">split</span> <span class="o">=</span> <span class="n">dbpat</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;:&#39;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">pat</span><span class="p">,</span> <span class="n">split</span> <span class="o">=</span> <span class="n">dbpat</span><span class="p">,</span> <span class="kc">None</span>
+
+            <span class="n">matches</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">controller</span><span class="o">.</span><span class="n">db</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="n">pat</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">dbs</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">matches</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">split</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">match</span> <span class="ow">in</span> <span class="n">matches</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">cust_splits</span><span class="p">[</span><span class="n">match</span><span class="o">.</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">split</span>
+        
+    <span class="k">def</span> <span class="nf">_invert_filters</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Inverts any available db filters for this trainer for optimization</span>
+<span class="sd">        purposes.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        
+        <span class="n">alldbs</span> <span class="o">=</span> <span class="p">[</span><span class="n">db</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">db</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">dbs</span><span class="p">]</span>        
+        <span class="k">for</span> <span class="n">attr</span><span class="p">,</span> <span class="n">spec</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">dbfilter</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">if</span> <span class="s2">&quot;dbs&quot;</span> <span class="ow">in</span> <span class="n">spec</span><span class="p">:</span>
+                <span class="n">dbs</span> <span class="o">=</span> <span class="p">[</span><span class="n">db</span> <span class="k">for</span> <span class="n">db</span> <span class="ow">in</span> <span class="n">alldbs</span>
+                       <span class="k">for</span> <span class="n">dbpat</span> <span class="ow">in</span> <span class="n">spec</span><span class="p">[</span><span class="s2">&quot;dbs&quot;</span><span class="p">]</span>
+                       <span class="k">if</span> <span class="n">fnmatch</span><span class="p">(</span><span class="n">db</span><span class="p">,</span> <span class="n">dbpat</span><span class="p">)]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">dbs</span> <span class="o">=</span> <span class="n">alldbs</span>
+
+            <span class="n">vals</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">spec</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="k">if</span> <span class="n">k</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;operator&quot;</span><span class="p">,</span> <span class="s2">&quot;dbs&quot;</span><span class="p">]:</span>
+                    <span class="n">vals</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">v</span>
+                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="n">string_types</span><span class="p">):</span>
+                    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">v</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;|&#39;</span><span class="p">:</span>
+                        <span class="n">otype</span><span class="p">,</span> <span class="n">oname</span><span class="p">,</span> <span class="n">chain</span> <span class="o">=</span> <span class="n">v</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;|&#39;</span><span class="p">)</span>
+                        <span class="k">if</span> <span class="n">otype</span> <span class="o">==</span> <span class="s2">&quot;db&quot;</span><span class="p">:</span>
+                            <span class="n">obj</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">controller</span><span class="o">.</span><span class="n">db</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="n">oname</span><span class="p">)</span>
+                        <span class="k">elif</span> <span class="n">otype</span> <span class="o">==</span> <span class="s2">&quot;ip&quot;</span><span class="p">:</span>
+                            <span class="k">if</span> <span class="n">oname</span> <span class="o">==</span> <span class="s2">&quot;self&quot;</span><span class="p">:</span>
+                                <span class="n">obj</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="p">]</span>
+                            <span class="k">else</span><span class="p">:</span>
+                                <span class="n">obj</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">controller</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="n">oname</span><span class="p">)</span>
+
+                        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">obj</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                            <span class="n">emsg</span> <span class="o">=</span> <span class="s2">&quot;Cannot find object </span><span class="si">{}</span><span class="s2"> with type </span><span class="si">{}</span><span class="s2">.&quot;</span>                            
+                            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">emsg</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">oname</span><span class="p">,</span> <span class="n">otype</span><span class="p">))</span>
+                        <span class="n">vals</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">getattrs</span><span class="p">(</span><span class="n">obj</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">chain</span><span class="p">)</span>
+
+            <span class="n">estr</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;</span><span class="si">{__v}</span><span class="s2">&quot;</span> <span class="o">+</span> <span class="n">spec</span><span class="p">[</span><span class="s2">&quot;operator&quot;</span><span class="p">])</span>
+            <span class="k">for</span> <span class="n">db</span> <span class="ow">in</span> <span class="n">dbs</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">db</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dbfilters</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_dbfilters</span><span class="p">[</span><span class="n">db</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+
+                <span class="n">opf</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">v</span><span class="p">:</span> <span class="nb">eval</span><span class="p">(</span><span class="n">estr</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">__v</span><span class="o">=</span><span class="n">v</span><span class="p">,</span> <span class="o">**</span><span class="n">vals</span><span class="p">))</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_dbfilters</span><span class="p">[</span><span class="n">db</span><span class="p">][</span><span class="n">attr</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">opf</span><span class="p">,</span> <span class="n">vals</span><span class="p">)</span>
+        
+    <span class="k">def</span> <span class="nf">_update_split_params</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Updates the parameter set for the trainer to include the splits.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dbs</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">_splitavg</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">db</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">dbs</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">db</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">cust_splits</span><span class="p">:</span>
+                    <span class="n">splt</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cust_splits</span><span class="p">[</span><span class="n">db</span><span class="p">]</span>
+                    <span class="n">_splitavg</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="mi">1</span> <span class="k">if</span> <span class="n">splt</span> <span class="o">==</span> <span class="s1">&#39;*&#39;</span> <span class="k">else</span> <span class="n">splt</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">_splitavg</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">db</span><span class="o">.</span><span class="n">splits</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">split</span><span class="p">])</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="s2">&quot;split&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">_splitavg</span><span class="p">)</span><span class="o">/</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dbs</span><span class="p">)</span>
+        
+<div class="viewcode-block" id="Trainer.compile"><a class="viewcode-back" href="../../../fitting/basic.html#matdb.fitting.basic.Trainer.compile">[docs]</a>    <span class="k">def</span> <span class="nf">compile</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Compiles the cumulative database for this particular fit.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_trainfile</span><span class="p">):</span>
+            <span class="c1">#No need to recompile the file. Since the splits are defined</span>
+            <span class="c1">#globally and cached, we don&#39;t have to worry about inconsistencies.</span>
+            <span class="k">return</span>
+        
+        <span class="c1">#Setup the train.h5 file for the set of databases specified in the</span>
+        <span class="c1">#source patterns.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_invert_filters</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">configs</span><span class="p">(</span><span class="s2">&quot;train&quot;</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Trainer.get_calculator"><a class="viewcode-back" href="../../../fitting/basic.html#matdb.fitting.basic.Trainer.get_calculator">[docs]</a>    <span class="nd">@abc</span><span class="o">.</span><span class="n">abstractmethod</span>
+    <span class="k">def</span> <span class="nf">get_calculator</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Constructs an :class:`ase.Calculator` instance using the fitted potential</span>
+<span class="sd">        in this :class:`~matdb.fitting.basic.Trainer` sub-class.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">pass</span></div>
+
+<div class="viewcode-block" id="Trainer.command"><a class="viewcode-back" href="../../../fitting/basic.html#matdb.fitting.basic.Trainer.command">[docs]</a>    <span class="nd">@abc</span><span class="o">.</span><span class="n">abstractmethod</span>
+    <span class="k">def</span> <span class="nf">command</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the command that is needed to train the potentials specified by this</span>
+<span class="sd">        object.</span>
+
+<span class="sd">        .. note:: This method *must* also configure the directory that the</span>
+<span class="sd">          command will run in so that it has the relevant files.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">pass</span></div>
+
+<div class="viewcode-block" id="Trainer.extras"><a class="viewcode-back" href="../../../fitting/basic.html#matdb.fitting.basic.Trainer.extras">[docs]</a>    <span class="k">def</span> <span class="nf">extras</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns a list of extra training files that should be included in</span>
+<span class="sd">        the database training. This is used by some trainers that create</span>
+<span class="sd">        additional configurations as part of the training.</span>
+
+<span class="sd">        .. note:: This method returns an empty list; override it if necessary.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">[]</span></div>
+    
+<div class="viewcode-block" id="Trainer.ready"><a class="viewcode-back" href="../../../fitting/basic.html#matdb.fitting.basic.Trainer.ready">[docs]</a>    <span class="k">def</span> <span class="nf">ready</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns True if the training step is complete. This method usually</span>
+<span class="sd">        just tests whether the :attr:`calculator` is a valid object. However,</span>
+<span class="sd">        for training steps that don&#39;t produce calculators, this method can be</span>
+<span class="sd">        overridden.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">calculator</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span></div>
+    
+<div class="viewcode-block" id="Trainer.status"><a class="viewcode-back" href="../../../fitting/basic.html#matdb.fitting.basic.Trainer.status">[docs]</a>    <span class="nd">@abc</span><span class="o">.</span><span class="n">abstractmethod</span>
+    <span class="k">def</span> <span class="nf">status</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">printed</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns or prints the current status of the training.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            printed (bool): when True, print the status to screen; otherwise,</span>
+<span class="sd">              return a dictionary with the relevant quantities.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">pass</span></div>
+    
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">calculator</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns an instance of :class:`ase.Calculator` using the latest</span>
+<span class="sd">        fitted GAP potential in this trainer.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_calculator</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_calculator</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_calculator</span><span class="p">()</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_calculator</span>
+            
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">validation</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns a :class:`~matdb.atoms.AtomsList` of configurations that can be</span>
+<span class="sd">        used for potential validation.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">configs</span><span class="p">(</span><span class="s2">&quot;holdout&quot;</span><span class="p">)</span>
+
+<div class="viewcode-block" id="Trainer.quantities"><a class="viewcode-back" href="../../../fitting/basic.html#matdb.fitting.basic.Trainer.quantities">[docs]</a>    <span class="k">def</span> <span class="nf">quantities</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">properties</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">aggregators</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                   <span class="n">kind</span><span class="o">=</span><span class="s2">&quot;train&quot;</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span> 
+        <span class="sd">&quot;&quot;&quot;Returns datasets derived from the atoms objects that are present in</span>
+<span class="sd">        this trainers compiled databases.</span>
+
+<span class="sd">        .. note:: If a property is missing from a particular atoms object, it is</span>
+<span class="sd">          just ignored. That means the arrays returned from this method may not</span>
+<span class="sd">          all have exactly the same length as the number of entries in the</span>
+<span class="sd">          database.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            params (list): list of `str` parameter names to extract from each atoms</span>
+<span class="sd">              object.</span>
+<span class="sd">            properties (list): list of `str` property names to extract from each</span>
+<span class="sd">              atoms object.</span>
+<span class="sd">            aggregators (dict): keys are `str` property names; values are `str`</span>
+<span class="sd">              FQN of importable functions that can be applied to a</span>
+<span class="sd">              :class:`numpy.ndarray` to produce a single scalar value. These are</span>
+<span class="sd">              used to reduce an array of property values to a single number for a</span>
+<span class="sd">              particular configuration. If not specified, the raw arrays are</span>
+<span class="sd">              returned instead.</span>
+<span class="sd">            kind (str): one of [&#39;train&#39;, &#39;holdout&#39;, &#39;super&#39;, &#39;*&#39;]. Specifies which of</span>
+<span class="sd">              the database sets to use. If &#39;*&#39; is specified, then all of them are</span>
+<span class="sd">              combined.</span>
+<span class="sd">            kwargs (dict): additional dummy arguments that aren&#39;t needed, but allow the `**` syntax to be used.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            dict: keys are either property or parameter names. Values are</span>
+<span class="sd">            :class:`numpy.ndarray` for parameters; for properties, since the arrays</span>
+<span class="sd">            may have different sizes, the value will be a list of</span>
+<span class="sd">            :class:`numpy.ndarray`.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">assert</span> <span class="n">kind</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;train&quot;</span><span class="p">,</span> <span class="s2">&quot;holdout&quot;</span><span class="p">,</span> <span class="s2">&quot;super&quot;</span><span class="p">,</span> <span class="s1">&#39;*&#39;</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">kind</span> <span class="o">==</span> <span class="s1">&#39;*&#39;</span><span class="p">:</span>
+            <span class="n">db</span> <span class="o">=</span> <span class="n">AtomsList</span><span class="p">()</span>
+            <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;train&quot;</span><span class="p">,</span> <span class="s2">&quot;holdout&quot;</span><span class="p">,</span> <span class="s2">&quot;super&quot;</span><span class="p">]:</span>
+                <span class="n">db</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">configs</span><span class="p">(</span><span class="n">k</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">db</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">configs</span><span class="p">(</span><span class="n">kind</span><span class="p">)</span>
+
+        <span class="n">result</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">if</span> <span class="n">params</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">pname</span> <span class="ow">in</span> <span class="n">params</span><span class="p">:</span>
+                <span class="n">result</span><span class="p">[</span><span class="n">pname</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="n">db</span><span class="p">,</span> <span class="n">pname</span><span class="p">))</span>
+        <span class="k">if</span> <span class="n">properties</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">pname</span> <span class="ow">in</span> <span class="n">properties</span><span class="p">:</span>
+                <span class="n">value</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">db</span><span class="p">,</span> <span class="n">pname</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">pname</span> <span class="ow">in</span> <span class="n">aggregators</span><span class="p">:</span>
+                    <span class="n">aggmod</span><span class="p">,</span> <span class="n">aggfun</span> <span class="o">=</span> <span class="n">import_fqdn</span><span class="p">(</span><span class="n">aggregators</span><span class="p">[</span><span class="n">pname</span><span class="p">])</span>
+                    <span class="n">result</span><span class="p">[</span><span class="n">pname</span><span class="p">]</span> <span class="o">=</span> <span class="n">aggfun</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">result</span><span class="p">[</span><span class="n">pname</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
+
+        <span class="k">return</span> <span class="n">result</span></div>
+
+    <span class="k">def</span> <span class="nf">_filter_dbs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">seqname</span><span class="p">,</span> <span class="n">dbfiles</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Filters each of the database files specified so that they conform to</span>
+<span class="sd">        any specified filters.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            seqname (str): name of the sequence that the database files are</span>
+<span class="sd">              from.</span>
+<span class="sd">            dbfiles (list): list of `str` paths to database files to filter.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            list: list of `str` paths to include in the database from this sequence.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dbfilter</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">seqname</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dbfilters</span><span class="p">:</span>
+            <span class="n">filtered</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="c1">#The filters values have a function and a list of the actual values</span>
+            <span class="c1">#used in the formula replacement. Extract the parameters; we can&#39;t</span>
+            <span class="c1">#serialize the actual functions.</span>
+            <span class="n">filters</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dbfilters</span><span class="p">[</span><span class="n">seqname</span><span class="p">]</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
+            <span class="n">params</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="n">v</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">filters</span><span class="p">}</span>
+            
+            <span class="k">for</span> <span class="n">dbfile</span> <span class="ow">in</span> <span class="n">dbfiles</span><span class="p">:</span>
+                <span class="n">dbname</span> <span class="o">=</span> <span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">dbfile</span><span class="p">))</span>
+                <span class="n">filtdb</span> <span class="o">=</span> <span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">root</span><span class="p">,</span> <span class="s2">&quot;__</span><span class="si">{}</span><span class="s2">.h5&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">dbname</span><span class="p">))</span>
+                <span class="k">if</span> <span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="n">filtdb</span><span class="p">):</span>
+                    <span class="k">continue</span>
+                
+                <span class="n">al</span> <span class="o">=</span> <span class="n">AtomsList</span><span class="p">(</span><span class="n">dbfile</span><span class="p">)</span>
+                <span class="n">nl</span> <span class="o">=</span> <span class="n">AtomsList</span><span class="p">()</span>
+                <span class="k">for</span> <span class="n">a</span> <span class="ow">in</span> <span class="n">al</span><span class="p">:</span>
+                    <span class="c1">#The 0 index here gets the function out; see comment above</span>
+                    <span class="c1">#about the filters dictionary.</span>
+                    <span class="k">if</span> <span class="ow">not</span> <span class="nb">any</span><span class="p">(</span><span class="n">opf</span><span class="p">[</span><span class="mi">0</span><span class="p">](</span><span class="nb">getattr</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">attr</span><span class="p">))</span> <span class="k">for</span> <span class="n">attr</span><span class="p">,</span> <span class="n">opf</span> <span class="ow">in</span> <span class="n">filters</span><span class="p">):</span>
+                        <span class="n">nl</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">a</span><span class="p">)</span>
+
+                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">nl</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">al</span><span class="p">):</span>
+                    <span class="n">nl</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">filtdb</span><span class="p">)</span>
+                    <span class="n">dN</span><span class="p">,</span> <span class="n">N</span> <span class="o">=</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">al</span><span class="p">)</span><span class="o">-</span><span class="nb">len</span><span class="p">(</span><span class="n">nl</span><span class="p">),</span> <span class="nb">len</span><span class="p">(</span><span class="n">nl</span><span class="p">))</span>
+                    <span class="n">dbcat</span><span class="p">([</span><span class="n">dbfile</span><span class="p">],</span> <span class="n">filtdb</span><span class="p">,</span> <span class="n">filters</span><span class="o">=</span><span class="n">params</span><span class="p">,</span> <span class="n">dN</span><span class="o">=</span><span class="n">dN</span><span class="p">,</span> <span class="n">N</span><span class="o">=</span><span class="n">N</span><span class="p">)</span>
+                    <span class="n">filtered</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">filtdb</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">filtered</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">nfile</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">filtered</span> <span class="o">=</span> <span class="n">dbfiles</span>
+
+        <span class="k">return</span> <span class="n">filtered</span>
+    
+<div class="viewcode-block" id="Trainer.configs"><a class="viewcode-back" href="../../../fitting/basic.html#matdb.fitting.basic.Trainer.configs">[docs]</a>    <span class="k">def</span> <span class="nf">configs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">kind</span><span class="p">,</span> <span class="n">asatoms</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Loads a list of configurations of the specified kind.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            kind (str): possible values are [&#39;train&#39;, &#39;holdout&#39;, &#39;super&#39;].</span>
+<span class="sd">            asatoms (bool): when True, return a :class:`~matdb.atoms.AtomsList`</span>
+<span class="sd">              object; otherwise just compile the file.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            matdb.atoms.AtomsList: Atoms list for the specified configuration class.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">fmap</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;train&quot;</span><span class="p">:</span> <span class="k">lambda</span> <span class="n">seq</span><span class="p">,</span> <span class="n">splt</span><span class="p">:</span> <span class="n">seq</span><span class="o">.</span><span class="n">train_file</span><span class="p">(</span><span class="n">splt</span><span class="p">),</span>
+            <span class="s2">&quot;holdout&quot;</span><span class="p">:</span> <span class="k">lambda</span> <span class="n">seq</span><span class="p">,</span> <span class="n">splt</span><span class="p">:</span> <span class="n">seq</span><span class="o">.</span><span class="n">holdout_file</span><span class="p">(</span><span class="n">splt</span><span class="p">),</span>
+            <span class="s2">&quot;super&quot;</span><span class="p">:</span> <span class="k">lambda</span> <span class="n">seq</span><span class="p">,</span> <span class="n">splt</span><span class="p">:</span> <span class="n">seq</span><span class="o">.</span><span class="n">super_file</span><span class="p">(</span><span class="n">splt</span><span class="p">)</span>
+        <span class="p">}</span>
+        <span class="n">smap</span> <span class="o">=</span> <span class="p">{</span><span class="n">t</span><span class="p">:</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;_</span><span class="si">{}</span><span class="s2">file&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">t</span><span class="p">))</span>
+                <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;train&quot;</span><span class="p">,</span> <span class="s2">&quot;holdout&quot;</span><span class="p">,</span> <span class="s2">&quot;super&quot;</span><span class="p">]}</span>
+        <span class="n">cfile</span> <span class="o">=</span> <span class="n">smap</span><span class="p">[</span><span class="n">kind</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="n">cfile</span><span class="p">):</span>
+            <span class="n">cfiles</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">seq</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">dbs</span><span class="p">:</span>
+                <span class="c1">#We need to split to get training data. If the split has already</span>
+                <span class="c1">#been done as part of a different training run, then it won&#39;t be</span>
+                <span class="c1">#done a second time.</span>
+                <span class="n">msg</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Compiling database </span><span class="si">{}</span><span class="s2"> for </span><span class="si">{}</span><span class="s2">.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">seq</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">fqn</span><span class="p">))</span>
+                <span class="n">seq</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
+                <span class="k">if</span> <span class="n">seq</span><span class="o">.</span><span class="n">name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">cust_splits</span><span class="p">:</span>
+                    <span class="n">splt</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cust_splits</span><span class="p">[</span><span class="n">seq</span><span class="o">.</span><span class="n">name</span><span class="p">]</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">splt</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">split</span>
+
+                <span class="c1">#We grab a list of all the files that match the particular split</span>
+                <span class="c1">#pattern. Then we apply any filters to individual atoms objects</span>
+                <span class="c1">#within each of the databases.</span>
+                <span class="k">if</span> <span class="n">splt</span> <span class="o">==</span> <span class="s1">&#39;*&#39;</span><span class="p">:</span>
+                    <span class="n">nfiles</span> <span class="o">=</span> <span class="p">[]</span>
+                    <span class="k">for</span> <span class="n">dbsplit</span> <span class="ow">in</span> <span class="n">seq</span><span class="o">.</span><span class="n">splits</span><span class="p">:</span>
+                        <span class="n">nfiles</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="n">f</span><span class="p">(</span><span class="n">seq</span><span class="p">,</span> <span class="n">dbsplit</span><span class="p">)</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">fmap</span><span class="o">.</span><span class="n">values</span><span class="p">()])</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">nfiles</span> <span class="o">=</span> <span class="p">[</span><span class="n">fmap</span><span class="p">[</span><span class="n">kind</span><span class="p">](</span><span class="n">seq</span><span class="p">,</span> <span class="n">splt</span><span class="p">)]</span>
+
+                <span class="n">filtered</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_filter_dbs</span><span class="p">(</span><span class="n">seq</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">nfiles</span><span class="p">)</span>
+                <span class="n">cfiles</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">filtered</span><span class="p">)</span>
+
+            <span class="c1">#If this is the training file, we need to append any extras; these</span>
+            <span class="c1">#are files that have additional trainer-specific configs to include.</span>
+            <span class="k">if</span> <span class="n">kind</span> <span class="o">==</span> <span class="s2">&quot;train&quot;</span><span class="p">:</span>
+                <span class="n">cfiles</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">extras</span><span class="p">())</span>
+                
+            <span class="c1">#First, save the configurations to a single file.</span>
+            <span class="n">dbcat</span><span class="p">(</span><span class="n">cfiles</span><span class="p">,</span> <span class="n">cfile</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">asatoms</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">AtomsList</span><span class="p">(</span><span class="n">cfile</span><span class="p">)</span></div>
+    
+<div class="viewcode-block" id="Trainer.validate"><a class="viewcode-back" href="../../../fitting/basic.html#matdb.fitting.basic.Trainer.validate">[docs]</a>    <span class="k">def</span> <span class="nf">validate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">refkey</span><span class="p">,</span> <span class="n">configs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">energy</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">force</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">virial</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Validates the calculator in this training object against the `holdout.h5`</span>
+<span class="sd">        configurations in the source databases.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            refkey (str): name of the key on the atoms objects that the</span>
+<span class="sd">              interatomic potential should be compared against; i.e., these are</span>
+<span class="sd">              the reference energies, forces and virials to validate against.</span>
+<span class="sd">            configs (matdb.atoms.AtomsList): list of configurations to validate</span>
+<span class="sd">              against. If not provided, built-in holdout set will be used.</span>
+<span class="sd">            energy (bool): when True, validate the energies of each</span>
+<span class="sd">              configuration.</span>
+<span class="sd">            forces (bool): when True, validate the force *components* of each</span>
+<span class="sd">              configuration.</span>
+<span class="sd">            virial (bool): when True, validate the virial *components* of each</span>
+<span class="sd">              configuration.         </span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            dict: with keys [&quot;*_ref&quot;, &quot;*_pot&quot;] where the values are</span>
+<span class="sd">            reference-calculated and potential-calculated predictions for the</span>
+<span class="sd">            energies, force components or virial components.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">a</span> <span class="ow">in</span> <span class="n">tqdm</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">validation</span> <span class="k">if</span> <span class="n">configs</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">configs</span><span class="p">):</span>
+            <span class="n">a</span><span class="o">.</span><span class="n">set_cutoff</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">calculator</span><span class="o">.</span><span class="n">cutoff</span><span class="p">())</span>
+            <span class="n">a</span><span class="o">.</span><span class="n">calc_connect</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">calculator</span><span class="o">.</span><span class="n">calc</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">energy</span><span class="o">=</span><span class="n">energy</span><span class="p">,</span> <span class="n">force</span><span class="o">=</span><span class="n">force</span><span class="p">,</span> <span class="n">virial</span><span class="o">=</span><span class="n">virial</span><span class="p">)</span>
+
+        <span class="n">result</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">if</span> <span class="n">energy</span><span class="p">:</span>
+            <span class="n">result</span><span class="p">[</span><span class="s2">&quot;e_ref&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="n">al</span><span class="p">,</span> <span class="s2">&quot;</span><span class="si">{}</span><span class="s2">_energy&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">refkey</span><span class="p">)))</span>
+            <span class="n">result</span><span class="p">[</span><span class="s2">&quot;e_ip&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="n">al</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">calculator</span><span class="o">.</span><span class="n">energy_name</span><span class="p">))</span>
+        <span class="k">if</span> <span class="n">forces</span><span class="p">:</span>
+            <span class="n">result</span><span class="p">[</span><span class="s2">&quot;f_ref&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="n">al</span><span class="p">,</span> <span class="s2">&quot;</span><span class="si">{}</span><span class="s2">_force&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">refkey</span><span class="p">)))</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
+            <span class="n">result</span><span class="p">[</span><span class="s2">&quot;f_ip&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="n">al</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">calculator</span><span class="o">.</span><span class="n">force_name</span><span class="p">))</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">virial</span><span class="p">:</span>
+            <span class="n">result</span><span class="p">[</span><span class="s2">&quot;v_ref&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="n">al</span><span class="p">,</span> <span class="s2">&quot;</span><span class="si">{}</span><span class="s2">_virial&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">refkey</span><span class="p">)))</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
+            <span class="n">result</span><span class="p">[</span><span class="s2">&quot;v_ip&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="n">al</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">calculator</span><span class="o">.</span><span class="n">virial_name</span><span class="p">))</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
+
+        <span class="k">return</span> <span class="n">result</span></div>
+    
+<div class="viewcode-block" id="Trainer.execute"><a class="viewcode-back" href="../../../fitting/basic.html#matdb.fitting.basic.Trainer.execute">[docs]</a>    <span class="k">def</span> <span class="nf">execute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dryrun</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Submits the job script for the currently configured potential training.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            dryrun (bool): when True, simulate the submission without actually</span>
+<span class="sd">              submitting.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            bool: True if the submission generated a job id (considered</span>
+<span class="sd">            successful).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">ready</span><span class="p">():</span>
+            <span class="n">msg</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Trainer </span><span class="si">{}</span><span class="s2"> is already done;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">root</span><span class="p">)</span> <span class="o">+</span>
+                     <span class="s2">&quot;skipping execute step.&quot;</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+            <span class="k">return</span>
+        
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_jobfile</span><span class="p">):</span>
+            <span class="k">return</span> <span class="kc">False</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_trainfile</span><span class="p">):</span>
+            <span class="n">msg</span><span class="o">.</span><span class="n">std</span><span class="p">(</span><span class="s2">&quot;train.h5 missing in </span><span class="si">{}</span><span class="s2">; can&#39;t execute.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">root</span><span class="p">))</span>
+            <span class="k">return</span> <span class="kc">False</span>
+        
+        <span class="c1"># We must have what we need to execute. Compile the command and submit.</span>
+
+        <span class="n">shell_command</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">controller</span><span class="o">.</span><span class="n">db</span><span class="o">.</span><span class="n">shell_command</span>
+        <span class="c1"># We suport &#39;bash&#39; and &#39;sbatch&#39; shell commands, if it&#39;s neighter one </span>
+        <span class="c1"># of them, default to &#39;bash&#39;</span>
+        <span class="k">if</span> <span class="n">shell_command</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;bash&#39;</span><span class="p">,</span> <span class="s1">&#39;sbatch&#39;</span><span class="p">]:</span>
+            <span class="n">shell_command</span> <span class="o">=</span> <span class="s1">&#39;bash&#39;</span>
+        <span class="n">cargs</span> <span class="o">=</span> <span class="p">[</span><span class="n">shell_command</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_jobfile</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="n">dryrun</span><span class="p">:</span>
+            <span class="n">msg</span><span class="o">.</span><span class="n">okay</span><span class="p">(</span><span class="s2">&quot;Executed </span><span class="si">{}</span><span class="s2"> in </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="s1">&#39; &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">cargs</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">root</span><span class="p">))</span>
+            <span class="k">return</span> <span class="kc">True</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">xres</span> <span class="o">=</span> <span class="n">execute</span><span class="p">(</span><span class="n">cargs</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">root</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">xres</span><span class="p">[</span><span class="s2">&quot;output&quot;</span><span class="p">])</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="ow">and</span> <span class="s2">&quot;Submitted&quot;</span> <span class="ow">in</span> <span class="n">xres</span><span class="p">[</span><span class="s2">&quot;output&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">]:</span>
+            <span class="n">msg</span><span class="o">.</span><span class="n">okay</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{}</span><span class="s2">: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">root</span><span class="p">,</span> <span class="n">xres</span><span class="p">[</span><span class="s2">&quot;output&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()))</span>
+            <span class="k">return</span> <span class="kc">True</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">False</span></div>
+            
+<div class="viewcode-block" id="Trainer.jobfile"><a class="viewcode-back" href="../../../fitting/basic.html#matdb.fitting.basic.Trainer.jobfile">[docs]</a>    <span class="k">def</span> <span class="nf">jobfile</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Creates the job file for training the potential. This includes creating</span>
+<span class="sd">        folders, the training file and setting up any other dependencies</span>
+<span class="sd">        required by the trainer.</span>
+
+<span class="sd">        .. note:: This method also runs :meth:`command`, which configures the</span>
+<span class="sd">          directory that the executable will run in. You are responsible for</span>
+<span class="sd">          sub-classing that method correctly.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># We use the global execution parameters and then any updates</span>
+        <span class="c1"># locally. We need to add the execution directory (including prefix) and</span>
+        <span class="c1"># the number of jobs in the array.</span>
+        <span class="n">settings</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">execution</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="n">settings</span><span class="p">[</span><span class="s2">&quot;execution_path&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">root</span>
+        <span class="n">settings</span><span class="p">[</span><span class="s2">&quot;exec_path&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">command</span><span class="p">()</span>
+
+        <span class="c1">#Add the settings for virtual env and plot function so that we can</span>
+        <span class="c1">#generate the plots in parallel.</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">controller</span><span class="o">.</span><span class="n">plotting</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">settings</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">controller</span><span class="o">.</span><span class="n">plotting</span><span class="p">)</span>
+            <span class="n">settings</span><span class="p">[</span><span class="s2">&quot;fqn&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">fqn</span>
+            <span class="n">settings</span><span class="p">[</span><span class="s2">&quot;matdbyml&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">controller</span><span class="o">.</span><span class="n">db</span><span class="o">.</span><span class="n">config</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">controller</span><span class="o">.</span><span class="n">db</span><span class="o">.</span><span class="n">venv</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">settings</span><span class="p">[</span><span class="s2">&quot;venv&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">controller</span><span class="o">.</span><span class="n">db</span><span class="o">.</span><span class="n">venv</span>
+        
+        <span class="kn">from</span> <span class="nn">jinja2</span> <span class="k">import</span> <span class="n">Environment</span><span class="p">,</span> <span class="n">PackageLoader</span>
+        <span class="n">env</span> <span class="o">=</span> <span class="n">Environment</span><span class="p">(</span><span class="n">loader</span><span class="o">=</span><span class="n">PackageLoader</span><span class="p">(</span><span class="s1">&#39;matdb&#39;</span><span class="p">,</span> <span class="s1">&#39;templates&#39;</span><span class="p">))</span>
+        <span class="n">template</span> <span class="o">=</span> <span class="n">env</span><span class="o">.</span><span class="n">get_template</span><span class="p">(</span><span class="n">settings</span><span class="p">[</span><span class="s2">&quot;template&quot;</span><span class="p">])</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_jobfile</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">template</span><span class="o">.</span><span class="n">render</span><span class="p">(</span><span class="o">**</span><span class="n">settings</span><span class="p">))</span></div></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">matdb 0.0.5 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2017, Conrad W. Rosenbrock.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.8.5.
+    </div>
+  </body>
+</html>

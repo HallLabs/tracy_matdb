@@ -1,0 +1,505 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>matdb.calculators.qe &#8212; matdb 0.0.5 documentation</title>
+    <link rel="stylesheet" href="../../../_static/nature.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <script type="text/javascript" src="../../../_static/language_data.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">matdb 0.0.5 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" >Module code</a> &#187;</li>
+          <li class="nav-item nav-item-2"><a href="../calculators.html" accesskey="U">matdb.calculators</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for matdb.calculators.qe</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Implements a `matdb` compatible subclass of the</span>
+<span class="sd">:class:`ase.calculators.espresso.Espresso` calculator.  </span>
+
+<span class="sd">.. note:: Because this calculator is intended to be run asynchronously</span>
+<span class="sd">  as part of `matdb` framework, it does *not* include a method to</span>
+<span class="sd">  actually execute the calculation. Although the ASE calculator provides</span>
+<span class="sd">  an interface to do so, `matdb` uses templates to access HPC resources.</span>
+
+<span class="sd">.. warning:: Because of the underlying implementation in ASE, you must</span>
+<span class="sd">  use a separate instance of the :class:`AsyncQe` for each</span>
+<span class="sd">  :class:`ase.Atoms` object that you want to calculate for.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span> <span class="nn">os</span> <span class="k">import</span> <span class="n">path</span><span class="p">,</span> <span class="n">stat</span><span class="p">,</span> <span class="n">mkdir</span><span class="p">,</span> <span class="n">remove</span><span class="p">,</span> <span class="n">environ</span><span class="p">,</span> <span class="n">rename</span><span class="p">,</span> <span class="n">rmdir</span>
+<span class="kn">import</span> <span class="nn">mmap</span>
+<span class="kn">from</span> <span class="nn">xml.etree</span> <span class="k">import</span> <span class="n">ElementTree</span>
+<span class="kn">from</span> <span class="nn">hashlib</span> <span class="k">import</span> <span class="n">sha1</span>
+
+<span class="kn">import</span> <span class="nn">ase</span>
+<span class="kn">from</span> <span class="nn">ase.calculators.espresso</span> <span class="k">import</span> <span class="n">Espresso</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+
+<span class="kn">from</span> <span class="nn">matdb.calculators.basic</span> <span class="k">import</span> <span class="n">AsyncCalculator</span>
+<span class="kn">from</span> <span class="nn">matdb</span> <span class="k">import</span> <span class="n">msg</span>
+<span class="kn">from</span> <span class="nn">matdb.kpoints</span> <span class="k">import</span> <span class="n">custom</span> <span class="k">as</span> <span class="n">write_kpoints</span>
+<span class="kn">from</span> <span class="nn">matdb.utility</span> <span class="k">import</span> <span class="n">chdir</span><span class="p">,</span> <span class="n">execute</span><span class="p">,</span> <span class="n">relpath</span><span class="p">,</span> <span class="n">config_specs</span>
+<span class="kn">from</span> <span class="nn">matdb.exceptions</span> <span class="k">import</span> <span class="n">VersionError</span>
+<span class="kn">from</span> <span class="nn">matdb.calculators.utility</span> <span class="k">import</span> <span class="n">paths</span>
+        
+<div class="viewcode-block" id="AsyncQe"><a class="viewcode-back" href="../../../calculators/qe.html#matdb.calculators.qe.AsyncQe">[docs]</a><span class="k">class</span> <span class="nc">AsyncQe</span><span class="p">(</span><span class="n">Espresso</span><span class="p">,</span> <span class="n">AsyncCalculator</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Represents a calculator that can compute material properties with</span>
+<span class="sd">    Quantum Espresso, but which can do so asynchronously.  </span>
+
+<span class="sd">    .. note:: The arguments and keywords for this object are identical</span>
+<span class="sd">      to the :class:`~ase.calculators.qe.Espresso` calculator that ships</span>
+<span class="sd">      with ASE. We add some extra functions so that it plays nicely with</span>
+<span class="sd">      `matdb`.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        atoms (matdb.atoms.Atoms): configuration to calculate using QE.</span>
+<span class="sd">        folder (str): path to the directory where the calculation should take</span>
+<span class="sd">          place.</span>
+<span class="sd">        contr_dir (str): The absolute path of the controller&#39;s root directory.</span>
+<span class="sd">        ran_seed (int or float): the random seed to be used for this calculator.</span>
+<span class="sd">    </span>
+<span class="sd">    Attributes:</span>
+<span class="sd">        tarball (list): list of `str` QE output file names that should be included in an archive that represents the result of the calculation.</span>
+<span class="sd">        folder (str): path to the directory where the calculation should take place.</span>
+<span class="sd">        potcars (dict): a dictionary of the values for the potentials used.</span>
+<span class="sd">        kpoints (dict): a dictionary of the values used for k-point generation.</span>
+<span class="sd">        out_file (str): the output file that QE will write too.</span>
+<span class="sd">        out_dir (str): the output directory for QE files.</span>
+<span class="sd">        version (str): the version of QE used for calculations.</span>
+<span class="sd">        atoms (matdb.atoms.Atoms): the configuration for calculations.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">key</span> <span class="o">=</span> <span class="s2">&quot;qe&quot;</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    The short name for the calculator.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">pathattrs</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;potcars.directory&quot;</span><span class="p">]</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    List of directories that need to be set as class attributes.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">atoms</span><span class="p">,</span> <span class="n">folder</span><span class="p">,</span> <span class="n">contr_dir</span><span class="p">,</span> <span class="n">ran_seed</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+
+        <span class="c1"># the &quot;name&quot; attribute must be the same as the local name for the module imported in __init__.py</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;Qe&quot;</span>  
+        
+        <span class="k">if</span> <span class="n">contr_dir</span> <span class="o">==</span> <span class="s1">&#39;$control$&#39;</span><span class="p">:</span>
+            <span class="n">contr_dir</span> <span class="o">=</span> <span class="n">config_specs</span><span class="p">[</span><span class="s2">&quot;cntr_dir&quot;</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">path</span><span class="o">.</span><span class="n">isdir</span><span class="p">(</span><span class="n">contr_dir</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">contr_dir</span> <span class="o">=</span> <span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="n">path</span><span class="o">.</span><span class="n">expanduser</span><span class="p">(</span><span class="n">contr_dir</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">msg</span><span class="o">.</span><span class="n">err</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{}</span><span class="s2"> is not a valid directory.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">contr_dir</span><span class="p">))</span>
+
+        <span class="k">if</span> <span class="s1">&#39;$control$&#39;</span> <span class="ow">in</span> <span class="n">folder</span><span class="p">:</span>
+            <span class="n">folder</span> <span class="o">=</span> <span class="n">folder</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;$control$&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">contr_dir</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">folder</span> <span class="o">=</span> <span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="n">path</span><span class="o">.</span><span class="n">expanduser</span><span class="p">(</span><span class="n">folder</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">kpoints</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">in_kwargs</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">args</span> <span class="o">=</span> <span class="n">args</span>
+
+        <span class="k">if</span> <span class="s2">&quot;kpoints&quot;</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">kpoints</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;kpoints&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">kpoints</span><span class="p">[</span><span class="s2">&quot;method&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;mueller&quot;</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;The Mueller server does not support QE at this time.&quot;</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">kpoints</span><span class="p">[</span><span class="s2">&quot;method&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;MP&quot;</span><span class="p">:</span>
+            <span class="n">kpts</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">kpoints</span><span class="p">[</span><span class="s2">&quot;divisions&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot; &quot;</span><span class="p">))</span>
+            <span class="n">kspacing</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">kpoints</span><span class="p">[</span><span class="s2">&quot;method&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;kspacing&quot;</span><span class="p">:</span>
+            <span class="n">kpts</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="n">kspacing</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">kpoints</span><span class="p">[</span><span class="s2">&quot;spacing&quot;</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="s2">&quot;offset&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">kpoints</span><span class="p">:</span>
+            <span class="n">koffset</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">kpoints</span><span class="p">[</span><span class="s2">&quot;offset&quot;</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">koffset</span> <span class="o">=</span> <span class="mi">0</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">potcars</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;potcars&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="s2">&quot;directory&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">potcars</span><span class="p">:</span>
+            <span class="k">if</span> <span class="s2">&quot;.&quot;</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">potcars</span><span class="p">[</span><span class="s2">&quot;directory&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">]:</span>
+                <span class="n">pseudo_dir</span> <span class="o">=</span> <span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">potcars</span><span class="p">[</span><span class="s2">&quot;directory&quot;</span><span class="p">])</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">pseudo_dir</span> <span class="o">=</span> <span class="n">path</span><span class="o">.</span><span class="n">expanduser</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">potcars</span><span class="p">[</span><span class="s2">&quot;directory&quot;</span><span class="p">])</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">potcars</span><span class="p">[</span><span class="s2">&quot;directory&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">pseudo_dir</span>
+        <span class="k">else</span><span class="p">:</span> <span class="c1">#pragma: no cover</span>
+            <span class="n">pseudo_dir</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">pseudopotentials</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">potcars</span><span class="p">[</span><span class="s2">&quot;potentials&quot;</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="s2">&quot;input_data&quot;</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="p">:</span>
+            <span class="k">if</span> <span class="s2">&quot;prefix&quot;</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="p">[</span><span class="s2">&quot;input_data&quot;</span><span class="p">][</span><span class="s2">&quot;control&quot;</span><span class="p">]:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">out_file</span> <span class="o">=</span> <span class="n">kwargs</span><span class="p">[</span><span class="s2">&quot;input_data&quot;</span><span class="p">][</span><span class="s2">&quot;control&quot;</span><span class="p">][</span><span class="s2">&quot;prefix&quot;</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">out_file</span> <span class="o">=</span> <span class="s2">&quot;pwscf&quot;</span>
+
+            <span class="k">if</span> <span class="s2">&quot;control&quot;</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="p">[</span><span class="s2">&quot;input_data&quot;</span><span class="p">]:</span>
+                <span class="k">if</span> <span class="s2">&quot;outdir&quot;</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="p">[</span><span class="s2">&quot;input_data&quot;</span><span class="p">][</span><span class="s2">&quot;control&quot;</span><span class="p">]:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">out_dir</span> <span class="o">=</span> <span class="n">kwargs</span><span class="p">[</span><span class="s2">&quot;input_data&quot;</span><span class="p">][</span><span class="s2">&quot;control&quot;</span><span class="p">][</span><span class="s2">&quot;outdir&quot;</span><span class="p">]</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">out_file</span> <span class="o">=</span> <span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">out_dir</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">out_file</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">out_dir</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{0}</span><span class="s2">.save&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">out_file</span><span class="p">)</span>
+
+            <span class="n">input_data</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;input_data&quot;</span><span class="p">)</span>
+
+            <span class="c1"># set default values for tprnfor and tstress so that the QE</span>
+            <span class="c1"># calculates the forces and stresses unless over-written by</span>
+            <span class="c1"># user.</span>
+            <span class="n">input_data</span><span class="p">[</span><span class="s2">&quot;tprnfor&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">kwargs</span><span class="p">[</span><span class="s2">&quot;tprnfor&quot;</span><span class="p">]</span>  <span class="k">if</span> <span class="s2">&quot;tprnfor&quot;</span> <span class="ow">in</span> <span class="n">kwargs</span> <span class="k">else</span> <span class="kc">True</span>
+            <span class="n">input_data</span><span class="p">[</span><span class="s2">&quot;tstress&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">kwargs</span><span class="p">[</span><span class="s2">&quot;tstress&quot;</span><span class="p">]</span>  <span class="k">if</span> <span class="s2">&quot;tstress&quot;</span> <span class="ow">in</span> <span class="n">kwargs</span> <span class="k">else</span> <span class="kc">True</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">input_data</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">out_file</span> <span class="o">=</span> <span class="s2">&quot;pwscf&quot;</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">out_dir</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{0}</span><span class="s2">.save&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">out_file</span><span class="p">)</span>
+        
+        <span class="bp">self</span><span class="o">.</span><span class="n">ran_seed</span> <span class="o">=</span> <span class="n">ran_seed</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">version</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">AsyncQe</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">pseudopotentials</span><span class="o">=</span><span class="n">pseudopotentials</span><span class="p">,</span> <span class="n">pseudo_dir</span><span class="o">=</span><span class="n">pseudo_dir</span><span class="p">,</span>
+                                      <span class="n">input_data</span><span class="o">=</span><span class="n">input_data</span><span class="p">,</span> <span class="n">kpts</span><span class="o">=</span><span class="n">kpts</span><span class="p">,</span> <span class="n">koffset</span><span class="o">=</span><span class="n">koffset</span><span class="p">,</span>
+                                      <span class="n">kspacing</span><span class="o">=</span><span class="n">kspacing</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">path</span><span class="o">.</span><span class="n">isdir</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">folder</span><span class="p">):</span>
+            <span class="n">mkdir</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">folder</span><span class="p">)</span>
+            
+        <span class="bp">self</span><span class="o">.</span><span class="n">atoms</span> <span class="o">=</span> <span class="n">atoms</span>
+           
+        <span class="bp">self</span><span class="o">.</span><span class="n">tarball</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;</span><span class="si">{0}</span><span class="s2">.xml&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">out_file</span><span class="p">)]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_check_potcars</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">_check_potcars</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Checks that the potcar version match the input versions.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="s2">&quot;directory&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">potcars</span><span class="p">:</span>
+            <span class="n">pseudo_dir</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">potcars</span><span class="p">[</span><span class="s2">&quot;directory&quot;</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">pseudo_dir</span> <span class="o">=</span> <span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;ESPRESSO_PSEUDO&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">pseudo_dir</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">pseudo_dir</span> <span class="o">=</span> <span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">path</span><span class="o">.</span><span class="n">expanduser</span><span class="p">(</span><span class="s1">&#39;~&#39;</span><span class="p">),</span> <span class="s1">&#39;espresso&#39;</span><span class="p">,</span> <span class="s1">&#39;pseudo&#39;</span><span class="p">)</span>
+
+        <span class="n">versions</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">potcars</span><span class="p">[</span><span class="s2">&quot;versions&quot;</span><span class="p">]</span>
+        <span class="k">for</span> <span class="n">spec</span><span class="p">,</span> <span class="n">potcar</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">potcars</span><span class="p">[</span><span class="s2">&quot;potentials&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">target</span> <span class="o">=</span> <span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">pseudo_dir</span><span class="p">,</span> <span class="n">potcar</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="n">target</span><span class="p">):</span>
+                <span class="c1">#QE potentials have two version numbers. The first is</span>
+                <span class="c1">#usually on the first line of the file and the second</span>
+                <span class="c1">#is somewhere in the introductory information block.</span>
+                <span class="n">v1</span> <span class="o">=</span> <span class="n">versions</span><span class="p">[</span><span class="n">spec</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+                <span class="n">v2</span> <span class="o">=</span> <span class="n">versions</span><span class="p">[</span><span class="n">spec</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span>
+                <span class="n">v2_found</span> <span class="o">=</span> <span class="kc">False</span>
+                <span class="n">l_count</span> <span class="o">=</span> <span class="mi">0</span>
+                <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">target</span><span class="p">,</span> <span class="s2">&quot;r&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+                    <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">f</span><span class="p">:</span>
+                        <span class="n">temp_line</span> <span class="o">=</span> <span class="n">line</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+                        <span class="k">if</span> <span class="n">l_count</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                            <span class="k">if</span> <span class="ow">not</span> <span class="n">v1</span> <span class="ow">in</span> <span class="n">temp_line</span><span class="p">:</span>
+                                <span class="k">raise</span> <span class="n">VersionError</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{0}</span><span class="s2"> does not match supplied version &quot;</span>
+                                             <span class="s2">&quot;</span><span class="si">{1}</span><span class="s2"> for species </span><span class="si">{2}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">line</span><span class="p">,</span> <span class="n">v1</span><span class="p">,</span> <span class="n">spec</span><span class="p">))</span>
+                        <span class="k">elif</span> <span class="s2">&quot;&lt;PP_INPUTFILE&gt;&quot;</span> <span class="ow">in</span> <span class="n">line</span><span class="p">:</span>
+                            <span class="k">break</span>    
+                        <span class="k">else</span><span class="p">:</span>
+                            <span class="k">if</span> <span class="n">v2</span> <span class="ow">in</span> <span class="n">temp_line</span><span class="p">:</span>
+                                <span class="n">v2_found</span> <span class="o">=</span> <span class="kc">True</span>
+                                <span class="k">break</span>
+                        <span class="n">l_count</span> <span class="o">+=</span> <span class="mi">1</span>
+                        
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">v2_found</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="n">VersionError</span><span class="p">(</span><span class="s2">&quot;Version </span><span class="si">{0}</span><span class="s2"> could not be found in potential file </span><span class="si">{1}</span><span class="s2"> &quot;</span>
+                                 <span class="s2">&quot;for species </span><span class="si">{2}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">v2</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">spec</span><span class="p">))</span>
+                    
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">IOError</span><span class="p">(</span><span class="s2">&quot;Potential file </span><span class="si">{0}</span><span class="s2"> does not exist&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">target</span><span class="p">))</span>
+        
+<div class="viewcode-block" id="AsyncQe.write_input"><a class="viewcode-back" href="../../../calculators/qe.html#matdb.calculators.qe.AsyncQe.write_input">[docs]</a>    <span class="k">def</span> <span class="nf">write_input</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">atoms</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Overload of the ASE input writer.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">path</span><span class="o">.</span><span class="n">isdir</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">folder</span><span class="p">):</span>
+            <span class="n">mkdir</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">folder</span><span class="p">)</span>
+        <span class="k">with</span> <span class="n">chdir</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">folder</span><span class="p">):</span>
+            <span class="nb">super</span><span class="p">(</span><span class="n">AsyncQe</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">write_input</span><span class="p">(</span><span class="n">atoms</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="AsyncQe.can_execute"><a class="viewcode-back" href="../../../calculators/qe.html#matdb.calculators.qe.AsyncQe.can_execute">[docs]</a>    <span class="k">def</span> <span class="nf">can_execute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">folder</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns True if the specified folder is ready to execute QE</span>
+<span class="sd">        in.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">path</span><span class="o">.</span><span class="n">isdir</span><span class="p">(</span><span class="n">folder</span><span class="p">):</span>
+            <span class="k">return</span> <span class="kc">False</span>
+
+        <span class="n">sizeok</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">stat</span><span class="p">(</span><span class="n">x</span><span class="p">)</span><span class="o">.</span><span class="n">st_size</span> <span class="o">&gt;</span> <span class="mi">25</span>
+        <span class="n">required</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;espresso.pwi&quot;</span><span class="p">]</span>
+            
+        <span class="n">present</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">rfile</span> <span class="ow">in</span> <span class="n">required</span><span class="p">:</span>
+            <span class="n">target</span> <span class="o">=</span> <span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">folder</span><span class="p">,</span> <span class="n">rfile</span><span class="p">)</span>
+            <span class="n">present</span><span class="p">[</span><span class="n">rfile</span><span class="p">]</span> <span class="o">=</span> <span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="n">target</span><span class="p">)</span> <span class="ow">and</span> <span class="n">sizeok</span><span class="p">(</span><span class="n">target</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">all</span><span class="p">(</span><span class="n">present</span><span class="o">.</span><span class="n">values</span><span class="p">()):</span>
+            <span class="k">for</span> <span class="n">f</span><span class="p">,</span> <span class="n">ok</span> <span class="ow">in</span> <span class="n">present</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">ok</span><span class="p">:</span>
+                    <span class="n">msg</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{}</span><span class="s2"> not present for Quantum Espresso execution.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">f</span><span class="p">),</span> <span class="mi">2</span><span class="p">)</span>
+        <span class="k">return</span> <span class="nb">all</span><span class="p">(</span><span class="n">present</span><span class="o">.</span><span class="n">values</span><span class="p">())</span></div>
+
+<div class="viewcode-block" id="AsyncQe.can_extract"><a class="viewcode-back" href="../../../calculators/qe.html#matdb.calculators.qe.AsyncQe.can_extract">[docs]</a>    <span class="k">def</span> <span class="nf">can_extract</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">folder</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns True if the specified folder has completed</span>
+<span class="sd">        executing and the results are available for use.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">path</span><span class="o">.</span><span class="n">isdir</span><span class="p">(</span><span class="n">folder</span><span class="p">):</span>
+            <span class="k">return</span> <span class="kc">False</span>
+
+        <span class="k">if</span> <span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">folder</span><span class="p">,</span> <span class="s2">&quot;CRASH&quot;</span><span class="p">)):</span>
+            <span class="n">msg</span><span class="o">.</span><span class="n">err</span><span class="p">(</span><span class="s2">&quot;The QE calculation in </span><span class="si">{0}</span><span class="s2"> has crashed. Error message:&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">folder</span><span class="p">))</span>
+            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">folder</span><span class="p">,</span> <span class="s2">&quot;CRASH&quot;</span><span class="p">),</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">f</span><span class="p">:</span> <span class="c1">#pragma: no cover, we just need to test</span>
+                               <span class="c1">#that the CRASH file is found. We don&#39;t</span>
+                               <span class="c1">#need to test the error write out.</span>
+                    <span class="n">msg</span><span class="o">.</span><span class="n">err</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">strip</span><span class="p">())</span>
+            <span class="k">return</span> <span class="kc">False</span>
+        <span class="c1">#If we can extract a final total energy from the OUTCAR file, we</span>
+        <span class="c1">#consider the calculation to be finished.</span>
+        <span class="n">outxml</span> <span class="o">=</span> <span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">folder</span><span class="p">,</span> <span class="s2">&quot;</span><span class="si">{0}</span><span class="s2">.xml&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">out_file</span><span class="p">))</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="n">outxml</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">folder</span><span class="p">,</span> <span class="s2">&quot;pwscf.xml&quot;</span><span class="p">)):</span>
+                <span class="n">rename</span><span class="p">(</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">folder</span><span class="p">,</span> <span class="s2">&quot;pwscf.xml&quot;</span><span class="p">),</span> <span class="n">outxml</span><span class="p">)</span>
+                <span class="n">rename</span><span class="p">(</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">folder</span><span class="p">,</span> <span class="s2">&quot;pwscf.save&quot;</span><span class="p">),</span>
+                       <span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">folder</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">out_dir</span><span class="p">))</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">return</span> <span class="kc">False</span>
+
+        <span class="n">line</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">outxml</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="c1"># memory-map the file, size 0 means whole file</span>
+            <span class="n">m</span> <span class="o">=</span> <span class="n">mmap</span><span class="o">.</span><span class="n">mmap</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">fileno</span><span class="p">(),</span> <span class="mi">0</span><span class="p">,</span> <span class="n">prot</span><span class="o">=</span><span class="n">mmap</span><span class="o">.</span><span class="n">PROT_READ</span><span class="p">)</span>  
+            <span class="n">i</span> <span class="o">=</span> <span class="n">m</span><span class="o">.</span><span class="n">rfind</span><span class="p">(</span><span class="sa">b</span><span class="s1">&#39;&lt;/closed&gt;&#39;</span><span class="p">)</span>
+            <span class="c1"># we look for this second line to verify that VASP wasn&#39;t</span>
+            <span class="c1"># terminated during runtime for memory or time</span>
+            <span class="c1"># restrictions</span>
+            <span class="k">if</span> <span class="n">i</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="c1"># seek to the location and get the rest of the line.</span>
+                <span class="n">m</span><span class="o">.</span><span class="n">seek</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+                <span class="n">line</span> <span class="o">=</span> <span class="n">m</span><span class="o">.</span><span class="n">readline</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="n">line</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">True</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">False</span></div>
+
+<div class="viewcode-block" id="AsyncQe.is_executing"><a class="viewcode-back" href="../../../calculators/qe.html#matdb.calculators.qe.AsyncQe.is_executing">[docs]</a>    <span class="k">def</span> <span class="nf">is_executing</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">folder</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns True if the specified folder is in process of executing.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            folder (str): path to the folder in which the executable was run.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">outxml</span> <span class="o">=</span> <span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">folder</span><span class="p">,</span> <span class="s2">&quot;</span><span class="si">{0}</span><span class="s2">.xml&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">out_file</span><span class="p">))</span>
+        <span class="n">outxml</span> <span class="o">=</span> <span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="n">outxml</span><span class="p">)</span>
+        <span class="n">defxml</span> <span class="o">=</span> <span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">folder</span><span class="p">,</span> <span class="s2">&quot;pwscf.xml&quot;</span><span class="p">))</span>
+        <span class="n">busy</span> <span class="o">=</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">can_extract</span><span class="p">(</span><span class="n">folder</span><span class="p">)</span>            
+        <span class="k">return</span> <span class="p">(</span><span class="n">outxml</span> <span class="ow">or</span> <span class="n">defxml</span><span class="p">)</span> <span class="ow">and</span> <span class="n">busy</span></div>
+
+<div class="viewcode-block" id="AsyncQe.create"><a class="viewcode-back" href="../../../calculators/qe.html#matdb.calculators.qe.AsyncQe.create">[docs]</a>    <span class="k">def</span> <span class="nf">create</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">rewrite</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Creates all necessary input files for the QE calculation.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            rewrite (bool): when True, overwrite any existing files with the</span>
+<span class="sd">              latest settings.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">write_input</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">atoms</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="AsyncQe.extract"><a class="viewcode-back" href="../../../calculators/qe.html#matdb.calculators.qe.AsyncQe.extract">[docs]</a>    <span class="k">def</span> <span class="nf">extract</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">folder</span><span class="p">,</span> <span class="n">cleanup</span><span class="o">=</span><span class="s2">&quot;default&quot;</span><span class="p">,</span> <span class="n">asis</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Extracts results from completed calculations and sets them on the</span>
+<span class="sd">        :class:`ase.Atoms` object.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            folder (str): path to the folder in which the executable was run.</span>
+<span class="sd">            cleanup (str): the level of cleanup to perfor after extraction.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Read output</span>
+        <span class="n">out_file</span> <span class="o">=</span> <span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">folder</span><span class="p">,</span><span class="s1">&#39;</span><span class="si">{0}</span><span class="s1">.xml&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">out_file</span><span class="p">))</span>
+        <span class="n">output</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_read</span><span class="p">(</span><span class="n">out_file</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;input_data&#39;</span><span class="p">][</span><span class="s1">&#39;control&#39;</span><span class="p">][</span><span class="s1">&#39;calculation&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;relax&#39;</span> <span class="ow">or</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s1">&#39;input_data&#39;</span><span class="p">][</span><span class="s1">&#39;control&#39;</span><span class="p">][</span><span class="s1">&#39;calculation&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;md&#39;</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">atoms</span><span class="o">.</span><span class="n">positions</span> <span class="o">=</span> <span class="n">output</span><span class="p">[</span><span class="s2">&quot;atoms&quot;</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">atoms</span><span class="o">.</span><span class="n">cell</span> <span class="o">=</span> <span class="n">output</span><span class="p">[</span><span class="s2">&quot;cell&quot;</span><span class="p">]</span>
+
+        <span class="c1"># we need to move into the folder being extracted in order to</span>
+        <span class="c1"># let ase check the convergence</span>
+        <span class="k">with</span> <span class="n">chdir</span><span class="p">(</span><span class="n">folder</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">converged</span> <span class="o">=</span> <span class="n">output</span><span class="p">[</span><span class="s2">&quot;convergence&quot;</span><span class="p">]</span>
+            <span class="n">E</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">output</span><span class="p">[</span><span class="s2">&quot;etot&quot;</span><span class="p">])</span>
+            <span class="n">F</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">output</span><span class="p">[</span><span class="s2">&quot;forces&quot;</span><span class="p">])</span>
+            <span class="n">S</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">output</span><span class="p">[</span><span class="s2">&quot;stress&quot;</span><span class="p">])</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">atoms</span><span class="o">.</span><span class="n">add_property</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">force_name</span><span class="p">,</span> <span class="n">F</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">atoms</span><span class="o">.</span><span class="n">add_param</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">stress_name</span><span class="p">,</span> <span class="n">S</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">atoms</span><span class="o">.</span><span class="n">add_param</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">virial_name</span><span class="p">,</span> <span class="n">S</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">atoms</span><span class="o">.</span><span class="n">get_volume</span><span class="p">())</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">atoms</span><span class="o">.</span><span class="n">add_param</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">energy_name</span><span class="p">,</span> <span class="n">E</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">cleanup</span><span class="p">(</span><span class="n">folder</span><span class="p">,</span><span class="n">clean_level</span><span class="o">=</span><span class="n">cleanup</span><span class="p">)</span>
+
+        <span class="c1"># At this time, always return True. Might need to determine if there is a change </span>
+        <span class="c1"># to return a False.</span>
+        <span class="k">return</span> <span class="kc">True</span></div>
+
+<div class="viewcode-block" id="AsyncQe.set_static"><a class="viewcode-back" href="../../../calculators/qe.html#matdb.calculators.qe.AsyncQe.set_static">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">set_static</span><span class="p">(</span><span class="n">input_dict</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Converts the input dictionary to one for a static QE calculation.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="s2">&quot;input_data&quot;</span> <span class="ow">in</span> <span class="n">input_dict</span><span class="p">:</span>
+            <span class="k">if</span> <span class="s2">&quot;control&quot;</span> <span class="ow">in</span> <span class="n">input_dict</span><span class="p">[</span><span class="s2">&quot;input_data&quot;</span><span class="p">]:</span>
+                <span class="n">input_dict</span><span class="p">[</span><span class="s2">&quot;input_data&quot;</span><span class="p">][</span><span class="s2">&quot;control&quot;</span><span class="p">][</span><span class="s2">&quot;calculation&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;scf&quot;</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">input_dict</span><span class="p">[</span><span class="s2">&quot;input_data&quot;</span><span class="p">][</span><span class="s2">&quot;control&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+                <span class="n">input_dict</span><span class="p">[</span><span class="s2">&quot;input_data&quot;</span><span class="p">][</span><span class="s2">&quot;control&quot;</span><span class="p">][</span><span class="s2">&quot;calculation&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;scf&quot;</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">input_dict</span><span class="p">[</span><span class="s2">&quot;input_data&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="n">input_dict</span><span class="p">[</span><span class="s2">&quot;input_data&quot;</span><span class="p">][</span><span class="s2">&quot;control&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="n">input_dict</span><span class="p">[</span><span class="s2">&quot;input_data&quot;</span><span class="p">][</span><span class="s2">&quot;control&quot;</span><span class="p">][</span><span class="s2">&quot;calculation&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;scf&quot;</span>
+        <span class="k">return</span> <span class="n">input_dict</span></div>
+
+<div class="viewcode-block" id="AsyncQe.cleanup"><a class="viewcode-back" href="../../../calculators/qe.html#matdb.calculators.qe.AsyncQe.cleanup">[docs]</a>    <span class="k">def</span> <span class="nf">cleanup</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">folder</span><span class="p">,</span> <span class="n">clean_level</span><span class="o">=</span><span class="s2">&quot;default&quot;</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Performs cleanup on the folder where the calculation was</span>
+<span class="sd">        performed. The clean_level determines which files get removed.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            folder (str): the folder to be cleaned.</span>
+<span class="sd">            clean_level (str): the level of cleaning to be done.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">light</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;</span><span class="si">{0}</span><span class="s2">/*.dat&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">out_dir</span><span class="p">),</span>
+                 <span class="s2">&quot;</span><span class="si">{0}</span><span class="s2">/paw.txt&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">out_dir</span><span class="p">),</span> <span class="s2">&quot;CRASH&quot;</span><span class="p">]</span>
+        <span class="n">default</span> <span class="o">=</span> <span class="p">[</span><span class="n">potfile</span> <span class="k">for</span> <span class="n">potfile</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">potcars</span><span class="p">[</span><span class="s2">&quot;potentials&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">()]</span>
+        <span class="n">default</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="s2">&quot;</span><span class="si">{0}</span><span class="s2">/charge-density.dat&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">out_dir</span><span class="p">),</span>
+                        <span class="s2">&quot;</span><span class="si">{0}</span><span class="s2">/data-file-schema.xml&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">out_dir</span><span class="p">)])</span>
+        <span class="n">aggressive</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;</span><span class="si">{0}</span><span class="s2">.xml&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">out_file</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">out_dir</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="n">clean_level</span> <span class="o">==</span> <span class="s2">&quot;light&quot;</span><span class="p">:</span>
+            <span class="n">rm_files</span> <span class="o">=</span> <span class="n">light</span>
+        <span class="k">elif</span> <span class="n">clean_level</span> <span class="o">==</span> <span class="s2">&quot;aggressive&quot;</span><span class="p">:</span>
+            <span class="n">rm_files</span> <span class="o">=</span> <span class="n">light</span> <span class="o">+</span> <span class="n">default</span> <span class="o">+</span> <span class="n">aggressive</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">rm_files</span> <span class="o">=</span> <span class="n">light</span> <span class="o">+</span> <span class="n">default</span>
+        
+        <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">rm_files</span><span class="p">:</span>
+            <span class="n">target</span> <span class="o">=</span> <span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">folder</span><span class="p">,</span><span class="n">f</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="n">target</span><span class="p">):</span>
+                <span class="n">remove</span><span class="p">(</span><span class="n">target</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">path</span><span class="o">.</span><span class="n">isdir</span><span class="p">(</span><span class="n">target</span><span class="p">):</span>
+                <span class="n">rmdir</span><span class="p">(</span><span class="n">target</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="AsyncQe.to_dict"><a class="viewcode-back" href="../../../calculators/qe.html#matdb.calculators.qe.AsyncQe.to_dict">[docs]</a>    <span class="k">def</span> <span class="nf">to_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Writes the current version number of the code being run to a</span>
+<span class="sd">        dictionary along with the parameters of the code.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            folder (str): path to the folder in which the executable was run.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">qe_dict</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;folder&quot;</span><span class="p">:</span><span class="bp">self</span><span class="o">.</span><span class="n">folder</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">contr_dir</span><span class="p">,</span><span class="s1">&#39;$control$&#39;</span><span class="p">),</span>
+                   <span class="s2">&quot;ran_seed&quot;</span><span class="p">:</span><span class="bp">self</span><span class="o">.</span><span class="n">ran_seed</span><span class="p">,</span>
+                   <span class="s2">&quot;contr_dir&quot;</span><span class="p">:</span><span class="s1">&#39;$control$&#39;</span><span class="p">,</span> <span class="s2">&quot;kwargs&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">in_kwargs</span><span class="p">,</span>
+                   <span class="s2">&quot;args&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="p">,</span> <span class="s2">&quot;version&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">version</span><span class="p">}</span>
+
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="s2">&quot;potcars&quot;</span><span class="p">):</span>
+            <span class="n">potdict</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">potcars</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+            
+            <span class="n">title</span> <span class="o">=</span> <span class="n">config_specs</span><span class="p">[</span><span class="s2">&quot;title&quot;</span><span class="p">]</span>
+            <span class="n">titlehash</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">sha1</span><span class="p">(</span><span class="n">title</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s2">&quot;ASCII&quot;</span><span class="p">))</span><span class="o">.</span><span class="n">hexdigest</span><span class="p">())</span>
+            <span class="k">for</span> <span class="n">hid</span><span class="p">,</span> <span class="n">hpath</span> <span class="ow">in</span> <span class="n">paths</span><span class="p">[</span><span class="n">titlehash</span><span class="p">][</span><span class="bp">self</span><span class="o">.</span><span class="n">key</span><span class="p">]</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="k">if</span> <span class="n">potdict</span><span class="p">[</span><span class="s2">&quot;directory&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="n">hpath</span><span class="p">:</span>
+                    <span class="n">potdict</span><span class="p">[</span><span class="s2">&quot;directory&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">hid</span>
+                    <span class="k">break</span>
+            <span class="n">qe_dict</span><span class="p">[</span><span class="s2">&quot;kwargs&quot;</span><span class="p">][</span><span class="s2">&quot;potcars&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">potdict</span>
+
+        <span class="k">return</span> <span class="n">qe_dict</span></div>
+
+    <span class="k">def</span> <span class="nf">_read</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Reads the QE output file located at the specified path.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">key_phrases</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;output/convergence_info/scf_conv/scf_error&#39;</span><span class="p">,</span>
+                       <span class="s1">&#39;output/atomic_structure/atomic_positions/atom&#39;</span><span class="p">,</span>
+                       <span class="s1">&#39;output/atomic_structure/cell/*&#39;</span><span class="p">,</span>
+                       <span class="s1">&#39;output/total_energy/etot&#39;</span><span class="p">,</span> <span class="s1">&#39;output/forces&#39;</span><span class="p">,</span> <span class="s2">&quot;output/stress&quot;</span><span class="p">]</span>
+
+        <span class="n">results</span> <span class="o">=</span> <span class="p">{}</span>
+
+        <span class="n">data</span> <span class="o">=</span> <span class="n">ElementTree</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="n">path</span><span class="p">)</span><span class="o">.</span><span class="n">getroot</span><span class="p">()</span>
+        <span class="n">results</span><span class="p">[</span><span class="s2">&quot;convergence&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="n">key_phrases</span><span class="p">[</span><span class="mi">0</span><span class="p">])[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">text</span><span class="p">)</span>
+        <span class="n">atom_pos</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">atom</span> <span class="ow">in</span> <span class="n">data</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="n">key_phrases</span><span class="p">[</span><span class="mi">1</span><span class="p">]):</span>
+            <span class="n">atom_pos</span> <span class="o">=</span> <span class="p">[</span><span class="nb">float</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">atom</span><span class="o">.</span><span class="n">text</span><span class="o">.</span><span class="n">split</span><span class="p">()]</span>
+        <span class="n">results</span><span class="p">[</span><span class="s2">&quot;atoms&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">atom_pos</span>
+        <span class="n">results</span><span class="p">[</span><span class="s2">&quot;cell&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[[</span><span class="nb">float</span><span class="p">(</span><span class="n">j</span><span class="p">)</span> <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="n">i</span><span class="o">.</span><span class="n">text</span><span class="o">.</span><span class="n">split</span><span class="p">()]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">data</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="n">key_phrases</span><span class="p">[</span><span class="mi">2</span><span class="p">])]</span>
+        <span class="n">results</span><span class="p">[</span><span class="s2">&quot;etot&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="n">key_phrases</span><span class="p">[</span><span class="mi">3</span><span class="p">])[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">text</span><span class="p">)</span>
+        <span class="n">results</span><span class="p">[</span><span class="s2">&quot;forces&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span><span class="nb">float</span><span class="p">(</span><span class="n">j</span><span class="p">)</span> <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="n">i</span><span class="o">.</span><span class="n">split</span><span class="p">()]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">data</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="n">key_phrases</span><span class="p">[</span><span class="mi">4</span><span class="p">])[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">text</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)])</span>
+        <span class="n">results</span><span class="p">[</span><span class="s2">&quot;stress&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="nb">float</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span>
+                                      <span class="n">data</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="n">key_phrases</span><span class="p">[</span><span class="mi">5</span><span class="p">])[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">text</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">()])</span><span class="o">.</span><span class="n">reshape</span><span class="p">((</span><span class="mi">3</span><span class="p">,</span><span class="mi">3</span><span class="p">))</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">version</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">version</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="s1">&#39;general_info/creator&#39;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">attrib</span><span class="p">[</span><span class="s2">&quot;VERSION&quot;</span><span class="p">]</span>
+            
+        <span class="k">return</span> <span class="n">results</span></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">matdb 0.0.5 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" >Module code</a> &#187;</li>
+          <li class="nav-item nav-item-2"><a href="../calculators.html" >matdb.calculators</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2017, Conrad W. Rosenbrock.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.8.5.
+    </div>
+  </body>
+</html>

@@ -1,0 +1,575 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>matdb.io &#8212; matdb 0.0.5 documentation</title>
+    <link rel="stylesheet" href="../../_static/nature.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <script type="text/javascript" src="../../_static/language_data.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">matdb 0.0.5 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for matdb.io</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Functions for interacting with various output formats.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">from</span> <span class="nn">os</span> <span class="k">import</span> <span class="n">path</span><span class="p">,</span> <span class="n">stat</span>
+
+<span class="kn">import</span> <span class="nn">ase</span>
+<span class="kn">from</span> <span class="nn">ase.calculators.singlepoint</span> <span class="k">import</span> <span class="n">SinglePointCalculator</span>
+<span class="kn">import</span> <span class="nn">h5py</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">import</span> <span class="nn">yaml</span>
+
+<span class="kn">from</span> <span class="nn">matdb.atoms</span> <span class="k">import</span> <span class="n">Atoms</span><span class="p">,</span> <span class="n">AtomsList</span>
+<span class="kn">from</span> <span class="nn">matdb.utility</span> <span class="k">import</span> <span class="n">chdir</span><span class="p">,</span> <span class="n">execute</span>
+
+<span class="n">_rxcfg</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;[a-z\s:\n]+&quot;</span><span class="p">,</span> <span class="n">re</span><span class="o">.</span><span class="n">I</span><span class="p">)</span>
+
+<span class="n">_cfg_pos</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;cartes_x&quot;</span><span class="p">,</span> <span class="s2">&quot;cartes_y&quot;</span><span class="p">,</span> <span class="s2">&quot;cartes_z&quot;</span><span class="p">]</span>
+<span class="sd">&quot;&quot;&quot;list: list of `str` label names in the CFG file corresponding to the x, y and z</span>
+<span class="sd">positions respectively.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="n">_cfg_force</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;fx&quot;</span><span class="p">,</span> <span class="s2">&quot;fy&quot;</span><span class="p">,</span> <span class="s2">&quot;fz&quot;</span><span class="p">]</span>
+<span class="sd">&quot;&quot;&quot;list of `str` label names in the CFG file corresponding to the x, y and z</span>
+<span class="sd">forces respectively.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="order_stress"><a class="viewcode-back" href="../../io.html#matdb.io.order_stress">[docs]</a><span class="k">def</span> <span class="nf">order_stress</span><span class="p">(</span><span class="n">xx</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">yy</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">zz</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">yz</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">xz</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">xy</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Ensures that the six unique components of the stress tensor are presented</span>
+<span class="sd">    in the correct order assumed by ASE.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="p">(</span><span class="n">xx</span><span class="p">,</span> <span class="n">yy</span><span class="p">,</span> <span class="n">zz</span><span class="p">,</span> <span class="n">yz</span><span class="p">,</span> <span class="n">xz</span><span class="p">,</span> <span class="n">xy</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="symmetrize"><a class="viewcode-back" href="../../io.html#matdb.io.symmetrize">[docs]</a><span class="k">def</span> <span class="nf">symmetrize</span><span class="p">(</span><span class="n">xx</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">yy</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">zz</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">yz</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">xz</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">xy</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Returns the 3x3 stress matrix from the specified components.</span>
+
+<span class="sd">    .. note:: the components are: xx yy zz xy yz zx.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="kn">from</span> <span class="nn">numpy</span> <span class="k">import</span> <span class="n">array</span>
+    <span class="k">return</span> <span class="n">array</span><span class="p">([[</span><span class="n">xx</span><span class="p">,</span> <span class="n">xy</span><span class="p">,</span> <span class="n">xz</span><span class="p">],</span> <span class="p">[</span><span class="n">xy</span><span class="p">,</span> <span class="n">yy</span><span class="p">,</span> <span class="n">yz</span><span class="p">],</span> <span class="p">[</span><span class="n">xz</span><span class="p">,</span> <span class="n">yz</span><span class="p">,</span> <span class="n">zz</span><span class="p">]])</span></div>
+
+<div class="viewcode-block" id="atoms_to_cfg"><a class="viewcode-back" href="../../io.html#matdb.io.atoms_to_cfg">[docs]</a><span class="k">def</span> <span class="nf">atoms_to_cfg</span><span class="p">(</span><span class="n">atm</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">config_id</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">type_map</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Converts an :class:`matdb.atoms.Atoms` object to a cfg file.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        atm (matdb.atoms.Atoms): the atoms object.</span>
+<span class="sd">        target (str): path to the cfg file to be written.</span>
+<span class="sd">        config_id (str): the config id for the atoms object.</span>
+<span class="sd">        type_map (dict): a type map to match the species to a larger</span>
+<span class="sd">          system than present in the system.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">chem_syms</span> <span class="o">=</span> <span class="n">atm</span><span class="o">.</span><span class="n">get_chemical_symbols</span><span class="p">()</span>
+    <span class="n">pos</span> <span class="o">=</span> <span class="n">atm</span><span class="o">.</span><span class="n">positions</span>
+
+    <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">atm</span><span class="p">,</span> <span class="s2">&quot;calc&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="n">atm</span><span class="o">.</span><span class="n">calc</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">atm</span><span class="o">.</span><span class="n">calc</span><span class="p">,</span> <span class="s2">&quot;key&quot;</span><span class="p">):</span>
+        <span class="n">calc_name</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{0}</span><span class="s2">_&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">atm</span><span class="o">.</span><span class="n">calc</span><span class="o">.</span><span class="n">key</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">calc_name</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+
+    <span class="n">local_map</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">specs</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">chem_syms</span><span class="p">)):</span>
+        <span class="k">if</span> <span class="n">type_map</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">local_map</span><span class="p">[</span><span class="n">specs</span><span class="p">]</span> <span class="o">=</span> <span class="n">i</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">local_map</span><span class="p">[</span><span class="n">specs</span><span class="p">]</span> <span class="o">=</span>  <span class="n">type_map</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">target</span><span class="p">,</span> <span class="s2">&quot;w+&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;BEGIN_CFG</span><span class="se">\n</span><span class="s2"> Size</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;    </span><span class="si">{}</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">pos</span><span class="p">)))</span>
+        <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot; SuperCell</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="c1"># Then write out the lattice vectors.</span>
+        <span class="n">lat_vecs</span> <span class="o">=</span> <span class="n">atm</span><span class="o">.</span><span class="n">cell</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">):</span>
+            <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;   </span><span class="si">{}</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="s2">&quot;      &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+                <span class="p">[</span><span class="s2">&quot;</span><span class="si">{0: .6f}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">j</span><span class="p">)</span> <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="n">lat_vecs</span><span class="p">[</span><span class="n">i</span><span class="p">]])))</span>
+
+        <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;  &quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="s2">&quot;</span><span class="si">{0}</span><span class="s2">force&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">calc_name</span><span class="p">)</span> <span class="ow">in</span> <span class="n">atm</span><span class="o">.</span><span class="n">properties</span><span class="p">:</span>
+            <span class="n">force</span> <span class="o">=</span> <span class="n">atm</span><span class="o">.</span><span class="n">properties</span><span class="p">[</span><span class="s2">&quot;</span><span class="si">{0}</span><span class="s2">force&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">calc_name</span><span class="p">)]</span>
+            <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot; AtomData:  id type       cartes_x      cartes_y      &quot;</span>
+                    <span class="s2">&quot;cartes_z           fx          fy          fz</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot; AtomData:  id type       cartes_x      cartes_y      cartes_z</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">iAt</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">for</span> <span class="nb">type</span><span class="p">,</span> <span class="n">loc</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">chem_syms</span><span class="p">,</span> <span class="n">pos</span><span class="p">):</span>
+            <span class="n">out_lab</span> <span class="o">=</span> <span class="n">local_map</span><span class="p">[</span><span class="nb">type</span><span class="p">]</span>
+            <span class="k">if</span> <span class="s2">&quot;</span><span class="si">{0}</span><span class="s2">force&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">calc_name</span><span class="p">)</span> <span class="ow">in</span> <span class="n">atm</span><span class="o">.</span><span class="n">properties</span><span class="p">:</span>
+                <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;             </span><span class="si">{0}</span><span class="s2">    </span><span class="si">{1}</span><span class="s2">       &quot;</span>
+                        <span class="s2">&quot;</span><span class="si">{2}</span><span class="s2">    </span><span class="si">{3}</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">iAt</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span> <span class="n">out_lab</span><span class="p">,</span>
+                                              <span class="s2">&quot;  &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="s2">&quot;</span><span class="si">{0: .8f}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">loc</span><span class="p">]),</span>
+                                              <span class="s2">&quot;    &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="s2">&quot;</span><span class="si">{0: .8f}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">force</span><span class="p">[</span><span class="n">iAt</span><span class="p">]])))</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;             </span><span class="si">{0}</span><span class="s2">    </span><span class="si">{1}</span><span class="s2">       &quot;</span>
+                        <span class="s2">&quot;</span><span class="si">{2}</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">iAt</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span> <span class="n">out_lab</span><span class="p">,</span>
+                                       <span class="s2">&quot;  &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="s2">&quot;</span><span class="si">{0: .8f}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">loc</span><span class="p">])))</span>
+            <span class="n">iAt</span> <span class="o">+=</span> <span class="mi">1</span>
+
+        <span class="k">if</span> <span class="s2">&quot;</span><span class="si">{0}</span><span class="s2">energy&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">calc_name</span><span class="p">)</span> <span class="ow">in</span> <span class="n">atm</span><span class="o">.</span><span class="n">params</span><span class="p">:</span>
+            <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;  Energy</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;        </span><span class="si">{0}</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">atm</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="s2">&quot;</span><span class="si">{0}</span><span class="s2">energy&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">calc_name</span><span class="p">)]))</span>
+
+        <span class="k">if</span> <span class="s2">&quot;</span><span class="si">{0}</span><span class="s2">virial&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">calc_name</span><span class="p">)</span> <span class="ow">in</span> <span class="n">atm</span><span class="o">.</span><span class="n">params</span><span class="p">:</span>
+            <span class="n">virial_name</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{0}</span><span class="s2">virial&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">calc_name</span><span class="p">)</span>
+            <span class="n">virial</span> <span class="o">=</span> <span class="p">[</span><span class="n">atm</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="n">virial_name</span><span class="p">][</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">],</span> <span class="n">atm</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="n">virial_name</span><span class="p">][</span><span class="mi">1</span><span class="p">][</span><span class="mi">1</span><span class="p">],</span>
+                      <span class="n">atm</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="n">virial_name</span><span class="p">][</span><span class="mi">2</span><span class="p">][</span><span class="mi">2</span><span class="p">],</span> <span class="n">atm</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="n">virial_name</span><span class="p">][</span><span class="mi">2</span><span class="p">][</span><span class="mi">1</span><span class="p">],</span>
+                      <span class="n">atm</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="n">virial_name</span><span class="p">][</span><span class="mi">2</span><span class="p">][</span><span class="mi">0</span><span class="p">],</span> <span class="n">atm</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="n">virial_name</span><span class="p">][</span><span class="mi">0</span><span class="p">][</span><span class="mi">1</span><span class="p">]]</span>
+            <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot; Stress:   xx          yy          zz          yz          xz          xy</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;            </span><span class="si">{0}</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="s2">&quot;    &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="s2">&quot;</span><span class="si">{0: .8f}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">virial</span><span class="p">])))</span>
+
+        <span class="k">if</span> <span class="n">config_id</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">conf_id</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{0}</span><span class="s2">_</span><span class="si">{1}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">chem_syms</span><span class="p">)),</span><span class="nb">len</span><span class="p">(</span><span class="n">pos</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">conf_id</span> <span class="o">=</span> <span class="n">config_id</span>
+        <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot; Feature   conf_id  </span><span class="si">{}</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">conf_id</span><span class="p">))</span>
+        <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;END_CFG</span><span class="se">\n\n</span><span class="s2">&quot;</span><span class="p">)</span></div>
+
+<span class="k">def</span> <span class="nf">_cfgd_to_atoms</span><span class="p">(</span><span class="n">cfgd</span><span class="p">,</span> <span class="n">species</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Converts a CFG dictionary to an atoms object.</span>
+<span class="sd">    Args:</span>
+<span class="sd">        cfgd (dict): dict of a single config extracted by :func:`cfg_to_xyz`.</span>
+<span class="sd">        species (list): list of element names corresponding to the integer species in</span>
+<span class="sd">          the CFG dictionary.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="kn">from</span> <span class="nn">matdb.atoms</span> <span class="k">import</span> <span class="n">Atoms</span>
+
+    <span class="n">lattice</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">cfgd</span><span class="p">[</span><span class="s2">&quot;Supercell&quot;</span><span class="p">][</span><span class="s2">&quot;vals&quot;</span><span class="p">])</span>
+    <span class="n">natoms</span> <span class="o">=</span> <span class="n">cfgd</span><span class="p">[</span><span class="s2">&quot;Size&quot;</span><span class="p">][</span><span class="s2">&quot;vals&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">stressdict</span> <span class="o">=</span> <span class="n">cfgd</span><span class="p">[</span><span class="s2">&quot;PlusStress&quot;</span><span class="p">]</span>
+    <span class="n">stress</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="n">v</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">stressdict</span><span class="p">[</span><span class="s2">&quot;cols&quot;</span><span class="p">],</span> <span class="n">stressdict</span><span class="p">[</span><span class="s2">&quot;vals&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">])}</span>
+    <span class="n">energy</span> <span class="o">=</span> <span class="n">cfgd</span><span class="p">[</span><span class="s2">&quot;Energy&quot;</span><span class="p">][</span><span class="s2">&quot;vals&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+
+    <span class="n">alabels</span> <span class="o">=</span> <span class="n">cfgd</span><span class="p">[</span><span class="s2">&quot;AtomData&quot;</span><span class="p">][</span><span class="s2">&quot;cols&quot;</span><span class="p">]</span>
+    <span class="n">positions</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">forces</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">types</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="k">for</span> <span class="n">entry</span> <span class="ow">in</span> <span class="n">cfgd</span><span class="p">[</span><span class="s2">&quot;AtomData&quot;</span><span class="p">][</span><span class="s2">&quot;vals&quot;</span><span class="p">]:</span>
+        <span class="n">vals</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="n">v</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">alabels</span><span class="p">,</span> <span class="n">entry</span><span class="p">)}</span>
+        <span class="n">pos</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">force</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">types</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">species</span><span class="p">[</span><span class="n">vals</span><span class="p">[</span><span class="s2">&quot;type&quot;</span><span class="p">]])</span>
+        <span class="k">for</span> <span class="n">poslabel</span> <span class="ow">in</span> <span class="n">_cfg_pos</span><span class="p">:</span>
+            <span class="n">pos</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">vals</span><span class="p">[</span><span class="n">poslabel</span><span class="p">])</span>
+        <span class="n">positions</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">pos</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">flabel</span> <span class="ow">in</span> <span class="n">_cfg_force</span><span class="p">:</span>
+            <span class="n">force</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">vals</span><span class="p">[</span><span class="n">flabel</span><span class="p">])</span>
+        <span class="n">forces</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">force</span><span class="p">)</span>
+
+    <span class="n">aseatoms</span> <span class="o">=</span> <span class="n">ase</span><span class="o">.</span><span class="n">Atoms</span><span class="p">(</span><span class="n">symbols</span><span class="o">=</span><span class="n">types</span><span class="p">,</span> <span class="n">positions</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">positions</span><span class="p">),</span>
+                         <span class="n">cell</span><span class="o">=</span><span class="n">lattice</span><span class="p">)</span>
+    <span class="n">aseatoms</span><span class="o">.</span><span class="n">calc</span> <span class="o">=</span> <span class="n">SinglePointCalculator</span><span class="p">(</span>
+                                    <span class="n">aseatoms</span><span class="p">,</span> <span class="n">energy</span><span class="o">=</span><span class="n">energy</span><span class="p">,</span>
+                                    <span class="n">forces</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">forces</span><span class="p">),</span>
+                                    <span class="n">stress</span><span class="o">=</span><span class="n">order_stress</span><span class="p">(</span><span class="o">**</span><span class="n">stress</span><span class="p">))</span>
+    <span class="n">aseatoms</span><span class="o">.</span><span class="n">get_total_energy</span><span class="p">()</span>
+    <span class="n">aseatoms</span><span class="o">.</span><span class="n">get_forces</span><span class="p">()</span>
+    <span class="n">aseatoms</span><span class="o">.</span><span class="n">get_stress</span><span class="p">()</span>
+
+    <span class="n">result</span> <span class="o">=</span> <span class="n">Atoms</span><span class="p">()</span>
+    <span class="n">result</span><span class="o">.</span><span class="n">copy_from</span><span class="p">(</span><span class="n">aseatoms</span><span class="p">)</span>
+    <span class="n">result</span><span class="o">.</span><span class="n">pbc</span> <span class="o">=</span> <span class="kc">True</span>
+
+    <span class="n">prefix</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+    <span class="k">if</span> <span class="s2">&quot;EFS_by&quot;</span> <span class="ow">in</span> <span class="n">cfgd</span><span class="p">[</span><span class="s2">&quot;features&quot;</span><span class="p">]:</span>
+        <span class="n">prefix</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{}</span><span class="s2">_&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">cfgd</span><span class="p">[</span><span class="s2">&quot;features&quot;</span><span class="p">][</span><span class="s2">&quot;EFS_by&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">lower</span><span class="p">())</span>
+
+    <span class="n">force_name</span><span class="p">,</span> <span class="n">energy_name</span><span class="p">,</span> <span class="n">virial_name</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;</span><span class="si">{}{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">prefix</span><span class="p">,</span> <span class="n">l</span><span class="p">)</span> <span class="k">for</span> <span class="n">l</span> <span class="ow">in</span>
+                                            <span class="p">[</span><span class="s2">&quot;force&quot;</span><span class="p">,</span> <span class="s2">&quot;energy&quot;</span><span class="p">,</span> <span class="s2">&quot;virial&quot;</span><span class="p">]]</span>
+    <span class="n">result</span><span class="o">.</span><span class="n">properties</span><span class="p">[</span><span class="n">force_name</span><span class="p">]</span> <span class="o">=</span> <span class="n">aseatoms</span><span class="o">.</span><span class="n">calc</span><span class="o">.</span><span class="n">results</span><span class="p">[</span><span class="s2">&quot;forces&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">T</span>
+    <span class="n">result</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="n">energy_name</span><span class="p">]</span> <span class="o">=</span> <span class="n">energy</span>
+    <span class="n">result</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="n">virial_name</span><span class="p">]</span> <span class="o">=</span> <span class="n">symmetrize</span><span class="p">(</span><span class="o">*</span><span class="n">aseatoms</span><span class="o">.</span><span class="n">calc</span><span class="o">.</span><span class="n">results</span><span class="p">[</span><span class="s2">&quot;stress&quot;</span><span class="p">])</span>
+
+    <span class="k">assert</span> <span class="n">result</span><span class="o">.</span><span class="n">n</span> <span class="o">==</span> <span class="n">natoms</span>
+
+    <span class="k">return</span> <span class="n">result</span>
+
+<div class="viewcode-block" id="cfg_to_atomslist"><a class="viewcode-back" href="../../io.html#matdb.io.cfg_to_atomslist">[docs]</a><span class="k">def</span> <span class="nf">cfg_to_atomslist</span><span class="p">(</span><span class="n">cfgfile</span><span class="p">,</span> <span class="n">config_type</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">species</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Converts the CFG format file to an internal AtomsList object.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        cfgfile (str): path to the file to convert.</span>
+<span class="sd">        config_type (str): name of the config_type to assign to each</span>
+<span class="sd">          configuration.</span>
+<span class="sd">        species (list): list of element names corresponding to the integer</span>
+<span class="sd">          species in the CFG dictionary.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        matdb.atoms.AtomsList : An AtomsList object containing the all the cells in the CFG file.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+
+    <span class="kn">from</span> <span class="nn">matdb.atoms</span> <span class="k">import</span> <span class="n">AtomsList</span>
+
+    <span class="n">configs</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">cfgd</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">cfgfile</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">f</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">line</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;&#39;</span><span class="p">:</span>
+                <span class="k">continue</span>
+
+            <span class="k">if</span> <span class="s2">&quot;BEGIN_CFG&quot;</span> <span class="ow">in</span> <span class="n">line</span><span class="p">:</span>
+                <span class="n">cfgd</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;features&quot;</span><span class="p">:</span> <span class="p">{}}</span>
+            <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">cfgd</span><span class="p">,</span> <span class="nb">dict</span><span class="p">)</span> <span class="ow">and</span> <span class="s2">&quot;END_CFG&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">line</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">_rxcfg</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">line</span><span class="o">.</span><span class="n">strip</span><span class="p">()):</span>
+                    <span class="k">if</span> <span class="s1">&#39;:&#39;</span> <span class="ow">in</span> <span class="n">line</span><span class="p">:</span>
+                        <span class="n">raw</span> <span class="o">=</span> <span class="n">line</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
+                        <span class="n">label</span> <span class="o">=</span> <span class="n">raw</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">rstrip</span><span class="p">(</span><span class="s1">&#39;:&#39;</span><span class="p">)</span>
+                        <span class="n">cols</span> <span class="o">=</span> <span class="n">raw</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span>
+                        <span class="n">cfgd</span><span class="p">[</span><span class="n">label</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+                            <span class="s2">&quot;cols&quot;</span><span class="p">:</span> <span class="n">cols</span><span class="p">,</span>
+                            <span class="s2">&quot;vals&quot;</span><span class="p">:</span> <span class="p">[]</span>
+                        <span class="p">}</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">label</span> <span class="o">=</span> <span class="n">line</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+                        <span class="n">cfgd</span><span class="p">[</span><span class="n">label</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+                            <span class="s2">&quot;vals&quot;</span><span class="p">:</span> <span class="p">[]</span>
+                        <span class="p">}</span>
+
+                    <span class="k">if</span> <span class="s2">&quot;Feature&quot;</span> <span class="ow">in</span> <span class="n">label</span><span class="p">:</span>
+                        <span class="n">fvals</span> <span class="o">=</span> <span class="n">label</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
+                        <span class="n">feature</span> <span class="o">=</span> <span class="n">fvals</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+                        <span class="n">values</span> <span class="o">=</span> <span class="n">fvals</span><span class="p">[</span><span class="mi">2</span><span class="p">:]</span>
+                        <span class="n">cfgd</span><span class="p">[</span><span class="s2">&quot;features&quot;</span><span class="p">][</span><span class="n">feature</span><span class="p">]</span> <span class="o">=</span> <span class="n">values</span>
+                        <span class="k">del</span> <span class="n">cfgd</span><span class="p">[</span><span class="n">label</span><span class="p">]</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">parsed</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="nb">eval</span><span class="p">,</span> <span class="n">line</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">()))</span>
+                    <span class="n">cfgd</span><span class="p">[</span><span class="n">label</span><span class="p">][</span><span class="s2">&quot;vals&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">parsed</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="s2">&quot;END_CFG&quot;</span> <span class="ow">in</span> <span class="n">line</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">cfgd</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">configs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">cfgd</span><span class="p">)</span>
+                <span class="n">cfgd</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="n">result</span> <span class="o">=</span> <span class="n">AtomsList</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">cfg</span> <span class="ow">in</span> <span class="n">configs</span><span class="p">:</span>
+        <span class="n">atoms</span> <span class="o">=</span> <span class="n">_cfgd_to_atoms</span><span class="p">(</span><span class="n">cfg</span><span class="p">,</span> <span class="n">species</span><span class="p">)</span>
+        <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">atoms</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">result</span></div>
+    
+<div class="viewcode-block" id="cfg_to_xyz"><a class="viewcode-back" href="../../io.html#matdb.io.cfg_to_xyz">[docs]</a><span class="k">def</span> <span class="nf">cfg_to_xyz</span><span class="p">(</span><span class="n">cfgfile</span><span class="p">,</span> <span class="n">outfile</span><span class="o">=</span><span class="s2">&quot;output.xyz&quot;</span><span class="p">,</span> <span class="n">config_type</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">species</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Converts MTP&#39;s CFG forrmat to XYZ.</span>
+
+<span class="sd">    .. note:: Multiple frames in the CFG file will be converted to multiple</span>
+<span class="sd">      frames in the XYZ file.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        cfgfile (str): path to the file to convert.</span>
+<span class="sd">        config_type (str): name of the config_type to assign to each</span>
+<span class="sd">          configuration.</span>
+<span class="sd">        species (list): list of element names corresponding to the integer species in</span>
+<span class="sd">          the CFG dictionary.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="kn">from</span> <span class="nn">matdb.atoms</span> <span class="k">import</span> <span class="n">AtomsList</span>
+
+    <span class="n">result</span> <span class="o">=</span> <span class="n">cfg_to_atomslist</span><span class="p">(</span><span class="n">cfgfile</span><span class="p">,</span> <span class="n">config_type</span><span class="o">=</span><span class="n">config_type</span><span class="p">,</span> <span class="n">species</span><span class="o">=</span><span class="n">species</span><span class="p">)</span>
+    
+    <span class="n">dirname</span> <span class="o">=</span> <span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">cfgfile</span><span class="p">)</span>
+    <span class="n">result</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">dirname</span><span class="p">,</span> <span class="n">outfile</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">result</span></div>
+
+<div class="viewcode-block" id="vasp_to_xyz"><a class="viewcode-back" href="../../io.html#matdb.io.vasp_to_xyz">[docs]</a><span class="k">def</span> <span class="nf">vasp_to_xyz</span><span class="p">(</span><span class="n">folder</span><span class="p">,</span> <span class="n">outfile</span><span class="o">=</span><span class="s2">&quot;output.xyz&quot;</span><span class="p">,</span> <span class="n">recalc</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+                <span class="n">properties</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;species&quot;</span><span class="p">,</span> <span class="s2">&quot;pos&quot;</span><span class="p">,</span> <span class="s2">&quot;z&quot;</span><span class="p">,</span> <span class="s2">&quot;dft_force&quot;</span><span class="p">],</span>
+                <span class="n">parameters</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;dft_energy&quot;</span><span class="p">,</span> <span class="s2">&quot;dft_virial&quot;</span><span class="p">],</span>
+                <span class="n">config_type</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Creates an extended XYZ file for the calculated structure in</span>
+<span class="sd">    OUTCAR for the given folder.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        folder (str): path to the folder to convert.</span>
+
+<span class="sd">        outfile (str): name of the XYZ file to create. The file will</span>
+<span class="sd">          be created in the same folder as the original if no absolute</span>
+<span class="sd">          path is given.</span>
+
+<span class="sd">        recalc (bool): when True, re-convert the OUTCAR file, even if</span>
+<span class="sd">          the target XYZ file already exists.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="kn">from</span> <span class="nn">matdb.atoms</span> <span class="k">import</span> <span class="n">Atoms</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">path</span><span class="o">.</span><span class="n">isabs</span><span class="p">(</span><span class="n">outfile</span><span class="p">):</span>
+        <span class="c1">#Convert to absolute path if one wasn&#39;t given.</span>
+        <span class="n">outfile</span> <span class="o">=</span> <span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">folder</span><span class="p">,</span> <span class="n">outfile</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="p">(</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="n">outfile</span><span class="p">)</span>
+        <span class="ow">and</span> <span class="n">stat</span><span class="p">(</span><span class="n">outfile</span><span class="p">)</span><span class="o">.</span><span class="n">st_size</span> <span class="o">&gt;</span> <span class="mi">100</span>
+        <span class="ow">and</span> <span class="n">recalc</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">):</span>
+        <span class="k">return</span> <span class="kc">True</span>
+
+    <span class="n">p</span> <span class="o">=</span> <span class="s1">&#39;,&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">properties</span><span class="p">)</span>
+    <span class="n">P</span> <span class="o">=</span> <span class="s1">&#39;,&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">parameters</span><span class="p">)</span>
+    <span class="n">renames</span> <span class="o">=</span> <span class="p">[(</span><span class="s2">&quot;energy&quot;</span><span class="p">,</span> <span class="s2">&quot;vasp_energy&quot;</span><span class="p">),</span> <span class="p">(</span><span class="s2">&quot;force&quot;</span><span class="p">,</span> <span class="s2">&quot;vasp_force&quot;</span><span class="p">),</span>
+               <span class="p">(</span><span class="s2">&quot;virial&quot;</span><span class="p">,</span> <span class="s2">&quot;vasp_virial&quot;</span><span class="p">)]</span>
+    <span class="n">sargs</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;convert.py&quot;</span><span class="p">,</span> <span class="s2">&quot;-I&quot;</span><span class="p">,</span> <span class="s2">&quot;vasprun.xml&quot;</span><span class="p">,</span> <span class="s2">&quot;-p&quot;</span><span class="p">,</span> <span class="n">p</span><span class="p">,</span> <span class="s2">&quot;-P&quot;</span><span class="p">,</span> <span class="n">P</span><span class="p">,</span> <span class="s2">&quot;-f&quot;</span><span class="p">,</span> <span class="s2">&quot;xyz&quot;</span><span class="p">]</span>
+    <span class="k">for</span> <span class="n">s</span><span class="p">,</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">renames</span><span class="p">:</span>
+        <span class="n">sargs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;-n&quot;</span><span class="p">)</span>
+        <span class="n">sargs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
+        <span class="n">sargs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">d</span><span class="p">)</span>
+
+    <span class="n">sargs</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="s2">&quot;-o&quot;</span><span class="p">,</span> <span class="n">outfile</span><span class="p">,</span> <span class="s2">&quot;vasprun.xml&quot;</span><span class="p">])</span>
+
+    <span class="kn">from</span> <span class="nn">matdb.utility</span> <span class="k">import</span> <span class="n">execute</span>
+    <span class="n">execute</span><span class="p">(</span><span class="n">sargs</span><span class="p">,</span> <span class="n">folder</span><span class="p">,</span> <span class="n">errignore</span><span class="o">=</span><span class="s2">&quot;OMP_STACKSIZE&quot;</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">config_type</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="c1">#We need to load the XYZ file, add the config_type parameter and then</span>
+        <span class="c1">#save it again. The -e parameter of convert.py should save this, but in</span>
+        <span class="c1">#our experiments, it doesn&#39;t :(.</span>
+        <span class="n">a</span> <span class="o">=</span> <span class="n">Atoms</span><span class="p">(</span><span class="n">outfile</span><span class="p">)</span>
+        <span class="n">a</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="s2">&quot;config_type&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">config_type</span>
+        <span class="n">a</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">outfile</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="n">outfile</span><span class="p">)</span> <span class="ow">and</span> <span class="n">stat</span><span class="p">(</span><span class="n">outfile</span><span class="p">)</span><span class="o">.</span><span class="n">st_size</span> <span class="o">&gt;</span> <span class="mi">100</span></div>
+
+<span class="kn">import</span> <span class="nn">yaml</span>
+<span class="kn">from</span> <span class="nn">os</span> <span class="k">import</span> <span class="n">path</span>
+<span class="kn">from</span> <span class="nn">matdb.utility</span> <span class="k">import</span> <span class="n">chdir</span>
+<div class="viewcode-block" id="is_link"><a class="viewcode-back" href="../../io.html#matdb.io.is_link">[docs]</a><span class="k">def</span> <span class="nf">is_link</span><span class="p">(</span><span class="n">obj</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Determines whether the specified object is a link according to the `matdb`</span>
+<span class="sd">    templating specification.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">obj</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">result</span> <span class="o">=</span> <span class="n">obj</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;:&quot;</span>
+    <span class="k">return</span> <span class="n">result</span></div>
+
+<span class="k">def</span> <span class="nf">_unpack_obj</span><span class="p">(</span><span class="n">context</span><span class="p">,</span> <span class="n">obj</span><span class="p">,</span> <span class="n">lcontext</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Unpacks each item of the specified object recursively so that all</span>
+<span class="sd">    dictionary values are visited and all list items are also visited.</span>
+<span class="sd">    .. warning:: `obj` will be mutated if any value it considers turns out to be</span>
+<span class="sd">      a link (according to :func:`is_link`). In that case, the file descriptor</span>
+<span class="sd">      will be placed by the actual contents of the YAML file that the link</span>
+<span class="sd">      points to.</span>
+<span class="sd">    Args:</span>
+<span class="sd">        context (str): path to the root folder where the yaml file is</span>
+<span class="sd">          located. Needed for relative paths of file links.</span>
+<span class="sd">        lcontext (dict): local context for the items in `obj`. Keys are the</span>
+<span class="sd">          names of keys in `obj`; values are relative folder paths that should</span>
+<span class="sd">          be used as the context for reads within that item.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="n">obj</span>
+        <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">o</span> <span class="ow">in</span> <span class="n">obj</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">ncontext</span> <span class="o">=</span> <span class="n">context</span>
+            <span class="c1">#If the template specifies a relative context for this item,</span>
+            <span class="c1">#then switch out the context for all of its children.</span>
+            <span class="k">if</span> <span class="n">lcontext</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">lcontext</span><span class="p">:</span>
+                <span class="k">with</span> <span class="n">chdir</span><span class="p">(</span><span class="n">context</span><span class="p">):</span>
+                    <span class="n">ncontext</span> <span class="o">=</span> <span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="n">lcontext</span><span class="p">[</span><span class="n">k</span><span class="p">])</span>
+
+            <span class="k">if</span> <span class="n">is_link</span><span class="p">(</span><span class="n">o</span><span class="p">):</span>
+                <span class="n">result</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">read</span><span class="p">(</span><span class="n">ncontext</span><span class="p">,</span> <span class="n">o</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">result</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">_unpack_obj</span><span class="p">(</span><span class="n">ncontext</span><span class="p">,</span> <span class="n">o</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="p">(</span><span class="nb">list</span><span class="p">,</span> <span class="nb">set</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">)):</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">o</span> <span class="ow">in</span> <span class="n">obj</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">is_link</span><span class="p">(</span><span class="n">o</span><span class="p">):</span>
+                <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">read</span><span class="p">(</span><span class="n">context</span><span class="p">,</span> <span class="n">o</span><span class="p">))</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">_unpack_obj</span><span class="p">(</span><span class="n">context</span><span class="p">,</span> <span class="n">o</span><span class="p">))</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="n">obj</span>
+
+    <span class="k">return</span> <span class="n">result</span>
+
+<div class="viewcode-block" id="read"><a class="viewcode-back" href="../../io.html#matdb.io.read">[docs]</a><span class="k">def</span> <span class="nf">read</span><span class="p">(</span><span class="n">context</span><span class="p">,</span> <span class="n">yfile</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Reads in the specified YAML file, following any additional file</span>
+<span class="sd">    directives to compile a full representation of the template hierarchy for</span>
+<span class="sd">    the root file.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        context (str): path to the root folder where the yaml file is located. Needed for relative paths of file links.</span>
+
+<span class="sd">        yfile (str): name of the template YAML file *relative* to `context`. Should *not* include the `.yaml` or `.yml` extension.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">with</span> <span class="n">chdir</span><span class="p">(</span><span class="n">context</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">yfile</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;:&quot;</span><span class="p">:</span>
+            <span class="n">root</span> <span class="o">=</span> <span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="n">yfile</span><span class="p">[</span><span class="mi">1</span><span class="p">:])</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">root</span> <span class="o">=</span> <span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="n">yfile</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="n">root</span> <span class="o">+</span> <span class="s2">&quot;.yml&quot;</span><span class="p">):</span>
+        <span class="n">target</span> <span class="o">=</span> <span class="n">root</span> <span class="o">+</span> <span class="s2">&quot;.yml&quot;</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">emsg</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;The specified template file &#39;</span><span class="si">{}</span><span class="s2">&#39; was not found relative &quot;</span>
+                <span class="s2">&quot;to the given context directory (&#39;</span><span class="si">{}</span><span class="s2">&#39;). Note that all files&quot;</span>
+                <span class="s2">&quot; should use the `.yml` extension, *not* `.yaml`.&quot;</span><span class="p">)</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">emsg</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">yfile</span><span class="p">,</span> <span class="n">context</span><span class="p">))</span>
+
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">target</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">stream</span><span class="p">:</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="n">yaml</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">stream</span><span class="p">)</span>
+
+    <span class="c1">#Determine the new context for recursive file links within the values of</span>
+    <span class="c1">#this file.</span>
+    <span class="n">ncontext</span> <span class="o">=</span> <span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">target</span><span class="p">)</span>
+
+    <span class="c1">#The specification allows for a &quot;local&quot; context that describes folder</span>
+    <span class="c1">#locations for specific items within the template.</span>
+    <span class="n">lcontext</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">result</span><span class="p">,</span> <span class="nb">dict</span><span class="p">)</span> <span class="ow">and</span> <span class="s2">&quot;context&quot;</span> <span class="ow">in</span> <span class="n">result</span><span class="p">:</span>
+        <span class="n">lcontext</span> <span class="o">=</span> <span class="n">result</span><span class="p">[</span><span class="s2">&quot;context&quot;</span><span class="p">]</span>
+        <span class="k">del</span> <span class="n">result</span><span class="p">[</span><span class="s2">&quot;context&quot;</span><span class="p">]</span>
+
+    <span class="c1">#The unpacking command will mutate the values in result so that file links</span>
+    <span class="c1">#are expanded to be full-fledged python objects from their YAML files.</span>
+    <span class="n">_unpack_obj</span><span class="p">(</span><span class="n">ncontext</span><span class="p">,</span> <span class="n">result</span><span class="p">,</span> <span class="n">lcontext</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">result</span></div>
+
+<div class="viewcode-block" id="save_dict_to_h5"><a class="viewcode-back" href="../../io.html#matdb.io.save_dict_to_h5">[docs]</a><span class="k">def</span> <span class="nf">save_dict_to_h5</span><span class="p">(</span><span class="n">h5file</span><span class="p">,</span> <span class="n">dic</span><span class="p">,</span> <span class="n">path</span><span class="o">=</span><span class="s1">&#39;/&#39;</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Saves a nested dictionary to an open hdf5 file.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        h5file (file object): the h5 file to be saved to.</span>
+
+<span class="sd">        dic (dict): the dictionary to save.</span>
+
+<span class="sd">        path (str, optional): the path within the h5 file that the dict will be saved to. Default is &#39;/&#39;.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">dic</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">item</span><span class="p">,</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="nb">bytes</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">,</span> <span class="nb">float</span><span class="p">,</span> <span class="nb">int</span><span class="p">)):</span>
+            <span class="n">h5file</span><span class="p">[</span><span class="n">path</span> <span class="o">+</span> <span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">item</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">item</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">item</span><span class="o">.</span><span class="n">ndim</span><span class="o">==</span><span class="mi">1</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">item</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span> <span class="c1">#pragma: no cover</span>
+                <span class="c1"># this chunk of code is only ever used by the unit testing suite.</span>
+                <span class="n">dt</span> <span class="o">=</span> <span class="n">h5py</span><span class="o">.</span><span class="n">special_dtype</span><span class="p">(</span><span class="n">vlen</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+                <span class="n">h5file</span><span class="o">.</span><span class="n">create_dataset</span><span class="p">(</span><span class="n">path</span><span class="o">+</span><span class="n">key</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">item</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">dt</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">h5file</span><span class="p">[</span><span class="n">path</span> <span class="o">+</span> <span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">item</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">item</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+            <span class="n">save_dict_to_h5</span><span class="p">(</span><span class="n">h5file</span><span class="p">,</span> <span class="n">item</span><span class="p">,</span> <span class="n">path</span> <span class="o">+</span> <span class="n">key</span> <span class="o">+</span> <span class="s1">&#39;/&#39;</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">item</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">item</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="nb">dict</span><span class="p">):</span>
+                <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">item</span><span class="p">)):</span>
+                    <span class="k">try</span><span class="p">:</span>
+                        <span class="n">save_dict_to_h5</span><span class="p">(</span><span class="n">h5file</span><span class="p">,</span> <span class="n">item</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">path</span> <span class="o">+</span> <span class="n">key</span> <span class="o">+</span> <span class="s1">&#39;/&#39;</span><span class="p">)</span>
+                    <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
+                        <span class="n">h5file</span><span class="p">[</span><span class="n">path</span> <span class="o">+</span> <span class="n">key</span> <span class="o">+</span> <span class="s1">&#39;/&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">i</span><span class="p">)]</span> <span class="o">=</span> <span class="n">item</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+            <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">item</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="nb">str</span><span class="p">):</span>
+                <span class="n">temp</span> <span class="o">=</span> <span class="p">[</span><span class="n">i</span><span class="o">.</span><span class="n">encode</span><span class="p">()</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">item</span><span class="p">]</span>
+                <span class="n">h5file</span><span class="p">[</span><span class="n">path</span> <span class="o">+</span> <span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">temp</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">h5file</span><span class="p">[</span><span class="n">path</span> <span class="o">+</span> <span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">item</span>                
+        <span class="k">elif</span> <span class="n">item</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">continue</span>
+
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Cannot save </span><span class="si">%s</span><span class="s1"> type&#39;</span><span class="o">%</span><span class="nb">type</span><span class="p">(</span><span class="n">item</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="load_dict_from_h5"><a class="viewcode-back" href="../../io.html#matdb.io.load_dict_from_h5">[docs]</a><span class="k">def</span> <span class="nf">load_dict_from_h5</span><span class="p">(</span><span class="n">h5file</span><span class="p">,</span> <span class="n">path</span><span class="o">=</span><span class="s1">&#39;/&#39;</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Reads an open hdf5 file into a dictionary.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        h5file (file): the h5 file to be read.</span>
+<span class="sd">        path (str, optional): the path within the h5 file presently being</span>
+<span class="sd">            read. Default is &#39;/&#39;.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        dict: a dictionary containing the contents of the h5 file.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">ans</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">h5file</span><span class="p">[</span><span class="n">path</span><span class="p">]</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">item</span><span class="p">,</span> <span class="n">h5py</span><span class="o">.</span><span class="n">_hl</span><span class="o">.</span><span class="n">dataset</span><span class="o">.</span><span class="n">Dataset</span><span class="p">):</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">item</span><span class="o">.</span><span class="n">value</span><span class="p">,</span> <span class="nb">bytes</span><span class="p">):</span>
+                <span class="n">ans</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">item</span><span class="o">.</span><span class="n">value</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s2">&quot;ascii&quot;</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">item</span><span class="o">.</span><span class="n">value</span><span class="p">,</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="nb">list</span><span class="p">)):</span>
+                <span class="n">ans</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">_hdf5_lists</span><span class="p">(</span><span class="n">item</span><span class="o">.</span><span class="n">value</span><span class="p">))</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">ans</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">item</span><span class="o">.</span><span class="n">value</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">item</span><span class="p">,</span> <span class="n">h5py</span><span class="o">.</span><span class="n">_hl</span><span class="o">.</span><span class="n">group</span><span class="o">.</span><span class="n">Group</span><span class="p">):</span>
+            <span class="n">ans</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">load_dict_from_h5</span><span class="p">(</span><span class="n">h5file</span><span class="p">,</span> <span class="n">path</span> <span class="o">+</span> <span class="n">key</span> <span class="o">+</span> <span class="s1">&#39;/&#39;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">ans</span></div>
+
+<span class="k">def</span> <span class="nf">_hdf5_lists</span><span class="p">(</span><span class="n">in_list</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Converts strings contained in the lists from binary to ascii.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">out_list</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">in_list</span><span class="p">:</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">item</span><span class="p">,</span> <span class="nb">bytes</span><span class="p">):</span>
+            <span class="n">out_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">item</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s2">&quot;ascii&quot;</span><span class="p">))</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">item</span><span class="p">,</span> <span class="p">(</span><span class="nb">list</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)):</span>
+            <span class="n">out_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">_hdf5_lists</span><span class="p">(</span><span class="n">item</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">out_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">item</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">out_list</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">matdb 0.0.5 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2017, Conrad W. Rosenbrock.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.8.5.
+    </div>
+  </body>
+</html>
