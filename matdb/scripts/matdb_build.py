@@ -96,7 +96,8 @@ def run(args):
     """
     if args is None:
         return
-
+    #No matter what other options the user has chosen, we will have to create a
+    #database controller for the specification they have given us.
     from matdb.database import Controller
     """The Controller class is to help the rest of the software parse and store configuration settings from the YAML file. 
     """
