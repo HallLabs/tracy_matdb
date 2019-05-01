@@ -1,4 +1,4 @@
-"""Often it is desirable to transform an atoms object into another atoms
+"""Often it is desirable to transform an atom's object into another atom's
 object. This is a one-to-one mapping. If you are looking to apply a
 transformation that creates new configurations, you should use a regular
 `matdb.database.Group` subclass.

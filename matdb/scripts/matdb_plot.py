@@ -108,7 +108,7 @@ def _parser_options():
     from matdb import base
     pdescr = "MATDB Database Plotting"
     parser = argparse.ArgumentParser(parents=[base.bparser], description=pdescr)
-    for arg, options in script_options.items():
+    for arg, options in _script_options.items():
         parser.add_argument(arg, **options)
         
     args = base.exhandler(examples, parser)

@@ -91,7 +91,7 @@ def execute(args, folder, wait=True, nlines=100, venv=None,
     documentation for :class:`subprocess.Popen` for details.
 
     Args:
-        args (list): list of `str`; first item should be command to
+        args (list): list of `str`; first item should be the command to
           execute; additional arguments following.
         folder (str): directory to switch to before executing the
           command.
@@ -749,7 +749,7 @@ def get_suffix(d, k, index, values):
 
 def get_grid(d, suffices=None):
     """Recursively generates a grid of parameters from a dictionary of parameters
-    that has duplicates or wildcars in it.
+    that has duplicates or wildcards in it.
 
     Args:
        d (dict): the dictionary to be turned into a grid.
@@ -848,7 +848,7 @@ class ParameterGrid(collections.MutableSet):
 
         Args:
             key (tuple): Anything that could be added to the set.
-            value (tuple): The actual values that the suffix's correspond to.
+            value (tuple): The actual values that the suffixes correspond to.
         """
         if key not in self.map:
             end = self.end

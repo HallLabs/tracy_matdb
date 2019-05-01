@@ -49,7 +49,7 @@ def _parser_options():
     #We have two options: get some of the details from the config file,
     pdescr = "MATDB Tracy Queue submission"
     parser = argparse.ArgumentParser(parents=[base.bparser], description=pdescr)
-    for arg, options in script_options.items():
+    for arg, options in _script_options.items():
         parser.add_argument(arg, **options)
         
     args = base.exhandler(examples, parser)
