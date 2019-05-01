@@ -366,7 +366,10 @@ class Group(object):
                 for apath in self.database.parent.relpaths([pattern]):
                     self.seeds[path.basename(apath)] = Atoms(apath, format=fmt)
 
-        elif seeds is None and self.seeded:
+        # At this point, not sure how to setup a multi-steps database with more than 2 steps
+        # has the same name(this is required because of the prev property). 
+        # So, keep this uncovered for the unit test.
+        elif seeds is None and self.seeded and self.prev is not None: #pragma: no cover
             self.seeds = OrderedDict()
             for n_seeds, a in enumerate(self.prev.rset):
                 seedname = "seed-{}".format(n_seeds)
@@ -386,7 +389,7 @@ class Group(object):
             return self.parent
         elif isinstance(self.parent, Group):
             return self.parent.database
-        else:
+        else: #pragma: no cover
             return None
 
     @property
@@ -506,7 +509,7 @@ class Group(object):
     def prev(self):
         """Finds the previous group in the database.
         """
-        keylist = self.database.steps.keys()
+        keylist = list(self.database.steps.keys())
         for i, v in enumerate(keylist):
             if v == self.name and i!=0:
                 return self.database.steps[keylist[i-1]]
@@ -515,7 +518,7 @@ class Group(object):
     def dep(self):
         """Finds the next, or dependent, group in the databes.
         """
-        keylist = self.database.steps.keys()
+        keylist = list(self.database.steps.keys())
         for i, v in enumerate(keylist):
             if v == self.name and i!=(len(keylist)-1):
                 return self.database.steps[keylist[i+1]]
@@ -1470,7 +1473,7 @@ class Database(object):
 
         return final_dict
 
-
+# from Wiley's comments, no need to cover this class as of M1(2019-06)
 class RecycleBin(Database): #pragma: no cover
     """A database of past calculations to be stored for later use.
     Args:

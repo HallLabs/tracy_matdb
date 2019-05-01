@@ -58,6 +58,18 @@ def Pd_not_extractable(tmpdir):
 
     return cntrl
 
+@pytest.fixture()
+def Pd_no_seeds(tmpdir):
+    target = relpath("./tests/Pd/matdb_no_seeds.yml")
+    dbdir = str(tmpdir.join("manual_no_seeds_db"))
+    mkdir(dbdir)
+    copyonce(target, path.join(dbdir, "matdb.yml"))
+
+    target = path.join(dbdir,"matdb")
+    cntrl = Controller(target, dbdir)
+
+    return cntrl
+
 def test_not_extractable(Pd_not_extractable):
     """ test not extractable 
     """
@@ -202,6 +214,19 @@ def test_corner_cases_in_Group(Pd):
 
     for atom in mdb.iconfigs:
         assert atom is not None
+        
+    assert mdb.key == 'phonon.manual'
+    assert 'rset.h5' in mdb.rset_file 
 
-    assert mdb.key
+    assert mdb.execute(dryrun=True)
 
+def test_corner_cases_in_Group_no_seeds(Pd_no_seeds):
+    """Tetsts some corner cases in class Group.
+    """
+    Pd_no_seeds.setup()
+    mdb = Pd_no_seeds.collections['phonon'].steps['manual']
+    dbfolder = mdb.root
+
+    assert not mdb.is_setup()
+    assert mdb.seeded
+    assert mdb._seed is None

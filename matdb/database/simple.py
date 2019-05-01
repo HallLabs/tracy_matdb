@@ -134,6 +134,10 @@ class Manual(Group):
             if not self.extractable and self.is_setup():
                 return True
             else:
+                # if there is no seeds, pretend it's ready and don't bother to setup
+                if self._seed is None and self.seeded:
+                    return True 
+
                 #A zero-length sequence can mean we have a set of seeds that
                 #were specified, *or* that we have a single seed that is itself
                 #an atoms object (instead of a list of atoms objects).
