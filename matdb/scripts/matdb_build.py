@@ -29,7 +29,7 @@ def examples():
     outputfmt = ("")
 
     msg.example(script, explain, contents, required, output, outputfmt, details)
-######## what does this do?
+
 _script_options = {
     "dbspec": {"help": "File containing the database specifications."},
     "-s": {"action": "store_true",
@@ -74,7 +74,7 @@ _script_options = {
 
 def _parser_options():
     """Parses the options and arguments from the command line."""
-    #We have two options: get some of the details from the config file,
+    
     import argparse
     import sys
     from matdb import base
@@ -90,15 +90,13 @@ def _parser_options():
         return
 
     return args
-######## what does this do?
+
 def run(args):
     """Runs the matdb setup and cleanup to produce database files.
     """
     if args is None:
         return
 
-    #No matter what other options the user has chosen, we will have to create a
-    #database controller for the specification they have given us.
     from matdb.database import Controller
     """The Controller class is to help the rest of the software parse and store configuration settings from the YAML file. 
     """
