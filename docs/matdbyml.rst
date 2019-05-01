@@ -21,10 +21,10 @@ top-level of the YAML file:
 5. **calculator**: describes the *default* parameters for the `ase (atomic simulation environment)`
    calculator including the k-point selection method and density; this
    can be overridden at the group level.
-6. **execution**: HPC parameters (**??what are they??**) for the jobs that will be created
+6. **execution**: HPC (High Performance Computing) parameters for the jobs that will be created
    when running each of the groups. For details on which methods are
    supported see :doc:`execution`.
-7. **databases**: list of groups to generate for these databases (**!!not clear!!**).
+7. **databases**: list of groups to generate for these databases.
 8. **training**: parameters for the methods that will be used to
     generate the interatomic potential.
 9. **splits**: allows for the databases created to be split multiple
@@ -38,7 +38,7 @@ examples of how to configure the other calculators are provided in
 ----------------
 
 The kinds of elements described in this list must be given in the
-order that they appear in the POSCAR (**!!explain!!**) type files. For example:
+order that they appear in the POSCAR type files. For example:
 
 .. code-block:: yaml
 		
@@ -46,7 +46,7 @@ order that they appear in the POSCAR (**!!explain!!**) type files. For example:
      - 'Pd'
      - 'Ag'
 
-will generate POTCAR (**!!explain!!**) files with the `Pd` pseudopotential first.
+will generate POTCAR files with the `Pd` pseudopotential first.
 
 `calculator` Option
 -------------------
@@ -80,7 +80,7 @@ calculator:
         Ag: '_pv'
 
 - `name` is the name of the `ase` calculator to be used. Currently
-  only Vasp, and Quippy calculators (**Quippy was deleted but VASP contains QUIP package**) are support.
+  only Vasp (VASP also contains QUIP package) is supported.
 - `nsw` an example INCAR parameter for VASP.
 - `pp` lets the `ase` calculator know which potential types are in
   use.
@@ -160,7 +160,7 @@ Domain-Specific Languages
 `matdb` uses two different domain-specific languages inside the
 `database` specifications. One for the specification of seed
 configurations and the other enables the database groups to be looped
-over parameters. (**!!Names of these two languages!!**)
+over parameters. 
 
 Seed Configurations
 ^^^^^^^^^^^^^^^^^^^
