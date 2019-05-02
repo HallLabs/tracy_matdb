@@ -104,6 +104,9 @@ def test_not_extractable(Pd_not_extractable):
     dbfolder = mdb.root
     compare_tree(dbfolder,folders)    
 
+    mdb.tarball()
+    assert path.isfile(path.join(dbfolder, "Pd", "output.tar.gz"))
+
 def test_all(Pd):
     """Tetsts setup/extract/ready of the simple.Manual database.
     """
@@ -218,6 +221,8 @@ def test_corner_cases_in_Group(Pd):
     assert mdb.key == 'phonon.manual'
     assert 'rset.h5' in mdb.rset_file 
 
+    mdb.jobfile()
+    assert path.isfile(path.join(dbfolder, "Pd1", "jobfile.sh"))
     assert mdb.execute(dryrun=True)
 
 def test_corner_cases_in_Group_no_seeds(Pd_no_seeds):
