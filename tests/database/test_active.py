@@ -113,7 +113,7 @@ def test_all_active(Act):
     src = relpath("./tests/data/Pd/basic_fail/S.4/OUTCAR")
     symlink(src,dest)
     assert Act.is_executing()
-    # should not be executable
+    # should not be executable, because it's been executing
     assert not Act.execute()
 
     # test the addition of a second set of new configs
@@ -200,7 +200,7 @@ def test_execute(Act):
     assert not Act.is_executing()
     assert Act.can_extract()
 
-    # execute should return false.
+    # execute should return false, because one of them can be extracted
     assert not Act.execute()
 
     assert Act.nconfigs == 3
@@ -219,7 +219,7 @@ def test_execute2(Act):
     jobfile1 = path.join(Act.root,"jobfile.sh.bk")
     rename(jobfile, jobfile1)
 
-    # execute should return false
+    # execute should return false, because the jobfile could not be found
     assert not Act.execute()
 
     # rename "jobfile.sh" back
@@ -229,6 +229,6 @@ def test_execute2(Act):
     inputfile = path.join(Act.root, "Ac.1", "POSCAR")
     remove(inputfile)
 
-    # execute should return false
+    # execute should return false, because not all atoms can execute
     assert not Act.execute()
 

@@ -58,8 +58,12 @@ def Pd(tmpdir):
     POSCAR = relpath("./tests/Pd/POSCAR")
     mkdir(path.join(dbdir,"seed"))
     copy(POSCAR, path.join(dbdir,"seed","Pd"))
-    if path.isfile("matdb.yml"):
+    # the source file `matdb.yml` linked to might be gone, that left `matdb.yml` not an valid "file"
+    # we need to get rid if it anyway
+    try:
         remove("matdb.yml")
+    except:
+       pass
     symlink("{}.yml".format(target),"matdb.yml")
     
     result = Controller("matdb", dbdir)

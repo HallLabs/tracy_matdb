@@ -89,7 +89,7 @@ def test_not_extractable(Pd_not_extractable):
 
     assert mdb.ready()
     assert mdb.can_extract()
-
+ 
     folders = {
         "__files__": ["phonon_S1_uuid.txt"],
         "Pd": {
@@ -152,23 +152,43 @@ def test_all(Pd):
     assert mdb.is_setup()
     assert not mdb.ready()
 
+    src = relpath("./tests/data/Pd/basic_fail/S.4/OUTCAR")
+    dbfolder = mdb.root
+    for j in range(1,4):
+        dest = path.join(dbfolder,"Pd{}".format(j),"S1.1", "OUTCAR")
+        symlink(src,dest)
+    assert mdb.is_executing()
+    assert mdb.is_setup()
+    # should not be executable, because it's been executing
+    assert not mdb.execute()
+
     # We need to fake some VASP output so that we can cleanup the
     # database and get the rset
     src = relpath("./tests/data/Pd/complete/OUTCAR__DynMatrix_phonon_Pd_dim-2.00")
     dbfolder = mdb.root
     for j in range(1,4):
         dest = path.join(dbfolder,"Pd{}".format(j),"S1.1", "OUTCAR")
+        remove(dest)
         symlink(src,dest)
             
     dbfolder = mdb.root
-    for j in range(1,4):
+    for j in range(2,4):
         src = path.join(dbfolder,"Pd{}".format(j),"S1.1", "POSCAR")
         dest = path.join(dbfolder,"Pd{}".format(j),"S1.1", "CONTCAR")
         symlink(src,dest)
-
     assert not mdb.ready()
 
+    # execute should return false, because not all atoms can execute(Pd1 is lacking of POSCAR file)
+    assert not mdb.execute()
+
+    src = path.join(dbfolder,"Pd1","S1.1", "POSCAR")
+    dest = path.join(dbfolder,"Pd1","S1.1", "CONTCAR")
+    symlink(src,dest)
+    
+    assert not mdb.execute()
+
     mdb.extract()
+    assert not mdb.execute()
     assert len(mdb.sequence) == 3
     assert len(mdb.sequence['Pd1'].config_atoms) == 1
     assert len(mdb.sequence['Pd2'].config_atoms) == 1
@@ -230,8 +250,21 @@ def test_corner_cases_in_Group_no_seeds(Pd_no_seeds):
     """
     Pd_no_seeds.setup()
     mdb = Pd_no_seeds.collections['phonon'].steps['manual']
-    dbfolder = mdb.root
+    edb = Pd_no_seeds.collections['phonon'].steps['enum']
+
+    assert mdb.prev is None
+    assert edb.dep is None
+    assert mdb.dep == edb
+    assert edb.prev == mdb
+
+    assert not mdb.trainable
+    assert edb.trainable
 
     assert not mdb.is_setup()
     assert mdb.seeded
     assert mdb._seed is None
+
+    #mdb.create(mdb.atoms, extractable=mdb.extractable)
+    #assert mdb.ready()
+    #assert not mdb.can_extract()
+
