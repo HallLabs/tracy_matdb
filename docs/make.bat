@@ -8,7 +8,7 @@ if "%SPHINXBUILD%" == "" (
 	set SPHINXBUILD=sphinx-build
 )
 set SOURCEDIR=.
-set BUILDDIR="C:\Users\Administrator\OneDrive - Norima Consulting\Documents\GitHub\tracy_matdb\docs\output"
+set BUILDDIR="./output/"
 
 if "%1" == "" goto help
 
