@@ -74,6 +74,10 @@ def test_not_extractable(Pd_not_extractable):
     """ test not extractable 
     """
     mPd = Pd_not_extractable
+    tdb = Database("phonon", path.join(mPd.root, "tmp_db"), mPd, [{"type":"simple.Manual"}], {}, 0)
+    for config in tdb.iconfigs:
+        assert config is not None
+
     mPd.setup()
 
     mdb = mPd.collections['phonon'].steps['manual']

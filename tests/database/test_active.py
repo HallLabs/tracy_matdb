@@ -140,7 +140,10 @@ def test_all_active(Act):
     assert not Act.is_executing()
 
     Act.setup()
-    
+
+    for cfg in Act.iconfigs:
+        assert "Si" in cfg.symbols
+ 
     assert Act.nconfigs == 5    
     assert len(Act.last_config_atoms) == 2
 

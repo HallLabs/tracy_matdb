@@ -1285,8 +1285,8 @@ class Database(object):
         """Returns a generator over all the configurations in all sub-steps of
         this database.
         """
-        for dbname, db in self.isteps():
-            for config in db.isteps:
+        for dbname, db in self.isteps:
+            for config in db.iconfigs:
                 yield config
 
     @property
