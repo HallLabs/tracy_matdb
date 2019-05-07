@@ -22,7 +22,7 @@ RUN apt update && apt install -yq \
     python3-pip \
     python3-setuptools \
     && apt autoremove   -y \
-    && rm -rf /var/apt/lists/* 
+    && rm -rf /var/apt/lists/*
 
 RUN python3 -m pip install --upgrade pip \
     && python3 -m pip install pytest \

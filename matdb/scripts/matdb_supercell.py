@@ -1,3 +1,8 @@
+"""When producing hessians with the Hessian group, a supercell
+   needs to be selected. This script streamlines the selection
+   process for multiple seeds and sizes.
+
+"""
 #!/usr/bin/python
 from os import path
 from glob import glob
@@ -26,7 +31,7 @@ def examples():
 
     msg.example(script, explain, contents, required, output, outputfmt, details)
 
-script_options = {
+_script_options = {
     "seeds": {"help": ("File patterns for choosing seeds."),
               "nargs": '+'},
     "--sizes": {"help": ("Target cell sizes to find for."),
@@ -44,7 +49,7 @@ def _parser_options():
     from matdb import base
     pdescr = "MATDB Supercell Selector"
     parser = argparse.ArgumentParser(parents=[base.bparser], description=pdescr)
-    for arg, options in script_options.items():
+    for arg, options in _script_options.items():
         parser.add_argument(arg, **options)
         
     args = base.exhandler(examples, parser)

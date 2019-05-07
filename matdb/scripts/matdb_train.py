@@ -1,3 +1,12 @@
+"""Once a database of configurations has been built, the next
+   step is to train some interatomic potentials. This script
+   wraps the `teach_sparse` functionality in QUIP and connects
+   the database of configurations to it according to best
+   practices. Note that 2+3+xxx training is an iterative process
+   and so this script needs to be run multiple times.
+
+"""
+
 #!/usr/bin/python
 def examples():
     """Prints examples of using the script to the console using colored output.
@@ -28,7 +37,7 @@ def examples():
 
     msg.example(script, explain, contents, required, output, outputfmt, details)
 
-script_options = {
+_script_options = {
     "dbspec": {"help": "File containing the database specifications."},
     "-t": {"action": "store_true",
            "help": ("Create the database splits and the initial job script"
@@ -79,7 +88,7 @@ def _parser_options():
     from matdb import base
     pdescr = "MATDB Potential Fitter"
     parser = argparse.ArgumentParser(parents=[base.bparser], description=pdescr)
-    for arg, options in script_options.items():
+    for arg, options in _script_options.items():
         parser.add_argument(arg, **options)
         
     args = base.exhandler(examples, parser)

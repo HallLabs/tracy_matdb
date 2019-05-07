@@ -36,14 +36,12 @@ class Prototypes(Group):
           replaced with the correct atomic species.
 
     .. note:: Additional attributes are also exposed by the super class
-      :class:`Group`.
+      :class:`~matdb.database.Group`.
 
     Attributes:
         name (str): name of this database type relative to the over database
           collection. This is also the name of the folder in which all of its
           calculations will be performed.
-	<<Additional attributes your database group will have>>.
-
     """
     def __init__(self, name="prototype", structures=None, ran_seed=None, permutations=None,
                  **dbargs):
@@ -163,7 +161,7 @@ class Prototypes(Group):
         """Returns all the configurations that are in this database.
 
         Returns:
-            list: of :class:`matdb.atoms.Atoms`
+            list: list of :class:`matdb.atoms.Atoms`
         """
         if len(self.sequence) == 0:
             #We are at the bottom of the stack;

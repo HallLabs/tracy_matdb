@@ -62,3 +62,10 @@ An example fitting section of the yml file.
    :maxdepth: 1
 
    fitting/mtp.rst
+
+.. toctree::
+   :caption: Utilities and other modules 
+   :maxdepth: 1
+
+   fitting/basic.rst
+   fitting/controller.rst

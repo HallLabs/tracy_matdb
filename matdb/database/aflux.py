@@ -1,4 +1,4 @@
-"""Implements a :class:`matdb.databas.basic.Group` for querying the
+"""Implements a :class:`~matdb.databas.basic.Group` for querying the
 `aflowlib.org` database. This group is an abstraction of the functionality in
 the `aflow` python package. Since that package allows keywords to be defined and
 manipulated using overloaded versions of built-in operators, we abstract that
@@ -82,7 +82,7 @@ def kfilter(dsl):
     """Constructs a :class:`aflow.keywords.Keyword` for the given DSL entries.
 
     Args:
-        dsl (list): of `str` or other primitive types that defines a filter.
+        dsl (list): list of `str` or other primitive types that defines a filter.
     """
     if any(isinstance(c, list) for c in dsl):
         #This is a nested (aka complex) filter with multiple filters that need
@@ -125,11 +125,11 @@ class Aflow(Group):
         catalog (str): one of the catalogs supported on AFLOW: ['icsd', 'lib1',
           'lib2', 'lib3']. Also supports a `list` of catalog names.
         batch_size (int): number of data entries to return per HTTP request.
-        filters (list): of DSL-compatible filters; see documentation above.
-        select (list): of `str` keyword names to include in the result.
+        filters (list): list of DSL-compatible filters; see documentation above.
+        select (list): list of `str` keyword names to include in the result.
         orderby (dict): with keys `keyword` and `reverse` specifying an optional
           keyword to order the result by.
-        exclude (list): of `str` keywords to exclude from the result.
+        exclude (list): list of `str` keywords to exclude from the result.
         keywords (dict): keys are keyword obects accessible from `aflow.K`;
           values are desired `str` names in the parameters dictionary of the
           atoms object. See :meth:`aflow.entries.Entry.atoms`.
@@ -138,15 +138,15 @@ class Aflow(Group):
         catalog (str): one of the catalogs supported on AFLOW: ['icsd', 'lib1',
           'lib2', 'lib3']. Also supports a `list` of catalog names.
         batch_size (int): number of data entries to return per HTTP request.
-        filters (list): of :class:`aflow.keywords.Keyword` for filtering the
+        filters (list): list of :class:`aflow.keywords.Keyword` for filtering the
           results.
-        select (list): of :class:`aflow.keywords.Keyword` to include in the
+        select (list): list of :class:`aflow.keywords.Keyword` to include in the
           result.
         orderby (dict): :class:`aflow.keywords.Keyword` to order the result by.
         reverse (bool): when True, reverse the ordering of the results.
-        exclude (list): of :class:`aflow.keywords.Keyword` to exclude from the
+        exclude (list): list of :class:`aflow.keywords.Keyword` to exclude from the
           result.
-        auids (list): of `str` ids from AFLOW database that are the latest
+        auids (list): list of `str` ids from AFLOW database that are the latest
           result from executing the query.
     """
     def __init__(self, catalog=None, batch_size=100, filters=None, select=None,
@@ -218,7 +218,7 @@ class Aflow(Group):
 
     @property
     def rset(self):
-        """Returns a :class:`matdb.atoms.AtomsList`, one for each config in the
+        """Returns a :class:`~matdb.atoms.AtomsList`, one for each config in the
         latest result set.
         """
 

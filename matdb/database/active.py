@@ -17,9 +17,10 @@ class Active(Group):
     """Sets up the calculations for a set of configurations that are being
     added to by the active learning approach.
     .. note:: Additional attributes are also exposed by the super class
-      :class:`Group`.
+      :class:`~matdb.database.Group`.
+
     Attributes:
-        auids (list): the unique ids for each config in the group
+        list: the unique ids for each config in the group
     """
     def __init__(self, name="active", **dbargs):
         self.name = name
@@ -52,7 +53,7 @@ class Active(Group):
         return len(self.fitting_configs) == self.nconfigs
 
     def can_extract(self):
-        """Runs post-execution routines to clean-up the calculations. 
+        """Runs post-execution routines to clean-up the calculations.
         """
         self._expand_sequence()
         if len(self.sequence) == 0:
@@ -127,7 +128,7 @@ class Active(Group):
 
     @property
     def rset(self):
-        """Returns a :class:`matdb.atoms.AtomsList`, one for each config in the
+        """Returns a :class:`~matdb.atoms.AtomsList`, one for each config in the
         latest result set.
         """
 
@@ -141,7 +142,7 @@ class Active(Group):
     def add_configs(self,new_configs,iteration):
         """Adds the atoms objects in the list to the configs of the active set.
         Args:
-            new_configs (list): list of `matdb.atoms.Atoms` objects to be added
+            list: list of :class:`~matdb.atoms.Atoms` objects to be added
                 to the active learning set.
         """
 
@@ -165,14 +166,14 @@ class Active(Group):
             auid = sha1(''.join(map(str, (tuple([tuple(i) for i in config.cell]),
                         tuple([tuple(i) for i in config.positions]),
                         tuple(config.get_chemical_symbols())))).encode('utf-8'))
-            
+
             if self.auids is not None:
                 if auid.hexdigest() in self.auids:
                     self.nconfigs -= 1
                     continue
             else: #pragma: no cover, self.auids could never be None, it could be empty though
                 self.auids = []
-                
+
             dind += 1
             self.create(config,cid=dind)
             self.index[auid.hexdigest()] = self.configs[dind]
@@ -219,20 +220,18 @@ class Active(Group):
                     break
 
         return is_executing
-    
+
     def execute(self, dryrun=False, recovery=False, env_vars=None):
         """Submits the job script for each of the folders in this
         database if they are ready to run.
+
         Args:
-            dryrun (bool): when True, simulate the submission without
-              actually submitting.
-            recovery (bool): when True, submit the script for running recovery
-              jobs.
-            env_vars (dict): of environment variables to set before calling the
-              execution. The variables will be set back after execution.
+            dryrun (bool): when True, simulate the submission without actually submitting.
+            recovery (bool): when True, submit the script for running recovery jobs.
+            env_vars (dict): `dict` of environment variables to set before calling the execution. The variables will be set back after execution.
+
         Returns:
-            bool: True if the submission generated a job id
-            (considered successful).
+            bool: True if the submission generated a job id (considered successful).
         """
 
         self._expand_sequence()

@@ -14,6 +14,8 @@ Example yml File Entry
   - type: 'simple.Manual'
     seeds: ["POSCAR:PdAg25","POSCAR:PdAgp0","POSCAR:PdAg75"]
    
+Manual Database
+***************
 
 .. automodule:: matdb.database.simple
    :synopsis: Database sub-classes for implementing databases of
