@@ -1,3 +1,9 @@
+"""In a previous version of `matdb`, the pre-comp-atoms.h5
+   file would be removed after cleanup. But, if the cleanup
+   produced any unnoticed errors, we may lose the pre-comp 
+   file and it is hard to reproduce. This script remedies that.
+"""
+
 #!/usr/bin/python
 from os import path, remove
 import h5py
@@ -27,7 +33,7 @@ def examples():
 
     msg.example(script, explain, contents, required, output, outputfmt, details)
 
-script_options = {
+_script_options = {
     "dbspec": {"help": "File containing the database specifications."},
     "-p": {"help": ("Specify the search pattern(s)"), "nargs": '+',
            "required": True},
@@ -47,7 +53,7 @@ def _parser_options():
     from matdb import base
     pdescr = "MATDB Pre-Comp Fixer"
     parser = argparse.ArgumentParser(parents=[base.bparser], description=pdescr)
-    for arg, options in script_options.items():
+    for arg, options in _script_options.items():
         parser.add_argument(arg, **options)
         
     args = base.exhandler(examples, parser)

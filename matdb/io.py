@@ -15,7 +15,7 @@ from matdb.utility import chdir, execute
 _rxcfg = re.compile(r"[a-z\s:\n]+", re.I)
 
 _cfg_pos = ["cartes_x", "cartes_y", "cartes_z"]
-"""list: of `str` label names in the CFG file corresponding to the x, y and z
+"""list: list of `str` label names in the CFG file corresponding to the x, y and z
 positions respectively.
 """
 _cfg_force = ["fx", "fy", "fz"]
@@ -31,7 +31,9 @@ def order_stress(xx=None, yy=None, zz=None, yz=None, xz=None, xy=None):
 
 def symmetrize(xx=None, yy=None, zz=None, yz=None, xz=None, xy=None):
     """Returns the 3x3 stress matrix from the specified components.
+
     .. note:: the components are: xx yy zz xy yz zx.
+
     """
     from numpy import array
     return array([[xx, xy, xz], [xy, yy, yz], [xz, yz, zz]])
@@ -116,8 +118,8 @@ def atoms_to_cfg(atm, target, config_id=None, type_map=None):
 def _cfgd_to_atoms(cfgd, species=None):
     """Converts a CFG dictionary to an atoms object.
     Args:
-        cfgd (dict): of a single config extracted by :func:`cfg_to_xyz`.
-        species (list): of element names corresponding to the integer species in
+        cfgd (dict): dict of a single config extracted by :func:`cfg_to_xyz`.
+        species (list): list of element names corresponding to the integer species in
           the CFG dictionary.
     """
     from matdb.atoms import Atoms
@@ -181,11 +183,12 @@ def cfg_to_atomslist(cfgfile, config_type=None, species=None):
         cfgfile (str): path to the file to convert.
         config_type (str): name of the config_type to assign to each
           configuration.
-        species (list): of element names corresponding to the integer
+        species (list): list of element names corresponding to the integer
           species in the CFG dictionary.
 
-    Returns
-        An AtomsList object containing the all the cells in the CFG file.
+    Returns:
+        matdb.atoms.AtomsList : An AtomsList object containing the all the cells in the CFG file.
+
     """
 
 
@@ -239,13 +242,15 @@ def cfg_to_atomslist(cfgfile, config_type=None, species=None):
     
 def cfg_to_xyz(cfgfile, outfile="output.xyz", config_type=None, species=None):
     """Converts MTP's CFG forrmat to XYZ.
+
     .. note:: Multiple frames in the CFG file will be converted to multiple
       frames in the XYZ file.
+
     Args:
         cfgfile (str): path to the file to convert.
         config_type (str): name of the config_type to assign to each
           configuration.
-        species (list): of element names corresponding to the integer species in
+        species (list): list of element names corresponding to the integer species in
           the CFG dictionary.
     """
 
@@ -263,13 +268,17 @@ def vasp_to_xyz(folder, outfile="output.xyz", recalc=0,
                 config_type=None):
     """Creates an extended XYZ file for the calculated structure in
     OUTCAR for the given folder.
+
     Args:
         folder (str): path to the folder to convert.
+
         outfile (str): name of the XYZ file to create. The file will
           be created in the same folder as the original if no absolute
           path is given.
+
         recalc (bool): when True, re-convert the OUTCAR file, even if
           the target XYZ file already exists.
+
     """
 
     from matdb.atoms import Atoms
@@ -365,11 +374,12 @@ def read(context, yfile):
     """Reads in the specified YAML file, following any additional file
     directives to compile a full representation of the template hierarchy for
     the root file.
+
     Args:
-        context (str): path to the root folder where the yaml file is
-          located. Needed for relative paths of file links.
-        yfile (str): name of the template YAML file *relative* to
-        `context`. Should *not* include the `.yaml` or `.yml` extension.
+        context (str): path to the root folder where the yaml file is located. Needed for relative paths of file links.
+
+        yfile (str): name of the template YAML file *relative* to `context`. Should *not* include the `.yaml` or `.yml` extension.
+
     """
     with chdir(context):
         if yfile[0] == ":":
@@ -406,11 +416,14 @@ def read(context, yfile):
 
 def save_dict_to_h5(h5file, dic, path='/'):
     """Saves a nested dictionary to an open hdf5 file.
+
     Args:
         h5file (file object): the h5 file to be saved to.
+
         dic (dict): the dictionary to save.
-        path (str, optional): the path within the h5 file that the dict will be
-            saved to. Default is '/'.
+
+        path (str, optional): the path within the h5 file that the dict will be saved to. Default is '/'.
+
     """
     for key, item in dic.items():
         if isinstance(item, (np.int64, np.float64, str, bytes, tuple, float, int)):
@@ -444,12 +457,15 @@ def save_dict_to_h5(h5file, dic, path='/'):
 
 def load_dict_from_h5(h5file, path='/'):
     """Reads an open hdf5 file into a dictionary.
+
     Args:
-        h5file (file object): the h5 file to be read.
+        h5file (file): the h5 file to be read.
         path (str, optional): the path within the h5 file presently being
             read. Default is '/'.
+
     Returns:
-        ans (dict): a dictionary containing the contents of the h5 file.
+        dict: a dictionary containing the contents of the h5 file.
+
     """
     ans = {}
     for key, item in h5file[path].items():

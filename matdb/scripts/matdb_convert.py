@@ -1,3 +1,10 @@
+"""Because matdb supports many different interatomic potential
+   trainers, and since each possibly has its own custom format
+   for the configuration databases, conversion is inevitable.
+   Matdb uses HDF5 for compactness, but can convert between 
+   formats using this script.
+"""
+
 #!/usr/bin/python
 from os import path
 from matdb import msg
@@ -27,27 +34,25 @@ def examples():
 
     msg.example(script, explain, contents, required, output, outputfmt, details)
 
-script_options = {
+_script_options = {
     "dbspec": {"help": "File containing the database specifications."},
     "--format": {"help": "New format to generate.", "required": True,
-                 "choices": ["xyz", "cfg"]},
+                "choices": ["xyz", "cfg"]},
     "-p": {"help": ("Specify the search pattern(s)"), "nargs": '+',
-           "required": True},
+        "required": True},
     "-o": {"help": "Specify the name of the output file to convert to.",
-           "required": True},
+        "required": True},
     "--overwrite": {"help": ("When specified, overwrite the output file "
-                             "if it already exists."), "action": "store_true"}
-    }
-"""dict: default command-line arguments and their
-    :meth:`argparse.ArgumentParser.add_argument` keyword arguments.
-"""
+                            "if it already exists."), "action": "store_true"}
+}
 
 def _parser_options():
     """Parses the options and arguments from the command line."""
     #We have two options: get some of the details from the config file,
     pdescr = "MATDB Database Converter"
+
     parser = argparse.ArgumentParser(parents=[base.bparser], description=pdescr)
-    for arg, options in script_options.items():
+    for arg, options in _script_options.items():
         parser.add_argument(arg, **options)
         
     args = base.exhandler(examples, parser)

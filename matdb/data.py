@@ -16,8 +16,8 @@ def vegard(elements, concs):
     vegard's law.
 
     Args:
-        elements (list): of `str` chemical symbols; keys in :data:`latpars`.
-        concs (list): of concentrations for each element in `elements`.
+        elements (list): list of `str` chemical symbols; keys in :data:`latpars`.
+        concs (list): list of concentrations for each element in `elements`.
     """
     conctot = sum(concs)
     lat = [latpars[e] for e in elements]

@@ -40,7 +40,7 @@ class Enumerated(Group):
             to 0.0.
 
     .. note:: Additional attributes are also exposed by the super class
-      :class:`Group`.
+      :class:`~matdb.database.Group`.
 
     Attributes:
        max_size (int): the largest allowed cell size in the database.
@@ -54,7 +54,7 @@ class Enumerated(Group):
        conc_res (bool): True if concetrations are being restricted.
        lattice (list): the lattice vectors for the system.
        basis (list): the atomic basis for the system.
-       rattle (float): the amount to rattle the atoms in the config by.
+       rattle (float): the amount by which to rattle the atoms in the config.
 
     """
     def __init__(self, sizes=None, basis=None, lattice=None, concs=None,
@@ -275,7 +275,7 @@ class Enumerated(Group):
     
     @property
     def rset(self):
-        """Returns a :class:`matdb.atoms.AtomsList`, one for each config in the
+        """Returns a :class:`~matdb.atoms.AtomsList`, one for each config in the
         latest result set.
         """
         if len(self.sequence) == 0:
@@ -345,7 +345,7 @@ class Enumerated(Group):
         the actual number of unique configs).
         
         Args:
-            group (:class:`matdb.database.basic.Group`): An instance of 
+            group (:class:`~matdb.database.basic.Group`): An instance of 
                 the group class.
 
         """

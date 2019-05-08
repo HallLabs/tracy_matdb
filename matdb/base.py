@@ -20,7 +20,7 @@ def deprecated(func):
     return new_func
 
 def exhandler(function, parser):
-    """If --examples was specified in 'args', the specified function
+    """If "examples" was specified in 'args', the specified function
     is called and the application exits.
 
     :arg function: the function that prints the examples.
@@ -72,7 +72,7 @@ to produce more verbose logging output. Can also be `int` corresponding to level
 in :mod:`logging`.
 """
 def set_debug(debugging):
-    """Sets the package testing mode.
+    """Sets the package debug mode.
     """
     global debug
     debug = debugging

@@ -1,3 +1,9 @@
+"""During regular research prototyping, it is often useful to
+   retry a fit with different parameters (for example while
+   changing the code). This script allows an existing trainer
+   to be renamed or duplicated.
+"""
+
 #!/usr/bin/python
 from os import path, remove, listdir
 import yaml
@@ -25,7 +31,7 @@ def examples():
 
     msg.example(script, explain, contents, required, output, outputfmt, details)
 
-script_options = {
+_script_options = {
     "dbspec": {"help": "File containing the database specifications."},
     "-t": {"help": ("When specified, search the trainer context."),
            "action": "store_true"},
@@ -47,7 +53,7 @@ def _parser_options():
     from matdb import base
     pdescr = "MATDB Mover and Duplicator"
     parser = argparse.ArgumentParser(parents=[base.bparser], description=pdescr)
-    for arg, options in script_options.items():
+    for arg, options in _script_options.items():
         parser.add_argument(arg, **options)
         
     args = base.exhandler(examples, parser)

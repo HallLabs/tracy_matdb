@@ -11,7 +11,7 @@ def AlTi(tmpdir):
     and repition is more likely.
 
     Attributes:
-        atoms_seed(matdb.atoms): The seed atoms objech configuration for db
+        atoms_seed(matdb.atoms.Atoms): The seed atoms objech configuration for db
             generation.
     """
     from matdb.utility import relpath

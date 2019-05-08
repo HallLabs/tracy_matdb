@@ -42,7 +42,7 @@ def create_to_relax(setup_args):
     
     Args:
         setup_args (dict): A dictionary containing the arguments needed to 
-          construct the potenital.
+          construct the potential.
     """
 
     args = setup_args["phenum_args"]
@@ -173,12 +173,12 @@ class MTP(Trainer):
     creating MTP potentials.
 
     Args:
-        controller (matdb.fitting.controller.Controller): fitting controller
+        controller (matdb.fitting.controller.TController): fitting controller
           provides access to previous fitting steps and training/validation data.
         split (str): name of the split specification to use for training.
         execution (dict): settings needed to configure the jobfile for running
           the GAP fit.
-        dbs (list): of `str` patterns from the database that should be included
+        dbs (list): list of `str` patterns from the database that should be included
           in the training and validation.
 
     Attributes:

@@ -21,7 +21,7 @@ def examples():
 
     msg.example(script, explain, contents, required, output, outputfmt, details)
 
-script_options = {
+_script_options = {
     "cmd": {"help": "Which command to mimic; may not do anything.",
             "nargs": "+"},
     }
@@ -37,7 +37,7 @@ def _parser_options():
     from matdb import base
     pdescr = "MATDB `module` STUB"
     parser = argparse.ArgumentParser(parents=[base.bparser], description=pdescr)
-    for arg, options in script_options.items():
+    for arg, options in _script_options.items():
         parser.add_argument(arg, **options)
         
     args = base.exhandler(examples, parser)
