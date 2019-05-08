@@ -1,3 +1,5 @@
+#!/usr/bin/python
+
 """This is a stub for the sbatch script on the supercomputer.
 """
 from matdb.utility import touch

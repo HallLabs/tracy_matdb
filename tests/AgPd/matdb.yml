@@ -80,7 +80,7 @@ fitting:
     time: 10
     ntasks: 1
     nodes: 1
-    mem_per_cpu: 500MB
+    total_mem: 500MB
     job_name: 'AgPt-fitting'
     modules: ['mpi/openmpi-1.8.5_intel-15.0.2','compiler_intel/2017']
   fits:

@@ -7,6 +7,7 @@ from ase.build import make_supercell
 import numpy as np
 from copy import deepcopy
 from itertools import product
+from collections import OrderedDict
 
 import h5py
 from ase import io
@@ -98,7 +99,7 @@ class Atoms(ase.Atoms):
                  **readargs):
 
         if (symbols is not None and not isinstance(symbols,string_types)) or (
-                symbols is not None and path.exists(symbols)):
+                symbols is not None and path.isfile(symbols)):
             try:
                 self.copy_from(symbols)
             except TypeError:
@@ -206,10 +207,7 @@ class Atoms(ase.Atoms):
             value: the value/values that are associated with the attribute.
         """
         name = str(name)
-        if hasattr(self,name) or name in self.info["properties"]:
-            self.info["properties"][name] = value
-        else:
-            self.info["properties"][name]=value
+        self.info["properties"][name]=value
 
     def add_param(self,name,value):
         """Adds an attribute to the class instance.
@@ -219,10 +217,7 @@ class Atoms(ase.Atoms):
             value: the value/values that are associated with the attribute.
         """
         name = str(name)
-        if hasattr(self,name) or name in self.info["params"]:
-            self.info["params"][name] = value
-        else:
-            self.info["params"][name]=value
+        self.info["params"][name]=value
         
     def rm_param(self,name):
         """Removes a parameter as attribute from the class instance and info dictionary.
@@ -242,14 +237,6 @@ class Atoms(ase.Atoms):
         if name in self.info["properties"]:
             del self.info["properties"][name]
             
-    def __del__(self):
-        attributes = list(vars(self))
-        for attr in attributes:
-            if isinstance(getattr(self,attr),dict):
-                self.attr = {}
-            else:
-                self.attr = None
-
     def __getattr__(self, name):
         if name in ["params", "properties"]:
             return self.info[name]
@@ -293,13 +280,13 @@ class Atoms(ase.Atoms):
         """Replaces contents of this Atoms object with data from `other`."""
 
         from ase.spacegroup import Spacegroup
-        self.__class__.__del__(self)
         
         if isinstance(other, Atoms):
             # We need to convert the attributes of the other atoms
             # object so that we can initialize this one properly.
             symbols = other.get_chemical_symbols()
-            symbols = ''.join([i+str(symbols.count(i)) for i in set(symbols)])
+            cls = OrderedDict.fromkeys(symbols)
+            symbols = ''.join([i+str(symbols.count(i)) for i in cls.keys()])
 
             magmoms = None
             if hasattr(other, "magnetic_moments") and other.magnetic_moments is not None:
@@ -383,7 +370,7 @@ class Atoms(ase.Atoms):
                     if kwargs is not None:
                         calc = calc(self, data["folder"], data["calc_contr_dir"],
                                     data["calc_ran_seed"], *args, **kwargs)
-                    else:
+                    else: # pragma: no cover (all calculators require key words at this time)
                         calc = calc(self, data["folder"], data["calc_contr_dir"],
                                     data["calc_ran_seed"], *args)
                 else: #pragma: no cover This case has never come up in
@@ -445,7 +432,8 @@ class Atoms(ase.Atoms):
                 data["calc_kwargs"]["potcars"] = _recursively_convert_units(self.calc.potcars)
             
         symbols = self.get_chemical_symbols()
-        data["symbols"] = ''.join([i+str(symbols.count(i)) for i in set(symbols)])
+        cls = OrderedDict.fromkeys(symbols)
+        data["symbols"] = ''.join([i+str(symbols.count(i)) for i in cls.keys()])
         if self.group_uuid is not None:
             data["group_uuid"] = self.group_uuid
         data["uuid"] = self.uuid
@@ -459,7 +447,6 @@ class Atoms(ase.Atoms):
         Args:
             target (str): The path to the target file. Default is "atoms.h5".
         """
-
         frmt = target.split('.')[-1]
         if frmt == "h5" or frmt == "hdf5":
             from matdb.io import save_dict_to_h5
@@ -524,9 +511,6 @@ class AtomsList(list):
             else:
                 return seq
 
-    def __getslice__(self, first, last):
-        return self.__getitem__(slice(first,last,None))
-
     def __getitem__(self, idx):
         if isinstance(idx, list) or isinstance(idx, np.ndarray):
             idx = np.array(idx)
@@ -573,7 +557,7 @@ class AtomsList(list):
         import operator
         if attr is None:
             if key is not None:
-                list.sort(self, key, reverse)
+                list.sort(self, key=key, reverse=reverse)
             else:
                 list.sort(self, reverse=reverse)
         else:

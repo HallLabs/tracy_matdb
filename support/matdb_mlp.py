@@ -1,3 +1,5 @@
+#!/usr/bin/python
+
 """This is another stub for unit testing that mimics the behavior of
 the `mlp` executable. 
 """

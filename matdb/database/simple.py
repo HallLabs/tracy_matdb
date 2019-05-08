@@ -56,6 +56,10 @@ class Manual(Group):
                 self._set_calc_defaults(calcargs)
                 dbargs["calculator"] = calcargs
 
+    def _set_calc_defaults(self, calcargs):
+        """ No implementation for this method.
+        """
+
     @property
     def fitting_configs(self):
         """Returns a :class:`~matdb.atoms.AtomsList` for all configs in this
@@ -130,6 +134,10 @@ class Manual(Group):
             if not self.extractable and self.is_setup():
                 return True
             else:
+                # if there is no seeds, pretend it's ready and don't bother to setup
+                if self._seed is None and self.seeded:
+                    return True 
+
                 #A zero-length sequence can mean we have a set of seeds that
                 #were specified, *or* that we have a single seed that is itself
                 #an atoms object (instead of a list of atoms objects).
@@ -139,13 +147,12 @@ class Manual(Group):
                 else:
                     return False
         else:
-            ready = False
+            ready = True
             for p in self.sequence.values():
                 if not p.ready():
                     msg.std("{} is not ready. Exiting.".format(p.root), 2)
+                    ready = False
                     break
-            else:
-                ready = True
             return ready
 
     def sub_dict(self):

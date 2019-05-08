@@ -1,3 +1,5 @@
+#!/usr/bin/python
+
 """This is another stub for unit testing that mimics the behavior of `module
 load/unload` at the HPC center. It accepts *extra* arguments that define the
 location of the model `vasprun.xml` output that should be copied to the

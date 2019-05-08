@@ -3,6 +3,134 @@
 """
 import pytest
 import numpy as np
+from os import mkdir, path, symlink, remove, rename, listdir
+from glob import glob
+
+from matdb.database.active import Active
+from matdb.utility import relpath, copyonce
+from matdb.utility import _get_reporoot
+from matdb.fitting.controller import TController
+from matdb.database import Database, Controller
+from matdb.database.utility import parse_path, split
+
+@pytest.fixture()
+def Act(tmpdir):
+
+    target = relpath("./tests/AgPd/matdb.yml")
+    dbdir = str(tmpdir.join("active_db"))
+    mkdir(dbdir)
+    copyonce(target, path.join(dbdir, "matdb.yml"))
+    target = path.join(dbdir,"matdb")
+
+    seed_root = path.join(dbdir, "seed")
+    if not path.isdir(seed_root):
+        mkdir(seed_root)
+
+    for i in range(1, 4):
+        cfg_target = path.join(seed_root, "Pd{0}".format(i))
+        cfg_source = path.join(_get_reporoot(), "tests", "database", "files", "Pd", "POSCAR{0}".format(i))
+        copyonce(cfg_source, cfg_target)
+
+    cntrl = Controller(target, dbdir)
+    db = Database("active", dbdir, cntrl, [{"type":"active.Active"}], {}, 0)
+    tcntrl = TController(db=db, root=dbdir, fits={})
+    dbargs = {"root": dbdir, "parent": db,
+              "calculator": tcntrl.db.calculator}
+    result = Active(**dbargs)
+
+    return result
+
+def test_split(Act):
+    """Tests the split function.
+    """
+    from matdb.atoms import Atoms, AtomsList
+
+    at1 = Atoms("Si8",positions=[[0,0,0],[0.25,0.25,0.25],[0.5,0.5,0],[0.75,0.75,0.25],
+                                  [0.5,0,0.5],[0.75,0.25,0.75],[0,0.5,0.5],[0.25,0.75,0.75]],
+                 cell=[5.43,5.43,5.43],info={"rand":10})
+    at2 = Atoms("S6",positions=[[0,0,0],[0.25,0.25,0.25],[0.5,0.5,0],[0.75,0.75,0.25],
+                                  [0.5,0,0.5],[0.75,0.25,0.75]],
+                 cell=[6.43,5.43,4.43],info={"rand":10})
+    at3 = Atoms("CNi",positions=[[0,0,0],[0.5,0.5,0.5]], info={"rand":8})
+    at4 = Atoms("CoV",positions=[[0,0,0],[0.25,0.5,0.25]], info={"rand":8})
+
+    at1.add_param("vasp_energy", 25361.504084423999)
+    at2.add_param("vasp_energy", 25362.504084423999)
+    at3.add_param("vasp_energy", 25363.504084423999)
+    at4.add_param("vasp_energy", 25364.504084423999)
+
+    al = [at4,at2,at1,at3]
+
+    splits = {'A': 0.4, 'B': 0.2}
+    splitroot = path.join(Act.root, "split")
+    mkdir(splitroot)
+    file_targets = {"train": Act.database.train_file, "holdout": Act.database.holdout_file,
+                    "super": Act.database.super_file}
+    # the split directory should be empty
+    assert len(listdir(splitroot)) == 0
+
+    # split with an empty splits
+    split(al, {}, file_targets, splitroot, ran_seed=1, recalc=1)
+
+    # the split directory should still be empty
+    assert len(listdir(splitroot)) == 0
+
+    # split with an empty atom list
+    split([], splits, file_targets, splitroot, ran_seed=1, recalc=1)
+
+    # the split directory should have 2 entries
+    assert len(listdir(splitroot)) == 2
+
+    # split 
+    split(al, splits, file_targets, splitroot, ran_seed=1)
+    # now we should have all the splitted files
+    assert path.exists(path.join(splitroot, Act.database.train_file('A')))
+    assert path.exists(path.join(splitroot, Act.database.holdout_file('A')))
+    assert path.exists(path.join(splitroot, Act.database.super_file('A')))
+    assert path.exists(path.join(splitroot, Act.database.train_file('B')))
+    assert path.exists(path.join(splitroot, Act.database.holdout_file('B')))
+    assert path.exists(path.join(splitroot, Act.database.super_file('B')))
+    # the split directory should have 2 entries
+    assert len(listdir(splitroot)) == 2
+
+    # split again with recalc
+    split(al, splits, file_targets, splitroot, ran_seed=1, recalc=1)
+    assert glob(path.join(Act.database.root, "splits", "active", "A_*-train.h5")) 
+    assert glob(path.join(Act.database.root, "splits", "active", "A_*-holdout.h5")) 
+    assert glob(path.join(Act.database.root, "splits", "active", "A_*-super.h5")) 
+    assert glob(path.join(Act.database.root, "splits", "active", "B_*-train.h5")) 
+    assert glob(path.join(Act.database.root, "splits", "active", "B_*-holdout.h5")) 
+    assert glob(path.join(Act.database.root, "splits", "active", "B_*-super.h5")) 
+    # the split directory should have 2 entries
+    assert len(listdir(splitroot)) == 2
+
+def test_parse_path(Act):
+    """Tests the parse_path function.
+    """
+    parsed=parse_path(Act.database.root,["Pd*"])  
+    assert parsed is not None 
+    assert len(parsed) == 3
+
+    parsed=parse_path(Act.database.root,["/Pd/Act/*"])  
+    assert parsed is not None 
+    assert len(parsed) >= 3
+
+def test_dbconfig():
+    """Tests the db config function.
+    """
+    from matdb.database.utility import dbconfig
+    from os import path
+    import json
+    from matdb.utility import load_datetime
+
+    dbfile = "./tests/database/files/p-50-2.h5"
+    confpath = dbfile + ".json"
+    assert path.isfile(confpath)
+    
+    with open(confpath) as f:
+         config = json.load(f, object_pairs_hook=load_datetime)
+         #assertIsNotNone(config)
+         assert config!= None
 
 def test_swap_column():
     """Tests the swap column function.

@@ -52,10 +52,20 @@ def atoms_to_cfg(atm, target, config_id=None, type_map=None):
     chem_syms = atm.get_chemical_symbols()
     pos = atm.positions
 
+    if pos.shape[0] != len(chem_syms):
+        msg.err("the number of rows in pos {0} is not equal to the number of elements in chem_syms {1}.".format(pos.shape, len(chem_syms)))
+        return
+
     if hasattr(atm, "calc") and atm.calc is not None and hasattr(atm.calc, "key"):
         calc_name = "{0}_".format(atm.calc.key)
     else:
         calc_name = ""
+
+    if "{0}force".format(calc_name) in atm.properties:
+        force = atm.properties["{0}force".format(calc_name)]
+        if pos.shape[0] != force.shape[0]:
+            msg.err("the number of rows in force {0} is not equal to the number of rows in pos {1}.".format(force.shape, pos.shape))
+            return
 
     local_map = {}
     for i, specs in enumerate(np.unique(chem_syms)):
@@ -77,7 +87,6 @@ def atoms_to_cfg(atm, target, config_id=None, type_map=None):
         f.write("  ")
 
         if "{0}force".format(calc_name) in atm.properties:
-            force = atm.properties["{0}force".format(calc_name)]
             f.write(" AtomData:  id type       cartes_x      cartes_y      "
                     "cartes_z           fx          fy          fz\n")
         else:
@@ -109,7 +118,7 @@ def atoms_to_cfg(atm, target, config_id=None, type_map=None):
             f.write("            {0}\n".format("    ".join(["{0: .8f}".format(i) for i in virial])))
 
         if config_id is None:
-            conf_id = "{0}_{1}".format("".join(np.unique(chem_syms)),len(pos))
+            conf_id = atm.get_chemical_formula(mode='reduce')
         else:
             conf_id = config_id
         f.write(" Feature   conf_id  {}\n".format(conf_id))
@@ -433,6 +442,9 @@ def save_dict_to_h5(h5file, dic, path='/'):
                 # this chunk of code is only ever used by the unit testing suite.
                 dt = h5py.special_dtype(vlen=np.float64)
                 h5file.create_dataset(path+key, data=item, dtype=dt)
+            elif 'U' in str(item.dtype):
+                temp = [i.encode() for i in item]
+                h5file[path + key] = temp                
             else:
                 h5file[path + key] = item
         elif isinstance(item, dict):

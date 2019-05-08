@@ -1,5 +1,5 @@
 """Implements a `matdb` compatible subclass of the
-:class:`ase.calculators.espresso.Espresso` calculator.  
+:class:`ase.calculators.espresso.Espresso` calculator.
 
 .. note:: Because this calculator is intended to be run asynchronously
   as part of `matdb` framework, it does *not* include a method to
@@ -26,10 +26,10 @@ from matdb.kpoints import custom as write_kpoints
 from matdb.utility import chdir, execute, relpath, config_specs
 from matdb.exceptions import VersionError
 from matdb.calculators.utility import paths
-        
+
 class AsyncQe(Espresso, AsyncCalculator):
     """Represents a calculator that can compute material properties with
-    Quantum Espresso, but which can do so asynchronously.  
+    Quantum Espresso, but which can do so asynchronously.
 
     .. note:: The arguments and keywords for this object are identical
       to the :class:`~ase.calculators.qe.Espresso` calculator that ships
@@ -42,7 +42,7 @@ class AsyncQe(Espresso, AsyncCalculator):
           place.
         contr_dir (str): The absolute path of the controller's root directory.
         ran_seed (int or float): the random seed to be used for this calculator.
-    
+
     Attributes:
         tarball (list): list of `str` QE output file names that should be included in an archive that represents the result of the calculation.
         folder (str): path to the directory where the calculation should take place.
@@ -67,8 +67,8 @@ class AsyncQe(Espresso, AsyncCalculator):
     def __init__(self, atoms, folder, contr_dir, ran_seed, *args, **kwargs):
 
         # the "name" attribute must be the same as the local name for the module imported in __init__.py
-        self.name = "Qe"  
-        
+        self.name = "Qe"
+
         if contr_dir == '$control$':
             contr_dir = config_specs["cntr_dir"]
         if path.isdir(contr_dir):
@@ -135,18 +135,18 @@ class AsyncQe(Espresso, AsyncCalculator):
             input_data = None
             self.out_file = "pwscf"
             self.out_dir = "{0}.save".format(self.out_file)
-        
+
         self.ran_seed = ran_seed
         self.version = None
         super(AsyncQe, self).__init__(pseudopotentials=pseudopotentials, pseudo_dir=pseudo_dir,
                                       input_data=input_data, kpts=kpts, koffset=koffset,
                                       kspacing=kspacing, **kwargs)
-        
+
         if not path.isdir(self.folder):
             mkdir(self.folder)
-            
+
         self.atoms = atoms
-           
+
         self.tarball = ["{0}.xml".format(self.out_file)]
         self._check_potcars()
 
@@ -179,20 +179,20 @@ class AsyncQe(Espresso, AsyncCalculator):
                                 raise VersionError("{0} does not match supplied version "
                                              "{1} for species {2}".format(line, v1, spec))
                         elif "<PP_INPUTFILE>" in line:
-                            break    
+                            break
                         else:
                             if v2 in temp_line:
                                 v2_found = True
                                 break
                         l_count += 1
-                        
+
                 if not v2_found:
                     raise VersionError("Version {0} could not be found in potential file {1} "
                                  "for species {2}".format(v2, target, spec))
-                    
+
             else:
                 raise IOError("Potential file {0} does not exist".format(target))
-        
+
     def write_input(self, atoms):
         """Overload of the ASE input writer.
         """
@@ -210,7 +210,7 @@ class AsyncQe(Espresso, AsyncCalculator):
 
         sizeok = lambda x: stat(x).st_size > 25
         required = ["espresso.pwi"]
-            
+
         present = {}
         for rfile in required:
             target = path.join(folder, rfile)
@@ -235,7 +235,7 @@ class AsyncQe(Espresso, AsyncCalculator):
                 for line in f: #pragma: no cover, we just need to test
                                #that the CRASH file is found. We don't
                                #need to test the error write out.
-                    msg.err(f.strip())
+                    msg.err(line.strip())
             return False
         #If we can extract a final total energy from the OUTCAR file, we
         #consider the calculation to be finished.
@@ -251,7 +251,7 @@ class AsyncQe(Espresso, AsyncCalculator):
         line = None
         with open(outxml, 'r') as f:
             # memory-map the file, size 0 means whole file
-            m = mmap.mmap(f.fileno(), 0, prot=mmap.PROT_READ)  
+            m = mmap.mmap(f.fileno(), 0, prot=mmap.PROT_READ)
             i = m.rfind(b'</closed>')
             # we look for this second line to verify that VASP wasn't
             # terminated during runtime for memory or time
@@ -275,7 +275,7 @@ class AsyncQe(Espresso, AsyncCalculator):
         outxml = path.join(folder, "{0}.xml".format(self.out_file))
         outxml = path.isfile(outxml)
         defxml = path.isfile(path.join(folder, "pwscf.xml"))
-        busy = not self.can_extract(folder)            
+        busy = not self.can_extract(folder)
         return (outxml or defxml) and busy
 
     def create(self, rewrite=False):
@@ -295,6 +295,10 @@ class AsyncQe(Espresso, AsyncCalculator):
             folder (str): path to the folder in which the executable was run.
             cleanup (str): the level of cleanup to perfor after extraction.
         """
+        # If the folder can not be extracted, return False
+        if not self.can_extract(folder):
+            return False
+
         # Read output
         out_file = path.join(folder,'{0}.xml'.format(self.out_file))
         output = self._read(out_file)
@@ -307,10 +311,13 @@ class AsyncQe(Espresso, AsyncCalculator):
         # we need to move into the folder being extracted in order to
         # let ase check the convergence
         with chdir(folder):
+            lattice = self.atoms.cell
+            vol = np.linalg.det(lattice)
+            rl = (vol**(1./3.))/0.529177208
             self.converged = output["convergence"]
             E = np.array(output["etot"])
             F = np.array(output["forces"])
-            S = np.array(output["stress"])
+            S = np.array(output["stress"])*rl**3
             self.atoms.add_property(self.force_name, F)
             self.atoms.add_param(self.stress_name, S)
             self.atoms.add_param(self.virial_name, S*self.atoms.get_volume())
@@ -318,7 +325,7 @@ class AsyncQe(Espresso, AsyncCalculator):
 
         self.cleanup(folder,clean_level=cleanup)
 
-        # At this time, always return True. Might need to determine if there is a change 
+        # At this time, always return True. Might need to determine if there is a change
         # to return a False.
         return True
 
@@ -360,7 +367,7 @@ class AsyncQe(Espresso, AsyncCalculator):
             rm_files = light + default + aggressive
         else:
             rm_files = light + default
-        
+
         for f in rm_files:
             target = path.join(folder,f)
             if path.isfile(target):
@@ -382,7 +389,7 @@ class AsyncQe(Espresso, AsyncCalculator):
 
         if hasattr(self,"potcars"):
             potdict = self.potcars.copy()
-            
+
             title = config_specs["title"]
             titlehash = str(sha1(title.encode("ASCII")).hexdigest())
             for hid, hpath in paths[titlehash][self.key].items():
@@ -418,5 +425,5 @@ class AsyncQe(Espresso, AsyncCalculator):
 
         if self.version is None:
             self.version = data.findall('general_info/creator')[0].attrib["VERSION"]
-            
+
         return results

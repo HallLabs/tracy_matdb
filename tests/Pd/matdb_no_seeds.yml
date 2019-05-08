@@ -1,87 +1,74 @@
-title: 'CoWV first ternary for Gus'
+title: 'Pd `phonopy` Supercell Convergence'
 # Ordered list of species; this is the same order as should be in the
 # POTCAR file for VASP calculations.
 species:
-  - 'Co'
-  - 'W'
-  - 'V'
+  - 'Pd'
 # If the POTCAR names are non-standard, include the *suffix* after the
 # element name here.
 # Directory in which the database folder system will be created.
-root: '.tests/mtp'
-venv: 'matdb'
+root: './tests/Pd'
+venv: 'matdb-dev'
 # Define the calculator to use for this Database
 calculator:
   name: 'Vasp'
   prec: 'a'   
+  encut: 400
+  isym: 0
+  lwave: False
+  lreal: 'auto'
   ediff: 0.00001
+  ismear: 1
+  sigma: 0.1
   pp: 'pbe'
-  exec_path: 'vasp6.x'
   # We use Mueller k-points exclusively. These kpoint settings apply to
   # all database calculations.
   kpoints:
     method: 'mueller'
-    mindistance: 50
+    mindistance: 20
   potcars:
-    versions:
-      Co: '02Aug2007'
-      W: '08Apr2002'
-      V: '08Apr2002'
     directory: './tests/vasp'
     xc: 'PBE'
-     
+    versions:
+      Pd: '28Jan2005'
+    setups:
+      Pd: '_pv'
 # Parameters for the job arrays that will be submitted for each
 # database. These can be overridden in each database below as well.
 execution:
   template: 'run_array_ml.sh'
-  time: 12
+  time: 4
   ntasks: 1
   nodes: 1
-  mem_per_cpu: 6GB
-  job_name: 'CoWV'
+  mem_per_cpu: 4
+  job_name: 'Pd DB'
+  partition: 'physics'
   array_limit: 50
   modules_load: ['mkl/11.2.0']
-  exec_path: 'vasp6.x'
-  options:
-    - "--qos=msg"
-    - "-C knl"
+  exec_path: 'vasp'
+#Different split parameters to apply globally to all database types.
+splits:
+  A: 0.4
+  B: 0.2
+
+shell_command: 'ksh'
+
 # Next, we include a list of all the databases we want to create. A
 # database following this pattern is created *for each* of the seed
 # configurations listed above.
 databases:
   #The PhononBase class generates the dynamical matrix that is needed
   #by PhononDatabase.
-  - name: 'test'
+  - name: 'phonon'
     steps:
       - type: "simple.Manual"
-        seeds: ["POSCAR:vasp.*"]
-
-splits:
-  A: 1.0
-  
-fitting:
-  dbs: ['*']
-  execution:
-    template: 'run_mtp_ml.sh'
-    time: 4
-    ntasks: 72
-    nodes: 1
-    total_mem: 36GB
-    job_name: 'FitRlxSelect'
-    options:
-      - "--qos=msg"
-      - "-C knl"
-    modules: ['mpi/openmpi-1.8.5_intel-15.0.2','compiler_intel/2017']
-  fits:
-    - name: "CoWV_mtp"
-      dbs: ["*"]
-      steps:
-        - type: "mtp.MTP"
-          select:
-            selection-limit: 200
-          largest_relax_cell: [4,6,8,10]
-          next_cell_threshold: 15
-          species:
-            - "Co"
-            - "W"
-            - "V"
+        calculator:
+          kpoints:
+            method: 'mueller'
+            mindistance: 30
+      - type: "enumerated.Enumerated"
+        lattice*:
+          - "fcc"
+          - "bcc"
+        nconfigs: 10
+        ran_seed: 10
+        sizes: [1,4]

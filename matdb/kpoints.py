@@ -107,7 +107,7 @@ def _mueller(target,atoms,mindistance=None):
     
     Args:
         target(str): path to the directory to create the KPOINTS file.
-        rmin (float): the cutoff for the k-point density by Mueller's
+        mindistance (float): the cutoff for the k-point density by Mueller's
             metric.
     """
 
@@ -122,6 +122,18 @@ def _mueller(target,atoms,mindistance=None):
     chdir(target)
     system("getKPoints")
     chdir(cur_dir)
+
+def _grkgridgen(target, atoms, kw_dict):
+    """Setsup the files for the GRkgridgen code to get the KPOINTS file.
+    """
+
+    kpgen = path.join(target,"KPGEN")
+    if not any([i in ["KPDENSITY", "KPPRA", "NKPTS", "KSPACING"] for i in kw_dict.keys()]):
+        raise ValueError("At least on of ['KPDENSITY', 'KPPRA', 'NKPTS', 'KSPACING'] "
+                         "must be set for the GRkgridgen code.")
+    with open(kgen, "w+") as f:
+        for k,v in kw_dict.items():
+            f.write("{0}={1}".format(k,v))
        
 def custom(target, key, atoms=None):
     """Creates the KPOINT file with the specified custom configuration
@@ -136,7 +148,8 @@ def custom(target, key, atoms=None):
     """
     select = {
         "gamma": _gamma_only,
-        "mueller": _mueller
+        "mueller": _mueller,
+        "grkgridgen": _grkgridgen
     }
     if key["method"] in select:
         method_args = key.copy()

@@ -509,8 +509,12 @@ class Trainer(object):
         else:
             xres = execute(cargs, self.root)
 
+        # supercompute will return "Submitted"
         if len(xres["output"]) > 0 and "Submitted" in xres["output"][0]:
             msg.okay("{}: {}".format(self.root, xres["output"][0].strip()))
+            return True
+        # local computer
+        elif len(xres["error"]) == 0:
             return True
         else:
             return False

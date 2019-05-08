@@ -22,6 +22,22 @@ def mtpdb(tmpdir):
 
     return cntrl
 
+@pytest.fixture()
+def mtpdb2(tmpdir):
+    from matdb.utility import relpath, reporoot, copyonce
+    from matdb.database import Controller
+    from os import mkdir, path
+
+    target = relpath("./tests/mtp/CoWV2.yml")
+    dbdir = str(tmpdir.join("mlp_tests"))
+    mkdir(dbdir)
+    copyonce(target, path.join(dbdir, "matdb.yml"))
+    target = path.join(dbdir,"matdb")
+   
+    cntrl = Controller(target, tmpdir=dbdir)
+
+    return cntrl
+
 def test_prot_to_cfg():
     """Tests the conversion of a prototype structure to a cfg file.
     """
@@ -92,6 +108,8 @@ def test_create_to_relax():
     
     setup_args = {}
     target = "to-relax.cfg"
+    if path.isfile(target):
+        remove(target)
     setup_args["phenum_args"] = {"config":"t", "species": ["Al", "Cu"],  "structures": "all",
                           "debug": False, "example": False, "displace":0.0, 
                           "mink":True, "outfile":target, "verbose": None, 
@@ -113,7 +131,7 @@ def test_create_to_relax():
     assert struct_count == 4
     remove(target)
 
-    setup_args["crystals"] = ["fcc", "prototypes"]
+    setup_args["crystals"] = ["fcc", "prototypes", "hcp"]
     create_to_relax(setup_args)
 
     struct_count = 0
@@ -122,7 +140,21 @@ def test_create_to_relax():
             if "BEGIN_CFG" in line:
                 struct_count += 1
     
-    assert struct_count == 138
+    assert struct_count == 141
+    remove(target)
+
+    setup_args["crystals"] = ["fcc"]
+    setup_args["min_atoms"] = 12
+    setup_args["max_atoms"] = 14
+    create_to_relax(setup_args)
+
+    struct_count = 0
+    with open(target,"r") as f:
+        for line in f:
+            if "BEGIN_CFG" in line:
+                struct_count += 1
+    
+    assert struct_count == 7139
     remove(target)
 
 def test_is_float():
@@ -165,6 +197,7 @@ def test_relax_ini(mtpdb):
     relaxargs["stress-weight"] = "0.1"
     relaxargs["threshold"] = "0.1"
     relaxargs["threshold-break"] = "0.1"
+    relaxargs["use_abinitio"] = True
     mtpfit._set_relax_ini(relaxargs)
     assert mtpfit.relax_ini["calc_efs"] == "FALSE"
     assert mtpfit.relax_ini["efs_ignore"] == "TRUE"
@@ -176,6 +209,7 @@ def test_relax_ini(mtpdb):
     assert mtpfit.relax_ini["stress_weight"] == "0.1"
     assert mtpfit.relax_ini["extrap_threshold"] == "0.1"
     assert mtpfit.relax_ini["threshold_break"] == "0.1"
+    assert mtpfit.relax_ini["use_abinitio"] == True
 
     relaxargs["calc-efs"] = "1.0"
     relaxargs["stress-weight"] = "stuff"
@@ -242,11 +276,11 @@ def test_set_local_attributes(mtpdb):
 def test_init(mtpdb):
     """Tests the __init__ function.
     """
-    from os import path
+    from os import remove, path
 
     mtpfit = mtpdb.trainers.fits['CoWV_mtp'].sequences['CoWV_mtp'].steps['mtp']
     with open(path.join(mtpfit.root, "status.txt"), "w+") as f:
-        f.write("done 1 0")
+        f.write("done 1 0 0")
 
     assert mtpfit.iter_status is None
         
@@ -255,9 +289,63 @@ def test_init(mtpdb):
                     execution=mtpfit.execution, split=mtpfit.split, root=mtpfit.root,
                     parent=mtpfit.parent, dbfilter=mtpfit.dbfilter, **mtpargs)
 
-    assert mtpfit.iter_status == "done"
+    #it should changed to "train" in order to auto-transit to next cell iteration
+    assert mtpfit.iter_status == "train"
     assert not mtpfit.ready()
 
+    remove(path.join(mtpfit.root, "status.txt"))
+    with open(path.join(mtpfit.root, "status.txt"), "w+") as f:
+        f.write("add 1 0")
+    mtpfit.__init__(controller=mtpfit.controller, dbs=mtpfit._dbs,
+                    execution=mtpfit.execution, split=mtpfit.split, root=mtpfit.root,
+                    parent=mtpfit.parent, dbfilter=mtpfit.dbfilter, **mtpargs)
+    assert mtpfit.iter_status == "add"
+    assert not mtpfit.ready()
+
+    mtpfit.execution["total_mem"] = "1024MB"
+    mtpfit.__init__(controller=mtpfit.controller, dbs=mtpfit._dbs,
+                    execution=mtpfit.execution, split=mtpfit.split, root=mtpfit.root,
+                    parent=mtpfit.parent, dbfilter=mtpfit.dbfilter, **mtpargs)
+    assert mtpfit.iter_status == "add"
+    assert not mtpfit.ready()
+
+def test_init2(mtpdb2):
+    """Tests the __init__ function using the second yml file with the 'done' status
+    """
+    from os import remove, path
+
+    mtpfit = mtpdb2.trainers.fits['CoWV'].sequences['CoWV'].steps['mtp']
+    with open(path.join(mtpfit.root, "status.txt"), "w+") as f:
+        f.write("done 90 5 0")
+
+    assert mtpfit.iter_status is None
+        
+    mtpargs = {}
+    mtpfit.__init__(controller=mtpfit.controller, dbs=mtpfit._dbs,
+                    execution=mtpfit.execution, split=mtpfit.split, root=mtpfit.root,
+                    parent=mtpfit.parent, dbfilter=mtpfit.dbfilter, **mtpargs)
+
+    assert mtpfit.iter_status == "train"
+    assert not mtpfit.ready()
+
+def test_init3(mtpdb2):
+    """Tests the __init__ function using the second yml file with the 'train' status
+    """
+    from os import mkdir, path, remove
+
+    mtpfit = mtpdb2.trainers.fits['CoWV'].sequences['CoWV'].steps['mtp']
+    with open(path.join(mtpfit.root, "status.txt"), "w+") as f:
+        f.write("train 10 0")
+
+    assert mtpfit.iter_status is None
+        
+    mtpargs = {}
+    mtpfit.__init__(controller=mtpfit.controller, dbs=mtpfit._dbs,
+                    execution=mtpfit.execution, split=mtpfit.split, root=mtpfit.root,
+                    parent=mtpfit.parent, dbfilter=mtpfit.dbfilter, **mtpargs)
+
+    assert mtpfit.iter_status == "train"
+    assert not mtpfit.ready()
 
 def test_make_input_files(mtpdb):
     """Tests the creation of various input files.
@@ -336,6 +424,13 @@ def test_train_setup(mtpdb):
     mtpfit._make_train_cfg(1)
     assert path.isfile(path.join(mtpfit.root, "train.cfg"))
 
+    struct_count = 0
+    with open(path.join(mtpfit.root, "train.cfg"),"r") as f:
+        for line in f:
+            if "BEGIN_CFG" in line:
+                struct_count += 1
+    assert struct_count == 10
+
     new_configs = []
     for i in range(1,11):
         source = path.join(templates, "POSCAR{0}".format(i))
@@ -343,16 +438,29 @@ def test_train_setup(mtpdb):
 
     mtpfit.active.add_configs(new_configs, 2)
     mtpfit.active.setup()
-    act_root = path.join(mtpdb.root, "Active", "active.active")
+    act_root = path.join(mtpdb.root, "Active", "active.CoWV_mtp")
     files = ["OUTCAR{}", "CONTCAR{}"]
     for i in range(1,11):
         target = path.join(act_root, "Ac.{0}".format(i))
         for f in files:
             copyonce(path.join(templates, f.format(i)), path.join(target, f.format('')))
 
+    # This is trying to manipulate an NOT extractable structure
+    target = path.join(act_root, "Ac.{0}".format(3), "OUTCAR")
+    remove(target)
+    source = path.join(_get_reporoot(), "tests", "files", "VASP", "OUTCAR_incomplete")
+    copyonce(source, target)
+
     mtpfit.active.last_iteration = None
     mtpfit._make_train_cfg(2)
     assert path.isfile(path.join(mtpfit.root, "train.cfg"))
+
+    struct_count = 0
+    with open(path.join(mtpfit.root, "train.cfg"),"r") as f:
+        for line in f:
+            if "BEGIN_CFG" in line:
+                struct_count += 1
+    assert struct_count == 19
 
     mtpfit.active.last_iteration = None
     remove(mtpfit.active.iter_file)
@@ -364,12 +472,20 @@ def test_templates(mtpdb):
     """
 
     mtpfit = mtpdb.trainers.fits['CoWV_mtp'].sequences['CoWV_mtp'].steps['mtp']
+    mtpfit.run_as_root = True
     #train template
-    template = "mpirun -n 72 mlp train pot.mtp train.cfg > training.txt"
+    template = ("mpirun --allow-run-as-root -n 1 mlp train pot.mtp train.cfg > training.txt",  
+                "mpirun --allow-run-as-root -n 72 mlp train pot.mtp train.cfg > training.txt")
+    assert mtpfit._train_template() in template
 
-    assert mtpfit._train_template() == template
+    mtpfit.run_as_root = False
+    #train template
+    template = ("mpirun -n 1 mlp train pot.mtp train.cfg > training.txt",  
+                "mpirun -n 72 mlp train pot.mtp train.cfg > training.txt")
+    assert mtpfit._train_template() in template
 
     mtpfit.use_mpi = False
+    mtpfit.run_as_root = False
     mtpfit.train_args = {"curr-pot-name":"name1", "valid-cfgs": "name2.cfg",
                          "bfgs-conv-tol":0.001}
 
@@ -377,8 +493,8 @@ def test_templates(mtpdb):
     assert mtpfit._train_template() == template
     
     #calc-grade template
-    template = "mlp calc-grade pot.mtp train.cfg train.cfg temp1.cfg"
-    assert mtpfit._calc_grade_template() == template
+    template = "mlp calc-grade pot.mtp train.cfg train.cfg temp1.cfg" 
+    assert template in mtpfit._calc_grade_template()
 
     mtpfit.grade_args = {"force-weight":10, "mvs-filename":"name1"}
 
@@ -389,15 +505,30 @@ def test_templates(mtpdb):
         assert part in mtp_out
 
     mtpfit.use_mpi = True
+    mtpfit.run_as_root = False
     #relax template
-    template_parts = ["mpirun", "-n 72", "mlp relax relax.ini",
+    template_parts = ["mpirun", "mlp relax relax.ini",
                       "--cfg-filename=to-relax.cfg", "--save-relaxed=relaxed.cfg",
                       "--log=relax_log.txt", "--save-unrelaxed=unrelaxed.cfg"]
+    template_alternative_parts = ["-n 72", "-n 1"]
     mtp_out = mtpfit._relax_template()
     for part in template_parts:
         assert part in mtp_out
+    assert template_alternative_parts[0] in mtp_out or template_alternative_parts[1] in mtp_out
+
+    mtpfit.run_as_root = True
+    #relax template
+    template_parts = ["mpirun", "--allow-run-as-root", "mlp relax relax.ini",
+                      "--cfg-filename=to-relax.cfg", "--save-relaxed=relaxed.cfg",
+                      "--log=relax_log.txt", "--save-unrelaxed=unrelaxed.cfg"]
+    template_alternative_parts = ["-n 72", "-n 1"]
+    mtp_out = mtpfit._relax_template()
+    for part in template_parts:
+        assert part in mtp_out
+    assert template_alternative_parts[0] in mtp_out or template_alternative_parts[1] in mtp_out
 
     mtpfit.use_mpi = False
+    mtpfit.run_as_root = False
     mtpfit.relax_args = {"log": "name1", "bfgs-wolfe_c1": True, "max-step": 10}
     template_parts = ["mlp relax relax.ini", "--cfg-filename=to-relax.cfg",
                       "--save-relaxed=relaxed.cfg", "--log=relax_log.txt",
@@ -484,13 +615,13 @@ def test_command_functions(mtpdb):
     assert line.strip() == "relax_setup 1 0"
     assert path.isfile(path.join(mtpfit.root, "relax.ini"))
     assert path.isfile(path.join(mtpfit.root, "pot.mtp"))
-    assert cmd_template == mtpfit._train_template
+    assert cmd_template == mtpfit._train_template()
 
     # Now we setup for the test of the relaxation_setup
     copyonce(path.join(mtpfit.root, "pot.mtp"), path.join(mtpfit.root, "Trained.mtp_"))
     cmd_template = mtpfit.command()
 
-    assert cmd_template == "matdb_mtp_to_relax.py"
+    assert "matdb_mtp_to_relax.py" in cmd_template
     with open(target, "r") as f:
         line = f.read()
     assert line.strip() == "relax 1 0"
@@ -527,8 +658,6 @@ def test_command_functions(mtpdb):
         line = f.read()
     assert line.strip() == "add 1 0"    
 
-#This test doesn't work because something is wrong with the jinja template import
-@pytest.mark.skip()
 def test_command_functions2(mtpdb):
     # Finally we test the add step
     from matdb.utility import copyonce, _get_reporoot, touch
@@ -549,16 +678,18 @@ def test_command_functions2(mtpdb):
     assert path.isfile(path.join(mtpfit.root, "new_training.cfg_iter_1"))
     
     templates = path.join(_get_reporoot(), "tests", "mtp", "training")
-    act_root = path.join(mtpdb.root, "Active", "active.active")
+    act_root = path.join(mtpdb.root, "Active", "active.CoWV_mtp")
     files = ["OUTCAR{}", "CONTCAR{}"]
     for i in range(1,11):
         target = path.join(act_root, "Ac.{0}".format(i))
         for f in files:
             copyonce(path.join(templates, f.format(i)), path.join(target, f.format('')))
 
+    touch(path.join(mtpfit.root, "unrelaxed.cfg"))
+    touch(path.join(mtpfit.root, "to-relax.cfg"))
     target = path.join(mtpfit.root, "status.txt")
     with open(target, "r") as f:
         line = f.read()
     assert line.strip() == "done 1 0 10"    
     cmd_template = mtpfit.command()
-    assert cmd_template == mtpfit._train_template
+    assert cmd_template == mtpfit._train_template()
