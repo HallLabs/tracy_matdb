@@ -1,7 +1,7 @@
 
 FROM pslibrary4tracy as ps
 FROM dft_qe4tracy as qe
-FROM mlip4tracy_stable
+FROM mlip4tracy
 
 ENV PS_ROOT "/home/tracy/pslibrary/pz/PSEUDOPOTENTIALS"
 ENV MTP_ROOT "/home/tracy/mtp"
@@ -43,6 +43,7 @@ COPY setup.py $HOME_DIR/codes/matdb
 COPY setup.cfg $HOME_DIR/codes/matdb
 COPY MANIFEST.in $HOME_DIR/codes/matdb
 COPY examples $HOME_DIR/codes
+COPY scripts/* $HOME_DIR/codes/
 
 RUN cd $HOME_DIR/codes/matdb \
     && python3 -m pip install -e .
