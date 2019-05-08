@@ -813,19 +813,19 @@ def test_AtomsList_sort():
     assert len(al2) == 2
 
     al1.sort(key=len)
-    assert al1[0].symbols.get_chemical_formula() == "CoV"
-    assert al1[1].symbols.get_chemical_formula() == "CNi"
-    assert al1[2].symbols.get_chemical_formula() == "S6"
-    assert al1[3].symbols.get_chemical_formula() == "Si8"
+    assert al1[0].get_chemical_formula() == "CoV"
+    assert al1[1].get_chemical_formula() == "CNi"
+    assert al1[2].get_chemical_formula() == "S6"
+    assert al1[3].get_chemical_formula() == "Si8"
 
     al1.sort(attr="vasp_energy")
-    assert al1[0].symbols.get_chemical_formula() == "Si8"
-    assert al1[1].symbols.get_chemical_formula() == "S6"
-    assert al1[2].symbols.get_chemical_formula() == "CNi"
-    assert al1[3].symbols.get_chemical_formula() == "CoV"
+    assert al1[0].get_chemical_formula() == "Si8"
+    assert al1[1].get_chemical_formula() == "S6"
+    assert al1[2].get_chemical_formula() == "CNi"
+    assert al1[3].get_chemical_formula() == "CoV"
 
     al1.sort(attr="vasp_energy", reverse=True)
-    assert al1[0].symbols.get_chemical_formula() == "CoV"
-    assert al1[1].symbols.get_chemical_formula() == "CNi"
-    assert al1[2].symbols.get_chemical_formula() == "S6"
-    assert al1[3].symbols.get_chemical_formula() == "Si8"
+    assert al1[0].get_chemical_formula() == "CoV"
+    assert al1[1].get_chemical_formula() == "CNi"
+    assert al1[2].get_chemical_formula() == "S6"
+    assert al1[3].get_chemical_formula() == "Si8"
