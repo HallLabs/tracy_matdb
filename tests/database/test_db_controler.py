@@ -119,76 +119,6 @@ def Pd_split(tmpdir):
 
     result = Controller(target, dbdir)
     return result
-    
-@pytest.fixture()
-def Pd_2(tmpdir):
-    from matdb.utility import relpath, copyonce
-    from matdb.database import Controller
-    from os import mkdir, symlink, remove, path
-
-    target = relpath("./tests/Pd/matdb.yml")
-    dbdir = str(tmpdir.join("pd_2_db"))
-    if not path.isdir(dbdir):
-        mkdir(dbdir)
-    copyonce(target, path.join(dbdir, "matdb.yml"))
-    target = path.join(dbdir,"matdb")
-
-    from shutil import copy
-    POSCAR = relpath("./tests/Pd/POSCAR")
-    if not path.isdir(path.join(dbdir,"seed")):
-        mkdir(path.join(dbdir,"seed"))
-    copy(POSCAR, path.join(dbdir,"seed","Pd"))
-    if path.isfile("matdb.yml"):
-        remove("matdb.yml")
-    symlink("{}.yml".format(target),"matdb.yml")
-
-    result = Controller("matdb",dbdir)
-    remove("matdb.yml")
-    result = Controller(target, dbdir)
-    return result
-
-@pytest.fixture()
-def AgPd(tmpdir):
-    from matdb.utility import relpath, copyonce
-    from matdb.database import Controller
-    from os import mkdir, symlink, remove, path
-
-    target = relpath("./tests/AgPd/matdb_manual.yml")
-    dbdir = str(tmpdir.join("agpd_db"))
-    mkdir(dbdir)
-    copyonce(target, path.join(dbdir, "matdb.yml"))
-    target = path.join(dbdir,"matdb")
-
-    from shutil import copy
-    POSCAR = relpath("./tests/Pd/POSCAR")
-    mkdir(path.join(dbdir,"seed"))
-    copy(POSCAR,
-         path.join(dbdir,"seed","Pd"))
-    if path.isfile("matdb.yml"):
-        remove("matdb.yml")
-    symlink("{}.yml".format(target),"matdb.yml")
-
-    result = Controller("matdb",dbdir)
-    remove("matdb.yml")
-    result = Controller(target,dbdir)
-    return result
-
-@pytest.fixture()
-def dynPd(Pd):
-    Pd.setup()
-    
-    #First, we need to copy the FORCE_SETS and total_dos.dat files so that we
-    #don't have to recompile those (they are tested elsewhere).
-    from matdb.utility import symlink    
-    troot = path.join(reporoot, "tests", "data", "Pd", "hessian")
-    files = ["FORCE_SETS", "total_dos.dat", "mesh.yaml"]
-    for seq in Pd.find("hessian/phonon/Pd/dim-*"):
-        for filename in files:
-            target = path.join(seq.root, "phonopy", filename)
-            source = path.join(troot, "{0}__{1}".format(filename, seq.parent.name))
-            symlink(target, source)
-
-    return Pd
 
 def test_Pd_setup(Pd, Pd_copy):
     """Makes sure the initial folders were setup according to the spec.
@@ -224,23 +154,6 @@ def test_Pd_setup(Pd, Pd_copy):
     db = "Manual/phonon.manual/Pd"
     dbfolder = path.join(Pd_copy.root, db)
     compare_tree(dbfolder, folders)
-
-#for now, dbs is empty, Wiley will look at it.
-@pytest.mark.skip()
-def test_Pd_phonplot(dynPd, tmpdir):
-    """Tests the plotting of phonon bands for supercell convergence test in Pd.
-    """
-    from matdb.plotting.comparative import band_plot
-    import pdb; pdb.set_trace()
-    dbs = dynPd.find("Pd.phonon-*.hessian")
-    #dbs = dynPd.find("phonon")
-    target = str(tmpdir.join("Pd.phonon-convergence.pdf"))
-    args = {
-        "dim": 3,
-        "save": target
-    }
-    band_plot(dbs, **args)
-    assert path.isfile(target)
 
 def test_steps(Pd):
     """Tests compilation of all steps in the database.
@@ -415,12 +328,6 @@ def test_hash(Pd):
     _mimic_vasp(folder,Pd.root,"S1.1")
     db_hash = Pd.hash_dbs()
     assert Pd.verify_hash(db_hash)
-    
-    # # test to make sure a change in the databas produces a different hash
-    # Pd_2.setup()
-    # Pd_2.execute(env_vars={"SLURM_ARRAY_TASK_ID":"1"})
-    # _mimic_vasp(folder,Pd_2.root,"S1.1")
-    # assert Pd_2.hash_dbs != db_hash
 
 def test_finalize(Pd):
     """ Test the finalize function in the controller module
@@ -479,6 +386,7 @@ def test_Pd_hessian(Pd):
     methods of the class on simple Pd.
 
     """
+    from os import remove
     Pd.setup()
     
     #Test the status, we should have some folder ready to execute.
@@ -495,52 +403,21 @@ def test_Pd_hessian(Pd):
     #`vasprun.xml` files that we linked to are not complete for all the
     #structures (on purpose).
     Pd.recover()
-    recoveries = ["Manual/phonon/Pd/dim-16.00",
-                  "Manual/phonon/Pd/dim-32.00",
-                  "Manual/phonon/Pd/dim-27.00"]
-    okay = ["Manual/phonon/Pd/dim-2.00",
-            "Manual/phonon/Pd/dim-4.00"]
+    recoveries = ["Manual/phonon/Pd"]
+
     for rkey in recoveries:
         assert path.isfile(path.join(Pd[rkey].root, "recovery.sh"))
-    for rkey in okay:
-        assert not path.isfile(path.join(Pd[rkey].root, "recovery.sh"))
 
     Pd.execute(env_vars={"SLURM_ARRAY_TASK_ID": "1"}, recovery=True)
-    folder = path.join(reporoot, "tests", "data", "Pd", "rexecute")
-    _mimic_vasp(folder, Pd.root)   
+    folder = path.join(reporoot, "tests", "data", "Pd", "manual")
+    _mimic_vasp(folder,Pd.root,"S1.1")
+    remove(path.join(Pd[rkey].root, "recovery.sh"))
 
     #Now that we have recovered vasp files, we can queue a *second*
     #recovery. All but one of the `vasprun.xml` files that we linked to are
     #complete for all the structures. This test that we can recover and execute
     #multiple times in order.
     Pd.recover()
-    recoveries = ["Manual/phonon/Pd/dim-32.00"]
-    okay = ["Manual/phonon/Pd/dim-2.00",
-            "Manual/phonon/Pd/dim-16.00",
-            "Manual/phonon/Pd/dim-4.00",
-            "Manual/phonon/Pd/dim-27.00"]
-    for rkey in recoveries:
-        assert path.isfile(path.join(Pd[rkey].root, "recovery.sh"))
+    okay = ["Manual/phonon/Pd"]
     for rkey in okay:
         assert not path.isfile(path.join(Pd[rkey].root, "recovery.sh"))
-
-    #Now copy the final files, which are all good.
-    Pd.execute(env_vars={"SLURM_ARRAY_TASK_ID": "1"}, recovery=True)
-    folder = path.join(reporoot, "tests", "data", "Pd", "complete")
-    _mimic_vasp(folder, Pd.root)
-
-    Pd.recover()
-    okay = ["Manual/phonon/Pd/dim-2.00",
-            "Manual/phonon/Pd/dim-16.00",
-            "Manual/phonon/Pd/dim-4.00",
-            "Manual/phonon/Pd/dim-27.00",
-            "Manual/phonon/Pd/dim-32.00"]
-    for rkey in okay:
-        assert not path.isfile(path.join(Pd[rkey].root, "recovery.sh"))
-    
-    #We are finally ready to cleanup the phonon database.
-    Pd.cleanup()
-    
-    for rkey in okay:
-        assert path.isfile(path.join(Pd[rkey].root, "phonopy", "FORCE_SETS"))
-        assert path.isfile(path.join(Pd[rkey].root, "phonopy", "total_dos.dat"))

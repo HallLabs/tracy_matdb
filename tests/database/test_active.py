@@ -142,7 +142,7 @@ def test_all_active(Act):
     Act.setup()
 
     for cfg in Act.iconfigs:
-        assert "Si" in cfg.symbols
+        assert "Si" in cfg.get_chemical_symbols()
  
     assert Act.nconfigs == 5    
     assert len(Act.last_config_atoms) == 2
