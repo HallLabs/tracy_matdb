@@ -44,7 +44,7 @@ supported for QE include:
    3 integers which indicate how aften to split the reciprocal cell in
    each direction to form the k-point grid.
 
-.. code-block:: yml
+.. code-block:: yaml
 
    kpoints:
      method: 'MP'
@@ -53,7 +53,7 @@ supported for QE include:
 - **kspacing** which is used to indicate the space desired between
    k-points. This method takes a single additional entry of `spacing`.
 
-.. code-block:: yml
+.. code-block:: yaml
 
    kpoints:
      method: 'kspacing'
@@ -91,7 +91,7 @@ supplied and both should be put in the `YML` file.
 A full example of the `matdb.yml` file section for a QE calculator is
 below:
 
-.. code-block:: yml
+.. code-block:: yaml
    
    calculator:
      name: 'qe'
@@ -113,6 +113,9 @@ below:
        versions:
          Al: '2.0.1' '.5.1'
 	 Pd: '2.0.1' '2.1.1'
+
+QE Calculator
+-------------
 
 .. automodule:: matdb.calculators.qe
    :synopsis: Quantum Espresso subclass for interacting with the `ase`

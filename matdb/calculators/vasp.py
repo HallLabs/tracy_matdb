@@ -182,14 +182,14 @@ class AsyncVasp(Vasp, AsyncCalculator):
       `matdb`.
 
     Args:
-        atoms (matdb.Atoms): configuration to calculate using VASP.
+        atoms (matdb.atoms.Atoms): configuration to calculate using VASP.
         folder (str): path to the directory where the calculation should take
           place.
         contr_dir (str): The absolute path of the controller's root directory.
         ran_seed (int or float): the random seed to be used for this calculator.
 
     Attributes:
-        tarball (list): of `str` VASP output file names that should be included
+        tarball (list): list of `str` VASP output file names that should be included
           in an archive that represents the result of the calculation.
         folder (str): path to the directory where the calculation should take
           place.
@@ -421,6 +421,7 @@ class AsyncVasp(Vasp, AsyncCalculator):
 
     def is_executing(self, folder):
         """Returns True if the specified VASP folder is in process of executing.
+
         Args:
             folder (str): path to the folder in which the executable was run.
         """
@@ -534,6 +535,7 @@ class AsyncVasp(Vasp, AsyncCalculator):
     def cleanup(self, folder, clean_level="default"):
         """Performs cleanup on the folder where the calculation was
         performed. The clean_level determines which files get removed.
+
         Args:
             folder (str): the folder to be cleaned.
             clean_level (str): the level of cleaning to be done.
@@ -559,6 +561,7 @@ class AsyncVasp(Vasp, AsyncCalculator):
     def to_dict(self):
         """Writes the current version number of the code being run to a
         dictionary along with the parameters of the code.
+
         Args:
             folder (str): path to the folder in which the executable was run.
         """

@@ -11,3 +11,11 @@ databases in the :doc:`matdbyml`.
    scripts/build.rst
    scripts/train.rst
    scripts/plot.rst
+   scripts/convert.rst
+   scripts/find.rst
+   scripts/fix.rst
+   scripts/move.rst
+   scripts/mtp_to_relax.rst
+   scripts/supercell.rst
+   scripts/watch.rst
+   scripts/tracy_sub.rst

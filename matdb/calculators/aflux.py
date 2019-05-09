@@ -1,7 +1,7 @@
 """Implements an asynchronous calculator for interacting with the AFLOW database
 via :class:`aflow.entries.Entry` objects. This allows for asynchronous download
 of AFLOW results and makes the overall abstract framework of
-:class:`matdb.database.basic.Group` work correctly (since all configurations are
+:class:`~matdb.database.Group` work correctly (since all configurations are
 required to have a calculator attached to perform tasks related to extract,
 checking for execution readiness, etc.
 
@@ -17,7 +17,7 @@ from matdb.utility import config_specs
 
 class AsyncAflow(SyncCalculator):
     """Represents an asynchronous calculator for constructing
-    :class:`matdb.Atoms` objects from :class:`aflow.entries.Entry` objects.
+    :class:`~matdb.atoms.Atoms` objects from :class:`aflow.entries.Entry` objects.
 
     .. note:: Because asynchronous is only supported properly in python 3 and
       this project has to be compatible with both major versions, we don't
@@ -34,7 +34,7 @@ class AsyncAflow(SyncCalculator):
         ran_seed (int or float): the random seed to be used for this calculator.
 
     Attributes:
-        atoms (matdb.Atoms): atoms object created from the database entry. Is
+        atoms (matdb.atoms.Atoms): atoms object created from the database entry. Is
           `None` until the download is performed.
     """
     pathattrs = []

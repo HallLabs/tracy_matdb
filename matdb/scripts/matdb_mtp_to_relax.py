@@ -1,3 +1,7 @@
+"""Constructs the to-relax.cfg file for the mtp potential
+   to learn on for the desired system.
+"""
+
 #!/usr/bin/python
 def examples():
     """Prints examples of using the script to the console using colored output.
@@ -16,7 +20,7 @@ def examples():
 
     msg.example(script, explain, contents, required, output, outputfmt, details)
 
-script_options = {}
+_script_options = {}
 """
 dict: default command-line arguments and their
     :meth:`argparse.ArgumentParser.add_argument` keyword arguments.
@@ -30,7 +34,7 @@ def _parser_options():
     from matdb import base
     pdescr = "MATDB MTP to-relax.cfg constructor"
     parser = argparse.ArgumentParser(parents=[base.bparser], description=pdescr)
-    for arg, options in script_options.items():
+    for arg, options in _script_options.items():
         parser.add_argument(arg, **options)
         
     args = base.exhandler(examples, parser)

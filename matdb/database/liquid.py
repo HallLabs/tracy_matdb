@@ -24,7 +24,7 @@ class LiquidGroup(Group):
           templates in this database.
 
     .. note:: Additional attributes are also exposed by the super class
-      :class:`Group`.
+      :class:`~matdb.database.Group`.
 
     Attributes:
         name (str): name of this database type relative to the over database

@@ -15,7 +15,7 @@ def sbatch(jobfile, folder, kwargs):
     execute(["sbatch",jobfile],**kwargs)
 
 def tracy():
-    """Submits jobs for the tracey workflow.
+    """Submits jobs for the tracy workflow.
     """
 
     raise NotImplementedError()
