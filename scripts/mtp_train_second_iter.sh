@@ -1,5 +1,14 @@
 #!/bin/bash
 
+##
+## This script is to execute the second iteration.
+## It is called by the mtp_train.sh script.
+##
+## You may specify the YAML specification file from the command line as a parameter like this:
+##    mtp_train_second_iter.sh Qe_CoWV.yml
+## Or it will find one from the current folder if you don't specify one.
+##
+
 # grab the YAML specification file from the command line argument if it's specified
 if [ $# -gt 0 ]; then
   SPEC_FILE=$1
