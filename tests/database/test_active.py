@@ -45,6 +45,17 @@ def add_configs(db, iteration):
 
     db.add_configs(configs, iteration)
 
+def test_empty_iter(Act):
+    """Tetsts that when an iteration generates zero new structures, an empty pkl file should be created 
+    """
+    assert (Act.last_iteration is None) or (len(Act.last_iteration) == 0)
+    assert (Act.last_config_atoms is None) or (len(Act.last_config_atoms) == 0)
+
+    Act.add_configs({},1)
+    Act.setup()
+    assert len(Act.last_iteration) == 0
+    assert path.exists(path.join(Act.root, "iter_1.pkl"))
+    
 def test_all_active(Act):
     """Tetsts the setup of the Active database.
     """

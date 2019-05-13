@@ -208,6 +208,10 @@ class Active(Group):
             # that haven't been setup yet.
             return False
         else:
+            # check if the last iteration is empty. 
+            if not isinstance(self.last_iteration, dict) or not self.last_iteration:
+                return False
+
             # We only want to know if the last iteration's files are
             # being executed, the old iterations don't matter.
             for config in self.last_iteration.values():
