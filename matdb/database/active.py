@@ -195,6 +195,9 @@ class Active(Group):
             rerun (bool): when True, recreate the folders even if they
               already exist.
         """
+        # if the last iteration is empty, force a rerun to generate an empty pkl file 
+        if self.last_config_atoms is None:
+            rerun=True
         super(Active, self).setup(self._setup_configs,rerun)
 
     def is_executing(self):
@@ -209,7 +212,7 @@ class Active(Group):
             return False
         else:
             # check if the last iteration is empty. 
-            if not isinstance(self.last_iteration, dict) or not self.last_iteration:
+            if self.last_config_atoms is None:
                 return False
 
             # We only want to know if the last iteration's files are
