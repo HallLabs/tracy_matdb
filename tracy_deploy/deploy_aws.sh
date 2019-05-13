@@ -1,4 +1,3 @@
-IDENTITY_FILE="matdb-test.pem" 
 if [ -f "$IDENTITY_FILE" ]; then
     echo "start copying to EC2 for all docker image jar files...."
 else 
