@@ -58,3 +58,6 @@ COPY one_off_fix/espresso.py /usr/local/lib/python3.5/dist-packages/ase/io/espre
 RUN echo export PATH=$PATH:${MTP_ROOT}/bin >> ${HOME_DIR}/.bashrc
 RUN mkdir -p /root/codes/compute/MTP/CoWV
 RUN chmod +x /root/codes/*.sh
+
+RUN sudo mkdir -p -m 0755 /var/run/sshd
+CMD ["sudo","/usr/sbin/sshd","-D"]
