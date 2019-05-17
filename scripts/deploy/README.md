@@ -1,11 +1,11 @@
 ## Quick Start Instructions
 
 ### 1 - generate an new ec2 instance
+- instructions [here](./aws_deploy.md)
 - a linux based one
 - needs 64 gb of HD
 - 8 gb of RAM
 - create a key or use an existing
-- instructions [here](./aws_deploy.md)
 
 ### 2 - recomended setup of a github
 - https://help.github.com/en/articles/adding-a-new-ssh-key-to-your-github-account
