@@ -37,8 +37,12 @@
 ```
 
 ### 7 - install docker on remote machine
+Command depends on the host machine.
 ```bash
 ➜ sudo yum -y install docker
+```
+Or
+```bash
 ➜ sudo apt-get install docker
 ```
 
@@ -64,7 +68,7 @@
 
 #### 10.2 - attach to it later with
 ```bash
-➜ tmux a <session-index>
+➜ tmux a -t <session-index>
 ```
 
 ### 11 - run the docker image
@@ -78,4 +82,11 @@
 ```bash
 ➜ sudo docker ps
 ➜ sudo docker exec -it e55cb9787958 /bin/bash
+```
+
+
+### Useful commands
+Remove all docker images
+```bash
+docker rmi $(docker image ls -a  --format  "{{.ID}}")
 ```
