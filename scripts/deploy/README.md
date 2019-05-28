@@ -86,7 +86,22 @@ Or
 
 
 ### Useful commands
+If you see access denied, please add "Sudo" before "docker" command
+
+Stop all running container
+```bash
+sudo docker stop $(sudo docker ps -a -q)
+```
+
 Remove all docker images
 ```bash
 docker rmi $(docker image ls -a  --format  "{{.ID}}")
 ```
+
+Remove all containers and images
+```bash
+sudo docker system prune
+```
+
+
+
