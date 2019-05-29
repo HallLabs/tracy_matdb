@@ -58,7 +58,11 @@ Or
 
 ### 10 Optional - install a terminal multiplexer (if you want to run things over multiple days)
 ```bash
-➜ yum install tmux
+➜ sudo apt-get install tmux
+```
+Or
+```bash
+➜ sudo yum install tmux
 ```
 
 #### 10.1 - with tmux, create a new session
@@ -81,7 +85,7 @@ Or
 ### 12 - Optional: With a different connection, you can connect to the same container
 ```bash
 ➜ sudo docker ps
-➜ sudo docker exec -it e55cb9787958 /bin/bash
+➜ sudo docker exec -it <container-id> /bin/bash
 ```
 
 
@@ -102,6 +106,3 @@ Remove all containers and images
 ```bash
 sudo docker system prune
 ```
-
-
-
