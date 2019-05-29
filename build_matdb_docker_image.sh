@@ -2,7 +2,7 @@
 CUR_DIR=$(pwd)
 PARENT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 
-cd $PARENT_DIR
+cd "$PARENT_DIR"
 
 DEV_MODE=false
 while [[ $# -gt 0 ]] && [[ ."$1" = .--* ]] ;
@@ -56,7 +56,7 @@ if [ $? -ne 0 ]; then
   exit 1
 fi
 
-cd $CUR_DIR
+cd "$CUR_DIR"
 
 # run the docker image as a service, enabled gdb from docker
 #docker run --cap-add=SYS_PTRACE --security-opt seccomp=unconfined -it --rm -d matdb /bin/bash
