@@ -49,3 +49,4 @@ Before running the steps, please download your .pem file for accessing your EC2 
 
 **Note**: The jar files is about 15G, it also occupied about 15G as docker images, so you need at least 30G to generate these docker images and save to local disk.
 On EC2 you also need at least 30G space to host the jar files and docker images at first, although you can delete the jar files later.
+Also, make sure the compute folder and its subfolder is correctly created before running mtp_build.sh.
