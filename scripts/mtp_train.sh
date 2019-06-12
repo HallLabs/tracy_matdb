@@ -31,7 +31,7 @@ firstIter() {
       exit 1
     fi
     echo "Iteration $ITER ended at: `date --iso-8601=seconds`"
- 
+
     # copy/save output files
     saveOutputFiles
 
@@ -90,7 +90,7 @@ FIT_NAME=$(yaml "$SPEC_FILE" "['fitting']['fits'][0]['name']")
 # build the initial database
 ./mtp_build.sh ${SPEC_FILE_BASE}
 
-# initialize the current iteration 
+# initialize the current iteration
 ITER=0
 
 # for each cell iteration, run the first iteration once
@@ -99,7 +99,7 @@ firstIter
 # repeat the second iteration until it's converged
 while [ $ITER -le 50 ]
 do
-  database_size=`find compute -name "atoms.h5" | wc -l`
+  database_size=`find "${ROOT_DIR}/${FIT_NAME}" -name "atoms.h5" | wc -l`
   training_size_before=`grep BEGIN ${ROOT_DIR}/${FIT_NAME}/${FIT_NAME}/mtp/train.cfg | wc -l`
 
   # if the database size and the training set size are not equal, report an error and exit
