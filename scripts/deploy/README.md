@@ -81,6 +81,7 @@ Or
 ➜ cd /root/codes/
 ➜ ./mtp_train.sh
 ```
+Note: Make sure old compute folder is removed and new compute folder is correctly created.
 
 ### 12 - Optional: With a different connection, you can connect to the same container
 ```bash
