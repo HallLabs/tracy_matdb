@@ -22,6 +22,7 @@ We describe step to run the project either on a local machine or a remote machin
         3. [Extract from Container](#Extract-from-Container)
     - [Unit Tests](#Unit-Tests)
     - [Helpful Docker Commands](#Helpful-Docker-Commands)
+    - [Monitoring Tips](#Monitoring-Tips)
     - [Contributing](#Contributing)
 
 # Introduction
@@ -213,7 +214,40 @@ Create a second connection to an existing container
 ```
 The container ID can be found using `docker ps`
 
+## Monitoring Tips
+
+## Intermediate Files
+
+- `to-relax.cfg`
+    - This is the file contains structures needed to be relaxed. The idea is that the IAP should be able to relax all the structures listed in this file. If a structure can not be relaxed, it then is added to the `new_training.cfg` file and is ultimately added to the training set(`train.cfg`).
+    - This file is generated at the first iteration for each atom cell iteration.
+- `new_training.cfg(new_training.cfg_iter_?)`
+    - Each iteration will generate some new structures which couldn’t be relaxed by the current IAP.  These new structures will be added to the training set (train.cfg)  at the beginning of the next iteration. I saved a copy of this file for each iteration for debug purpose. For example: new_training.cfg_iter_6 is for the 6th iteration. If this file is empty, it means it converges at the iteration this file is corresponding to. For example, if `new_training.cfg_iter_17` is empty, it shows it converged at iteration 17. Notice that, as long as the number of new structures generated at an iteration is less than or equal to the next_cell_threshold defined in the `yml` file, it considered converged
+- `train.cfg(train.cfg_iter_?)`
+    - This is the training set.  I saved a copy of this file for each iteration for debug purpose.
+- `pot.mtp(pot.mtp_iter_?)`
+    - This is the potentials.  I saved a copy for each iteration for debug purpose.
+- `training.txt (training.txt_iter_?)`
+    - This is the log file for the `mtp train` process.  At the bottom of the file, it shows the training errors which Wiley would be interested in. Especially for the `Energy per atom`.
+- `status.txt`: this contains status code for each step in an iteration.
+    - Some of the status:
+        ```python
+        "relax_setup {0} {1}".format(self.iter_count, self.cell_iter)
+        "relax {0} {1}".format(self.iter_count, self.cell_iter)
+        "select {0} {1}".format(self.iter_count, self.cell_iter)
+        "add {0} {1}".format(self.iter_count, self.cell_iter)
+        "done {0} {1} {2}".format(self.iter_count, self.cell_iter, len(new_configs))
+        ```
+        - Refer to `command()` method in `fitting.mtp.py module` for a complete status and it’s meaning.
+- `jobfile.sh`
+    - This file contains `mtp` command to be executed. Each iteration has it’s own `mtp` commands need to be carried out.
+- `iter_?.pkl` files in `Active` database.
+    - The `Active` database resides at `/root/codes/compute/MTP/CoWV/Active/active.CoWV` for our example `CoWV` structures.  Each iteration will have it’s `pkl` file generated at the `Active` database root directory. Each `pkl` file contains the new structures for the specific iteration. Notice that, the number of structures in `new_training.cfg_iter_?` and `iter_?.pkl` should be the same. For example, `new_training.cfg_iter_9` and `iter_9.pkl` should have the same number of structures. But `train.cfg_iter_10` minus `train.cfg_iter_9` might have less structures then in the two files. That is because QE calculation could fail on some of the new structures.
+- `matdb/templates/bash_build_ml.sh`
+    - the template file used to generate the `jobfile.sh` in the `Active` database root directory defined above.  This template file works only for `QE` calculation.
+- `pkl` means is the extension for a python pickle file.
+
+
 ## Contributing
 
-Before contributing to `matdb` please read the
-[contributing guidelines](/CONTRIBUTING.md).
+Before contributing to `matdb` please read the [contributing guidelines](/CONTRIBUTING.md).
