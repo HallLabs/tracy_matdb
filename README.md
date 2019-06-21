@@ -93,8 +93,6 @@ Then within the instance:
 
 ## Prepare AWS Instance
 
-<!-- TODO: Incorperate deploy readme here -->
-
 1. Login to your AWS management console.
 2. Tap EC2 to get into Resources screen, then select Running Instances.
     - ![AWS Console](./scripts/deploy/images/aws-screenshot-1.png)
@@ -228,11 +226,10 @@ Then to run the unit tests with the coverage tool:
 
 - `to-relax.cfg`
     - Contains the structures needed to be relaxed. Ideally the IAP should be able to relax all this contained structures. Otherwise, it is added to `new_traning.cfg` which should eventually be added to the training set (`train.cfg`).
-    - This file is generated at the first iteration for each atom cell iteration.
+    - Generated at the first iteration for each atom cell iteration.
 - `new_training.cfg` (`new_training.cfg_iter_?`)
     - Each iteration will generate some new structures which couldn’t be relaxed by the current IAP. These new structures will be added to the training set (`train.cfg`)  at the beginning of the next iteration. A copy of this file is saved for each iteration for debug purpose.
-        - For example: `new_training.cfg_iter_6` is for the 6th iteration. If this file is empty, it means it converges at the iteration this file is corresponding to.
-            - For example, if `new_training.cfg_iter_17` is empty, it shows it converged at iteration 17. Notice that, as long as the number of new structures generated at an iteration is less than or equal to the next_cell_threshold defined in the `yml` file, it considered.
+        - For example: `new_training.cfg_iter_6` is for the 6th iteration. If this file is empty, it means it converges at the iteration this file is corresponding to. Notice that, as long as the number of new structures generated at an iteration is less than or equal to the next_cell_threshold defined in the `yml` file, it considered.
 - `train.cfg` (`train.cfg_iter_?`)
     - Configurations of the training set.
     - A copy of this file is saved for each iteration for debug purpose.
@@ -240,7 +237,7 @@ Then to run the unit tests with the coverage tool:
     - Data for the representation of the moment tensor potential.
     - A copy of this file is saved for each iteration for debug purpose.
 - `training.txt` (`training.txt_iter_?`)
-    - This is the log file for the `mtp train` process. At the bottom of the file, it shows the training errors which Wiley would be interested in. Especially for the `Energy per atom`.
+    - The log file for the `mtp train` process. At the bottom of the file, it shows the training errors which Wiley would be interested in. Especially for the `Energy per atom`.
 - `status.txt`
     - Contains status code for each step in an iteration.
     - Some of the status:
@@ -253,12 +250,13 @@ Then to run the unit tests with the coverage tool:
         ```
         - Refer to `command()` method in `fitting.mtp.py` module for a complete status and it’s meaning.
 - `jobfile.sh`
-    - This file contains `mtp` command to be executed.
+    - Contains `mtp` command to be executed.
     - Each iteration has it’s own `mtp` commands need to be carried out.
 - `iter_?.pkl` files in `Active` database.
-    - The `Active` database resides at `/root/codes/compute/MTP/CoWV/Active/active.CoWV` for our example `CoWV` structures.  Each iteration will have it’s `pkl` file generated at the `Active` database root directory. Each `pkl` file contains the new structures for the specific iteration. Notice that, the number of structures in `new_training.cfg_iter_?` and `iter_?.pkl` should be the same.
-        - For example, `new_training.cfg_iter_9` and `iter_9.pkl` should have the same number of structures. But `train.cfg_iter_10` minus `train.cfg_iter_9` might have less structures then in the two files. That is because QE calculation could fail on some of the new structures.
-    - `pkl` file is a python pickle file.
+    - The `Active` database resides at `/root/codes/compute/MTP/{$FIT_NAME}/Active/active.{$FIT_NAME}` for our example `CoWV` structures (which would be `/root/codes/compute/MTP/CoWV/Active/active.CoWV`).
+    - Each iteration will have it’s `pkl` file generated at the `Active` database root directory. Each `pkl` file contains the new structures for the specific iteration. Notice that, the number of structures in `new_training.cfg_iter_?` and `iter_?.pkl` should be the same.
+        - For example: if `new_training.cfg_iter_9` and `iter_9.pkl` should have the same number of structures. But `train.cfg_iter_10` minus `train.cfg_iter_9` might have less structures then in the two files. That is because QE calculation could fail on some of the new structures.
+        - `pkl` file is a python pickle file.
 - `matdb/templates/bash_build_ml.sh`
     - the template file used to generate the `jobfile.sh` in the `Active` database root directory defined above.  This template file works only for `QE` calculation.
 
@@ -267,7 +265,6 @@ Then to run the unit tests with the coverage tool:
 To watch the progress you watch the files in the folder `/root/codes/compute/MTP/${FIT_NAME}/${FIT_NAME}/mtp/`.
 - `${FIT_NAME}` is will be a concatenation of the elements that are used.
     - `${FIT_NAME}` is `CoWV` when using the example `yml` file.
-
 
 The following snippet can be used in the directory of temporary files to provide useful progress information.
 ```python
