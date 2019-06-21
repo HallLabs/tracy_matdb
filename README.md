@@ -6,9 +6,9 @@ The interatomic potentials are created using [MLIP](http://gitlab.skoltech.ru/sh
 
 # Table of Contents
 
-We describe step to run the project either on a local machine or a remote machine on AWS.
+We describe the steps to run the project either on a local machine or a remote machine on AWS.
 
-- [Quickstart Summery](#Quickstart-Summery)
+- [Quickstart Summary](#Quickstart-Summery)
 - [Build Containers Locally](#Build-Containers-Locally)
 - [Running the Project](#Running-the-Project)
 - [Remote Run Using AWS](#Remote-Run-Using-AWS)
@@ -26,9 +26,9 @@ We describe step to run the project either on a local machine or a remote machin
     - [Helpful Docker Commands](#Helpful-Docker-Commands)
     - [Contributing](#Contributing)
 
-# Quickstart Summery
+# Quickstart Summary
 
-The project follows some high level steps:
+The project follows some high-level steps:
 - [Build](#Build-Containers-Locally)
 - Optional: [Upload](#Remote-Run-Using-AWS)
 - [Run](#Running-the-Project)
@@ -39,12 +39,12 @@ The project follows some high level steps:
 
 Clone all the related projects:
 - [Tracy Docker](https://github.com/NorimaConsulting/tracy_docker)
-- [Tracy Matdb](https://github.com/NorimaConsulting/tracy_matdb)
+- [Tracy MatDB](https://github.com/NorimaConsulting/tracy_matdb)
 
-Use `ssh` or `https` at your conviece. It is *recomended* that they be in a folder that makes it easy for you to find. It is **required** that the cloned projects be siblings of eachother.
+Use `ssh` or `https` at your convivence. It is *recommended* that they be in a folder that makes it easy for you to find. It is **required** that the cloned projects be siblings of one another.
 - If you plan to use `ssh` keys, there is a good guide from [github](https://help.github.com/en/articles/adding-a-new-ssh-key-to-your-github-account).
 
-The resulting folder structure should look like:
+The resulting folder structure should look as such:
 
 ```
 tracy_root
@@ -52,9 +52,9 @@ tracy_root
 └── tracy_matdb
 ```
 
-Follow the instructions in the [Tracy Docker readme](https://github.com/NorimaConsulting/tracy_docker/blob/master/README.md) to build all relevent prerequisite docker images.
+Follow the instructions in the [Tracy Docker readme](https://github.com/NorimaConsulting/tracy_docker/blob/master/README.md) to build all relevant prerequisite docker images.
 
-To verify, run `docker images`. You should see similar output:
+To verify, run `docker images`. You should see a similar output to below:
 ```
 REPOSITORY          TAG      IMAGE ID     CREATED      SIZE
 mlip4tracy          latest   ...          ...          1.98GB
@@ -66,7 +66,7 @@ ubuntu              16.04    ...          ...          119MB
 
 You may see more images, but the above should be present.
 
-We can now build the `matdb` image. Using a shell of your choice go into the `tracy_matdb` directory and run the `build_docker_image.sh` script to build the `matdb` image. Note that this image builds on top of `mlip4tracy`.
+We can now build the `MatDB` image. Using a shell of your choice go into the `tracy_matdb` directory and run the `build_docker_image.sh` script to build the `MatDB` image. Note that this image builds on top of `mlip4tracy`.
 
 Now you can either run them locally, or on AWS.
 
@@ -82,10 +82,10 @@ docker run -it --rm matdb /bin/bash
 At this point you need to provide a `yml` file or use the example one. The format of the `yml` file is specified in the API Documentation (which must be first generated before viewing).
 
 Then within the instance:
-1. move the `/root/codes/` directory
-2. run `./mtp_train.sh <yml-file-location>`
-    - If you do not specify a `yml` file location then matdb will run based off the example `yml` file.
-    - Note that the scripts run cell sizes of 3 or 4 runs until the `mtp` file has converged suitabliy then increases the cell size.
+1. Move the `/root/codes/` directory
+2. Run `./mtp_train.sh <yml-file-location>`
+    - If you do not specify a `yml` file location then MatDB will run based off the example `yml` file.
+    - Note that the scripts run cell sizes of 3 or 4 runs until the `mtp` file has converged suitably, then increases the cell size.
     - The specification is found in the API documentation.
         - The API documentation must be generated and instructions can be found [here](#API-Documentation-Generation).
 
@@ -94,17 +94,17 @@ Then within the instance:
 ## Prepare AWS Instance
 
 1. Login to your AWS management console.
-2. Tap EC2 to get into Resources screen, then select Running Instances.
+2. Tap EC2 to get into "resources" screen, then select "running instances".
     - ![AWS Console](./scripts/deploy/images/aws-screenshot-1.png)
-3. Now Tap Launch Instance, then follow the steps to create new AWS EC2 instance.
-    1. **Choose AMI**: You can choose any linux image that you prefer, the screenshot provided demonstrates one such choice. We recommend the use of *Amazon Linux AMI* using 64 bit (x86).
+3. Now tap "launch instance", then follow the steps to create new AWS EC2 instance.
+    1. **Choose AMI**: You can choose any Linux image that you prefer, the screenshot provided demonstrates one such choice. We recommend the use of *Amazon Linux AMI* using 64 bit (x86).
         - ![AWS Console - Create EC2 Instance](./scripts/deploy/images/aws-screenshot-3.png)
     2. **Choose an Instance Type**:
-        - A minimum requirements of 8 gb of memory.
+        - A minimum requirement of 8 gb of memory.
         - Choose the other options as you see fit.
-    3. **Chonfigure Instance**
+    3. **Configure Instance**
         - Do not change unless you have specific needs.
-    4. **Add Storeage**:
+    4. **Add Storage**:
         - A minimum of 50 GB of hard drive space.
             - This value depends on the number of computations you wish to run.
     5. **Add Tags**:
@@ -115,32 +115,32 @@ Then within the instance:
         - Double check that all the values are as you expect.
     8. Click **Launch**, and you should be taken to define a key pair.
         - You have the option to:
-            - create a new key pair
+            - Create a new key pair
                 - Doing so creates a new one, then allows you to download the private key. Once you move away from that page, the private key can no longer be accessed. If you lose it, you must create a new one.
-            - choose a key pair name
-                - You can use a prexisting key if you have previously used any. Note that if you do not have the associated private key, you will not be able to remotly access the machine.
+            - Choose a key pair name
+                - You can use a pre-existing key if you have previously used any. Note that if you do not have the associated private key, you will not be able to remotely access the machine.
         - ![AWS Console - Create Key Pair and Download pem file](./scripts/deploy/images/aws-screenshot-5.png)
-4. Now Launch Instance. Then you will see you newly created instance. Now you are able to use your pem file to connect to your EC2 instance.
+4. Now launch the instance. Then you will see your newly created instance. Now you are able to use your pem file to connect to your EC2 instance.
     - ![AWS Console - Connect to EC2](./scripts/deploy/images/aws-screenshot-6.png)
 
 
 **Note**: The jar files is about 15G, it also occupied about 15G as docker images, so you need at least 30G to generate these docker images and save to local disk.
 On EC2 you also need at least 30G space to host the jar files and docker images at first, although you can delete the jar files later.
-Also, make sure the compute folder and its subfolder is correctly created before running `mtp_build.sh`.
+Also, make sure the compute folder and its subfolder are correctly created before running `mtp_build.sh`.
 
 
 ## Prepare and Upload Images
 
-Note for this step, your local machine requires sufficient hard drive space.
+Note for this step, your local machine requires sufficient hard drive space (minumum 50GB).
 
 ```bash
 ➜ cd tracy_matdb/scripts/deploy
-➜ ./deploy.sh # this extracts the the required images as jar files
+➜ ./deploy.sh # this extracts the required images as jar files
 ```
 
 Then you can upload the `.jar` files to the remote machine.
 
-Within the `tracy_matdb/scripts/deploy` folder run the following command.
+Within the `tracy_matdb/scripts/deploy` folder run the following command:
 ```bash
 ➜ IDENTITY_FILE="<somepath>/tracy-science-test-001.pem" \
     DESTINATION_URL="ec2-user@<ec2-id>.<region>.compute.amazonaws.com" \
@@ -148,7 +148,7 @@ Within the `tracy_matdb/scripts/deploy` folder run the following command.
     ./deploy_aws.sh
 ```
 - Note that in line definitions of environment variables don't leak out into outer name space. Which is great!
-Fill in the above information to facilitate a connection to your remote aws instance. If your `DESTINATION_URL` format differs, just use the one you are give from the `aws` console.
+Fill in the above information to facilitate a connection to your remote AWS instance. If your `DESTINATION_URL` format differs, just use the one you are give from the `AWS` console.
 
 ## Setup Remote Machine
 
@@ -188,7 +188,7 @@ Install the dependencies:
 
 ### API Documentation Generation
 
-Move to the `tracy_matdb/docs` direcotry. Then run `make` to see what format you want to make the documentation as.
+Move to the `tracy_matdb/docs` directory. Then run `make` to see what format you want to make the documentation as.
     - To create an `html` version run `make html`.
 
 The following is an example:
@@ -199,24 +199,24 @@ The following is an example:
 
 ### Extract from Container
 
-You want to extract the relevent files in the `_build` directory that was recently generated.
+You want to extract the relevant files in the `_build` directory that was recently generated.
 
 You can use `docker cp` to extract them from inside a docker image.
 ```bash
 ➜ docker cp <container-id>:/root/codes/matdb/docs/_build <host-destination>
 ```
-- the `<container-id>` can be found using `docker ps`.
-- `<host-destination>` is a file location on your local machine that you want to place the files.
+- The `<container-id>` can be found using `docker ps`.
+- `<host-destination>` is a file location on your local machine in which you want to place the files.
 
-The extracted files can then be viewed. If you created an `html` version, you can open `<host-destination>/_build/html/index.html` in your web broswer of choice.
+The extracted files can then be viewed. If you created an `html` version, you can open `<host-destination>/_build/html/index.html` in your web browser of choice.
 
 ## Unit Tests
-From within an instance of the docker image `matdb` run the following:
+From within an instance of the docker image `MAtDB` run the following:
 ```bash
 ➜ python3 -m pytest /root/codes/matdb/tests
 ```
 
-To run the tests with a code coverage tool.
+To run the tests with a code coverage tool:
 - Install `pytest-cov` with `python3 -m pip install pytest-cov`.
 Then to run the unit tests with the coverage tool:
 ```bash
@@ -229,16 +229,16 @@ Then to run the unit tests with the coverage tool:
     - Contains the structures needed to be relaxed. Ideally the IAP should be able to relax all this contained structures. Otherwise, it is added to `new_traning.cfg` which should eventually be added to the training set (`train.cfg`).
     - Generated at the first iteration for each atom cell iteration.
 - `new_training.cfg` (`new_training.cfg_iter_?`)
-    - Each iteration will generate some new structures which couldn’t be relaxed by the current IAP. These new structures will be added to the training set (`train.cfg`)  at the beginning of the next iteration. A copy of this file is saved for each iteration for debug purpose.
-        - For example: `new_training.cfg_iter_6` is for the 6th iteration. If this file is empty, it means it converges at the iteration this file is corresponding to. Notice that, as long as the number of new structures generated at an iteration is less than or equal to the next_cell_threshold defined in the `yml` file, it considered.
+    - Each iteration will generate some new structures which couldn’t be relaxed by the current IAP. These new structures will be added to the training set (`train.cfg`)  at the beginning of the next iteration. A copy of this file is saved for each iteration for debugging purposes.
+        - For example: `new_training.cfg_iter_6` is for the 6th iteration. If this file is empty, it means it converged at the iteration this file is corresponding to.
 - `train.cfg` (`train.cfg_iter_?`)
     - Configurations of the training set.
-    - A copy of this file is saved for each iteration for debug purpose.
+    - A copy of this file is saved for each iteration for debugging purposes.
 - `pot.mtp` (`pot.mtp_iter_?`)
     - Data for the representation of the moment tensor potential.
-    - A copy of this file is saved for each iteration for debug purpose.
+    - A copy of this file is saved for each iteration for debugging purposes.
 - `training.txt` (`training.txt_iter_?`)
-    - The log file for the `mtp train` process. At the bottom of the file, it shows the training errors which Wiley would be interested in. Especially for the `Energy per atom`.
+    - The log file for the `mtp train` process. 
 - `status.txt`
     - Contains status code for each step in an iteration.
     - Some of the status:
@@ -249,17 +249,17 @@ Then to run the unit tests with the coverage tool:
         "add {0} {1}".format(self.iter_count, self.cell_iter)
         "done {0} {1} {2}".format(self.iter_count, self.cell_iter, len(new_configs))
         ```
-        - Refer to `command()` method in `fitting.mtp.py` module for a complete status and it’s meaning.
+        - Refer to `command()` method in `fitting.mtp.py` module for a complete status and its meaning.
 - `jobfile.sh`
     - Contains `mtp` command to be executed.
-    - Each iteration has it’s own `mtp` commands need to be carried out.
+    - Each iteration has its own `mtp` commands needed to be carried out.
 - `iter_?.pkl` files in `Active` database.
-    - The `Active` database resides at `/root/codes/compute/MTP/{$FIT_NAME}/Active/active.{$FIT_NAME}` for our example `CoWV` structures (which would be `/root/codes/compute/MTP/CoWV/Active/active.CoWV`).
-    - Each iteration will have it’s `pkl` file generated at the `Active` database root directory. Each `pkl` file contains the new structures for the specific iteration. Notice that, the number of structures in `new_training.cfg_iter_?` and `iter_?.pkl` should be the same.
-        - For example: if `new_training.cfg_iter_9` and `iter_9.pkl` should have the same number of structures. But `train.cfg_iter_10` minus `train.cfg_iter_9` might have less structures then in the two files. That is because QE calculation could fail on some of the new structures.
+    - The `Active` database resides at `/root/codes/compute/MTP/{$FIT_NAME}/Active/active.{$FIT_NAME}` for our example, `CoWV` structures (which would be `/root/codes/compute/MTP/CoWV/Active/active.CoWV`).
+    - Each iteration will have its `pkl` file generated at the `Active` database root directory. Each `pkl` file contains the new structures for the specific iteration. Notice that the number of structures in `new_training.cfg_iter_?` and `iter_?.pkl` should be the same.
+        - For example: `new_training.cfg_iter_9` and `iter_9.pkl` should have the same number of structures. But `train.cfg_iter_10` minus `train.cfg_iter_9` might have less structures than in the two files. That is because the QE calculations could fail on some of the new structures.
         - `pkl` file is a python pickle file.
 - `matdb/templates/bash_build_ml.sh`
-    - the template file used to generate the `jobfile.sh` in the `Active` database root directory defined above.  This template file works only for `QE` calculation.
+    - This template file is used to generate the `jobfile.sh` in the `Active` database root directory defined above.  This template file works only for `QE` calculation.
 
 ## Monitoring Tips
 
@@ -293,7 +293,7 @@ for ii in range(1,max_value+1):
     ))
 ```
 
-Some example output:
+Some example outputs:
 ```
 Iter|NumStrct|DeltaStruct|NumHours|TotalHours|Date
 01    20         9.52   9.52 05-17-05:22
@@ -321,7 +321,7 @@ Iter|NumStrct|DeltaStruct|NumHours|TotalHours|Date
 
 Depending on how `docker` is installed, you made need to run commands with `sudo`.
 
-Stop all running container
+Stop all running containers
 ```bash
 docker stop $(sudo docker ps -a -q)
 ```
@@ -344,4 +344,4 @@ The container ID can be found using `docker ps`
 
 ## Contributing
 
-Before contributing to `matdb` please read the [contributing guidelines](/CONTRIBUTING.md).
+Before contributing to `MatDB` please read the [contributing guidelines](/CONTRIBUTING.md).
