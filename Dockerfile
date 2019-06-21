@@ -36,6 +36,7 @@ COPY requirements.txt $HOME_DIR/codes/matdb
 RUN python3 -m pip install -r $HOME_DIR/codes/matdb/requirements.txt
 RUN ln -s /usr/local/bin/phonopy /usr/bin/phonopy # this is to fix unit test issue for test_vasp.py on local device.
 
+COPY docs $HOME_DIR/codes/matdb/docs
 COPY matdb $HOME_DIR/codes/matdb/matdb
 COPY tests $HOME_DIR/codes/matdb/tests
 COPY support $HOME_DIR/codes/matdb/support
@@ -49,12 +50,15 @@ RUN cd $HOME_DIR/codes/matdb \
     && python3 -m pip install -e .
 
 # This is to fix the annoying false error messages when the matdb trying to check for depends.
-COPY one_off_fix/pip /usr/bin/pip3
+COPY third-party-modifications/pip /usr/bin/pip3
 
 # ASE library assumes each attribute of PP_HEADER element in the ps file is in a separated line
 # but pslibrary generates all the attributes in a single line. The below file fixed this issue.
-COPY one_off_fix/espresso.py /usr/local/lib/python3.5/dist-packages/ase/io/espresso.py.new
+COPY third-party-modifications/espresso.py /usr/local/lib/python3.5/dist-packages/ase/io/espresso.py.new
 
 RUN echo export PATH=$PATH:${MTP_ROOT}/bin >> ${HOME_DIR}/.bashrc
 RUN mkdir -p /root/codes/compute/MTP/CoWV
 RUN chmod +x /root/codes/*.sh
+
+RUN sudo mkdir -p -m 0755 /var/run/sshd
+CMD ["sudo","/usr/sbin/sshd","-D"]

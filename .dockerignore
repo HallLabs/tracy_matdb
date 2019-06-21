@@ -1,4 +1,4 @@
 *.o
 *.obj
 .git/*
-docs/*
+*.jar
