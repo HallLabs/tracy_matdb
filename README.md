@@ -238,7 +238,7 @@ Then to run the unit tests with the coverage tool:
     - Data for the representation of the moment tensor potential.
     - A copy of this file is saved for each iteration for debugging purposes.
 - `training.txt` (`training.txt_iter_?`)
-    - The log file for the `mtp train` process. 
+    - The log file for the `mtp train` process.
 - `status.txt`
     - Contains status code for each step in an iteration.
     - Some of the status:
@@ -263,9 +263,9 @@ Then to run the unit tests with the coverage tool:
 
 ## Monitoring Tips
 
-To watch the progress you watch the files in the folder `/root/codes/compute/MTP/${FIT_NAME}/${FIT_NAME}/mtp/`.
+To watch the progress, you can watch the contents and generation of the temporary files in the directory `/root/codes/compute/MTP/${FIT_NAME}/${FIT_NAME}/mtp/`.
 - `${FIT_NAME}` is will be a concatenation of the elements that are used.
-    - `${FIT_NAME}` is `CoWV` when using the example `yml` file.
+    - `${FIT_NAME}` is `CoWV` when using the example `yml` file for Cobalt, Tungsten, and Vanadium.
 
 The following snippet can be used in the directory of temporary files to provide useful progress information.
 ```python
@@ -293,7 +293,7 @@ for ii in range(1,max_value+1):
     ))
 ```
 
-Some example outputs:
+Example output of the above snippet:
 ```
 Iter|NumStrct|DeltaStruct|NumHours|TotalHours|Date
 01    20         9.52   9.52 05-17-05:22
