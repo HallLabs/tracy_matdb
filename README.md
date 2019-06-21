@@ -8,7 +8,7 @@ The interatomic potentials are created using [MLIP](http://gitlab.skoltech.ru/sh
 
 We describe step to run the project either on a local machine or a remote machine on AWS.
 
-- [Introduction](#Introduction)
+- [Quickstart Summery](#Quickstart-Summery)
 - [Build Containers Locally](#Build-Containers-Locally)
 - [Running the Project](#Running-the-Project)
 - [Remote Run Using AWS](#Remote-Run-Using-AWS)
@@ -21,11 +21,17 @@ We describe step to run the project either on a local machine or a remote machin
         2. [Build API Documentation](#Build-API-Documentation)
         3. [Extract from Container](#Extract-from-Container)
     - [Unit Tests](#Unit-Tests)
-    - [Helpful Docker Commands](#Helpful-Docker-Commands)
+    - [Intermediate Files](#Intermediate-Files)
     - [Monitoring Tips](#Monitoring-Tips)
+    - [Helpful Docker Commands](#Helpful-Docker-Commands)
     - [Contributing](#Contributing)
 
-# Introduction
+# Quickstart Summery
+
+The project follows some high level steps:
+- [Build](#Build-Containers-Locally)
+- Optional: [Upload](#Remote-Run-Using-AWS)
+- [Run](#Running-the-Project)
 
 # Build Containers Locally
 
@@ -47,8 +53,6 @@ tracy_root
 ```
 
 Follow the instructions in the [Tracy Docker readme](https://github.com/NorimaConsulting/tracy_docker/blob/master/README.md) to build all relevent prerequisite docker images.
-
-<!-- matdb               latest   ...          ...          1.87GB -->
 
 To verify, run `docker images`. You should see similar output:
 ```
@@ -82,6 +86,8 @@ Then within the instance:
 2. run `./mtp_train.sh <yml-file-location>`
     - If you do not specify a `yml` file location then matdb will run based off the example `yml` file.
     - Note that the scripts run cell sizes of 3 or 4 runs until the `mtp` file has converged suitabliy then increases the cell size.
+    - The specification is found in the API documentation.
+        - The API documentation must be generated and instructions can be found [here](#API-Documentation-Generation).
 
 # Remote Run Using AWS
 
@@ -89,12 +95,41 @@ Then within the instance:
 
 <!-- TODO: Incorperate deploy readme here -->
 
-### generate an new ec2 instance
-- instructions [here](./aws_deploy.md)
-- a linux based one
-- needs 64 gb of HD
-- 8 gb of RAM
-- create a key or use an existing
+1. Login to your AWS management console.
+2. Tap EC2 to get into Resources screen, then select Running Instances.
+    - ![AWS Console](./scripts/deploy/images/aws-screenshot-1.png)
+3. Now Tap Launch Instance, then follow the steps to create new AWS EC2 instance.
+    1. **Choose AMI**: You can choose any linux image that you prefer, the screenshot provided demonstrates one such choice. We recommend the use of *Amazon Linux AMI* using 64 bit (x86).
+        - ![AWS Console - Create EC2 Instance](./scripts/deploy/images/aws-screenshot-3.png)
+    2. **Choose an Instance Type**:
+        - A minimum requirements of 8 gb of memory.
+        - Choose the other options as you see fit.
+    3. **Chonfigure Instance**
+        - Do not change unless you have specific needs.
+    4. **Add Storeage**:
+        - A minimum of 50 GB of hard drive space.
+            - This value depends on the number of computations you wish to run.
+    5. **Add Tags**:
+        - Do not change unless you have specific needs.
+    6. **Configure Security Group**:
+        - Do not change unless you have specific needs.
+    7. **Review**:
+        - Double check that all the values are as you expect.
+    8. Click **Launch**, and you should be taken to define a key pair.
+        - You have the option to:
+            - create a new key pair
+                - Doing so creates a new one, then allows you to download the private key. Once you move away from that page, the private key can no longer be accessed. If you lose it, you must create a new one.
+            - choose a key pair name
+                - You can use a prexisting key if you have previously used any. Note that if you do not have the associated private key, you will not be able to remotly access the machine.
+        - ![AWS Console - Create Key Pair and Download pem file](./scripts/deploy/images/aws-screenshot-5.png)
+4. Now Launch Instance. Then you will see you newly created instance. Now you are able to use your pem file to connect to your EC2 instance.
+    - ![AWS Console - Connect to EC2](./scripts/deploy/images/aws-screenshot-6.png)
+
+
+**Note**: The jar files is about 15G, it also occupied about 15G as docker images, so you need at least 30G to generate these docker images and save to local disk.
+On EC2 you also need at least 30G space to host the jar files and docker images at first, although you can delete the jar files later.
+Also, make sure the compute folder and its subfolder is correctly created before running `mtp_build.sh`.
+
 
 ## Prepare and Upload Images
 
@@ -147,10 +182,10 @@ After the images are loaded, you can run the project following the steps in the 
 ## Build Documentation
 
 ### Dependencies for Generation
+
+Install the dependencies:
 - `python3 -m pip install git+https://github.com/sphinx-doc/sphinx`
 - `python3 -m pip install sphinxcontrib-napoleon`
-
-<!-- Clarify steps, which are in the container, which are on host machine -->
 
 ### API Documentation Generation
 
@@ -189,6 +224,101 @@ Then to run the unit tests with the coverage tool:
 ➜ python3 -m pytest --cov=/root/codes/matdb /root/codes/matdb/tests
 ```
 
+## Intermediate Files
+
+- `to-relax.cfg`
+    - Contains the structures needed to be relaxed. Ideally the IAP should be able to relax all this contained structures. Otherwise, it is added to `new_traning.cfg` which should eventually be added to the training set (`train.cfg`).
+    - This file is generated at the first iteration for each atom cell iteration.
+- `new_training.cfg` (`new_training.cfg_iter_?`)
+    - Each iteration will generate some new structures which couldn’t be relaxed by the current IAP. These new structures will be added to the training set (`train.cfg`)  at the beginning of the next iteration. A copy of this file is saved for each iteration for debug purpose.
+        - For example: `new_training.cfg_iter_6` is for the 6th iteration. If this file is empty, it means it converges at the iteration this file is corresponding to.
+            - For example, if `new_training.cfg_iter_17` is empty, it shows it converged at iteration 17. Notice that, as long as the number of new structures generated at an iteration is less than or equal to the next_cell_threshold defined in the `yml` file, it considered.
+- `train.cfg` (`train.cfg_iter_?`)
+    - Configurations of the training set.
+    - A copy of this file is saved for each iteration for debug purpose.
+- `pot.mtp` (`pot.mtp_iter_?`)
+    - Data for the representation of the moment tensor potential.
+    - A copy of this file is saved for each iteration for debug purpose.
+- `training.txt` (`training.txt_iter_?`)
+    - This is the log file for the `mtp train` process. At the bottom of the file, it shows the training errors which Wiley would be interested in. Especially for the `Energy per atom`.
+- `status.txt`
+    - Contains status code for each step in an iteration.
+    - Some of the status:
+        ```python
+        "relax_setup {0} {1}".format(self.iter_count, self.cell_iter)
+        "relax {0} {1}".format(self.iter_count, self.cell_iter)
+        "select {0} {1}".format(self.iter_count, self.cell_iter)
+        "add {0} {1}".format(self.iter_count, self.cell_iter)
+        "done {0} {1} {2}".format(self.iter_count, self.cell_iter, len(new_configs))
+        ```
+        - Refer to `command()` method in `fitting.mtp.py` module for a complete status and it’s meaning.
+- `jobfile.sh`
+    - This file contains `mtp` command to be executed.
+    - Each iteration has it’s own `mtp` commands need to be carried out.
+- `iter_?.pkl` files in `Active` database.
+    - The `Active` database resides at `/root/codes/compute/MTP/CoWV/Active/active.CoWV` for our example `CoWV` structures.  Each iteration will have it’s `pkl` file generated at the `Active` database root directory. Each `pkl` file contains the new structures for the specific iteration. Notice that, the number of structures in `new_training.cfg_iter_?` and `iter_?.pkl` should be the same.
+        - For example, `new_training.cfg_iter_9` and `iter_9.pkl` should have the same number of structures. But `train.cfg_iter_10` minus `train.cfg_iter_9` might have less structures then in the two files. That is because QE calculation could fail on some of the new structures.
+    - `pkl` file is a python pickle file.
+- `matdb/templates/bash_build_ml.sh`
+    - the template file used to generate the `jobfile.sh` in the `Active` database root directory defined above.  This template file works only for `QE` calculation.
+
+## Monitoring Tips
+
+To watch the progress you watch the files in the folder `/root/codes/compute/MTP/${FIT_NAME}/${FIT_NAME}/mtp/`.
+- `${FIT_NAME}` is will be a concatenation of the elements that are used.
+    - `${FIT_NAME}` is `CoWV` when using the example `yml` file.
+
+
+The following snippet can be used in the directory of temporary files to provide useful progress information.
+```python
+import os
+import datetime
+max_value=45
+seconds_per_hour=60*60
+count=dict()
+date=dict()
+for ii in range(1,max_value+1):
+    filename = "train.cfg_iter_{}".format(ii)
+    temp = open(filename).read()
+    count[ii] = temp.count("BEGIN_CFG")
+    date[ii] = os.path.getmtime(filename)
+start_time = min(date.values())
+print("Iter|NumStrct|DeltaStruct|NumHours|TotalHours|Date")
+for ii in range(1,max_value+1):
+    print("{:02d} {:5d} {} {} {} {}".format(
+        ii,
+        count[ii],
+        "{:5d}".format(count[ii]-count[ii-1]) if ii > 1 else 5*" ",
+        "{:6.2f}".format((date[ii+1]-date[ii])/seconds_per_hour) if ii < max_value else 6*" ",
+        "{:6.2f}".format((date[ii+1]-start_time)/seconds_per_hour) if ii < max_value else 6*" ",
+        datetime.datetime.utcfromtimestamp(date[ii]).strftime("%m-%d-%H:%M")
+    ))
+```
+
+Some example output:
+```
+Iter|NumStrct|DeltaStruct|NumHours|TotalHours|Date
+01    20         9.52   9.52 05-17-05:22
+02   318   298  11.86  21.38 05-17-14:53
+03   581   263   9.34  30.72 05-18-02:45
+04   846   265  12.03  42.75 05-18-12:05
+05   986   140  12.86  55.61 05-19-00:06
+06  1163   177   8.61  64.22 05-19-12:58
+07  1302   139   8.02  72.24 05-19-21:35
+08  1345    43   7.42  79.66 05-20-05:36
+09  1390    45   7.02  86.68 05-20-13:01
+10  1437    47   5.96  92.64 05-20-20:02
+11  1448    11   8.10 100.75 05-21-02:00
+12  1468    20   7.06 107.81 05-21-10:06
+13  1508    40   6.26 114.07 05-21-17:10
+14  1535    27   6.33 120.39 05-21-23:26
+15  1545    10   6.57 126.97 05-22-05:45
+16  1547     2   6.76 133.73 05-22-12:20
+17  1552     5   6.37 140.10 05-22-19:05
+18  1556     4  11.80 151.90 05-23-01:27
+19  1556     0   9.38 161.28 05-23-13:15
+```
+
 ## Helpful Docker Commands
 
 Depending on how `docker` is installed, you made need to run commands with `sudo`.
@@ -213,40 +343,6 @@ Create a second connection to an existing container
 ➜ docker exec -it <container-id> /bin/bash
 ```
 The container ID can be found using `docker ps`
-
-## Monitoring Tips
-
-## Intermediate Files
-
-- `to-relax.cfg`
-    - This is the file contains structures needed to be relaxed. The idea is that the IAP should be able to relax all the structures listed in this file. If a structure can not be relaxed, it then is added to the `new_training.cfg` file and is ultimately added to the training set(`train.cfg`).
-    - This file is generated at the first iteration for each atom cell iteration.
-- `new_training.cfg(new_training.cfg_iter_?)`
-    - Each iteration will generate some new structures which couldn’t be relaxed by the current IAP.  These new structures will be added to the training set (train.cfg)  at the beginning of the next iteration. I saved a copy of this file for each iteration for debug purpose. For example: new_training.cfg_iter_6 is for the 6th iteration. If this file is empty, it means it converges at the iteration this file is corresponding to. For example, if `new_training.cfg_iter_17` is empty, it shows it converged at iteration 17. Notice that, as long as the number of new structures generated at an iteration is less than or equal to the next_cell_threshold defined in the `yml` file, it considered converged
-- `train.cfg(train.cfg_iter_?)`
-    - This is the training set.  I saved a copy of this file for each iteration for debug purpose.
-- `pot.mtp(pot.mtp_iter_?)`
-    - This is the potentials.  I saved a copy for each iteration for debug purpose.
-- `training.txt (training.txt_iter_?)`
-    - This is the log file for the `mtp train` process.  At the bottom of the file, it shows the training errors which Wiley would be interested in. Especially for the `Energy per atom`.
-- `status.txt`: this contains status code for each step in an iteration.
-    - Some of the status:
-        ```python
-        "relax_setup {0} {1}".format(self.iter_count, self.cell_iter)
-        "relax {0} {1}".format(self.iter_count, self.cell_iter)
-        "select {0} {1}".format(self.iter_count, self.cell_iter)
-        "add {0} {1}".format(self.iter_count, self.cell_iter)
-        "done {0} {1} {2}".format(self.iter_count, self.cell_iter, len(new_configs))
-        ```
-        - Refer to `command()` method in `fitting.mtp.py module` for a complete status and it’s meaning.
-- `jobfile.sh`
-    - This file contains `mtp` command to be executed. Each iteration has it’s own `mtp` commands need to be carried out.
-- `iter_?.pkl` files in `Active` database.
-    - The `Active` database resides at `/root/codes/compute/MTP/CoWV/Active/active.CoWV` for our example `CoWV` structures.  Each iteration will have it’s `pkl` file generated at the `Active` database root directory. Each `pkl` file contains the new structures for the specific iteration. Notice that, the number of structures in `new_training.cfg_iter_?` and `iter_?.pkl` should be the same. For example, `new_training.cfg_iter_9` and `iter_9.pkl` should have the same number of structures. But `train.cfg_iter_10` minus `train.cfg_iter_9` might have less structures then in the two files. That is because QE calculation could fail on some of the new structures.
-- `matdb/templates/bash_build_ml.sh`
-    - the template file used to generate the `jobfile.sh` in the `Active` database root directory defined above.  This template file works only for `QE` calculation.
-- `pkl` means is the extension for a python pickle file.
-
 
 ## Contributing
 
