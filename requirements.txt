@@ -5,4 +5,3 @@ numpy
 phonopy
 phenum
 h5py
-lazy_import

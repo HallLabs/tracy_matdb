@@ -21,6 +21,9 @@ resulting in a total of 10 configurations from the initial seed
 configuration. If multiple seeds are provided then this would yield
 10*(the number of seed configurations).
 
+Substitution Database
+*********************
+
 .. automodule:: matdb.database.substitution
    :synopsis: Database sub-classes for implementing databases of
               lattice with atomic substitutions throughout the

@@ -73,7 +73,7 @@ calculation you are performing you would specify which of these you
 potentials you wanted to use by supplying `` Ag: '_pv' `` in the
 `setups` section. A complete example:
 
-.. code-block:: yml
+.. code-block:: yaml
    
    potcars:
      directory: './tests/vasp'
@@ -87,7 +87,7 @@ potentials you wanted to use by supplying `` Ag: '_pv' `` in the
 
 A complete example of the VASP calculor `yml` section:
 
-.. code-block:: yml
+.. code-block:: yaml
 
    calculator:
      name: Vasp

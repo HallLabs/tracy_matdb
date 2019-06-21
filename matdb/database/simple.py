@@ -19,10 +19,10 @@ class Manual(Group):
         dbargs (dict): a dictionary of arguments for the Group class.
 
     .. note:: Additional attributes are also exposed by the super class
-      :class:`Group`.
+      :class:`~matdb.database.Group`.
 
     Attributes:
-        name (str): name of this database type relative to the over database
+        name (str): Name of this database type relative to the database
           collection. This is also the name of the folder in which all of its
           calculations will be performed.
     """
@@ -56,9 +56,13 @@ class Manual(Group):
                 self._set_calc_defaults(calcargs)
                 dbargs["calculator"] = calcargs
 
+    def _set_calc_defaults(self, calcargs):
+        """ No implementation for this method.
+        """
+
     @property
     def fitting_configs(self):
-        """Returns a :class:`matdb.atoms.AtomsList` for all configs in this
+        """Returns a :class:`~matdb.atoms.AtomsList` for all configs in this
         group.
         """
         if len(self.sequence) == 0:
@@ -79,7 +83,7 @@ class Manual(Group):
         """Returns the reusable set to the next database group.
 
         Returns:
-            list: of :class:`matdb.atoms.Atoms`
+            list: list of :class:`~matdb.atoms.Atoms`
         """
         if len(self.sequence) == 0:
             #We are at the bottom of the stack;
@@ -130,6 +134,10 @@ class Manual(Group):
             if not self.extractable and self.is_setup():
                 return True
             else:
+                # if there is no seeds, pretend it's ready and don't bother to setup
+                if self._seed is None and self.seeded:
+                    return True 
+
                 #A zero-length sequence can mean we have a set of seeds that
                 #were specified, *or* that we have a single seed that is itself
                 #an atoms object (instead of a list of atoms objects).
@@ -139,13 +147,12 @@ class Manual(Group):
                 else:
                     return False
         else:
-            ready = False
+            ready = True
             for p in self.sequence.values():
                 if not p.ready():
                     msg.std("{} is not ready. Exiting.".format(p.root), 2)
+                    ready = False
                     break
-            else:
-                ready = True
             return ready
 
     def sub_dict(self):

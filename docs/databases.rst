@@ -1,5 +1,6 @@
-`matdb` Database Types
-======================
+ 
+Database Types
+==============
 
 Depending on the needs of the potential, different configuration types
 need to be generated for training. Each configuration type is referred
@@ -120,7 +121,7 @@ located in the `SEED` directory and perform calculations on them.
 	     
 .. toctree::
    :maxdepth: 1
-   :caption: Modules:
+   :caption: Databases:
 
    database/enumerated.rst
    database/aflow.rst
@@ -129,3 +130,15 @@ located in the `SEED` directory and perform calculations on them.
    database/substitution.rst
    database/vacancy.rst
    database/manual.rst
+   database/hessian.rst
+   database/legacy.rst
+   database/liquid.rst
+   database/md.rst
+   database/prototype.rst
+
+
+.. toctree::
+   :maxdepth: 1
+   :caption: Utility Modules:
+
+   database/utility.rst

@@ -10,12 +10,12 @@ from matdb.atoms import Atoms, AtomsList
 from matdb.database import Group
 
 class Distortion(Group):
-    '''Distortion.py: Group to create from a seed configuration and distorts
+    '''Group to create from a seed configuration and distorts
     the atom positions or displaces the atoms randomly within a normal
     distribution of some standard deviation, std.
 
     Args:
-        name (str): default name Distortion
+        name (str): default name "Distortion"
         rattle (float): the standard deviation of the normal distribution
             of atom deviations.
         ran_seed (hashable):(=1 default) seed for the normal distribution
@@ -30,7 +30,7 @@ class Distortion(Group):
         dbargs (dict): dictionary of arguments to be passed to the
             `Group` class.
     .. note:: Additional attributes are also exposed by the super class
-            :class:`Group`.
+            :class:`~matdb.database.Group`.
 
     Attributes:
         name (str): name of this database type relative to the over database
@@ -39,14 +39,12 @@ class Distortion(Group):
         scaling_matrix(np.array): 3x3 matrix of determinant=volume factor.
         mean(tuple): 3x3 identity matrix, mean of the multivariate normal
              distribution of values in the scaling matrix.
-        cov(list of lists): 9x9 diagonal covariance matrix with cov_diag along
+        cov(list): 9x9 diagonal covariance matrix with cov_diag along
              the diagonal.
         rattle (float): the amount to rattle the atoms in the config by.
 
     Returns:
-        distortion (np.n darray): an array of atoms objects of length
-             num_cells with distorted atom positions according to the normal
-             distribution specified.
+        numpy.ndarray: an array of atoms objects of length num_cells with distorted atom positions according to the normal distribution specified.
     '''
     def __init__(self, rattle=0, ran_seed=None, volume_factor=1.0,
                  cov_diag=0.001, min_index=0, name="distortion", **dbargs):
@@ -102,14 +100,14 @@ class Distortion(Group):
 
     @property
     def fitting_configs(self):
-        """Returns a :class:`matdb.atoms.AtomsList` for all configs in this
+        """Returns a :class:`~matdb.atoms.AtomsList` for all configs in this
         group.
         """
         return self.rset
 
     @property
     def rset(self):
-        """Returns a :class:`matdb.atoms.AtomsList`, one for each config in the
+        """Returns a :class:`~matdb.atoms.AtomsList`, one for each config in the
         latest result set.
         """
         if len(self.sequence) == 0:

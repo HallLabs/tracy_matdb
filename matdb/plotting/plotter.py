@@ -1,5 +1,5 @@
 """This module exposes a generic plotter that can generically plot quantities
-against each other. Note that the actual plotting is carried out using the
+against one another. Note that the actual plotting is carried out using the
 :class:`~matdb.plotting.matd3.PointDetailImage`. This class wraps that one to
 provide access to configurations from the global `matdb.yml` file, which can
 include file directives to other folders.
@@ -24,7 +24,7 @@ class PlotManager(object):
         configuration.
 
         Args:
-            objs (list): of trainer or database objects that support the methods
+            objs (list): list of trainer or database objects that support the methods
               described in the plotting configuration.
             name (str): name of a plotting configuration in :attr:`configs`.
         """

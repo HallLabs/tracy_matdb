@@ -1,5 +1,19 @@
 # Revision History for `matdb`
 
+## Revision 1.4.2
+- Added 'mem_per_cpu' and 'mem' options to .sh templates.
+- Added the option to remove the first line from `mtp` file `relax.ini`.
+- Changed `path.exists` to `path.isfile` in atoms.py to ensure that folders
+  don't get read in as atoms objects.
+- Moved VASP version checking to a separated routine to ensure versions are
+  only checked once and to prevent duplication of warnings.
+- Added some initial support for additional k-point methods.
+- Simplified the `conf_id` in `atoms_to_cfg` routine.
+- Added support for `numpy` arrays of strings in the `save_to_hdf5` routine.
+- Created a unique `jobfile` function for the active database.
+- Fixed active database determination of current database size.
+- Added the `run_as_root` option for mtp mpi commands.
+
 ## Revision 1.4.1
 - Fixed a bug in the `mtp` modules calls to 'atoms_to_cfg` that was
   making the atomic species in the `train.cfg` file have the wrong

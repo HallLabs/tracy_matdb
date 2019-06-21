@@ -11,6 +11,7 @@ from itertools import combinations
 import json
 from os import path, rename, remove
 from uuid import uuid4
+from itertools import product
 
 from glob import glob
 import numpy as np
@@ -24,11 +25,11 @@ from matdb.utility import load_datetime, special_values, dbcat
 
 def split(atlist, splits, targets, dbdir, ran_seed, dbfile=None, recalc=0,
           nonsplit=None):
-    """Splits the :class:`matdb.atoms.AtomsList` multiple times, one for
+    """Splits the :class:`~matdb.atoms.AtomsList` multiple times, one for
     each `split` setting in the database specification.
 
     Args:
-        atlsit (AtomsList, or list): the list of :class:`matdb.atams.Atoms` objects
+        atlsit (AtomsList or list): the list of :class:`matdb.atoms.Atoms` objects
           to be split or a list to the files containing the atoms objects.
         splits (dict): the splits to perform.
         targets (dict): the files to save the splits in, these should
@@ -64,8 +65,6 @@ def split(atlist, splits, targets, dbdir, ran_seed, dbfile=None, recalc=0,
                 if path.isfile(idfile):
                     with open(idfile, 'rb') as f:
                         data = load(f)
-                new_idfile = path.join(self.root,"{0}_{1}-ids.pkl".format(name,data["uuid"]))
-                self.parent.uuids[data["uuid"]] = new_idfile
                 for fname in [train_file,holdout_file,super_file]:
                     new_name = fname.replace(name,"{0}_{1}".format(name,data["uuid"]))
                     rename(fname,new_name)
@@ -153,7 +152,7 @@ def dbconfig(dbfile):
     """Returns the database configuration `dict` of the specified database file.
 
     Args:
-        dbfile (str): path to the database file to get config information for.
+        dbfile (str): Path to the database file for which to get config information.
     """
     # from matdb.utility import load_datetime
 
@@ -170,14 +169,14 @@ def dbconfig(dbfile):
 
 def parse_path(root,seeds,ran_seed=None):
     """Finds the full path to the seed files for this system.
+
     Args:
-        root (str): the root directory for the databes.
-        seeds (str or list of str): the seeds for the database that
-            need to be parsed and have the root folder found.
+        root (str): the root directory for the database.
+        seeds (str or list): the seeds for the database that need to be parsed and have the root folder found.
         ran_seed (optional): the seed for the random generator if used.
 
     Returns:
-        seed_files (list): a list of the seed files for the database.
+        list: a list of the seed files for the database.
     """
     # from matdb.utility import special_values
     # from itertools import product
@@ -194,9 +193,9 @@ def parse_path(root,seeds,ran_seed=None):
                 if "*" in segment:
                     if len(this_seeds) >=1:
                         this_level = []
-                        for t_path in res:
+                        for t_path in segment:
                             this_level.extend(glob(path.join(seed_path,t_path,segment)))
-                    else:
+                    else: #pragma: no cover. This could never happens, len(this_seeds) will be at least 1 if goes into this path
                         this_level = glob(path.join(seed_path,segment))
                 else:
                     this_level = [segment]
@@ -217,7 +216,7 @@ def parse_path(root,seeds,ran_seed=None):
             t_seed = path.join(seed_path,ts)
             if path.isfile(t_seed):
                 seed_files.append(t_seed)
-            else:
+            else: #pragma: no cover
                 msg.err("The seed file {} could not be found.".format(t_seed))
 
         return seed_files
@@ -227,8 +226,8 @@ def make_primitive(atm, eps=None):
     convert the primitive to the current crystal.
 
     Args:
-        atm (matdb.Atoms): an atoms object.
-        esp (float): floating point tollerance.
+        atm (matdb.atoms.Atoms): an atoms object.
+        esp (float): floating point tolerance.
 
     Returns:
         The lattice and atomic basis vectors of the primitive cell along
@@ -508,7 +507,7 @@ def swap_column(hnf, b, row):
     return hnf, b
 
 def decompress(prim, basis, types_int, hnf_int):
-    """Decompresses the crystal back into it's original form.
+    """Decompresses the crystal back into its original form.
 
     Args:
         prim (list): the primitive lattice vectors as rows of a matrix.

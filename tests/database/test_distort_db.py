@@ -12,7 +12,7 @@ def AlMg(tmpdir):
     and repition is more likely.
 
     Attributes:
-        atoms_seed(matdb.atoms): The seed atoms object configuration for db
+        atoms_seed(matdb.atoms.Atoms): The seed atoms object configuration for db
             generation.
     """
     from matdb.utility import relpath

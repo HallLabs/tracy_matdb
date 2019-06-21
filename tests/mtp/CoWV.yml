@@ -80,6 +80,7 @@ fitting:
           select:
             selection-limit: 200
           largest_relax_cell: [4,6,8,10]
+          next_cell_threshold: 15
           species:
             - "Co"
             - "W"

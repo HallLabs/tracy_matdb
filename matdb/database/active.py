@@ -3,6 +3,7 @@
 from hashlib import sha1
 from glob import glob
 from os import path, getcwd, chdir, remove, listdir, mkdir
+from copy import deepcopy
 
 import numpy as np
 from six import string_types
@@ -15,12 +16,11 @@ from matdb.atoms import AtomsList, Atoms
 class Active(Group):
     """Sets up the calculations for a set of configurations that are being
     added to by the active learning approach.
-
     .. note:: Additional attributes are also exposed by the super class
-      :class:`Group`.
+      :class:`~matdb.database.Group`.
 
     Attributes:
-        auids (list): the unique ids for each config in the group
+        list: the unique ids for each config in the group
     """
     def __init__(self, name="active", **dbargs):
         self.name = name
@@ -44,12 +44,36 @@ class Active(Group):
         cur_iter = len(glob(path.join(self.root,"iter_*.pkl")))
         self.iter_file = path.join(self.root,"iter_{}.pkl".format(cur_iter))
         self._load_last_iter()
+        self.set_size = deepcopy(self.nconfigs)
 
     def ready(self):
         """Returns True if this database has finished its computations and is
         ready to be used.
         """
         return len(self.fitting_configs) == self.nconfigs
+
+    def can_extract(self):
+        """Runs post-execution routines to clean-up the calculations.
+        """
+        self._expand_sequence()
+        if len(self.sequence) == 0:
+            if (len(self.configs) != self.nconfigs and
+                self.nconfigs is not None):
+                #We need to have at least one folder for each config;
+                #otherwise we aren't ready to go.
+                return False
+
+            result = False
+            for f, a in zip(self.configs.values(), self.config_atoms.values()):
+                if not a.calc.can_extract(f):
+                    msg.std("Config {} not ready for extraction.".format(f), 2)
+                    # continue processing the rest. If any folder can be extracted, return True.
+                    continue
+            else:
+                result = True
+            return result
+        else: #pragma: no cover, enumerated database shouldn't take seeds
+            return all(group.can_extract() for group in self.sequence.values())
 
     @property
     def auid_file(self):
@@ -104,7 +128,7 @@ class Active(Group):
 
     @property
     def rset(self):
-        """Returns a :class:`matdb.atoms.AtomsList`, one for each config in the
+        """Returns a :class:`~matdb.atoms.AtomsList`, one for each config in the
         latest result set.
         """
 
@@ -117,9 +141,8 @@ class Active(Group):
 
     def add_configs(self,new_configs,iteration):
         """Adds the atoms objects in the list to the configs of the active set.
-
         Args:
-            new_configs (list): list of `matdb.atoms.Atoms` objects to be added
+            list: list of :class:`~matdb.atoms.Atoms` objects to be added
                 to the active learning set.
         """
 
@@ -143,11 +166,12 @@ class Active(Group):
             auid = sha1(''.join(map(str, (tuple([tuple(i) for i in config.cell]),
                         tuple([tuple(i) for i in config.positions]),
                         tuple(config.get_chemical_symbols())))).encode('utf-8'))
+
             if self.auids is not None:
                 if auid.hexdigest() in self.auids:
                     self.nconfigs -= 1
                     continue
-            else:
+            else: #pragma: no cover, self.auids could never be None, it could be empty though
                 self.auids = []
 
             dind += 1
@@ -167,12 +191,13 @@ class Active(Group):
     def setup(self, rerun=False):
         """Enumerates the desired number of structures and setups up a folder
         for each one.
-
         Args:
             rerun (bool): when True, recreate the folders even if they
               already exist.
-
         """
+        # if the last iteration is empty, force a rerun to generate an empty pkl file 
+        if self.last_config_atoms is None:
+            rerun=True
         super(Active, self).setup(self._setup_configs,rerun)
 
     def is_executing(self):
@@ -186,6 +211,10 @@ class Active(Group):
             # that haven't been setup yet.
             return False
         else:
+            # check if the last iteration is empty. 
+            if self.last_config_atoms is None:
+                return False
+
             # We only want to know if the last iteration's files are
             # being executed, the old iterations don't matter.
             for config in self.last_iteration.values():
@@ -198,20 +227,18 @@ class Active(Group):
                     break
 
         return is_executing
-    
+
     def execute(self, dryrun=False, recovery=False, env_vars=None):
         """Submits the job script for each of the folders in this
         database if they are ready to run.
+
         Args:
-            dryrun (bool): when True, simulate the submission without
-              actually submitting.
-            recovery (bool): when True, submit the script for running recovery
-              jobs.
-            env_vars (dict): of environment variables to set before calling the
-              execution. The variables will be set back after execution.
+            dryrun (bool): when True, simulate the submission without actually submitting.
+            recovery (bool): when True, submit the script for running recovery jobs.
+            env_vars (dict): `dict` of environment variables to set before calling the execution. The variables will be set back after execution.
+
         Returns:
-            bool: True if the submission generated a job id
-            (considered successful).
+            bool: True if the submission generated a job id (considered successful).
         """
 
         self._expand_sequence()
@@ -232,9 +259,10 @@ class Active(Group):
                     return False
 
                 #Make sure that the calculation isn't complete.
-                if any(a.calc.can_extract(self.last_iteration[i])
-                       for i, a in self.last_config_atoms.items()):
-                    return False
+                if self.last_config_atoms is not None:
+                    if any(a.calc.can_extract(self.last_iteration[i])
+                           for i, a in self.last_config_atoms.items()):
+                      return False
 
             # We must have what we need to execute. Compile the command and
             # submit.
@@ -251,13 +279,66 @@ class Active(Group):
                 from matdb.msg import okay
                 okay("{}: {}".format(self.root, xres["output"][0].strip()))
                 return True
-            else:
+            else: #pragma: no cover
                 return False
 
-        else:
+        else: #pragma: no cover, enumerated database shouldn't take seeds
             already_executed = []
             for group in self.sequence.values():
                 already_executed.append(group.execute(dryrun=dryrun,
                                                       recovery=recovery,
                                                       env_vars=env_vars))
             return all(already_executed)
+
+    def jobfile(self, rerun=0, recovery=False):
+        """Creates the job array file to run each of the sub-configurations in
+        this database.
+        Args:
+            rerun (int): when > 0, recreate the jobfile even if it
+              already exists.
+            recovery (bool): when True, configure the jobfile to run
+              recovery jobs for those that have previously failed. This uses a
+              different template and execution path.
+        """
+
+        self._expand_sequence()
+
+        if len(self.sequence) == 0:
+            if recovery:
+                from matdb.utility import linecount
+                target = path.join(self.root, "recovery.sh")
+                xpath = path.join(self.root, "failures")
+                asize = linecount(xpath)
+            else:
+                target = path.join(self.root, "jobfile.sh")
+                xpath = path.join(self.root, "{}.".format(self.prefix))
+                asize = len(self.configs)
+
+            if (path.isfile(target) and rerun == 0) or asize == 0:
+                return
+
+            # We use the global execution parameters and then any updates
+            # locally. We need to add the execution directory (including prefix) and
+            # the number of jobs in the array.
+            settings = self.database.execution.copy()
+            settings.update(self.execution.items())
+
+            settings["set_size"] = self.set_size
+            settings["execution_path"] = xpath
+            settings["array_size"] = asize-self.set_size
+
+            if "array_limit" in settings and asize < settings["array_limit"]:
+                del settings["array_limit"]
+
+            from jinja2 import Environment, PackageLoader
+            env = Environment(loader=PackageLoader('matdb', 'templates'))
+            if recovery:
+                template = env.get_template(settings["template"].replace("array", "recovery"))
+            else:
+                template = env.get_template(settings["template"])
+
+            with open(target, 'w') as f:
+                f.write(template.render(**settings))
+        else: #pragma: no cover, enumerated database shouldn't take seeds
+            for group in self.sequence.values():
+                group.jobfile(rerun=rerun, recovery=recovery)

@@ -22,20 +22,23 @@ def build_calc(name, relpath, *args, **kwargs):
         relpath (str): path to the directory in which to instantiate the calculator.
 
     Notes:
-        atoms (matdb.Atoms): default atoms object for the calculator. An
-          empty `Atoms` object is created. This shouldn't impact calculations since the
-          calculator does not require a folder to run.
-        workdir (str): path to a working directory. Calculators that don't need this
-          folder are the only ones supported by this function, so we default to local
-          directory.
-        contr_dir (str): path to the `matdb` controller's root directory. That folder is
-          used only when the calculator is hashed or serialized, for local use it doesn't
-          matter so we default to the local directory.
-        ran_seed (int): random seed used to initialized the calculator.
+        atoms (matdb.atoms.Atoms): 
+            default atoms object for the calculator. An empty `Atoms` object is created. 
+            This shouldn't impact calculations since the calculator does not require a folder to run.
+
+        workdir (str): 
+            path to a working directory. Calculators that don't need this folder are the only ones 
+            supported by this function, so we default to local directory.
+
+        contr_dir (str): 
+            path to the `matdb` controller's root directory. That folder is used only when 
+            the calculator is hashed or serialized, for local use it doesn't matter so we default to the local directory.
+
+        ran_seed (int): 
+            random seed used to initialized the calculator.
 
     Raises:
-
-    ValueError: if the `name` is not a folder-independent interatomic potential.
+        ValueError: if the `name` is not a folder-independent interatomic potential.
     """
     #This import is purposefully here to avoid recursive import loops.
     from matdb.atoms import Atoms
@@ -52,7 +55,7 @@ def build_calc(name, relpath, *args, **kwargs):
 def get_calculator_hashes(key, value, breadcrumb, result):
     """Looks for calculator absolute paths recursively in configuration dicts.
     
-    .. warning: The `result` parameter will be mutated.
+    .. warning:: The `result` parameter will be mutated.
     
     Args:
         key (str): key that this entry was under in the configuration dict.

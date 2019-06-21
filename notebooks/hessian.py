@@ -29,7 +29,7 @@ class HessianSupercell(object):
     Args:
         primitive (ase.Atoms): primitive configuration to create the supercell
           from.
-        supercell (np.array): of `int` supercell matrix.
+        supercell (np.array): array of `int` supercell matrix.
         folder (str): path to the `phonopy` folder where `FORCE_SETS` and
           displacements are kept; or where `vasprun.xml` is located when the
           full Hessian is calculated using VASP.

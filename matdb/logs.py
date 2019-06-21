@@ -84,6 +84,7 @@ class Logger(object):
 
     def info(self, message, *args):
         """Logs the specified info message for this tracker.
+
         Args:
             message (str): formatted message; `args` will be placed in-line.
         """
@@ -92,6 +93,7 @@ class Logger(object):
 
     def debug(self, message, *args):
         """Logs the specified debug message for this tracker.
+
         Args:
             message (str): formatted message; `args` will be placed in-line.
         """
@@ -99,6 +101,7 @@ class Logger(object):
 
     def error(self, message, *args):
         """Logs the specified error message for this tracker.
+
         Args:
             message (str): formatted message; `args` will be placed in-line.
         """
@@ -107,6 +110,7 @@ class Logger(object):
 
     def warning(self, message, *args):
         """Logs the specified warning message for this tracker.
+
         Args:
             message (str): formatted message; `args` will be placed in-line.
         """

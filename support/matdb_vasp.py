@@ -1,3 +1,5 @@
+#!/usr/bin/python
+
 """This is a stub for vasp to enable unit testing. It creates empty
 files that mimic the ones VASP actually creates when it executes. We
 don't include the OUTCAR because we want to be able to simulate VASP

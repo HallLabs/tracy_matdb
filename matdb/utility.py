@@ -38,6 +38,9 @@ from matdb import __version__
 
 @contextmanager
 def redirect_stdout(new_target):
+    """
+    Redirects messages from standard out, i.e., the terminal, to "new_target", i.e., a file or another location.
+    """
     old_target, sys.stdout = sys.stdout, new_target # replace sys.stdout
     try:
         yield new_target # run some code with the replaced stdout
@@ -46,12 +49,12 @@ def redirect_stdout(new_target):
 
 @contextmanager
 def chdir(target):
-    """Context manager for executing some code within a different
-    directory after which the current working directory will be set
-    back to what it was before.
+    """Context manager for executing code within a different directory.
+    After the execution, the current working directory will be set back to its initial value.
 
     Args:
         target (str): path to the directory to change into.
+
     """
     # from os import chdir, #getcwd
     current = getcwd()
@@ -66,11 +69,11 @@ def import_fqdn(fqdn):
     bubble up.
 
     Args:
-        fqdn (str): '.'-separated list of `package.module.callable` to
-          import. The callable will *not* be called.
+        fqdn (str): dot-separated list of `package.module.callable` to
+          import. The callable will **not** be called.
 
     Returns:
-        tuple: `(module, callable)`, where `module` is the module object that
+        tuple: `(module, callable)` tuple, where `module` is the module object that
         `callable` resides in.
     """
     # from importlib import import_module
@@ -88,9 +91,9 @@ def execute(args, folder, wait=True, nlines=100, venv=None,
     documentation for :class:`subprocess.Popen` for details.
 
     Args:
-        args (list): of `str`; first item should be command to
+        args (list): list of `str`; first item should be the command to
           execute; additional arguments following.
-        folder (str): directory to switch into before executing the
+        folder (str): directory to switch to before executing the
           command.
         wait (bool): when True, block the current thread until
           execution completes; otherwise, returns immediately.
@@ -102,15 +105,14 @@ def execute(args, folder, wait=True, nlines=100, venv=None,
           activate before running the command.
         printerr (bool): when True, if `stderr` is not empty, print
           the lines automatically.
-        env_vars (dict): of environment variables to set before calling the
-          execution. The variables will be set back after execution.
-        errignore (str): if errors are produced that include this pattern, then
-          they will *not* be printed to `stdout`.
+        env_vars (dict): dictionary of environment variables to set before calling the
+          execution. The variables will be revert to their original value after execution.
+        errignore (str): if produced errors include this pattern, they will **not** be printed to `stdout`.
         kwargs (dict): additional arguments that are passed directly
           to the :class:`subprocess.Popen` constructor.
 
     Returns:
-        dict: with keys ['process', 'stdout', 'stderr'], where 'process' is the
+        dict: dictionary with keys ['process', 'stdout', 'stderr'], where 'process' is the
         instance of the subprocess that was created; 'stdout' and 'stderr' are
         only included if they were set to :data:`subprocess.PIPE`.
 
@@ -166,6 +168,9 @@ def execute(args, folder, wait=True, nlines=100, venv=None,
             l = line.decode('ascii')
             #Filter non fatal exceptions such as future warnings. A full list can be found here
             # https://docs.python.org/3/library/exepctions.html#exception-hierarchy
+
+            #Special case: "lazy-import" has "import" in the name but it's a valid module name
+            #if not ("FutureWarning" in line or ("import" in line and "-import" not in line) or "\x1b[0m" in line):
             if not ("FutureWarning" in l or "import" in l or "\x1b[0m" in l):
                 output.append(line)
                 if len(output) >= nlines:
@@ -194,7 +199,7 @@ def h5cat(files, target):
     """Concatenates a list of h5 AtomsList files into a single AtomsList.
 
     Args:
-        files (list): of `str` file paths to combine.
+        files (list): list of `string` file paths to combine.
         target (str): name/path of the output file that will include all of the
           combined files.
     """
@@ -210,7 +215,7 @@ def cat(files, target):
     """Combines the specified list of files into a single file.
 
     Args:
-        files (list): of `str` file paths to combine.
+        files (list): list of `str` file paths to combine.
         target (str): name/path of the output file that will include all of the
           combined files.
     """
@@ -278,13 +283,13 @@ def safe_update(obj, kv):
 def obj_update(obj, k, v, copy=True):
     """Updates a particular value in a set of nested objects.
 
-    .. note:: If `copy=True`, a *copy* of the object will be
+    .. note:: If `copy=True`, a **copy** of the object will be
       manipulated, though it will only use `copy()`, not any deep
       copying.
 
     Args:
         obj: list or list of dict to update some sub-key on.
-        k (str): a '.'-separated list of keys to traverse down to get
+        k (str): a dot-separated list of keys to traverse down to get
           to the value to set.
         v: value to set at the final key.
         copy (bool): when True, return a copy of the dictionary.
@@ -327,8 +332,8 @@ def contract_absolute(abspath, root=None):
     
     Args:
         abspath (str): absolute path on the file system.
-        root (str): path to contract relative to. Repository root is used if not
-          specified. 
+        root (str): path to contract relative path to. Repository root is used if not specified. 
+
     """
     #We assume that the path is a sub-directory of the repo root. Then, the
     #first few characters of the file path are what we want to remove. Just to
@@ -340,7 +345,7 @@ def contract_absolute(abspath, root=None):
     return current[-len(left)+1:].replace("\\", "/")
 
 def relpath(s):
-    """Returns the *repository-relative* path for the string `s`.
+    """Returns the **repository-relative** path for the string `s`.
 
     Args:
         s (str): repository-relative path, see the examples.
@@ -359,16 +364,16 @@ def relpath(s):
     return result
 
 def copyonce(src, dst):
-    """Copies the specified file to the target *only* if it doesn't
-    already exist.
+    """Copies the specified file to the target **only** if the file doesn't already exist.
+
     """
     if not path.isfile(dst):
         # from shutil import copyfile
         copyfile(src, dst)
 
 def compare_tree(folder, model):
-    """Compares to directory trees to determine if they have the same
-    contents. This does *not* compare the contents of each file, but rather just
+    """Compares directory trees to determine if they have the same
+    contents. This function does **not** compare the contents of each file, but rather just
     that the file exists.
 
     Args:
@@ -391,8 +396,8 @@ def compare_tree(folder, model):
         compare_tree(target, tree)
 
 def which(program):
-    """Tests whether the specified program is anywhere in the environment
-    PATH so that it probably exists."""
+    """Tests whether the specified program is present in the environment
+    PATH hinting it probably exists."""
     import os
     def is_exe(fpath):
         return os.path.isfile(fpath) and os.access(fpath, os.X_OK)
@@ -425,10 +430,10 @@ def pgrid(options, ignore=None):
 
     Args:
         options (dict): key-value pairs to iterate across.
-        ignore (list): of `str` keys to ignore in the options dict.
+        ignore (list): list of `str` keys to ignore in the options dict.
 
     Returns:
-        tuple: `(grid, keys)` where grid is a list of tuples with a value for
+        tuple: `(grid, keys)` tuple where grid is a list of tuples with a value for
         each key in `options` and keys is a listed of the keys in the order they
         appear in the tuples.
     """
@@ -463,7 +468,7 @@ def datetime_handler(x):
     it into the ISO format for time-zone sensitive data.
 
     Args:
-        x (datetime.datetime): to be stringified.
+        x (datetime.datetime): date object to be stringified.
 
     Returns:
         str: ISO format; `None` if `x` is not a date.
@@ -475,8 +480,7 @@ def parse_date(v):
     """Parses the date from the specified single value or list of values.
 
     Args:
-        v (str): string representation of the :class:`datetime` returned by
-          :func:`datetime_handler`.
+        v (str): string representation of the :class:`datetime` returned by :func:`datetime_handler`.
     """
     from dateutil import parser
     if isinstance(v, (list, tuple)):
@@ -506,8 +510,8 @@ def getattrs(obj, chain):
     train terminates.
 
     Args:
-        obj: to get attributes from.
-        chain (str): of '.'-separated attribute names.
+        obj: object to get attributes from.
+        chain (str): string of dot-separated attribute names.
 
     Examples:
 
@@ -534,7 +538,7 @@ def slicer(obj, args):
 
     Args:
         obj (iterable): an object to be sliced or divided.
-        args (iterable): the locations that the slices should be at.
+        args (iterable): the locations where the slices should be.
     """
     from itertools import islice
     if not isinstance(args,(list,tuple)):
@@ -682,7 +686,7 @@ def is_number(s):
     """Determines if the given string is a number.
 
     Args:
-        s (str): the string to checke.
+        s (str): the string to check.
     """
 
     try:
@@ -701,7 +705,7 @@ def is_number(s):
     return False
 
 def is_nested(d):
-    """Determines if a dictoinary is nested, i.e. contains another dictionary.
+    """Determines if a dictionary is nested, i.e. contains another dictionary.
 
     Args:
         d (dict): dictionary to test.
@@ -719,7 +723,7 @@ def get_suffix(d, k, index, values):
     is creating a parameter grid.
 
     Args:
-        d (dict): the dictionary being turned into a grid.
+        d (dict): the dictionary to turn into a grid.
         k (str): the key in the dictionary.
         index (int): the index for the value (gets used as the default suffix).
         values (str, list, float): the value for the parameter.
@@ -744,15 +748,15 @@ def get_suffix(d, k, index, values):
         return "{0}-{1}".format(nk[:3], keyval)
 
 def get_grid(d, suffices=None):
-    """Recursively generates a grid of parameters from the dictionary of parameters
-    that has duplicates or wildcars in it.
+    """Recursively generates a grid of parameters from a dictionary of parameters
+    that has duplicates or wildcards in it.
 
     Args:
        d (dict): the dictionary to be turned into a grid.
        suffices (list): an optional list of suffices.
 
     Returns:
-       A dictionary of (key: value) where the key is the suffix string for
+       dict: A dictionary of (key: value) where the key is the suffix string for
        the parameters and the value are the exact parameters for each
        entry in the grid.
     """
@@ -804,14 +808,15 @@ class ParameterGrid(collections.MutableSet):
     tuples: e.g. (8, "dog", 1.2) for "dim", "animal", "temperature"
     ({"animal*": ["dog", "cat", "cow"], "dim*": [[],[],[]],
     "temperature": 1.2})
+
     Args:
         params (dict): the paramaters needed to build the database.
 
     Attributes:
-        values (dict): keys are the suffix tuple and the values are the
-          actual values needed by the database.
-        keys (list): the `str` names of the different parameters in
-          the database.
+        values (dict): keys are the suffix tuple and the values are the actual values needed by the database.
+
+        keys (list): the `str` names of the different parameters in the database.
+
     """
 
     def __init__(self, params):
@@ -843,8 +848,7 @@ class ParameterGrid(collections.MutableSet):
 
         Args:
             key (tuple): Anything that could be added to the set.
-            value (tuple): The actual values that the suffix's
-              correspond to.
+            value (tuple): The actual values that the suffixes correspond to.
         """
         if key not in self.map:
             end = self.end
@@ -894,7 +898,7 @@ class ParameterGrid(collections.MutableSet):
         return set(self) == set(other)
 
 def is_uuid4(uuid_string):
-    """Determines of the string passed in is a valid uuid4 string.
+    """Determines of a string is a valid uuid4 string.
     """
     # from uuid import UUID
 
@@ -918,10 +922,9 @@ def dbcat(files, output, sources=None, docat=True, **params):
       with the specific details of how it was created.
 
     Args:
-        files (list): of `str` paths to files to combine to create the new
-          file.
-        sources (list): of `str` sources as a reference for a created file.
-        output (str): path to the file to write the combined files to.
+        files (list): list of paths to files to combine into a new single file.
+        sources (list): list of sources as a reference for a created file.
+        output (str): path to the output file.
         docat (bool): when True, perform the concatenation; otherwise, just
           create the config file.
         params (dict): key-value pairs that characterize *how* the database was
@@ -970,7 +973,7 @@ def convert_dict_to_str(dct):
         dct (dict): the dictionary to be converted.
 
     Returns:
-        A string of the dictionaries values.
+        A string of the dictionary's values.
     """
 
     dict_str = ''
@@ -983,8 +986,7 @@ def convert_dict_to_str(dct):
     return dict_str
 
 def check_deps():
-    """Checks that the needed dependencies have been installed and that
-    they were all installed by pip.
+    """Checks that the needed dependencies are installed and were all installed by pip.
 
     Returns:
         A dictionary of the dependencies and their version numbers.
@@ -1025,14 +1027,14 @@ def required_packages():
     return ["ase", "beautifulsoup4", "certifi",
             "chardet", "cycler", "h5py", "html5lib", "idna", "matplotlib", "mpld3",
             "numpy", "phenum", "phonopy", "pyparsing", "python-dateutil", "pytz",
-            "PyYAML", "requests", "subprocess32", "termcolor",
+            "PyYAML", "requests", "termcolor",
             "tqdm", "urllib3", "webencodings", "seekpath"]
 
 def recursive_getattr(o, fqn):
-    """Recursively gets a '.'-separated path of attributes from an object.
+    """Recursively gets a dot-separated path of attributes from an object.
     
     Args:
-        fqn (str): '.'-separated attribute path.
+        fqn (str): dot-separated attribute path.
     """
     if '.' in fqn:
         attrs = fqn.split('.')
@@ -1054,10 +1056,10 @@ def recursive_getattr(o, fqn):
         return None
 
 def recursive_setattr(o, fqn, value):
-    """Recursively sets a '.'-separated path of attributes from an object.
+    """Recursively sets a dot-separated path of attributes from an object.
     
     Args:
-        fqn (str): '.'-separated attribute path.
+        fqn (str): dot-separated attribute path.
     """
     if '.' in fqn:
         attrs = fqn.split('.')
@@ -1077,14 +1079,14 @@ def recursive_setattr(o, fqn, value):
         setattr(o, attrs[-1], value)
 
 config_specs = {}
-def _set_config_paths(name, cntr_dir):
-    """Creates a dictionary of the matdb contrallor name and controll directory.
+def _set_config_paths(title, cntr_dir):
+    """Creates a dictionary of the matdb contrallor title and controll directory.
 
     Args:
-        name (str): 'title' from the YML file.
+        title (str): 'title' from the YML file.
         cntr_dir (str): the path to the control directory.    
     """
 
     global config_specs  
-    config_specs["name"] = name
+    config_specs["title"] = title 
     config_specs["cntr_dir"] = cntr_dir

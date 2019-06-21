@@ -1,14 +1,20 @@
 Workflow
 ========
 
-Database Construction Workflow
-------------------------------
-
 After you have familiarized yourself with :doc:`matdbyml`, you are
 ready to initiate a construction workflow, throughout the rest of this
 documentation it is assumed that a `yml` file name `cntrl.yml` is
-being used though any name ending in `yml` will work. The workflow
-uses the :doc:`scripts/build` to grant high-level access to sequences
+being used though any name ending in `yml` will work.
+
+The current process can build a database based on the specifications of the `yml` file
+and train the interatomic potential.
+To facilitate the execution of the algorithm, the shell script `examples/mtp_train.sh` will automatically
+execute the database construction and potential training steps.
+
+Database Construction Workflow
+------------------------------
+
+The workflow uses the :doc:`scripts/build` to grant high-level access to sequences
 of API calls.
 
 The workflow for `matdb` database creation typically follows these steps:
@@ -22,15 +28,15 @@ The workflow for `matdb` database creation typically follows these steps:
 4. Run `matdb_build.py cntrl -e` to extract the relevant
    parameters for the next round of calculations.
 
-Since it is possible to have some databases depond on the output of
-others for seed configurations it these steps are repeated until all
+Since it is possible to have some databases depending on the output of
+others for seed configurations, these steps are repeated until all
 databases have been calculated and cleaned up.
 
 Potential Construction Workflow
 -------------------------------
 
 Once all desired databases have been computed it is possible to train
-an interatomic potential. The pontetial training as controlled by the
+an interatomic potential. The potential training as controlled by the
 same `yml` file that the database creation was written from.
 
 The workflow for `matdb` potential traininig looks like:
