@@ -147,6 +147,7 @@ Within the `tracy_matdb/scripts/deploy` folder run the following command.
     DESTINATION_PATH="~/" \
     ./deploy_aws.sh
 ```
+- Note that in line definitions of environment variables don't leak out into outer name space. Which is great!
 Fill in the above information to facilitate a connection to your remote aws instance. If your `DESTINATION_URL` format differs, just use the one you are give from the `aws` console.
 
 ## Setup Remote Machine
