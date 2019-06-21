@@ -75,7 +75,7 @@ def test_qe_setup(tmpdir):
                           "potentials": {"Al": "Al.pbe-n-kjpaw_psl.1.0.0.UPF",
                                          "Pd": "Pd_ONCV_PBE-1.0.upf"},
                           "versions": {"Al": ["2.0.1", ".5.1"], "Pd": ["2.0.1", "2.1.1"]}},
-              "kpoints":{"method": "MP", "divisions": (3, 3, 3)},
+              "kpoints":{"method": "MP", "divisions": "3 3 3"},
               "input_data": {"control":{"calculation": "relax", "prefix": "test"}}}
 
     calc = Qe(atm, target, 'def', 0, **kwargs)

@@ -166,7 +166,7 @@ class Calibration(Group):
           for the seed configuration.
         confname (str): name of the phonopy configuration file used for the
           modulations in this database.
-        amplitudes (dict): of logarithmically-spaced amplitudes to
+        amplitudes (dict): dict of logarithmically-spaced amplitudes to
           modulate the seed configuration with. Keys are the `cid` keys in
           :attr:`configs`.
         outfile (str): path to the `calibration.dat` file that contains the list
@@ -343,7 +343,7 @@ class Modulation(Group):
         sampling (str): on of ['uniform', 'sample', 'top'], where the method
           dictates how frequencies are selected from the DOS for the seed
           configuration's phonon spectrum.
-        supercell (list): of `int`; number of cells in each direction for
+        supercell (list): list of `int`; number of cells in each direction for
           generating the supercell.
         phonodir (str): directory in which all `phonopy` executions take place.
         calibrate (bool): when True, the maximum amplitude possible will be

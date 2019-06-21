@@ -1,4 +1,8 @@
- #!/usr/bin/python
+"""While constructing the database, there are several times when
+   plots are needed: phonon bands, prediction errors, etc. This
+   script provides a unified interface for all such plotting.
+"""
+#!/usr/bin/python
 from os import path, mkdir
 import matplotlib
 def examples():
@@ -30,7 +34,7 @@ def examples():
 
     msg.example(script, explain, contents, required, output, outputfmt, details)
 
-script_options = {
+_script_options = {
     "dbspec": {"help": "File containing the database specifications."},
     "-d": {"help": ("Specify the pattern of the databases to work with. "
                     "For example `Pd.phonon-2.dynmatrix` specifies the "
@@ -104,7 +108,7 @@ def _parser_options():
     from matdb import base
     pdescr = "MATDB Database Plotting"
     parser = argparse.ArgumentParser(parents=[base.bparser], description=pdescr)
-    for arg, options in script_options.items():
+    for arg, options in _script_options.items():
         parser.add_argument(arg, **options)
         
     args = base.exhandler(examples, parser)

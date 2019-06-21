@@ -27,6 +27,9 @@ Example yml File Entry
          keyword: "agl_thermal_conductivity_300K"
 	 desc: True
 
+AFLOW Database
+**************
+
 .. automodule:: matdb.database.aflux
    :synopsis: Database sub-classes for querying the `aflowlib.org`
               database.

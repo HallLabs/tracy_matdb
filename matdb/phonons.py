@@ -31,7 +31,7 @@ def roll(hessian):
     """Rolls the specified hessian into the `phonopy` format.
     
     Args:
-        hessian (numpy.ndarray): of shape `n_atoms * 3`.
+        hessian (numpy.ndarray): array of shape `n_atoms * 3`.
     """
     n = hessian.shape[0]/3
     result = np.zeros((n, n, 3, 3), dtype='double')
@@ -46,13 +46,13 @@ def _calc_bands(atoms, hessian, supercell=(1, 1, 1), outfile=None, grid=None):
     """Calculates the band structure for the given Hessian matrix.
 
     Args:
-        atoms (matdb.Atoms): atoms object corresponding to the *primitive*
+        atoms (matdb.atoms.Atoms): atoms object corresponding to the *primitive*
           cell. The specified supercell matrix should  result in a number
           of atoms that matches the dimensionality of the Hessian.
-        supercell (tuple): of `int` supercell matrix components; can have either
+        supercell (tuple): tuple of `int` supercell matrix components; can have either
           3 or 9 components.
         hessian (numpy.ndarray): with shape `(natoms*3, natoms*3)`.
-        grid (list): of `int` specifying the number of divisions in k-space
+        grid (list): list of `int` specifying the number of divisions in k-space
           along each reciprocal unit vector.
         outfile (str): path to the output `band.yaml` file that should be
           created by this function.
@@ -126,7 +126,7 @@ def _calc_quick(atoms, supercell=(1, 1, 1), delta=0.01):
     :func:`calc`.
 
     Args:
-        atoms (matdb.Atoms): atomic structure of the *primitive*.
+        atoms (matdb.atoms.Atoms): atomic structure of the *primitive*.
         supercell (list): or `tuple` or :class:`numpy.ndarray` specifying the
           integer supercell matrix.
         delta (float): displacement in Angstroms of each atom when computing the
@@ -178,7 +178,7 @@ def calc(primitive, cachedir=None, supercell=(1, 1, 1), delta=0.01, quick=True):
     .. note:: `atoms` will be relaxed before calculating the Hessian.
 
     Args:
-        primitive (matdb.Atoms): atomic structure of the *primitive*.
+        primitive (matdb.atoms.Atoms): atomic structure of the *primitive*.
         cachedir (str): path to the directory where phonon calculations are
           cached. If not specified, a temporary directory will be used.
         supercell (tuple): number of times to duplicate the cell when
@@ -255,7 +255,7 @@ def calc(primitive, cachedir=None, supercell=(1, 1, 1), delta=0.01, quick=True):
                          "verify that the atoms-potential combination matches "
                          "the one for which existing cache files exist. So, we "
                          "clobbered the existing files to get the science "
-                         "right. You can fix this by using `matdb.Atoms` "
+                         "right. You can fix this by using `matdb.atoms.Atoms` "
                          "and `matdb.calculators.*Calculator` objects.")
             
     with chdir(cachedir):           
@@ -323,7 +323,7 @@ def bandplot(phonons, names, nbands=None, style=None, figsize=(8, 6),
         phonons (dict): keys are arbitrary ids, though they should
           correspond to `style` and `ptype`; values are `dict`
           instances returned by :func:`from_yaml`. 
-        names (list): of `str`; specifies the labels for each of the points in `Q`.
+        names (list): list of `str`; specifies the labels for each of the points in `Q`.
         nbands (int): number of phonon bands (dispersion curves) to
           plot. If not specified, all of them are used.
         style (dict): keys are same as for `phonons`; values are the line/scatter

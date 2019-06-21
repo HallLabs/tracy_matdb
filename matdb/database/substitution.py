@@ -11,12 +11,12 @@ from matdb.atoms import AtomsList, Atoms
 from matdb.database import Group
 
 class Substitution(Group):
-    """Substitution.py: A Group to create substitutions in the stoichiometry from
+    """A Group to create substitutions in the stoichiometry from
     a seed configuration.
 
     Args:
         name(str): Default name Substitution
-        stoich (list of lists): each list contains the decimal concentration
+        stoich (list): each list contains the decimal concentration
              of each element in the system where followed by decimal fraction
              of the number of configs which follow this stoichiometry.
              The decimal concentration in each list as well as the decimal
@@ -31,14 +31,13 @@ class Substitution(Group):
             :class:`Group`.
 
     Attributes:
-        name (str): name of this database type relative to the over database
+        name (str): name of this database type relative to the database
             collection. This is also the name of the folder in which
             all of its calculations will be performed.
         num_atom(int): The number of atoms present in each atoms object.
 
     Returns:
-        vacancies(AtomsList): list of atoms objects of length nconfigs with
-        unique vacancies for each cell.
+        AtomsList: list of atoms objects of length nconfigs with unique vacancies for each cell.
     """
     def __init__(self, ran_seed=None, stoich=None, min_index=0,
                  name="Substitution", **dbargs):

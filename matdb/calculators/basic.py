@@ -22,21 +22,31 @@ class AsyncCalculator(object):
         key (str): short, lower-case name to identify the calculator type.
     """
     key = None
+    """
+    Short, lower-case name to identify the calculator type.
+    """
+
     pathattrs = []
+    """
+    A list of paths that the calculator needs access to, the values for these paths are found in kwargs.
+    """
     __metaclass__ = abc.ABCMeta
 
     def init_calc(self, kwargs):
+        """
+        Initializes an instance of the calculator class using the key word, value pairs stored in the kwargs dictionary.
+        """
 
         if "key" in kwargs:
             self.key = kwargs.pop("key")
 
-        namehash = str(sha1(config_specs["name"].encode("ASCII")).hexdigest())
+        titlehash = str(sha1(config_specs["title"].encode("ASCII")).hexdigest())
         for pathattr in self.pathattrs:
             attrval = recursive_getattr(kwargs, pathattr)
             #Test to see if this is a hash reference to a globally-stored
             #calculator absolute path.
             if attrval is not None and _rxhash.match(attrval):
-                abspath = paths[namehash][self.key][attrval]
+                abspath = paths[titlehash][self.key][attrval]
                 #Overwrite the value of the hash with the actual absolute path
                 #to the directory.
                 recursive_setattr(kwargs, pathattr, abspath)
@@ -111,7 +121,7 @@ class AsyncCalculator(object):
         pass
 
     @abc.abstractmethod
-    def extract(self, folder):
+    def extract(self, folder, cleanup="default", asis=False):
         """Extracts results from completed calculations and sets them on the
         :class:`ase.Atoms` object.
 
@@ -149,14 +159,25 @@ class SyncCalculator(object):
     Attributes:
         key (str): short, lower-case name to identify the calculator type.
     """
+
     key = None
+    """
+    Short, lower-case name to identify the calculator type
+    """
+
     pathattrs = []
+    """
+    A list of paths that the calculator needs access to, the values for these paths are found in kwargs.
+    """
     
     def init_calc(self, kwargs):
+        """
+        Initializes an instance of the calculator class using the key word, value pairs stored in the kwargs dictionary.
+        """
         if "key" in kwargs:
             self.key = kwargs.pop("key")
 
-        namehash = str(sha1(config_specs["name"].encode("ASCII")).hexdigest())        
+        titlehash = str(sha1(config_specs["title"].encode("ASCII")).hexdigest())
         #This duplication with the AsyncCalculator hasn't been sufficient to
         #warrant yet another super class, so we just have it again here.
         for pathattr in self.pathattrs:
@@ -164,7 +185,7 @@ class SyncCalculator(object):
             #Test to see if this is a hash reference to a globally-stored
             #calculator absolute path.
             if attrval is not None and _rxhash.match(attrval):
-                abspath = paths[namehash][self.key][attrval]
+                abspath = paths[titlehash][self.key][attrval]
                 #Overwrite the value of the hash with the actual absolute path
                 #to the directory.
                 recursive_setattr(kwargs, pathattr, abspath)
@@ -194,7 +215,7 @@ class SyncCalculator(object):
         specified atoms object.
 
         Args:
-            atoms (matdb.Atoms): config to test executability for.
+            atoms (matdb.atoms.Atoms): config to test executability for.
         """
         pass
 
@@ -204,7 +225,7 @@ class SyncCalculator(object):
         results are available for use.
 
         Args:
-            atoms (matdb.Atoms): config to check execution completion for.
+            atoms (matdb.atoms.Atoms): config to check execution completion for.
         """
         pass
 
@@ -213,7 +234,7 @@ class SyncCalculator(object):
         """Returns True if the specified config is in process of executing.
 
         Args:
-            atoms (matdb.Atoms): config to check execution for.
+            atoms (matdb.atoms.Atoms): config to check execution for.
         """
         pass
 

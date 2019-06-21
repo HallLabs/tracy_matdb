@@ -1,6 +1,8 @@
+# the local name for the modules are used as the "name" instance attribute of the correspending class 
 from .vasp import AsyncVasp as Vasp
 from .aflux import AsyncAflow as Aflow
-from .qe import AsyncQe as Qe
+from .qe import AsyncQe as Qe 
+
 from matdb import msg
 
 def get_calc_class(name):

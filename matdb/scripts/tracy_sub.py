@@ -1,3 +1,8 @@
+"""Once a database of configurations has been built and prepped 
+   for submission to the Tracy Queue this script will grab the data 
+   and submit it to the job script.
+
+"""
 #!/usr/bin/python
 
 import datetime
@@ -6,7 +11,7 @@ import argparse
 import sys
 from os import path
 
-import tracy_wrapper
+#import tracy_wrapper
 
 from matdb.utility import _get_reporoot
 from matdb import msg
@@ -29,7 +34,7 @@ def examples():
 
     msg.example(script, explain, contents, required, output, outputfmt, details)
 
-script_options = {
+_script_options = {
     "subspec": {"help": "File containing the submission specifications."},
     "-test_run": {"action": "store_true",
                  "help": ("Allows for test runs that won't submit to the queue.")},
@@ -44,7 +49,7 @@ def _parser_options():
     #We have two options: get some of the details from the config file,
     pdescr = "MATDB Tracy Queue submission"
     parser = argparse.ArgumentParser(parents=[base.bparser], description=pdescr)
-    for arg, options in script_options.items():
+    for arg, options in _script_options.items():
         parser.add_argument(arg, **options)
         
     args = base.exhandler(examples, parser)

@@ -15,6 +15,9 @@ Example yml File Entry
       sizes: [1,4]
       ran_seed: 10
 
+Enumarated Database
+*******************
+
 .. automodule:: matdb.database.enumerated
    :synopsis: Database sub-classes for implementing enumerated structure
 	      databases.

@@ -22,7 +22,7 @@ def roll_fc(hessian):
     """Rolls the specified hessian into the `phonopy` force constants format.
 
     Args:
-        hessian (numpy.ndarray): of shape `n_atoms * 3`.
+        hessian (numpy.ndarray): array of shape `n_atoms * 3`.
     """
     n = hessian.shape[0]/3
     result = np.zeros((n, n, 3, 3), dtype='double')
@@ -34,7 +34,7 @@ def roll_fc(hessian):
     return result
 
 def unroll_fc(fc):
-    """Unroll's the phonopy force constants matrix into the Hessian.
+    """Unrolls the phonopy force constants matrix into the Hessian.
     """
     Nc = int(np.sqrt(np.product(fc.shape)))
     result = np.zeros((Nc, Nc), dtype="double")
@@ -68,42 +68,33 @@ def matdb_to_phonopy(matoms):
 class Hessian(Group):
     """Sets up the displacement calculations needed to construct the Hessian
     matrix.
-    Args:
-        atoms (matdb.atoms.Atoms): seed configuration that will be
-          displaced to generate the database.
-        root (str): path to the folder where the database directories will
-          be stored.
-        parent (matdb.database.Database): parent sequence to which this database
-          belongs. Could also be another :class:`Hessian`.
-        phonons (dict): specifying additional settings for `phonopy`
-          configuration files (i.e., differing from, or in addition to those in
-          the global set).
-        bandmesh (list): of `int`; number of splits in each reciprocal
-          lattice vector according to Monkhorst-Pack scheme. Used for
-          calculating the phonon bands.
-        dosmesh (list): of `int`; number of splits in each reciprocal
-          lattice vector according to Monkhorst-Pack scheme. Used for
-          calculating the phonon density-of-states.
-        tolerance (float): maximum difference in integrated total DOS that may
-          exist for a calculation to be considered "good enough". This is used
-          when selecting the "best" calculation from a parameter grid.
-        dfpt (bool): when True, calculate the force constants using Density
-          Functional Perturbation Theory.
 
-    .. note:: Additional attributes are also exposed by the super class
-      :class:`Group`.
+    Args:
+        atoms (matdb.atoms.Atoms): seed configuration that will be displaced to generate the database.
+        root (str): path to the folder where the database directories will be stored.
+        parent (matdb.database.Database): parent sequence to which this database belongs. Could also be another :class:`~matdb.database.hessian.Hessian`.
+        phonons (dict): specifying additional settings for `phonopy` configuration files (i.e., differing from, or in addition to those in the global set).
+        bandmesh (list): list of `int`; number of splits in each reciprocal lattice vector according to Monkhorst-Pack scheme. Used for calculating the phonon bands.
+        dosmesh (list): list of `int`; number of splits in each reciprocal lattice vector according to Monkhorst-Pack scheme. Used for calculating the phonon density-of-states.
+        tolerance (float): maximum difference in integrated total DOS that may exist for a calculation to be considered "good enough". This is used when selecting the "best" calculation from a parameter grid.
+        dfpt (bool): when True, calculate the force constants using Density Functional Perturbation Theory.
+
+    .. note:: Additional attributes are also exposed by the super class :class:`~matdb.database.Group`.
 
     Attributes:
         name (str): name of this database type relative to the over database
           collection. This is also the name of the folder in which all of its
           calculations will be performed.
-        supercell (list): of `int`; number of cells in each direction for
+        supercell (list): list of `int`; number of cells in each direction for
           generating the supercell.
         phonodir (str): directory in which all `phonopy` executions take place.
         bandmesh (list): mesh for calculating the phonon bands.
         dosmesh (list): mesh for calculating the phonon density-of-states.
     """
     splittable = False
+    """
+    This database cannot be split for training/testing but must be used in its entirety for either one or the other.
+    """
 
     def __init__(self, phonopy={}, name="hessian", bandmesh=None,
                  dosmesh=None, tolerance=0.1, dfpt=False, **dbargs):
@@ -181,7 +172,7 @@ class Hessian(Group):
 
     @property
     def fitting_configs(self):
-        """Returns a :class:`matdb.atoms.AtomsList` for all configs in this
+        """Returns a :class:`~matdb.atoms.AtomsList` for all configs in this
         group. This list includes a single *duplicated* configuration for each
         of the eigenvalue/eigenvector combinations of the Hessian matrix.
         """
@@ -197,7 +188,7 @@ class Hessian(Group):
             return result
 
     def _hessian_configs(self):
-        """Returns a :class:`matdb.atoms.AtomsList` for all configs in this
+        """Returns a :class:`~matdb.atoms.AtomsList` for all configs in this
         group. This list includes a single *duplicated* configuration for each
         of the eigenvalue/eigenvector combinations of the Hessian matrix.
 
@@ -312,8 +303,10 @@ class Hessian(Group):
     def compare(self, other):
         """Compares this Hessian group's calculated bands with another Hessian
         group that is taken to the "right" answer.
+
         Args:
             other (Hessian): correct bands to compare to.
+
         Returns:
             tuple: `(abs err, rms err)` for the eigenvalues at every point in the
             sampling of the BZ.
@@ -374,8 +367,9 @@ class Hessian(Group):
     def rset(self):
         """Constructs the Hessian matrix for the *best* convergence parameters
         in this group and it's possible sub-sequences.
+
         Returns:
-            list: of :class:`matdb.atoms.Atoms`; each atoms object will have a `H`
+            list: list of :class:`~matdb.atoms.Atoms`; each atoms object will have a `H`
             matrix in its info dictionary.
         """
         if len(self.sequence) == 0:
@@ -485,11 +479,11 @@ class Hessian(Group):
     def bands(self):
         """Returns the DFT-accurate phonon bands in a format that can be
         consumed by the `matdb` interfaces.
+
         Returns:
             dict: keys are ['q', 'w', 'path', 'Q'], values are the distance along
-            the special path (scalar), phonon frequencies at that distance (vector,
-            one component for each frequency), q-positions of the special points
-            along the paths, and their corresponding distances.
+            the special path (scalar), phonon frequencies at that distance (vector,one component for each frequency), 
+            q-positions of the special points along the paths, and their corresponding distances.
         """
         if self._bands is None:
             from matdb.phonons import from_yaml
@@ -499,10 +493,9 @@ class Hessian(Group):
 
     def get_kpath(self):
         """Returns the special path in k-space for the seed configuration of this group.
+
         Returns:
-            tuple: special path in k-space. First term is a list of special
-            point labels; second is the list of points corresponding to those
-            labels.
+            tuple: special path in k-space. First term is a list of special point labels; second is the list of points corresponding to those labels.
         """
         if self._kpath is None:
             from matdb.kpoints import parsed_kpath
@@ -514,10 +507,9 @@ class Hessian(Group):
     def kpath(self):
         """Returns the special path in k-space for the seed configuration of this
         database.
+
         Returns:
-            tuple: special path in k-space. First term is a list of special
-            point labels; second is the list of points corresponding to those
-            labels.
+            tuple: special path in k-space. First term is a list of special point labels; second is the list of points corresponding to those labels.
         """
         from matdb.database import Database
         if isinstance(self.parent, Database):
@@ -543,6 +535,7 @@ class Hessian(Group):
 
     def calc_DOS(self, recalc=False):
         """Calculates the *total* density of states.
+
         Args:
             recalc (bool): when True, recalculate the DOS, even if the
               file already exists.
@@ -590,6 +583,7 @@ class Hessian(Group):
 
     def calc_forcesets(self, recalc=False):
         """Extracts the force sets from the displacement calculations.
+
         Args:
             recalc (bool): when True, recalculate the force sets, even if the
               file already exists.
@@ -612,9 +606,9 @@ class Hessian(Group):
     def setup(self, rerun=0):
         """Displaces the seed configuration preparatory to calculating the force
         sets for phonon spectra.
+
         Args:
-            rerun (int): when > 1, recreate the folders even if they
-              already exist. If > 0, then recreate the jobfile.
+            rerun (int): when > 1, recreate the folders even if they already exist. If > 0, then recreate the jobfile.
         """
         super(Hessian, self).setup(self._setup_configs, rerun)
 
@@ -624,7 +618,7 @@ class Hessian(Group):
 
         .. note:: This method *appears* to be VASP-specific. However, the
           configurations that are generated by `phonopy` as VASP `POSCAR` files
-          are turned into :class:`matdb.atoms.Atoms` objects before they are
+          are turned into :class:`~matdb.atoms.Atoms` objects before they are
           passed to the super class that sets up the actual calculations. So, it
           is quite general.
 
@@ -672,10 +666,12 @@ class Hessian(Group):
     def extract(self, recalc=False, cleanup="default"):
         """Runs post-DFT execution routines to calculate the force-sets and the
         density of states.
+
         Args:
             recalc (bool): when True, redo any calculations that use the DFT
               outputs to find other quantities.
             cleanup (str): the level of cleanup to perform after extraction.
+
         Returns:
            bool: True if the database is ready; this means that any other
            databases that rely on its outputs can be run.

@@ -1,4 +1,10 @@
- #!/usr/bin/python
+"""Each context has a controller that provides a find() method for
+   looking up instances within that context. This script provides
+   a simple interface for finding things.
+
+"""
+
+#!/usr/bin/python
 from os import path
 from matdb import msg
 
@@ -20,7 +26,7 @@ def examples():
 
     msg.example(script, explain, contents, required, output, outputfmt, details)
 
-script_options = {
+_script_options = {
     "dbspec": {"help": "File containing the database specifications."},
     "-d": {"help": ("When specified, search the database context."),
            "action": "store_true"},
@@ -41,7 +47,7 @@ def _parser_options():
     from matdb import base
     pdescr = "MATDB Context Finder"
     parser = argparse.ArgumentParser(parents=[base.bparser], description=pdescr)
-    for arg, options in script_options.items():
+    for arg, options in _script_options.items():
         parser.add_argument(arg, **options)
         
     args = base.exhandler(examples, parser)
@@ -59,7 +65,7 @@ def _generic_find(controller, heading, patterns):
           :class:`matdb.fitting.Controller`. The specified controller's `find`
           method is used for the lookup.
         heading (str): title to print before the table of discovered values.
-        patterns (list): of `str` patterns to search for.
+        patterns (list): list of `str` patterns to search for.
     """
     msg.info(heading)
     msg.info("--------------------------")

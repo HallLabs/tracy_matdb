@@ -227,7 +227,7 @@ def test_to_dict(AgPd):
                        'versions': {'Ag': '09Dec2005', 'Pd': '28Jan2005'},
                        'setups': {'Ag': '_pv', 'Pd': '_pv'}}}
     model = {'rattle': 0.0, 'prefix': 'E', 'basis': [[0, 0, 0]],
-             'lattice': None, 'displace': 0.0, 'execution': {}, "override": {},
+             'lattice': None, 'displace': 0.0, 'execution': {},
              'keep_supers': False, 'name': 'enum', 'calculator': cal, 'trainable': False,
              'sizes': [1, 4], 'arrows': None, 'eps': 0.001, 'concs': None, 'nconfigs': 10,
              'root': enum.root, 'config_type': None, 'version': __version__,
@@ -239,4 +239,9 @@ def test_to_dict(AgPd):
     assert "datetime" in out
     model["python_version"] = out["python_version"]
     model["datetime"] = out["datetime"]
+
+    # "override" is not presented in out on local device
+    if "override" in out:
+        model["override"] = out["override"] 
+
     assert compare_nested_dicts(out, model)

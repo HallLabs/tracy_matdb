@@ -15,7 +15,7 @@ from matdb.atoms import AtomsList
 from matdb.database import Database
 
 class Trainer(object):
-    """Represents an algorithm that can use a :class:`Database` (or set of
+    """Represents an algorithm that can use a :class:`~matdb.database.Database` (or set of
     databases) to produce a multi-component potential.
 
     .. note:: This object provides the following methods that must be overriden:
@@ -23,18 +23,17 @@ class Trainer(object):
       1. :meth:`command` must setup any dependencies in the folder that the
          training executable requires.
       2. :meth:`status` should return either a dictionary or a printed status
-         message describing how things are going with the fitting.
-      3. :meth:`get_calculator` should return an :ase:`Calculator` that can
+         message describing the fitting status.
+      3. :meth:`get_calculator` should return an :class:`ase.Calculator` that can
          compute energies, forces and virial tensors. **IMPORTANT**: this method
-         should be able to produce a calculator using only whatever computation
-         is done by :meth:`command` and :meth:`execute`.
+         should be able to produce a calculator using only computation
+         done by :meth:`command` and :meth:`execute`.
 
       The basic workflow is:
 
       1. Call :meth:`jobfile` to construct a jobfile for HPC resources. This
          method calls :meth:`command` as part of its templating procedures.
-      2. Call :meth:`execute`, which is a generic method that executes whatever
-         command is in the `jobfile`.
+      2. Call :meth:`execute`, which is a generic method that executes commands in the `jobfile`.
       3. Use :attr:`calculator` to calculate energies etc. This method
          internally calls :meth:`get_calculator` only once and then caches the
          object for the lifetime of the Trainer.
@@ -48,13 +47,13 @@ class Trainer(object):
         name (str): name of this model; used as the output folder name.
         controller (matdb.fitting.controller.TController): fitting controller
           whose data will be used to train the potentials.
-        dbs (list): of `str` database patterns from the `db` that should be
+        dbs (list): list of `str` database patterns from the `db` that should be
           included in the training and validation.
         execution (dict): settings needed to configure the jobfile for running
           the fit.
         parent (TrainingSequence): training sequence that this trainer belongs
           to.
-        dbfilter (dict): keys are attributes on individual :class:`Atoms`
+        dbfilter (dict): keys are attributes on individual :class:`~matdb.atoms.Atoms`
           objects; values are dictionaries with keys `operator`, `value` and
           `dbs` as described above.
         root (str): path to the root directory in which this trainer's own
@@ -76,7 +75,7 @@ class Trainer(object):
         self.split = split
         self.params = {}
         self._dbs = ['*.*'] if dbs is None else dbs
-        """list: of `str` patterns to match against databases from the builder
+        """list: list of `str` patterns to match against databases from the builder
         context of `matdb`.
         """
         if not isinstance(self._dbs, (list, set, tuple)):
@@ -104,7 +103,7 @@ class Trainer(object):
         self.dbfilter = {} if dbfilter is None else dbfilter
         self._dbfilters = {}
         """dict: keys are database names; values are also dictionaries but with
-        keys being :class:`Atoms` attribute names and values functions that
+        keys being :class:`~matdb.atoms.Atoms` attribute names and values functions that
         return a bool based on a reference comparison value.
         """
         
@@ -216,8 +215,8 @@ class Trainer(object):
 
     @abc.abstractmethod
     def get_calculator(self):
-        """Constructs an :ase:`Calculator` instance using the fitted potential
-        in this :class:`Trainer` sub-class.
+        """Constructs an :class:`ase.Calculator` instance using the fitted potential
+        in this :class:`~matdb.fitting.basic.Trainer` sub-class.
         """
         pass
 
@@ -269,7 +268,7 @@ class Trainer(object):
             
     @property
     def validation(self):
-        """Returns a :class:`matdb.AtomsList` of configurations that can be
+        """Returns a :class:`~matdb.atoms.AtomsList` of configurations that can be
         used for potential validation.
         """
         return self.configs("holdout")
@@ -285,9 +284,9 @@ class Trainer(object):
           database.
 
         Args:
-            params (list): of `str` parameter names to extract from each atoms
+            params (list): list of `str` parameter names to extract from each atoms
               object.
-            properties (list): of `str` property names to extract from each
+            properties (list): list of `str` property names to extract from each
               atoms object.
             aggregators (dict): keys are `str` property names; values are `str`
               FQN of importable functions that can be applied to a
@@ -295,18 +294,16 @@ class Trainer(object):
               used to reduce an array of property values to a single number for a
               particular configuration. If not specified, the raw arrays are
               returned instead.
-            kind (str): on of ['train', 'holdout', 'super', '*']. Specifies which of
+            kind (str): one of ['train', 'holdout', 'super', '*']. Specifies which of
               the database sets to use. If '*' is specified, then all of them are
               combined.
-            kwargs (dict): additional dummy arguments that aren't needed, but
-            allow the `**` syntax to be used.
+            kwargs (dict): additional dummy arguments that aren't needed, but allow the `**` syntax to be used.
 
         Returns:
-
-        dict: keys are either property or parameter names. Values are
-        :class:`numpy.ndarray` for parameters; for properties, since the arrays
-        may have different sizes, the value will be a list of
-        :class:`numpy.ndarray`.
+            dict: keys are either property or parameter names. Values are
+            :class:`numpy.ndarray` for parameters; for properties, since the arrays
+            may have different sizes, the value will be a list of
+            :class:`numpy.ndarray`.
         """
         assert kind in ["train", "holdout", "super", '*']
         if kind == '*':
@@ -338,10 +335,10 @@ class Trainer(object):
         Args:
             seqname (str): name of the sequence that the database files are
               from.
-            dbfiles (list): of `str` paths to database files to filter.
+            dbfiles (list): list of `str` paths to database files to filter.
 
         Returns:
-            list: of `str` paths to include in the database from this sequence.
+            list: list of `str` paths to include in the database from this sequence.
         """
         if len(self.dbfilter) > 0 and seqname in self._dbfilters:
             filtered = []
@@ -381,12 +378,12 @@ class Trainer(object):
         """Loads a list of configurations of the specified kind.
 
         Args:
-            kind (str): on of ['train', 'holdout', 'super'].
-            asatoms (bool): when True, return a :class:`matdb.AtomsList`
+            kind (str): possible values are ['train', 'holdout', 'super'].
+            asatoms (bool): when True, return a :class:`~matdb.atoms.AtomsList`
               object; otherwise just compile the file.
 
         Returns:
-            matdb.AtomsList: for the specified configuration class.
+            matdb.atoms.AtomsList: Atoms list for the specified configuration class.
         """
         fmap = {
             "train": lambda seq, splt: seq.train_file(splt),
@@ -442,7 +439,7 @@ class Trainer(object):
             refkey (str): name of the key on the atoms objects that the
               interatomic potential should be compared against; i.e., these are
               the reference energies, forces and virials to validate against.
-            configs (matdb.AtomsList): list of configurations to validate
+            configs (matdb.atoms.AtomsList): list of configurations to validate
               against. If not provided, built-in holdout set will be used.
             energy (bool): when True, validate the energies of each
               configuration.
@@ -498,15 +495,26 @@ class Trainer(object):
             return False
         
         # We must have what we need to execute. Compile the command and submit.
-        cargs = [self.controller.db.shell_command, self._jobfile]
+
+        shell_command = self.controller.db.shell_command
+        # We suport 'bash' and 'sbatch' shell commands, if it's neighter one 
+        # of them, default to 'bash'
+        if shell_command not in ['bash', 'sbatch']:
+            shell_command = 'bash'
+        cargs = [shell_command, self._jobfile]
+
         if dryrun:
             msg.okay("Executed {} in {}".format(' '.join(cargs), self.root))
             return True
         else:
             xres = execute(cargs, self.root)
 
+        # supercompute will return "Submitted"
         if len(xres["output"]) > 0 and "Submitted" in xres["output"][0]:
             msg.okay("{}: {}".format(self.root, xres["output"][0].strip()))
+            return True
+        # local computer
+        elif len(xres["error"]) == 0:
             return True
         else:
             return False

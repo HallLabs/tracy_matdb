@@ -1,0 +1,1 @@
+{"matdb": [1, 1, 0], "doforce": true, "sources": [["/root/codes/matdb/tests/data/legacy/p-50-2.xyz", null]], "renames": {"ref_energy": "dft_energy", "ref_virial": "dft_virial"}, "timestamp": "2019-04-15T14:32:34.430296", "version": "aa182c76-cbce-4917-bf32-67ec08b59e83"}

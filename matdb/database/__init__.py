@@ -38,13 +38,14 @@ class Group(object):
     be created. Includes logic for generating the DFT directories that
     need to be run as well as extracting the relevant data from such
     computations.
+
     Args:
         execution (dict): key-value pairs of settings for the supercomputer job
           array batch file.
         root (str): full path to the root directory that this database will live
           in.
-        parent (matdb.database.controller.Database): the database that this
-          group of calculations belong to.
+        parent (matdb.database.Database): the database that this
+          group of calculations belongs to.
         prefix (str): sub-sampled configurations will be stored using integer
           ids after this prefix; for example `S.1`, `S.2`, etc.
         nconfigs (int): number of displaced configurations to create.
@@ -55,10 +56,7 @@ class Group(object):
         pgrid (ParamaterGrid): The ParameterGrid for the database.
         seeds (list, str, matdb.atoms.Atoms): The location of the files that will be
           read into to make the atoms object or an atoms object.
-        cls (subclass): the subclass of :class:`Group`.
-        # override (dict): a dictionary of with uuids or paths as the
-        #   keys and a dictionary containing parameter: value pairs for
-        #   parameters that need to be adjusted.
+        cls (subclass): the subclass of :class:`~matdb.database.Group`.
         transforms (dict): a dictionary of transformations to apply to the
           seeds of the database before calculations are performed. Format is
           {"name": {"args": dict of keyword args}}, where the "name" keyword
@@ -73,8 +71,7 @@ class Group(object):
           directory) in which calculations are performed.
         root (str): full path to the root directory that this database will live
           in.
-        database (matdb.database.controller.Database): parent database
-          to which this group belongs.
+        database (matdb.database.Database): parent database to which this group belongs.
         prefix (str): sub-sampled configurations will be stored using integer
           ids after this prefix; for example `S.1`, `S.2`, etc.
         nconfigs (int): number of displaced configurations to create.
@@ -292,7 +289,7 @@ class Group(object):
         else:
             try:
                 result = next(iter(self.config_atoms.values())).get_calculator()
-            except:
+            except: #pragma: no cover
                 raise
         return result
 
@@ -366,7 +363,10 @@ class Group(object):
                 for apath in self.database.parent.relpaths([pattern]):
                     self.seeds[path.basename(apath)] = Atoms(apath, format=fmt)
 
-        elif seeds is None and self.seeded:
+        # At this point, not sure how to setup a multi-steps database with more than 2 steps
+        # has the same name(this is required because of the prev property). 
+        # So, keep this uncovered for the unit test.
+        elif seeds is None and self.seeded and self.prev is not None: #pragma: no cover
             self.seeds = OrderedDict()
             for n_seeds, a in enumerate(self.prev.rset):
                 seedname = "seed-{}".format(n_seeds)
@@ -379,14 +379,14 @@ class Group(object):
 
     @property
     def database(self):
-        """Returns the parent :class:`matdb.database.controller.Database` instance for
+        """Returns the parent :class:`~matdb.database.Database` instance for
         this group, irrespective of how deep it is in the recursive stack.
         """
         if isinstance(self.parent, Database):
             return self.parent
         elif isinstance(self.parent, Group):
             return self.parent.database
-        else:
+        else: #pragma: no cover
             return None
 
     @property
@@ -400,7 +400,7 @@ class Group(object):
 
     @abc.abstractproperty
     def fitting_configs(self):
-        """Returns a :class:`matdb.atoms.AtomsList` for all configs in this group.
+        """Returns a :class:`~matdb.atoms.AtomsList` for all configs in this group.
         """
         pass #pragma: no cover
 
@@ -418,8 +418,8 @@ class Group(object):
         # import sys
 
         kw_dict = self.grpargs.copy()
-        args_dict = {"root": self.root, "override": self.override,
-                     "version":__version__, "python_version":sys.version}
+        args_dict = {"root": self.root, "version":__version__,
+                     "python_version":sys.version}
         if include_time_stamp:
             args_dict["datetime"] = str(datetime.now())
 
@@ -464,8 +464,10 @@ class Group(object):
         f_path = path.join(self.root, rel_path, file_name) \
                  if rel_path is not None else path.join(self.root,file_name)
 
-        result = None
-        if path.isfile(f_path):
+        #Initialze the result as an empty list instead of None
+        result = []
+        #If the pkl file is not exist or is empty, don't bother to load it
+        if path.isfile(f_path) and path.getsize(f_path) > 0:
             with open(f_path,"rb") as f:
                 result = pickle.load(f)
 
@@ -504,7 +506,7 @@ class Group(object):
     def prev(self):
         """Finds the previous group in the database.
         """
-        keylist = self.database.steps.keys()
+        keylist = list(self.database.steps.keys())
         for i, v in enumerate(keylist):
             if v == self.name and i!=0:
                 return self.database.steps[keylist[i-1]]
@@ -513,7 +515,7 @@ class Group(object):
     def dep(self):
         """Finds the next, or dependent, group in the databes.
         """
-        keylist = self.database.steps.keys()
+        keylist = list(self.database.steps.keys())
         for i, v in enumerate(keylist):
             if v == self.name and i!=(len(keylist)-1):
                 return self.database.steps[keylist[i+1]]
@@ -538,16 +540,13 @@ class Group(object):
     def execute(self, dryrun=False, recovery=False, env_vars=None):
         """Submits the job script for each of the folders in this
         database if they are ready to run.
+
         Args:
-            dryrun (bool): when True, simulate the submission without
-              actually submitting.
-            recovery (bool): when True, submit the script for running recovery
-              jobs.
-            env_vars (dict): of environment variables to set before calling the
-              execution. The variables will be set back after execution.
+            dryrun (bool): when True, simulate the submission without actually submitting.
+            recovery (bool): when True, submit the script for running recovery jobs.
+            env_vars (dict): dict of environment variables to set before calling the execution. The variables will be set back after execution.
         Returns:
-            bool: True if the submission generated a job id
-            (considered successful).
+            bool: True if the submission generated a job id (considered successful).
         """
 
         self._expand_sequence()
@@ -575,7 +574,14 @@ class Group(object):
             # We must have what we need to execute. Compile the command and
             # submit.
             from matdb.utility import execute
-            cargs = [self.database.parent.shell_command, jobfile]
+
+            shell_command = self.database.parent.shell_command
+            # We suport 'bash' and 'sbatch' shell commands, if it's neighter one 
+            # of them, default to 'bash' 
+            if shell_command not in ['bash', 'sbatch']:
+                shell_command = 'bash' 
+            cargs = [shell_command, jobfile]
+
             if dryrun:
                 from matdb.msg import okay
                 okay("Executed {} in {}".format(' '.join(cargs), self.root))
@@ -644,12 +650,10 @@ class Group(object):
     def jobfile(self, rerun=0, recovery=False):
         """Creates the job array file to run each of the sub-configurations in
         this database.
+
         Args:
-            rerun (int): when > 0, recreate the jobfile even if it
-              already exists.
-            recovery (bool): when True, configure the jobfile to run
-              recovery jobs for those that have previously failed. This uses a
-              different template and execution path.
+            rerun (int): when > 0, recreate the jobfile even if it already exists.
+            recovery (bool): when True, configure the jobfile to run recovery jobs for those that have previously failed. This uses a different template and execution path.
         """
 
         self._expand_sequence()
@@ -686,6 +690,10 @@ class Group(object):
                 template = env.get_template(settings["template"].replace("array", "recovery"))
             else:
                 template = env.get_template(settings["template"])
+
+            # By default, don't do timeout on QE calculation
+            if "exec_time_out_minutes" not in settings:
+                settings["exec_time_out_minutes"] = 0
 
             with open(target, 'w') as f:
                 f.write(template.render(**settings))
@@ -741,6 +749,7 @@ class Group(object):
                extractable=True):
 
         """Creates a folder within this group to calculate properties.
+
         Args:
             atoms (matdb.atoms.Atoms): atomic configuration to run.
             cid (int): integer configuration id; if not specified, defaults to
@@ -769,7 +778,12 @@ class Group(object):
             if not path.isdir(target):
                 mkdir(target)
 
-            if path.isfile(path.join(target,"uuid.txt")):
+            # At this point, not sure how to cover this branch for the unit test.
+            # the "target" directory is created on the fly when calling setup()
+            # (see test_simply.py).   
+            # That means, in the test code, we need to create a "uuid.txt" file under
+            # the "target" folder before "target" is created.
+            if path.isfile(path.join(target,"uuid.txt")): #pragma: no cover
                 with open(path.join(target,"uuid.txt"),"r") as f:
                     uid = f.readline().strip()
                     time_stamp = f.readline().strip()
@@ -779,7 +793,9 @@ class Group(object):
                 with open(path.join(target,"uuid.txt"),"w+") as f:
                     f.write("{0} \n {1}".format(uid,time_stamp))
 
-            if path.isfile(path.join(target,"atoms.h5")) and rewrite:
+            # This branch is the same as the above one. We need to fake the file "atoms.h5"
+            # under the folder "target" before "target" is created.
+            if path.isfile(path.join(target,"atoms.h5")) and rewrite: #pragma: no cover
                 from os import rename
                 back_up_path = back_up_path.replace('/','.')+'.atoms.h5'
                 new_path = path.join(self.rec_bin.root,"{}-atoms.h5".format(uid))
@@ -826,10 +842,11 @@ class Group(object):
     def ready(self):
         """Determines if this database has been completely initialized *and* has
         all its computations' results ready.
+
         .. note:: This method should be overloaded by a sub-class.
+
         Raises:
-            NotImplementedError: this method is intended to be overloaded by a
-            sub-class.
+            NotImplementedError: this method is intended to be overloaded by a sub-class.
         """
         raise NotImplementedError("Method `ready` must be overloaded by a "
                                   "sub-class.")
@@ -843,7 +860,9 @@ class Group(object):
         if len(self.sequence) == 0:
             #Test to see if we have already set the database up.
             confok = False
-            if (len(self.configs) == self.nconfigs or
+            #If there is zero new configs, we still need to create an empty iter_*.pkl 
+            #file in the database folder
+            if self.nconfigs != 0 and (len(self.configs) == self.nconfigs or
                 len(self.configs) > 0 and self.nconfigs is None):
                 imsg = "The {} database has already been setup."
                 msg.info(imsg.format(self.name), 2)
@@ -893,11 +912,10 @@ class Group(object):
             return False
 
     def status(self, print_msg=True):
-        """Returns a status message for statistics of sub-configuration
-        execution.
+        """Returns a status message for statistics of sub-configuration execution.
+
         Args:
-            print_msg (bool): when True, return a text message with aggregate status
-              information; otherwise, return a dict of the numbers involved
+            print_msg (bool): when True, return a text message with aggregate status information; otherwise, return a dict of the numbers involved.
         """
         from numpy import count_nonzero as cnz
         self._expand_sequence()
@@ -984,7 +1002,7 @@ class Group(object):
                 parts.append("{}.*/{}".format(self.prefix, fname))
 
             targs = ["tar", "-cvzf", filename, ' '.join(parts)]
-            # from matdb.utility import execute
+            from matdb.utility import execute
             execute(targs, self.root)
         else:
             for group in self.sequence.values():
@@ -992,6 +1010,7 @@ class Group(object):
 
     def extract(self, cleanup="default", asis=False):
         """Creates a hdf5 file for each atoms object in the group.
+
         Args:
             cleanup (str): the level of cleanup to perform after
               extraction.
@@ -1122,17 +1141,19 @@ def _conform_atoms(atoms, ekey, fkey, vkey, hesskey):
     return ati
 
 class Database(object):
-    """Represents a Database of groups (all inheriting from :class:`Group`) that
+    """Represents a Database of groups (all inheriting from :class:`~matdb.database.Group`) that
     are all related be the atomic configuration that they model.
+
     .. note:: See the list of attributes below which correspond to the sections
       in the YAML database specification file.
+
     Args:
         name (str): name of the configuration that this database sequence is
           operating for.
         root (str): root directory in which all other database sequences for
           the configurations in the same specification will be stored.
         parent (Controller): instance controlling multiple configurations.
-        steps (list): of `dict` describing the kinds of sub-configuration
+        steps (list): list of `dict` describing the kinds of sub-configuration
           database steps to setup.
         splits (dict): keys are split names; values are `float` *training*
           percentages to use.
@@ -1142,7 +1163,7 @@ class Database(object):
         title (str): title for the alloy system that these databases work with.
         config (str): name of the configuration that this database sequence is
           running for.
-        species (list): of `str` element names in the alloy system.
+        species (list): list of `str` element names in the alloy system.
         potcars (dict): keys are lower-case element names; values are *suffixes*
           for the various pseudo-potentials that ship with VASP.
         root (str): root directory in which all other database directories will
@@ -1260,8 +1281,8 @@ class Database(object):
         """Returns a generator over all the configurations in all sub-steps of
         this database.
         """
-        for dbname, db in self.isteps():
-            for config in db.isteps:
+        for dbname, db in self.isteps:
+            for config in db.iconfigs:
                 yield config
 
     @property
@@ -1281,9 +1302,9 @@ class Database(object):
     def recover(self, rerun=0):
         """Runs recovery on this database to determine which configs failed and
         then create a jobfile to requeue them for compute.
+
         Args:
-            rerun (int): when > 0, recreate the jobfile even if it
-              already exists.
+            rerun (int): when > 0, recreate the jobfile even if it already exists.
         """
         for dbname, db in self.steps.items():
             db.recover(rerun)
@@ -1291,9 +1312,9 @@ class Database(object):
     def status(self, busy=False):
         """Prints a status message for each of the databases relative
         to VASP execution status.
+
         Args:
-            busy (bool): when True, print a list of the configurations that are
-              still busy being computed in DFT.
+            busy (bool): when True, print a list of the configurations that are still busy being computed in DFT.
         """
         from matdb.msg import verbosity
         for dbname, db in self.isteps:
@@ -1312,10 +1333,11 @@ class Database(object):
     def execute(self, recovery=False, env_vars=None, dryrun=False):
         """Submits job array files for any of the databases that are ready to
         execute, but which haven't been submitted yet.
+
         Args:
             recovery (bool): when True, submit the script for running recovery
               jobs.
-            env_vars (dict): of environment variables to set before calling the
+            env_vars (dict): dict of environment variables to set before calling the
               execution. The variables will be set back after execution.
             dryrun (bool): when True, don't submit any jobs for execution, just
               say what would happen.
@@ -1404,10 +1426,8 @@ class Database(object):
     def setup(self, rerun=0):
         """Sets up the database collection by generating the POTCAR file and
         initializing any databases that haven't already been initialized.
-        .. note:: The db setup functions are setup to only execute once, and then
-           only if their dependencies have completed their calculations. This
-           method can, therefore, be safely called repeatedly between different
-           terminal sessions.
+
+        .. note:: The db setup functions are setup to only execute once, and then only if their dependencies have completed their calculations. This method can, therefore, be safely called repeatedly between different terminal sessions.
 
         Args:
             rerun (int): when > 0, recreate the folders even if they
@@ -1455,9 +1475,10 @@ class Database(object):
 
         return final_dict
 
-
-class RecycleBin(Database):
+# from Wiley's comments, no need to cover this class as of M1(2019-06)
+class RecycleBin(Database): #pragma: no cover
     """A database of past calculations to be stored for later use.
+
     Args:
         parent (Controller): instance controlling multiple configurations.
         root (str): root directory in which the 'RecycleBin' folder will
@@ -1518,12 +1539,13 @@ class RecycleBin(Database):
 
     def split(self, recalc=0, dfilter=None):
         """Splits the total available data in the recycle bin.
+
         Args:
             recalc (int): when non-zero, re-split the data and overwrite any
               existing *.h5 files. This parameter decreases as
               rewrites proceed down the stack. To re-calculate
               lower-level h5 files, increase this value.
-            dfilter (list): of `str` patterns to match against *database sequence*
+            dfilter (list): list of `str` patterns to match against *database sequence*
               names. This limits which databases sequences are returned.
         """
         from matdb.utility import chdir
@@ -1547,6 +1569,7 @@ class RecycleBin(Database):
 class Controller(object):
     """Implements methods for tying a configuration dictionary (in
     YAML format) to instances of various databases.
+
     Args:
         config (str): name of the YML file (without the .yml) that
           specifies all information for constructing the set of databases.
@@ -1584,7 +1607,7 @@ class Controller(object):
         name = self.specs["title"].strip().replace(' ', '_')
         with open(path.join(self.root, "NAME"), "w+") as f:
             f.write(name)        
-        _set_config_paths(name, root)
+        _set_config_paths(name, self.root)
         set_paths(self.specs)
 
         self.shell_command = "sbatch"
@@ -1650,7 +1673,7 @@ class Controller(object):
         """Returns a *filtered* generator over databases in the collections of this object.
 
         Args:
-            dfilter (list): of `str` patterns to match against *database*
+            dfilter (list): list of `str` patterns to match against *database*
               names. This limits which databases are returned.
         """
         from fnmatch import fnmatch
@@ -1661,6 +1684,7 @@ class Controller(object):
     def relpaths(self, pattern):
         """Finds the relative paths for the seed configurations within the databases that
         match to the pattern.
+
         Args:
             pattern (str): the pattern to match.
         """
@@ -1668,23 +1692,30 @@ class Controller(object):
         return parse_path(self.root,pattern,ran_seed=self.ran_seed)
 
     def find(self, pattern):
-        """Finds a list of :class:`matdb.database.basic.Group` that match the given
+        """Finds a list of :class:`~matdb.database.Group` that match the given
         pattern. The pattern is formed using `group.dbname[[.seed].params]`. `*`
         can be used as a wildcard for any portion of the '.'-separated path.
+
         .. note:: Actually, an :func:`~fnmatch.fnmatch` pattern can be used.
-        Args: pattern (str): fnmatch pattern that follows the convention of the
-        DB key. Alternatively the pattern can be a uuid. Examples:
+
+        Args: 
+            pattern (str): fnmatch pattern that follows the convention of the DB key. Alternatively the pattern can be a uuid. 
+
+        Examples:
 
             Get all the dynamical matrix databases for the `Pd`
             configuration. The example assumes that the database name is
             `phonon` and that it includes a dynamical matrix step.
-            >>> Pd = Controller("Pd.yml")
-            >>> Pd.find("DynMatrix.phonon.Pd.*")
+
+                >>> Pd = Controller("Pd.yml")
+                >>> Pd.find("DynMatrix.phonon.Pd.*")
+
             Get all the database sequences for liquids across all configurations in
             the database.
-            >>> CdWO4 = Controller("CdWO4.yml")
-            >>> CdWO4.find("*.liquid*")
-            >>> CdWO4.find(uuid)
+
+                >>> CdWO4 = Controller("CdWO4.yml")
+                >>> CdWO4.find("*.liquid*")
+                >>> CdWO4.find(uuid)
         """
         from matdb.utility import is_uuid4
         if is_uuid4(pattern):
@@ -1800,7 +1831,7 @@ class Controller(object):
                     return seq
             else:
                 return step
-        else:
+        else: #pragma: no cover
             msg.err("The group name {0} could not be found in the steps of "
                     "the database {1}".format(group.lower(),coll.steps.values()))
 
@@ -1810,7 +1841,7 @@ class Controller(object):
         Args:
             rerun (int): when > 0, recreate the folders even if they
               already exist.
-            dfilter (list): of `str` patterns to match against *database*
+            dfilter (list): list of `str` patterns to match against *database*
               names. This limits which databases sequences are returned.
         """
         try:
@@ -1833,7 +1864,7 @@ class Controller(object):
         """Runs extract on each of the configuration's databases.
 
         Args:
-            dfilter (list): of `str` patterns to match against *database*
+            dfilter (list): list of `str` patterns to match against *database*
               names. This limits which databases are returned.
             cleanup (str): the level of cleanup to perform after extraction.
             asis (bool): when True, read the results even if the calculation
@@ -1849,9 +1880,9 @@ class Controller(object):
         Args:
             recovery (bool): when True, submit the script for running recovery
               jobs.
-            dfilter (list): of `str` patterns to match against *database*
+            dfilter (list): list of `str` patterns to match against *database*
               names. This limits which databases are returned.
-            env_vars (dict): of environment variables to set before calling the
+            env_vars (dict): dict of environment variables to set before calling the
               execution. The variables will be set back after execution.
             dryrun (bool): when True, don't submit any jobs for execution, just
               say what would happen.
@@ -1864,10 +1895,8 @@ class Controller(object):
         then create a jobfile to requeue them for compute.
 
         Args:
-            rerun (bool): when True, recreate the jobfile even if it
-              already exists.
-            dfilter (list): of `str` patterns to match against *database*
-              names. This limits which databases are returned.
+            rerun (bool): when True, recreate the jobfile even if it already exists.
+            dfilter (list): list of `str` patterns to match against *database* names. This limits which databases are returned.
         """
         for dbname, dbi in self.ifiltered(dfilter):
             dbi.recover(rerun)
@@ -1878,7 +1907,7 @@ class Controller(object):
         Args:
             busy (bool): when True, print a list of the configurations that are
               still busy being computed in DFT.
-            dfilter (list): of `str` patterns to match against *database*
+            dfilter (list): list of `str` patterns to match against *database*
               names. This limits which databases are returned.
 
         """
@@ -1888,13 +1917,10 @@ class Controller(object):
     def split(self, recalc=0, dfilter=None):
         """Splits the total available data in all databases into a training and holdout
         set.
+
         Args:
-            recalc (int): when non-zero, re-split the data and overwrite any
-              existing *.h5 files. This parameter decreases as
-              rewrites proceed down the stack. To re-calculate
-              lower-level h5 files, increase this value.
-            dfilter (list): of `str` patterns to match against *database sequence*
-              names. This limits which databases sequences are returned.
+            recalc (int): when non-zero, re-split the data and overwrite any existing *.h5 files. This parameter decreases as rewrites proceed down the stack. To re-calculate lower-level h5 files, increase this value.
+            dfilter (list): list of `str` patterns to match against *database sequence* names. This limits which databases sequences are returned.
         """
         for dbname, dbi in self.ifiltered(dfilter):
             dbi.split(recalc)
@@ -1903,7 +1929,7 @@ class Controller(object):
         """Hashes the databases into a single hash.
 
         Args:
-            dfilter (list): of `str` patterns to match against *database*
+            dfilter (list): list of `str` patterns to match against *database*
               names. This limits which databases are returned.
         """
         hash_all = ''
@@ -1925,7 +1951,7 @@ class Controller(object):
 
         Args:
             hash_cand (str): The candidate hash to check.
-            dfilter (list): of `str` patterns to match against *database*
+            dfilter (list): list of `str` patterns to match against *database*
               names. This limits which databases are returned.
 
         Returns:
@@ -1936,8 +1962,9 @@ class Controller(object):
     def finalize(self, dfilter=None):
         """Creates the finalized version of the databases that were used for
         fitting the potential. Stored in final_{matdb.version}.h5.
+
         Args:
-            dfilter (list): of `str` patterns to match against *database*
+            dfilter (list): list of `str` patterns to match against *database*
               names. This limits which databases are returned.
         """
 

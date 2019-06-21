@@ -1,4 +1,8 @@
- #!/usr/bin/python
+"""Constructs the to-relax.cfg file for the mtp potential
+   to learn on for the desired system.
+"""
+
+#!/usr/bin/python
 def examples():
     """Prints examples of using the script to the console using colored output.
     """
@@ -16,7 +20,7 @@ def examples():
 
     msg.example(script, explain, contents, required, output, outputfmt, details)
 
-script_options = {}
+_script_options = {}
 """
 dict: default command-line arguments and their
     :meth:`argparse.ArgumentParser.add_argument` keyword arguments.
@@ -30,7 +34,7 @@ def _parser_options():
     from matdb import base
     pdescr = "MATDB MTP to-relax.cfg constructor"
     parser = argparse.ArgumentParser(parents=[base.bparser], description=pdescr)
-    for arg, options in script_options.items():
+    for arg, options in _script_options.items():
         parser.add_argument(arg, **options)
         
     args = base.exhandler(examples, parser)
@@ -44,6 +48,7 @@ def run(args):
     """
     
     import numpy as np
+    import json
     from matdb import msg
     from os import path
     from matdb.fitting.mtp import create_to_relax
@@ -57,7 +62,7 @@ def run(args):
         msg.err("Could not find 'to_relax.json' file needed for computation.")
         return
         
-    if args["status"]:
+    if "status" in args:
         cdb.trainers.status()
         
 if __name__ == '__main__': # pragma: no cover

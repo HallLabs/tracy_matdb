@@ -22,8 +22,7 @@ lines in the arb().
 """
 icols = ["red", "yellow", "cyan", "blue", "white", "green"]
 nocolor = False
-"""When true, the colored outputs all use the regular print() instead
-so that the stdout looks ordinary.
+"""When true, the colored outputs all use the regular print().
 """
 def printer(text, color=None, **kwargs):
     """Prints using color or standard print() depending on the value
@@ -114,14 +113,14 @@ def will_print(level=1):
 
 def warn(msg, level=0, prefix=True):
     """Prints the specified message as a warning; prepends "WARNING" to
-    the message, so that can be left off.
+    the message.
     """
     if will_print(level):
         printer(("WARNING: " if prefix else "") + msg, "yellow")
 
 def err(msg, level=-1, prefix=True):
     """Prints the specified message as an error; prepends "ERROR" to
-    the message, so that can be left off.
+    the message.
     """
     if will_print(level):
         printer(("ERROR: " if prefix else "") + msg, "red")

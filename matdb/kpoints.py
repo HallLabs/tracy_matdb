@@ -10,8 +10,8 @@ def find_qpoints(atoms, supercell):
     given supercell.
 
     Args:
-        atoms (matdb.Atoms): *primitive* atoms object.
-        supercell (numpy.ndarray): of shape `(3, 3)` or a list/tuple of shape 3
+        atoms (matdb.atoms.Atoms): *primitive* atoms object.
+        supercell (numpy.ndarray): array of shape `(3, 3)` or a list/tuple of shape 3
           or 9.
     """
     from kgridgen import kpointgeneration
@@ -60,7 +60,7 @@ def kpath(atoms):
     phonons should be sampled.
 
     Args:
-        atoms (matdb.Atoms): structure to get the path for.
+        atoms (matdb.atoms.Atoms): structure to get the path for.
 
     Returns:
 
@@ -107,7 +107,7 @@ def _mueller(target,atoms,mindistance=None):
     
     Args:
         target(str): path to the directory to create the KPOINTS file.
-        rmin (float): the cutoff for the k-point density by Mueller's
+        mindistance (float): the cutoff for the k-point density by Mueller's
             metric.
     """
 
@@ -122,6 +122,18 @@ def _mueller(target,atoms,mindistance=None):
     chdir(target)
     system("getKPoints")
     chdir(cur_dir)
+
+def _grkgridgen(target, atoms, kw_dict):
+    """Setsup the files for the GRkgridgen code to get the KPOINTS file.
+    """
+
+    kpgen = path.join(target,"KPGEN")
+    if not any([i in ["KPDENSITY", "KPPRA", "NKPTS", "KSPACING"] for i in kw_dict.keys()]):
+        raise ValueError("At least on of ['KPDENSITY', 'KPPRA', 'NKPTS', 'KSPACING'] "
+                         "must be set for the GRkgridgen code.")
+    with open(kgen, "w+") as f:
+        for k,v in kw_dict.items():
+            f.write("{0}={1}".format(k,v))
        
 def custom(target, key, atoms=None):
     """Creates the KPOINT file with the specified custom configuration
@@ -132,11 +144,12 @@ def custom(target, key, atoms=None):
           in.
         key (str): one of ['gamma'], specifies which custom KPOINTS
           file to generate (see note above).
-        atoms (matdb.Atoms): atoms object to generate KPOINTS for.
+        atoms (matdb.atoms.Atoms): atoms object to generate KPOINTS for.
     """
     select = {
         "gamma": _gamma_only,
-        "mueller": _mueller
+        "mueller": _mueller,
+        "grkgridgen": _grkgridgen
     }
     if key["method"] in select:
         method_args = key.copy()
