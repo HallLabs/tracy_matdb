@@ -1,5 +1,10 @@
 # Revision History for `matdb`
 
+## Revision 1.5.0
+- Finished testing repository for initial distribution.
+- Added LICENSE information to code base.
+- Fixed some minor commenting issues.
+
 ## Revision 1.4.2
 - Added 'mem_per_cpu' and 'mem' options to .sh templates.
 - Added the option to remove the first line from `mtp` file `relax.ini`.

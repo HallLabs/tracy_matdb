@@ -1,3 +1,19 @@
+#Copyright (C) 2019  HALL LABS
+#
+#This program is free software: you can redistribute it and/or modify
+#it under the terms of the GNU General Public License as published by
+#the Free Software Foundation, either version 3 of the License, or
+#(at your option) any later version.
+#
+#This program is distributed in the hope that it will be useful,
+#but WITHOUT ANY WARRANTY; without even the implied warranty of
+#MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#GNU General Public License for more details.
+#
+#You should have received a copy of the GNU General Public License
+#along with this program.  If not, see <https://www.gnu.org/licenses/>.
+#
+#If you have any questions contact: wmorgan@tracy.com
 """Data about elemental and alloy systems that doesn't change with time.
 """
 latpars ={"H": 3.75,"He": 3.57,"Li": 3.49,"Be": 2.29,"B": 8.73,"C": 3.57,"N": 4.039,

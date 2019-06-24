@@ -1,23 +1,22 @@
+#Copyright (C) 2019  HALL LABS
+#
+#This program is free software: you can redistribute it and/or modify
+#it under the terms of the GNU General Public License as published by
+#the Free Software Foundation, either version 3 of the License, or
+#(at your option) any later version.
+#
+#This program is distributed in the hope that it will be useful,
+#but WITHOUT ANY WARRANTY; without even the implied warranty of
+#MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#GNU General Public License for more details.
+#
+#You should have received a copy of the GNU General Public License
+#along with this program.  If not, see <https://www.gnu.org/licenses/>.
+#
+#If you have any questions contact: wmorgan@tracy.com
 """When producing hessians with the Hessian group, a supercell
    needs to be selected. This script streamlines the selection
    process for multiple seeds and sizes.
-
-Copyright (C) 2019  HALL LABS
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <https://www.gnu.org/licenses/>.
-
-If you have any questions contact: wmorgan@tracy.com
 """
 #!/usr/bin/python
 from os import path
@@ -78,7 +77,7 @@ def run(args):
     """Runs the matdb setup and cleanup to produce database files.
     """
     print("matdb  Copyright (C) 2019  HALL LABS")
-    print("This program comes with ABSOLUTELY NO WARRANTY."
+    print("This program comes with ABSOLUTELY NO WARRANTY.")
     print("This is free software, and you are welcome to redistribute it under "
           "certain conditions.")
     if args is None:
