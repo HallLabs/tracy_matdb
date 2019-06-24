@@ -12,3 +12,5 @@ mpld3
 seekpath
 tqdm
 PyYAML
+phonopy
+aflow

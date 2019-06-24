@@ -2,7 +2,10 @@
 
 Code for generating configuration databases to train interatomic potentials.
 
-The interatomic potentials are created using [MLIP](http://gitlab.skoltech.ru/shapeev/mlip). Which uses [Quantum Espresso](https://gitlab.com/QEF/q-e).
+The interatomic potentials are created using
+[MLIP](http://gitlab.skoltech.ru/shapeev/mlip). To train the potential
+Density Functional Theory (DFT) codes such as [Quantum
+Espresso](https://gitlab.com/QEF/q-e) or [VASP](https://www.vasp.at/) can be used.
 
 # Table of Contents
 
@@ -28,10 +31,29 @@ We describe the steps to run the project either on a local machine or a remote m
 
 # Quickstart Summary
 
-The project follows some high-level steps:
+This README details the steps needed to build and deploy docker images
+for `tracy_matdb`. Alternatively the code can also be installed and
+used on your local machine:
+
+```
+git clone git@github.com:NewVistas/tracy_matdb.git
+cd tracy_matdb
+pip install -e .
+```
+
+The docker project follows some high-level steps:
 - [Build](#Build-Containers-Locally)
 - Optional: [Upload](#Remote-Run-Using-AWS)
 - [Run](#Running-the-Project)
+
+Alternatively you can also install the project on your local machine:
+
+```
+git clone git@github.com:NewVistas/tracy_matdb.git
+cd tracy_matdb
+pip install -e .
+```
+
 
 # Build Containers Locally
 
