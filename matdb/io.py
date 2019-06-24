@@ -421,7 +421,7 @@ def read(context, yfile):
         raise ValueError(emsg.format(yfile, context))
 
     with open(target, 'r') as stream:
-        result = yaml.load(stream)
+        result = yaml.load(stream, Loader=yaml.FullLoader)
 
     #Determine the new context for recursive file links within the values of
     #this file.
