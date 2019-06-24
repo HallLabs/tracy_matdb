@@ -18,7 +18,7 @@ except ImportError:
 
 from os import path
 setup(name='matdb',
-      version='1.3.1',
+      version='1.5.0',
       description='Database generator for ML materials space.',
       long_description= "" if not path.isfile("README.md") else read_md('README.md'),
       author='HALL LABS',
@@ -31,13 +31,13 @@ setup(name='matdb',
                      'phonopy',
                      'termcolor'],
       install_requires=[
+          "numpy",
           "argparse",
           "ase",
           "pyparsing",
           "termcolor",
           "six",
           "numpy",
-          "phonopy",
           "requests",
           "beautifulsoup4",
           "tqdm",

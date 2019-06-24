@@ -1,7 +1,14 @@
+numpy
 argparse
 termcolor
 six
-numpy
-phonopy
 phenum
 h5py
+ase
+pytz
+beautifulsoup4
+html5lib
+mpld3
+seekpath
+tqdm
+PyYAML
