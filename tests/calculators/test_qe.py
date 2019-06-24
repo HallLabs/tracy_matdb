@@ -85,7 +85,7 @@ def test_qe_setup(tmpdir):
     assert "kpts" in calc.parameters
     assert calc.out_file == "test"
 
-    kwargs = {"potcars": {"directory":"~/codes/matdb/tests/qe",
+    kwargs = {"potcars": {"directory":path.join(reporoot, "tests/qe"),
                           "potentials": {"Al": "Al.pbe-n-kjpaw_psl.1.0.0.UPF",
                                          "Pd": "Pd_ONCV_PBE-1.0.upf"},
                           "versions": {"Al": ["2.0.1", ".5.1"], "Pd": ["2.0.1", "2.1.1"]}},
@@ -100,7 +100,7 @@ def test_qe_setup(tmpdir):
     assert "kspacing" in calc.parameters
     assert calc.out_file == "temp/test"
     
-    kwargs = {"potcars": {"directory":"~/codes/matdb/tests/qe",
+    kwargs = {"potcars": {"directory":path.join(reporoot, "tests/qe"),
                           "potentials": {"Al": "Al.pbe-n-kjpaw_psl.1.0.0.UPF",
                                          "Pd": "Pd_ONCV_PBE-1.0.upf"},
                           "versions": {"Al": ["2.0.1", ".5.1"], "Pd": ["2.0.1", "2.1.1"]}},
@@ -116,7 +116,7 @@ def test_chekc_potcar(tmpdir):
     """
     target = str(tmpdir.join("Qe"))        
     atm = Atoms("AlPd",positions=[[0, 0, 0],[0.5, 0.5, 0.5]])
-    kwargs = {"potcars": {"directory":"~/codes/matdb/tests/qe",
+    kwargs = {"potcars": {"directory":path.join(reporoot, "tests/qe"),
                           "potentials": {"Al": "Al.pbe-n-kjpaw_psl.1.0.0.UPF",
                                          "Pd": "Pd_ONCV_PBE-1.0.upf"},
                           "versions": {"Al": ["2.0.1", ".5.1"], "Pd": ["2.0.1", "2.1.1"]}},
@@ -143,7 +143,7 @@ def test_write_input_can_execute(tmpdir):
     """
     target = str(tmpdir.join("Qe"))     
     atm = Atoms("AlPd",positions=[[0, 0, 0],[0.5, 0.5, 0.5]])
-    kwargs = {"potcars": {"directory":"~/codes/matdb/tests/qe",
+    kwargs = {"potcars": {"directory":path.join(reporoot, "tests/qe"),
                           "potentials": {"Al": "Al.pbe-n-kjpaw_psl.1.0.0.UPF",
                                          "Pd": "Pd_ONCV_PBE-1.0.upf"},
                           "versions": {"Al": ["2.0.1", ".5.1"], "Pd": ["2.0.1", "2.1.1"]}},
@@ -171,7 +171,7 @@ def test_can_extract(tmpdir):
 
     target = str(tmpdir.join("Qe"))     
     atm = Atoms("AlPd",positions=[[0, 0, 0],[0.5, 0.5, 0.5]])
-    kwargs = {"potcars": {"directory":"~/codes/matdb/tests/qe",
+    kwargs = {"potcars": {"directory":path.join(reporoot, "tests/qe"),
                           "potentials": {"Al": "Al.pbe-n-kjpaw_psl.1.0.0.UPF",
                                          "Pd": "Pd_ONCV_PBE-1.0.upf"},
                           "versions": {"Al": ["2.0.1", ".5.1"], "Pd": ["2.0.1", "2.1.1"]}},
@@ -205,7 +205,7 @@ def test_extract(tmpdir):
     """
     target = str(tmpdir.join("Qe"))     
     atm = Atoms("AlPd",positions=[[0, 0, 0],[0.5, 0.5, 0.5]])
-    kwargs = {"potcars": {"directory":"~/codes/matdb/tests/qe",
+    kwargs = {"potcars": {"directory":path.join(reporoot, "tests/qe"),
                           "potentials": {"Al": "Al.pbe-n-kjpaw_psl.1.0.0.UPF",
                                          "Pd": "Pd_ONCV_PBE-1.0.upf"},
                           "versions": {"Al": ["2.0.1", ".5.1"], "Pd": ["2.0.1", "2.1.1"]}},
@@ -275,7 +275,7 @@ def test_set_static(tmpdir):
     """Tests the set static method.
     """
     atm = Atoms("AlPd",positions=[[0, 0, 0],[0.5, 0.5, 0.5]])
-    kwargs = {"potcars": {"directory":"~/codes/matdb/tests/qe",
+    kwargs = {"potcars": {"directory":path.join(reporoot, "tests/qe"),
                           "potentials": {"Al": "Al.pbe-n-kjpaw_psl.1.0.0.UPF",
                                          "Pd": "Pd_ONCV_PBE-1.0.upf"},
                           "versions": {"Al": ["2.0.1", ".5.1"], "Pd": ["2.0.1", "2.1.1"]}},
@@ -285,7 +285,7 @@ def test_set_static(tmpdir):
     stat = calc.set_static(kwargs)
     assert stat["input_data"]["control"]["calculation"] == "scf"
 
-    kwargs = {"potcars": {"directory":"~/codes/matdb/tests/qe",
+    kwargs = {"potcars": {"directory":path.join(reporoot, "tests/qe"),
                           "potentials": {"Al": "Al.pbe-n-kjpaw_psl.1.0.0.UPF",
                                          "Pd": "Pd_ONCV_PBE-1.0.upf"},
                           "versions": {"Al": ["2.0.1", ".5.1"], "Pd": ["2.0.1", "2.1.1"]}},
@@ -294,7 +294,7 @@ def test_set_static(tmpdir):
     stat = calc.set_static(kwargs)
     assert stat["input_data"]["control"]["calculation"] == "scf"
 
-    kwargs = {"potcars": {"directory":"~/codes/matdb/tests/qe",
+    kwargs = {"potcars": {"directory":path.join(reporoot, "tests/qe"),
                           "potentials": {"Al": "Al.pbe-n-kjpaw_psl.1.0.0.UPF",
                                          "Pd": "Pd_ONCV_PBE-1.0.upf"},
                           "versions": {"Al": ["2.0.1", ".5.1"], "Pd": ["2.0.1", "2.1.1"]}},
@@ -308,7 +308,7 @@ def test_read(tmpdir):
     
     target = str(tmpdir.join("Qe"))     
     atm = Atoms("AlPd",positions=[[0, 0, 0],[0.5, 0.5, 0.5]])
-    kwargs = {"potcars": {"directory":"~/codes/matdb/tests/qe",
+    kwargs = {"potcars": {"directory":path.join(reporoot, "tests/qe"),
                           "potentials": {"Al": "Al.pbe-n-kjpaw_psl.1.0.0.UPF",
                                          "Pd": "Pd_ONCV_PBE-1.0.upf"},
                           "versions": {"Al": ["2.0.1", ".5.1"], "Pd": ["2.0.1", "2.1.1"]}},
